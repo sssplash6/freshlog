@@ -77,6 +77,28 @@ export default async function SessionsPage({
     { href: "/sessions?view=scheduled", label: "Scheduled" },
   ];
 
+  // The programs this reader may filter by. One is not a choice — the whole
+  // list is already that program — so the select only appears for somebody who
+  // holds more than one, exactly as on /students and /mentors.
+  const programs = administers
+    ? await prisma.program.findMany({
+        where: programIds ? { id: { in: [...programIds] } } : {},
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      })
+    : [];
+  const programSelect =
+    programs.length > 1
+      ? [
+          {
+            name: "program",
+            label: "Program",
+            all: "All programs",
+            options: programs.map((p) => ({ value: p.id, label: p.name })),
+          },
+        ]
+      : [];
+
   const filters = (
     <FilterBar
       basePath={scheduled ? "/sessions?view=scheduled" : "/sessions"}
@@ -85,8 +107,9 @@ export default async function SessionsPage({
       dateRange={readDateWindow(params, now)}
       selects={
         scheduled
-          ? []
+          ? programSelect
           : [
+              ...programSelect,
               {
                 name: "attendance",
                 label: "Attendance",

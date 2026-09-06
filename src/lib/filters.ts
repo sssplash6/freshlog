@@ -346,10 +346,10 @@ export const SEARCH_LABEL: Record<SearchSurface, string> = {
 
 /* ------------------------------------------------------------ date range --- */
 
-export type DatePreset = "30d" | "90d" | "year";
+export type DatePreset = "week" | "30d" | "90d" | "year";
 
 /**
- * The three windows worth one click. Written as `FilterPreset`s so a date chip
+ * The four windows worth one click. Written as `FilterPreset`s so a date chip
  * and a filter chip are the same mechanism and the same markup, and so a list
  * that filters the FUTURE (the scheduled meetings tab) simply does not pass
  * them rather than needing a flag to hide them.
@@ -359,8 +359,15 @@ export type DatePreset = "30d" | "90d" | "year";
  * range would light the chip while the typed range went on deciding the answer.
  * It is the same rule read the other way that keeps the chip dark while a
  * range is typed.
+ *
+ * "This week" leads because it is the question people actually ask of a ledger
+ * — "how much did we deliver this week?" — and answering it used to mean
+ * typing two dates. It is the CALENDAR week, Monday to today, not a rolling
+ * seven days: somebody asking on Tuesday means since Monday, and a rolling
+ * window would quietly include half of last week.
  */
 export const DATE_PRESETS: readonly (FilterPreset & { value: DatePreset })[] = [
+  { value: "week", label: "This week", params: { period: "week", from: "", to: "" } },
   { value: "30d", label: "Last 30 days", params: { period: "30d", from: "", to: "" } },
   { value: "90d", label: "Last 90 days", params: { period: "90d", from: "", to: "" } },
   { value: "year", label: "This year", params: { period: "year", from: "", to: "" } },
@@ -463,6 +470,7 @@ export function readDateWindow(params: SearchParams, now: Date): DateWindow {
 
   const today = startOfProgramDay(now);
   const preset = readChoice(params, "period", {
+    week: "week",
     "30d": "30d",
     "90d": "90d",
     year: "year",
@@ -475,15 +483,24 @@ export function readDateWindow(params: SearchParams, now: Date): DateWindow {
   // bound. Counting is inclusive of today: "the last 30 days" that spans 31
   // calendar days is simply a wrong label, and the old one did.
   const daysBack = (days: number) => new Date(today.getTime() - (days - 1) * DAY_MS);
+  // Monday of the program-local week `today` falls in. getUTCDay() is 0 on
+  // Sunday, which belongs to the week that started six days earlier — the one
+  // case an ISO week and a naive `day - 1` disagree about.
+  const monday = () => {
+    const weekday = today.getUTCDay();
+    return new Date(today.getTime() - ((weekday + 6) % 7) * DAY_MS);
+  };
   const window =
-    preset === "30d"
-      ? { from: daysBack(30), label: "the last 30 days" }
-      : preset === "90d"
-        ? { from: daysBack(90), label: "the last 90 days" }
-        : {
-            from: new Date(Date.UTC(today.getUTCFullYear(), 0, 1)),
-            label: `${today.getUTCFullYear()}`,
-          };
+    preset === "week"
+      ? { from: monday(), label: "this week" }
+      : preset === "30d"
+        ? { from: daysBack(30), label: "the last 30 days" }
+        : preset === "90d"
+          ? { from: daysBack(90), label: "the last 90 days" }
+          : {
+              from: new Date(Date.UTC(today.getUTCFullYear(), 0, 1)),
+              label: `${today.getUTCFullYear()}`,
+            };
 
   return {
     ...window,

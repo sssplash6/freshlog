@@ -223,6 +223,13 @@ export default async function ProgramOverviewPage({
           : "No sessions have been logged in this program"}
         {` · ${formatDuration(totals.completed)} logged`}
         {totals.missed > 0 && ` · ${formatDuration(totals.missed)} missed`}
+        {" · "}
+        {/* The figures above are lifetime. This is how somebody asks the same
+            question of a week: the ledger, already filtered to this program,
+            with the date chips on it. */}
+        <ArrowLink href={`/sessions?program=${program.id}`} className="text-[13px]">
+          All sessions
+        </ArrowLink>
       </p>
     </div>
   );

@@ -337,10 +337,28 @@ describe("the date window", () => {
     expect(window.fromValue).toBe("2026-08-03");
   });
 
+  it("reads This week as Monday to the end of today, on the program's clock", () => {
+    // NOW is Friday 4 September 2026, 09:00 UTC — which is already the
+    // afternoon in Tashkent, and the same calendar day either way.
+    const window = readDateWindow({ period: "week" }, NOW);
+    expect(window.from).toEqual(new Date("2026-08-31T00:00:00.000Z"));
+    expect(window.to).toEqual(new Date("2026-09-04T23:59:59.999Z"));
+    expect(window.label).toBe("this week");
+  });
+
+  it("puts Sunday in the week that started six days earlier, not its own", () => {
+    // The one day an ISO week and a naive `day - 1` disagree about: getUTCDay
+    // is 0 on Sunday, so subtracting it would leave Sunday as its own Monday.
+    const sunday = new Date("2026-09-06T09:00:00Z");
+    expect(readDateWindow({ period: "week" }, sunday).from).toEqual(
+      new Date("2026-08-31T00:00:00.000Z")
+    );
+  });
+
   it("lets a date chip replace a typed range rather than losing to it", () => {
     // A typed range beats a preset, so a chip that only set `period` would
     // light up while the typed range went on deciding the answer.
-    const thirty = DATE_PRESETS[0];
+    const thirty = DATE_PRESETS.find((p) => p.value === "30d")!;
     expect(presetIsActive({ period: "30d" }, thirty)).toBe(true);
     expect(presetIsActive({ period: "30d", from: "2026-08-01" }, thirty)).toBe(false);
     expect(presetHref("/sessions", { from: "2026-08-01", to: "2026-08-31" }, thirty)).toBe(
@@ -389,6 +407,14 @@ describe("scope, which a param may narrow and never widen", () => {
     // A signed-out or partly-built scope must not produce `mentorId: ""`,
     // which is a filter for a mentor who does not exist.
     expect(clauses(sessionsWhere({ mentor: "me" }, {}, NOW))).toEqual([]);
+  });
+
+  it("filters sessions by the program the SESSION was in", () => {
+    // Not by the student's program: a student may be in two, and "this
+    // program's sessions" has to mean the meetings that drew this program's
+    // hours down rather than every meeting that person ever had.
+    const where = sessionsWhere({ program: "p1" }, {}, NOW);
+    expect(clauses(where)).toContainEqual({ programId: "p1" });
   });
 
   it("scopes feedback by the student's program, not the mentor's", () => {
