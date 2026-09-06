@@ -357,15 +357,21 @@ describe("the date window", () => {
 describe("scope, which a param may narrow and never widen", () => {
   it("applies a leader's program grant with no params at all", () => {
     const where = studentsWhere({}, { programIds: ["p1", "p2"] }, NOW);
-    expect(clauses(where)).toContainEqual({ programId: { in: ["p1", "p2"] } });
+    expect(clauses(where)).toContainEqual({
+      enrollments: { some: { programId: { in: ["p1", "p2"] } } },
+    });
   });
 
   it("returns nothing for a program outside the grant, never the whole school", () => {
     const where = studentsWhere({ program: "p9" }, { programIds: ["p1"] }, NOW);
     // Both clauses stand, so the AND is unsatisfiable — there is no branch in
     // which a pasted id could replace the grant.
-    expect(clauses(where)).toContainEqual({ programId: { in: ["p1"] } });
-    expect(clauses(where)).toContainEqual({ programId: "p9" });
+    expect(clauses(where)).toContainEqual({
+      enrollments: { some: { programId: { in: ["p1"] } } },
+    });
+    expect(clauses(where)).toContainEqual({
+      enrollments: { some: { programId: "p9" } },
+    });
   });
 
   it("keeps a mentor's lens on top of whatever they filter by", () => {
@@ -390,7 +396,9 @@ describe("scope, which a param may narrow and never widen", () => {
     // MENTOR's program, so a comment a shared mentor received about another
     // program's student was readable.
     const where = feedbackWhere({}, { programIds: ["p1"] }, NOW);
-    expect(clauses(where)).toContainEqual({ student: { programId: { in: ["p1"] } } });
+    expect(clauses(where)).toContainEqual({
+      student: { enrollments: { some: { programId: { in: ["p1"] } } } },
+    });
   });
 
   it("always pins a notification feed to its owner", () => {

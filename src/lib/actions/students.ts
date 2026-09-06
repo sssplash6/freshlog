@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { assertProgramScope } from "@/lib/authz";
+import { assertProgramScope, assertStudentScope } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { notify, notificationHref, staffIdsFor } from "@/lib/notify";
@@ -28,6 +28,7 @@ import {
 } from "@/lib/actions/shared";
 import { emailConfigured } from "@/lib/email/send";
 import { sendWelcomeEmails, welcomeMail } from "@/lib/email/welcome";
+import { enrollmentsLabel } from "@/lib/enrollments";
 import type { Cohort, Program } from "@/generated/prisma/client";
 
 /** "Program" or "Program / Cohort" display label. */
@@ -119,14 +120,58 @@ export async function createStudents(
     .map((r) => `${r.email} (no full name)`);
   const valid = withFolders.filter((r) => EMAIL_RE.test(r.email) && r.name);
 
+  // An address already in the system is one of three things, and they are not
+  // the same news. A student already in THIS program is a duplicate row. A
+  // student in another program is somebody moving up — Global Admissions to the
+  // Master's Program is the ordinary path through this school — and pasting
+  // their address into this form is how an admin says so, so they are enrolled
+  // rather than refused. Anybody who is not a student keeps their account.
   const existing = await prisma.user.findMany({
     where: { email: { in: valid.map((r) => r.email) } },
-    select: { email: true },
+    select: {
+      email: true,
+      role: true,
+      studentProfile: {
+        select: { id: true, enrollments: { select: { programId: true } } },
+      },
+    },
   });
-  const taken = new Set(existing.map((u) => u.email));
-  const fresh = valid.filter((r) => !taken.has(r.email));
+  const byEmail = new Map(existing.map((u) => [u.email, u]));
+  const alreadyHere: string[] = [];
+  const notStudents: string[] = [];
+  /** Existing students to add this program to. */
+  const enrolling: { email: string; name: string; profileId: string }[] = [];
+  const fresh: typeof valid = [];
+  for (const r of valid) {
+    const found = byEmail.get(r.email);
+    if (!found) {
+      fresh.push(r);
+    } else if (!found.studentProfile || found.role !== ROLES.STUDENT) {
+      notStudents.push(`${r.email} (already registered, not a student)`);
+    } else if (
+      found.studentProfile.enrollments.some((e) => e.programId === program.id)
+    ) {
+      alreadyHere.push(`${r.email} (already in this program)`);
+    } else {
+      enrolling.push({
+        email: r.email,
+        name: r.name,
+        profileId: found.studentProfile.id,
+      });
+    }
+  }
 
   await prisma.$transaction(async (tx) => {
+    for (const { profileId } of enrolling) {
+      await tx.studentEnrollment.create({
+        data: {
+          studentId: profileId,
+          programId: program.id,
+          cohortId: cohort?.id ?? null,
+          createdById: actor.id,
+        },
+      });
+    }
     for (const { email, name, folderUrl } of fresh) {
       const studentUser = await tx.user.create({
         data: {
@@ -139,10 +184,18 @@ export async function createStudents(
       await tx.studentProfile.create({
         data: {
           userId: studentUser.id,
-          programId: program.id,
-          cohortId: cohort?.id ?? null,
           folderUrl,
           createdById: actor.id,
+          // The membership, made with the account. A student with a profile and
+          // no enrollment is in no program: nobody administers them, no mentor
+          // reaches them, and no list has anywhere to show them.
+          enrollments: {
+            create: {
+              programId: program.id,
+              cohortId: cohort?.id ?? null,
+              createdById: actor.id,
+            },
+          },
         },
       });
     }
@@ -150,8 +203,10 @@ export async function createStudents(
 
   // Queued only now, with the accounts committed: a welcome for a student the
   // rollback erased must never leave (see the warning in lib/email/send.ts).
+  // An existing student is welcomed to the new program too — it is news to
+  // them, and the sign-in link in it is the one they already use.
   sendWelcomeEmails(
-    fresh.map(({ email, name }) =>
+    [...fresh, ...enrolling].map(({ email, name }) =>
       welcomeMail({
         to: email,
         name,
@@ -161,12 +216,30 @@ export async function createStudents(
     )
   );
 
-  const skipped = [
-    ...[...taken].map((e) => `${e} (already registered)`),
-    ...invalid,
-    ...nameless,
-  ];
-  if (fresh.length === 0) {
+  // The people already here are told, since a second program is a second set of
+  // hours and deadlines to watch for.
+  if (enrolling.length > 0) {
+    await prisma.$transaction(async (tx) => {
+      for (const { profileId } of enrolling) {
+        const profile = await tx.studentProfile.findUnique({
+          where: { id: profileId },
+          select: { userId: true },
+        });
+        if (!profile) continue;
+        await notify(tx, {
+          to: [profile.userId],
+          type: NOTIFICATION_TYPES.ENROLLMENT_MOVED,
+          actorId: actor.id,
+          href: notificationHref.studentHome(),
+          message: `You were enrolled in ${enrollmentLabel(program.name, cohort?.name)}. Your time in your other programs is unchanged.`,
+        });
+      }
+    });
+  }
+
+  const skipped = [...alreadyHere, ...notStudents, ...invalid, ...nameless];
+  const added = fresh.length + enrolling.length;
+  if (added === 0) {
     return {
       ok: false,
       error: `No students added. ${skipped.join(", ")}.`,
@@ -174,13 +247,18 @@ export async function createStudents(
   }
 
   revalidatePath("/", "layout");
+  const alsoEnrolled =
+    enrolling.length > 0
+      ? ` ${enrolling.length} of them already had an account and ${enrolling.length === 1 ? "was" : "were"} enrolled alongside their other programs.`
+      : "";
   return {
     ok: true,
     message:
-      `${fresh.length} student${fresh.length === 1 ? "" : "s"} added to ${enrollmentLabel(program.name, cohort?.name)}. ` +
-      `They'll confirm their Telegram username when they first sign in.` +
+      `${added} student${added === 1 ? "" : "s"} added to ${enrollmentLabel(program.name, cohort?.name)}.` +
+      alsoEnrolled +
+      ` They'll confirm their Telegram username when they first sign in.` +
       (emailConfigured()
-        ? ` A welcome email is on its way to ${fresh.length === 1 ? "them" : "each of them"}.`
+        ? ` A welcome email is on its way to ${added === 1 ? "them" : "each of them"}.`
         : "") +
       (skipped.length > 0 ? ` Skipped: ${skipped.join(", ")}.` : ""),
   };
@@ -202,11 +280,11 @@ export async function setStudentFolder(
   const profileId = String(formData.get("studentProfileId") ?? "");
   const profile = await prisma.studentProfile.findUnique({
     where: { id: profileId },
-    include: { user: true },
+    include: { user: true, enrollments: { select: { programId: true } } },
   });
   if (!profile) return { ok: false, error: "Student not found." };
 
-  const denied = await assertProgramScope(actor, profile.programId);
+  const denied = await assertStudentScope(actor, profile);
   if (denied) return denied;
 
   const link = parseLinkField(formData.get("folderUrl"), "The folder link");
@@ -312,10 +390,15 @@ export async function completeOnboarding(
     const created = await tx.studentProfile.create({
       data: {
         userId: actor.id,
-        programId: program.id,
-        cohortId: cohort?.id ?? null,
         telegramUsername: telegram.value,
         createdById: actor.id,
+        enrollments: {
+          create: {
+            programId: program.id,
+            cohortId: cohort?.id ?? null,
+            createdById: actor.id,
+          },
+        },
       },
     });
     await notify(tx, {
@@ -353,7 +436,10 @@ export async function setStudentEmail(
   const profileId = String(formData.get("studentProfileId") ?? "");
   const profile = await prisma.studentProfile.findUnique({
     where: { id: profileId },
-    include: { user: true, program: true, cohort: true },
+    include: {
+      user: true,
+      enrollments: { include: { program: true, cohort: true } },
+    },
   });
   if (!profile) return { ok: false, error: "Student not found." };
 
@@ -363,7 +449,7 @@ export async function setStudentEmail(
   // it. A student holds none, so this edit reaches no further than the program
   // the editor already administers — and replacing an imported placeholder with
   // a real address is that program's own work to finish.
-  const denied = await assertProgramScope(actor, profile.programId);
+  const denied = await assertStudentScope(actor, profile);
   if (denied) return denied;
 
   const email = normalizeEmail(formData.get("email"));
@@ -393,7 +479,7 @@ export async function setStudentEmail(
       welcomeMail({
         to: email,
         name: profile.user.name,
-        programLabel: enrollmentLabel(profile.program.name, profile.cohort?.name),
+        programLabel: enrollmentsLabel(profile.enrollments),
         occasion: "enrolled",
       }),
     ]);
@@ -411,10 +497,20 @@ export async function setStudentEmail(
 }
 
 /**
- * Move a student to a different cohort or program (admin correction for
- * mis-enrollments). Hour allocations and session history follow the student
- * untouched; the student is notified. Mentors visible to the student change
- * with the enrollment.
+ * Move ONE of a student's enrollments to a different program or cohort — the
+ * correction for a mis-enrollment.
+ *
+ * It moves the membership and nothing else. Hours, sessions and tasks name the
+ * program they belong to now, and they stay where they are: a student put in
+ * the wrong program on Monday and moved on Tuesday has no history yet, and one
+ * moved after six months of meetings must not have those meetings silently
+ * reattributed to a program that never delivered them. Where history exists the
+ * honest act is to enroll them in the new program and leave the old one
+ * standing, which is what `enrollStudent` is for.
+ *
+ * A move onto a program the student is already in is refused rather than
+ * merged — two enrollments cannot become one without deciding what happens to
+ * two ledgers, and nobody asked for that.
  */
 export async function moveStudent(
   _prev: ActionState,
@@ -424,17 +520,38 @@ export async function moveStudent(
   if (!actor) return { ok: false, error: "Sign in to do that." };
 
   const profileId = String(formData.get("studentProfileId") ?? "");
+  // Which enrollment is moving. Absent means the student has exactly one, and
+  // the form did not have to ask.
+  const enrollmentId = String(formData.get("enrollmentId") ?? "").trim();
   const profile = await prisma.studentProfile.findUnique({
     where: { id: profileId },
-    include: { user: true, program: true, cohort: true },
+    include: {
+      user: true,
+      enrollments: { include: { program: true, cohort: true } },
+    },
   });
   if (!profile) return { ok: false, error: "Student not found." };
+
+  const from = enrollmentId
+    ? profile.enrollments.find((e) => e.id === enrollmentId)
+    : profile.enrollments.length === 1
+      ? profile.enrollments[0]
+      : undefined;
+  if (!from) {
+    return {
+      ok: false,
+      error:
+        profile.enrollments.length > 1
+          ? "Pick which program to move them out of."
+          : "That enrollment isn't one of theirs.",
+    };
+  }
 
   // A move writes to two programs, so BOTH are gated. Gating only the
   // destination would let an admin of one program pull a student out of a
   // program they have no part in; gating only the source would let them push a
   // student into somebody else's.
-  const deniedSource = await assertProgramScope(actor, profile.programId);
+  const deniedSource = await assertProgramScope(actor, from.programId);
   if (deniedSource) return deniedSource;
 
   const enrollment = await resolveEnrollment(formData);
@@ -444,19 +561,25 @@ export async function moveStudent(
   const deniedTarget = await assertProgramScope(actor, program.id);
   if (deniedTarget) return deniedTarget;
 
-  if (
-    program.id === profile.programId &&
-    (cohort?.id ?? null) === profile.cohortId
-  ) {
+  if (program.id === from.programId && (cohort?.id ?? null) === from.cohortId) {
     return { ok: true, message: "No change: they're already enrolled there." };
   }
+  if (
+    program.id !== from.programId &&
+    profile.enrollments.some((e) => e.programId === program.id)
+  ) {
+    return {
+      ok: false,
+      error: `They are already in ${program.name}. Remove one of the two enrollments instead of merging them.`,
+    };
+  }
 
-  const from = enrollmentLabel(profile.program.name, profile.cohort?.name);
+  const fromLabel = enrollmentLabel(from.program.name, from.cohort?.name);
   const to = enrollmentLabel(program.name, cohort?.name);
 
   await prisma.$transaction(async (tx) => {
-    await tx.studentProfile.update({
-      where: { id: profile.id },
+    await tx.studentEnrollment.update({
+      where: { id: from.id },
       data: { programId: program.id, cohortId: cohort?.id ?? null },
     });
     await notify(tx, {
@@ -464,14 +587,168 @@ export async function moveStudent(
       type: NOTIFICATION_TYPES.ENROLLMENT_MOVED,
       actorId: actor.id,
       href: notificationHref.studentHome(),
-      message: `Your enrollment was moved from ${from} to ${to}. Your time and session history came with you.`,
+      message: `Your enrollment was moved from ${fromLabel} to ${to}. Your time and session history stayed with ${fromLabel}.`,
     });
   });
 
   revalidatePath("/", "layout");
   return {
     ok: true,
-    message: `${profile.user.name ?? profile.user.email} moved from ${from} to ${to}.`,
+    message: `${profile.user.name ?? profile.user.email} moved from ${fromLabel} to ${to}.`,
+  };
+}
+
+/**
+ * Add a program to a student who is already in one — the ordinary path through
+ * this school, Global Admissions and then the Master's Program, and the reason
+ * an enrollment is a row rather than a column.
+ *
+ * Gated on the TARGET program only. Enrolling somebody into a program you
+ * administer is a decision about your own program, and requiring the source
+ * program's blessing as well would mean an admin could not take a student the
+ * other program's admin has no opinion about. What it does NOT grant is any new
+ * reach over the student's existing programs — the ledger stays per program,
+ * and `studentScope` still narrows what this admin can read.
+ */
+export async function enrollStudent(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+
+  const profileId = String(formData.get("studentProfileId") ?? "");
+  const profile = await prisma.studentProfile.findUnique({
+    where: { id: profileId },
+    include: { user: true, enrollments: { select: { programId: true } } },
+  });
+  if (!profile) return { ok: false, error: "Student not found." };
+
+  const enrollment = await resolveEnrollment(formData);
+  if ("error" in enrollment) return { ok: false, error: enrollment.error };
+  const { program, cohort } = enrollment;
+
+  const denied = await assertProgramScope(actor, program.id);
+  if (denied) return denied;
+
+  if (profile.enrollments.some((e) => e.programId === program.id)) {
+    return { ok: true, message: `They are already in ${program.name}.` };
+  }
+
+  const label = enrollmentLabel(program.name, cohort?.name);
+  await prisma.$transaction(async (tx) => {
+    await tx.studentEnrollment.create({
+      data: {
+        studentId: profile.id,
+        programId: program.id,
+        cohortId: cohort?.id ?? null,
+        createdById: actor.id,
+      },
+    });
+    await notify(tx, {
+      to: [profile.userId],
+      type: NOTIFICATION_TYPES.ENROLLMENT_MOVED,
+      actorId: actor.id,
+      href: notificationHref.studentHome(),
+      message: `You were enrolled in ${label}. Your time in your other programs is unchanged — this program grants its own.`,
+    });
+  });
+
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: `${profile.user.name ?? profile.user.email} is now in ${label}. Allocate their hours for it next.`,
+  };
+}
+
+/**
+ * Take a student out of ONE program, leaving the rest of their record alone.
+ *
+ * Refused once anything happened in that program. A session is history, and a
+ * grant is a promise somebody made: removing the enrollment under either would
+ * leave rows pointing at a program the student is no longer in, which every
+ * list would then have to decide what to do with. Empty enrollments — the
+ * mis-click, the student who never started — go quietly.
+ *
+ * Also refused for the LAST one. A student in no program is invisible: no
+ * admin's scope contains them, no mentor reaches them, and no list can show
+ * them to be put right. Deleting the student is the operation that means that,
+ * and it is `deleteStudent`, which says so.
+ */
+export async function unenrollStudent(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+
+  const enrollmentId = String(formData.get("enrollmentId") ?? "");
+  const enrollment = await prisma.studentEnrollment.findUnique({
+    where: { id: enrollmentId },
+    include: {
+      program: true,
+      cohort: true,
+      student: {
+        include: { user: true, enrollments: { select: { id: true } } },
+      },
+    },
+  });
+  if (!enrollment) return { ok: false, error: "Enrollment not found." };
+
+  const denied = await assertProgramScope(actor, enrollment.programId);
+  if (denied) return denied;
+
+  if (enrollment.student.enrollments.length === 1) {
+    return {
+      ok: false,
+      error:
+        "This is their only program, and a student has to be in one. Move them to another program, or delete the student.",
+    };
+  }
+
+  const [sessions, allocations] = await Promise.all([
+    prisma.session.count({
+      where: { studentId: enrollment.studentId, programId: enrollment.programId },
+    }),
+    prisma.hourAllocation.count({
+      where: { studentId: enrollment.studentId, programId: enrollment.programId },
+    }),
+  ]);
+  if (sessions > 0) {
+    return {
+      ok: false,
+      error: `They have logged sessions in ${enrollment.program.name}, so their place in it is history rather than a mistake. Void the sessions first if it truly must go.`,
+    };
+  }
+  if (allocations > 0) {
+    return {
+      ok: false,
+      error: `They still hold time in ${enrollment.program.name}. Remove those allocations first.`,
+    };
+  }
+
+  const label = enrollmentLabel(enrollment.program.name, enrollment.cohort?.name);
+  await prisma.$transaction(async (tx) => {
+    // Nothing was logged and nothing was granted (both checked above), so the
+    // only rows that can point at this program are tasks that were planned and
+    // never started.
+    await tx.assignment.deleteMany({
+      where: { studentId: enrollment.studentId, programId: enrollment.programId },
+    });
+    await tx.studentEnrollment.delete({ where: { id: enrollment.id } });
+    await notify(tx, {
+      to: [enrollment.student.userId],
+      type: NOTIFICATION_TYPES.ENROLLMENT_MOVED,
+      actorId: actor.id,
+      href: notificationHref.studentHome(),
+      message: `You were taken off ${label}. Your other programs are unchanged.`,
+    });
+  });
+
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: `${enrollment.student.user.name ?? enrollment.student.user.email} is no longer in ${label}.`,
   };
 }
 
@@ -490,12 +767,30 @@ export async function deleteStudent(
   const profileId = String(formData.get("studentProfileId") ?? "");
   const profile = await prisma.studentProfile.findUnique({
     where: { id: profileId },
-    include: { user: true, _count: { select: { sessions: true } } },
+    include: {
+      user: true,
+      enrollments: { select: { id: true, programId: true } },
+      _count: { select: { sessions: true } },
+    },
   });
   if (!profile) return { ok: false, error: "Student not found." };
 
-  const denied = await assertProgramScope(actor, profile.programId);
+  // Deleting the PERSON takes every program with them, so it is not enough to
+  // administer one: an admin of Global Admissions must not be able to erase a
+  // student's Master's Program record on their way past. Every program they are
+  // in has to be one of yours.
+  const denied = await assertStudentScope(actor, profile);
   if (denied) return denied;
+  for (const e of profile.enrollments) {
+    const outside = await assertProgramScope(actor, e.programId);
+    if (outside) {
+      return {
+        ok: false,
+        error:
+          "They are also in a program you don't administer, so their record isn't yours to delete. Take them off your program instead.",
+      };
+    }
+  }
 
   if (profile._count.sessions > 0) {
     return {
@@ -513,12 +808,15 @@ export async function deleteStudent(
     await tx.assignment.deleteMany({ where: { studentId: profile.id } });
     await tx.mentorFeedback.deleteMany({ where: { studentId: profile.id } });
     await tx.notification.deleteMany({ where: { userId: profile.userId } });
+    // Enrollments cascade with the profile (schema.prisma), so they are not
+    // deleted here — naming them would only be a second place to keep in step.
     await tx.studentProfile.delete({ where: { id: profile.id } });
     await tx.user.delete({ where: { id: profile.userId } });
   });
 
+  const back = profile.enrollments[0]?.programId;
   revalidatePath("/", "layout");
-  redirect(`/programs/${profile.programId}/students`);
+  redirect(back ? `/programs/${back}/students` : "/students");
 }
 
 /**
@@ -537,16 +835,23 @@ export async function approveStudent(
   const profileId = String(formData.get("studentProfileId") ?? "");
   const profile = await prisma.studentProfile.findUnique({
     where: { id: profileId },
-    include: { user: true, program: true, cohort: true },
+    include: {
+      user: true,
+      enrollments: { include: { program: true, cohort: true } },
+    },
   });
   if (!profile) return { ok: false, error: "Student not found." };
 
-  const denied = await assertProgramScope(actor, profile.programId);
+  const denied = await assertStudentScope(actor, profile);
   if (denied) return denied;
 
   if (profile.user.status !== USER_STATUS.PENDING) {
     return { ok: true, message: "This student is already approved." };
   }
+
+  // Approval is of the ACCOUNT, so the sentence names every program they signed
+  // up for rather than one an admin happens to be looking at.
+  const programLabel = enrollmentsLabel(profile.enrollments);
 
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
@@ -558,7 +863,7 @@ export async function approveStudent(
       type: NOTIFICATION_TYPES.ACCOUNT_APPROVED,
       actorId: actor.id,
       href: notificationHref.studentHome(),
-      message: `Your registration for ${enrollmentLabel(profile.program.name, profile.cohort?.name)} was approved. You'll be notified as mentor hours are allocated to you.`,
+      message: `Your registration for ${programLabel} was approved. You'll be notified as mentor hours are allocated to you.`,
     });
   });
 
@@ -566,7 +871,7 @@ export async function approveStudent(
     welcomeMail({
       to: profile.user.email,
       name: profile.user.name,
-      programLabel: enrollmentLabel(profile.program.name, profile.cohort?.name),
+      programLabel,
       occasion: "approved",
     }),
   ]);
@@ -594,11 +899,15 @@ export async function rejectStudent(
   const profileId = String(formData.get("studentProfileId") ?? "");
   const profile = await prisma.studentProfile.findUnique({
     where: { id: profileId },
-    include: { user: true, _count: { select: { sessions: true } } },
+    include: {
+      user: true,
+      enrollments: { select: { programId: true } },
+      _count: { select: { sessions: true } },
+    },
   });
   if (!profile) return { ok: false, error: "Student not found." };
 
-  const denied = await assertProgramScope(actor, profile.programId);
+  const denied = await assertStudentScope(actor, profile);
   if (denied) return denied;
 
   if (profile.user.status !== USER_STATUS.PENDING) {
@@ -667,17 +976,43 @@ export async function setMentorAllocation(
 
   const profile = await prisma.studentProfile.findUnique({
     where: { id: profileId },
-    include: { user: true, program: true },
+    include: {
+      user: true,
+      enrollments: { include: { program: true } },
+    },
   });
   if (!profile) return { ok: false, error: "Student not found." };
 
-  const denied = await assertProgramScope(actor, profile.programId);
+  // WHICH program these hours are granted in. A grant is program time: it has
+  // that program's deadline, it appears in that program's totals, and only its
+  // admins may touch it. The form names it; a student in exactly one program
+  // has it filled in for them and is never asked.
+  const enrolled = profile.enrollments.find(
+    (e) => e.programId === String(formData.get("programId") ?? "").trim()
+  );
+  const target =
+    enrolled ?? (profile.enrollments.length === 1 ? profile.enrollments[0] : null);
+  if (!target) {
+    return {
+      ok: false,
+      error:
+        profile.enrollments.length > 1
+          ? "Pick which program these hours are for."
+          : "This student isn't in any program yet.",
+    };
+  }
+  const program = target.program;
+
+  // Gated on the TARGET program, not on "any program of theirs": an admin of
+  // Global Admissions must not be able to grant, extend or re-date the time a
+  // student holds in the Master's Program.
+  const denied = await assertProgramScope(actor, program.id);
   if (denied) return denied;
 
   // Programs that bill per student also record what was paid. A column on the
   // program, not a comparison against its name: renaming a program must not
   // change what the app collects.
-  const tracksPayment = profile.program.tracksPayment;
+  const tracksPayment = program.tracksPayment;
   let enteredPaid: number | null = null;
   if (tracksPayment) {
     const raw = String(formData.get("amountPaid") ?? "").trim();
@@ -703,18 +1038,25 @@ export async function setMentorAllocation(
   // student), assign them program-wide as part of this action.
   const inProgram = mentorId
     ? await prisma.mentorAssignment.findFirst({
-        where: { mentorId, programId: profile.programId },
+        where: { mentorId, programId: program.id },
       })
     : null;
 
   // The compound unique can't address the pool row (SQLite NULLs are distinct
-  // there), so the pool is found by filter and kept single here.
+  // there), so the pool is found by filter and kept single here — single PER
+  // PROGRAM, since a student may hold unassigned time in each of theirs.
   const existing = mentorId
     ? await prisma.hourAllocation.findUnique({
-        where: { studentId_mentorId: { studentId: profile.id, mentorId } },
+        where: {
+          studentId_programId_mentorId: {
+            studentId: profile.id,
+            programId: program.id,
+            mentorId,
+          },
+        },
       })
     : await prisma.hourAllocation.findFirst({
-        where: { studentId: profile.id, mentorId: null },
+        where: { studentId: profile.id, programId: program.id, mentorId: null },
       });
   const oldMinutes = existing?.minutes ?? 0;
   const newMinutes =
@@ -769,19 +1111,23 @@ export async function setMentorAllocation(
   const mentorLabel = mentor ? (mentor.name ?? mentor.email) : null;
   const studentName = profile.user.name ?? profile.user.email;
   const deadlineNote = ` They must be used by ${formatDate(deadline)}.`;
+  // Named only when it could be otherwise. A student in one program does not
+  // need to be told which of their one programs the hours are for.
+  const programNote =
+    profile.enrollments.length > 1 ? ` in ${program.name}` : "";
 
   const taskOutcome = await prisma.$transaction(async (tx) => {
     // Bring the mentor into the program if they weren't already.
     if (mentorId && !inProgram) {
       await tx.mentorAssignment.create({
-        data: { mentorId, programId: profile.programId, cohortId: null },
+        data: { mentorId, programId: program.id, cohortId: null },
       });
       await notify(tx, {
         to: [mentorId],
         type: NOTIFICATION_TYPES.MENTOR_ASSIGNED,
         actorId: actor.id,
         href: notificationHref.mentorHome(),
-        message: `You were assigned to ${profile.program.name}. Set your booking link on your mentor page so students there can book you.`,
+        message: `You were assigned to ${program.name}. Set your booking link on your mentor page so students there can book you.`,
       });
     }
     // Update-by-id rather than upsert: the pool row (mentor null) can't be
@@ -801,6 +1147,7 @@ export async function setMentorAllocation(
       await tx.hourAllocation.create({
         data: {
           studentId: profile.id,
+          programId: program.id,
           mentorId,
           minutes: newMinutes,
           deadline,
@@ -816,6 +1163,7 @@ export async function setMentorAllocation(
       const open = await tx.assignment.findFirst({
         where: {
           studentId: profile.id,
+          programId: program.id,
           mentorId,
           purpose: task,
           progress: { not: ASSIGNMENT_PROGRESS.DONE },
@@ -846,6 +1194,7 @@ export async function setMentorAllocation(
         await tx.assignment.create({
           data: {
             studentId: profile.id,
+            programId: program.id,
             mentorId,
             purpose: task,
             minuteLimit: granted,
@@ -887,6 +1236,7 @@ export async function setMentorAllocation(
       await tx.hourAllotmentChange.create({
         data: {
           studentId: profile.id,
+          programId: program.id,
           mentorId,
           changedById: actor.id,
           oldMinutes,
@@ -905,10 +1255,10 @@ export async function setMentorAllocation(
       href: notificationHref.studentHome(),
       message:
         granted > 0
-          ? `You were granted ${formatDuration(granted)} more hours${withMentor}${task ? ` for "${task}"` : ""} (now ${formatDuration(newMinutes)}${mentorLabel ? " with them" : ""}).${deadlineNote}`
+          ? `You were granted ${formatDuration(granted)} more hours${programNote}${withMentor}${task ? ` for "${task}"` : ""} (now ${formatDuration(newMinutes)}${mentorLabel ? " with them" : ""}).${deadlineNote}`
           : granted < 0
-            ? `Your time${withMentor} were adjusted from ${formatDuration(oldMinutes)} to ${formatDuration(newMinutes)}.${deadlineNote}`
-            : `The deadline for your time${withMentor} was updated to ${formatDate(deadline)}.`,
+            ? `Your time${programNote}${withMentor} was adjusted from ${formatDuration(oldMinutes)} to ${formatDuration(newMinutes)}.${deadlineNote}`
+            : `The deadline for your time${programNote}${withMentor} was updated to ${formatDate(deadline)}.`,
     });
 
     return outcome;
@@ -926,7 +1276,7 @@ export async function setMentorAllocation(
     : "";
   return {
     ok: true,
-    message: `${profile.user.email} now has ${formatDuration(newMinutes)} ${mentorLabel ? `with ${mentorLabel}` : "unassigned"}, to use by ${formatDate(deadline)}${paidNote}.${taskSummary}`,
+    message: `${profile.user.email} now has ${formatDuration(newMinutes)} ${mentorLabel ? `with ${mentorLabel}` : "unassigned"}${programNote}, to use by ${formatDate(deadline)}${paidNote}.${taskSummary}`,
   };
 }
 
@@ -947,17 +1297,20 @@ export async function removeMentorAllocation(
   const profileId = String(formData.get("studentProfileId") ?? "");
   // Empty = the unassigned pool, which is removable the same way.
   const mentorId = String(formData.get("mentorId") ?? "").trim() || null;
+  // Which program's grant. The row is per (student, program, mentor), so an
+  // allocation cannot be addressed without it once the student is in two.
+  const programId = String(formData.get("programId") ?? "").trim();
 
-  const allocation = mentorId
-    ? await prisma.hourAllocation.findUnique({
-        where: { studentId_mentorId: { studentId: profileId, mentorId } },
-        include: { student: { include: { user: true } }, mentor: true },
-      })
-    : await prisma.hourAllocation.findFirst({
-        where: { studentId: profileId, mentorId: null },
-        include: { student: { include: { user: true } }, mentor: true },
-      });
-  if (!allocation) {
+  const where = {
+    studentId: profileId,
+    mentorId,
+    ...(programId ? { programId } : {}),
+  };
+  const matches = await prisma.hourAllocation.findMany({
+    where,
+    include: { program: true, student: { include: { user: true } }, mentor: true },
+  });
+  if (matches.length === 0) {
     return {
       ok: false,
       error: mentorId
@@ -965,16 +1318,25 @@ export async function removeMentorAllocation(
         : "This student has no unassigned time.",
     };
   }
+  // Two grants and no program named: the form is out of date rather than the
+  // request ambiguous, and removing "one of them" would be a coin toss.
+  if (matches.length > 1) {
+    return {
+      ok: false,
+      error: "Say which program's time to remove.",
+    };
+  }
+  const allocation = matches[0];
 
-  // The student's program is what decides this, and the allocation is the way
-  // to it: the mentor may work in several.
-  const denied = await assertProgramScope(actor, allocation.student.programId);
+  // The grant's OWN program decides this — not "any program the student is
+  // in", which would let an admin of one program delete another program's time.
+  const denied = await assertProgramScope(actor, allocation.programId);
   if (denied) return denied;
 
   // The pool has no sessions by construction — only mentors log them.
   if (mentorId) {
     const sessionCount = await prisma.session.count({
-      where: { studentId: profileId, mentorId },
+      where: { studentId: profileId, programId: allocation.programId, mentorId },
     });
     if (sessionCount > 0) {
       return {
@@ -988,14 +1350,14 @@ export async function removeMentorAllocation(
   const mentorLabel = allocation.mentor
     ? (allocation.mentor.name ?? allocation.mentor.email)
     : null;
+  const scoped = { studentId: profileId, programId: allocation.programId, mentorId };
   await prisma.$transaction(async (tx) => {
-    await tx.hourAllotmentChange.deleteMany({
-      where: { studentId: profileId, mentorId },
-    });
+    await tx.hourAllotmentChange.deleteMany({ where: scoped });
     // Their tasks go with their time: nothing was logged against them (no
     // sessions, checked above), and a task nobody holds hours for is a line the
-    // mentor can't act on.
-    await tx.assignment.deleteMany({ where: { studentId: profileId, mentorId } });
+    // mentor can't act on. Only this program's — the same mentor may hold
+    // separate work for the same student elsewhere.
+    await tx.assignment.deleteMany({ where: scoped });
     await tx.hourAllocation.delete({ where: { id: allocation.id } });
     await notify(tx, {
       to: [allocation.student.userId],
@@ -1003,8 +1365,8 @@ export async function removeMentorAllocation(
       actorId: actor.id,
       href: notificationHref.studentHome(),
       message: mentorLabel
-        ? `Your time with ${mentorLabel} was removed. They're no longer one of your mentors.`
-        : `Your unassigned time was removed.`,
+        ? `Your time with ${mentorLabel} in ${allocation.program.name} was removed. They're no longer one of your mentors there.`
+        : `Your unassigned time in ${allocation.program.name} was removed.`,
     });
   });
 
@@ -1012,7 +1374,7 @@ export async function removeMentorAllocation(
   return {
     ok: true,
     message: mentorLabel
-      ? `${mentorLabel} removed from this student, along with the tasks their time was for.`
-      : `The unassigned time was removed, along with the tasks it was for.`,
+      ? `${mentorLabel} removed from this student in ${allocation.program.name}, along with the tasks their time was for.`
+      : `The unassigned time in ${allocation.program.name} was removed, along with the tasks it was for.`,
   };
 }

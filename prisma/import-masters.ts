@@ -336,13 +336,16 @@ async function main() {
     // is filled in upgrade the placeholder rather than create a twin.
     let profile = await prisma.studentProfile.findFirst({
       where: { user: { email } },
-      include: { user: true },
+      include: { user: true, enrollments: { select: { programId: true } } },
     });
     let matchedByName = false;
     if (!profile) {
       const byName = await prisma.studentProfile.findFirst({
-        where: { programId: program.id, user: { name: fullName } },
-        include: { user: true },
+        where: {
+          enrollments: { some: { programId: program.id } },
+          user: { name: fullName },
+        },
+        include: { user: true, enrollments: { select: { programId: true } } },
       });
       if (byName) {
         profile = byName;
@@ -377,10 +380,12 @@ async function main() {
         profile = await prisma.studentProfile.create({
           data: {
             userId: user.id,
-            programId: program.id,
             createdById: actor.id,
+            enrollments: {
+              create: { programId: program.id, createdById: actor.id },
+            },
           },
-          include: { user: true },
+          include: { user: true, enrollments: { select: { programId: true } } },
         });
       }
       addedStudents += 1;
@@ -416,8 +421,26 @@ async function main() {
         note(`${fullName}: the sheet says ${email}, the platform says ${stored} — left alone. Change it under Corrections if the sheet is right.`);
       }
 
-      if (profile.programId !== program.id) {
-        note(`${fullName} is enrolled in another program, not ${program.name}. Their tasks and sessions still imported; move them with Corrections if that's wrong.`);
+      // A student may now be in several programs, so being in another one is
+      // no longer a warning — being in this one is the question. If they are
+      // not, they are enrolled here as well as wherever they already were,
+      // which is what importing this program's sheet says about them.
+      if (!profile.enrollments.some((e) => e.programId === program.id)) {
+        const elsewhere = profile.enrollments.length > 0;
+        if (WRITE) {
+          await prisma.studentEnrollment.create({
+            data: {
+              studentId: profile.id,
+              programId: program.id,
+              createdById: actor.id,
+            },
+          });
+          profile.enrollments.push({ programId: program.id });
+        }
+        log(`  + enrolled in ${program.name}`);
+        if (elsewhere) {
+          note(`${fullName} was already in another program; ${program.name} was added alongside it rather than replacing it.`);
+        }
       }
     }
 
@@ -468,6 +491,7 @@ async function main() {
         const created = await prisma.assignment.create({
           data: {
             studentId: profile.id,
+            programId: program.id,
             mentorId: mentor.id,
             purpose,
             minuteLimit: task.hourLimit == null ? null : toMinutes(task.hourLimit),
@@ -541,6 +565,7 @@ async function main() {
         await prisma.session.create({
           data: {
             studentId: profile.id,
+            programId: program.id,
             mentorId: mentor.id,
             assignmentId: task && !task.id.startsWith("(new)") ? task.id : null,
             minutes: toMinutes(session.hours),

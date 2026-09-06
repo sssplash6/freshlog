@@ -4,9 +4,11 @@ import { useState } from "react";
 
 import {
   deleteStudent,
+  enrollStudent,
   moveStudent,
   setStudentEmail,
   setStudentFolder,
+  unenrollStudent,
 } from "@/lib/actions/students";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { Field, Input } from "@/components/ui/field";
@@ -64,65 +66,180 @@ export function StudentEmailChange({
 }
 
 /**
- * Moving a student takes their hours and their history with them: the rows
- * point at the student, not at the program. What changes is who administers
- * them and which lists they appear on.
+ * A student's programs: the ones they are in, a way out of each, and a way
+ * into another.
+ *
+ * One menu with three verbs rather than three controls, because they are one
+ * question — "where does this person study?" — and because the answer is
+ * usually one line long. What each verb does is deliberately different:
+ *
+ *   Move       corrects a mis-enrollment. It changes the membership and moves
+ *              nothing else: the hours, sessions and tasks name the program
+ *              they were granted in, and they stay there.
+ *   Enroll     adds a program alongside the ones they have. This is Global
+ *              Admissions and then the Master's Program — the ordinary path
+ *              through this school — and it grants no hours; that is the next
+ *              act, on the grants table, per program.
+ *   Remove     takes them off one program. Refused once anything happened in
+ *              it, and refused for the last one, with the reason said out loud
+ *              by the action rather than by a disabled button.
  */
-export function StudentProgramChange({
+export function StudentPrograms({
   studentProfileId,
   programs,
-  currentProgramId,
-  currentCohortId,
+  enrollments,
 }: {
   studentProfileId: string;
   programs: ProgramOption[];
-  currentProgramId: string;
-  currentCohortId: string | null;
+  enrollments: { id: string; programId: string; cohortId: string | null; label: string }[];
+}) {
+  return (
+    <RowActionMenu trigger="pencil" label="Change programs" verb="Change">
+      <RowActionGroup label={enrollments.length === 1 ? "Program" : "Programs"}>
+        <div className="space-y-4">
+          {enrollments.map((e) => (
+            <MoveEnrollment
+              key={e.id}
+              studentProfileId={studentProfileId}
+              programs={programs}
+              enrollment={e}
+              removable={enrollments.length > 1}
+            />
+          ))}
+        </div>
+      </RowActionGroup>
+      <RowActionGroup label="Add a program">
+        <EnrollInProgram
+          studentProfileId={studentProfileId}
+          programs={programs.filter(
+            (p) => !enrollments.some((e) => e.programId === p.id)
+          )}
+        />
+      </RowActionGroup>
+    </RowActionMenu>
+  );
+}
+
+/** One enrollment: move it somewhere else, or take it away. */
+function MoveEnrollment({
+  studentProfileId,
+  programs,
+  enrollment,
+  removable,
+}: {
+  studentProfileId: string;
+  programs: ProgramOption[];
+  enrollment: { id: string; programId: string; cohortId: string | null; label: string };
+  removable: boolean;
 }) {
   const [, action, save] = useSaveState(moveStudent);
-  const [programId, setProgramId] = useState(currentProgramId);
+  const [, remove, removeSave] = useSaveState(unenrollStudent);
+  const [programId, setProgramId] = useState(enrollment.programId);
   const cohorts = programs.find((p) => p.id === programId)?.cohorts ?? [];
 
   return (
-    <RowActionMenu trigger="pencil" label="Move to another program" verb="Change">
-      <RowActionGroup label="Program">
-        <form action={action} className="space-y-2">
-          <input type="hidden" name="studentProfileId" value={studentProfileId} />
-          <Field label="Program">
+    <div className="space-y-2">
+      <form action={action} className="space-y-2">
+        <input type="hidden" name="studentProfileId" value={studentProfileId} />
+        <input type="hidden" name="enrollmentId" value={enrollment.id} />
+        <Field label={enrollment.label}>
+          <select
+            name="programId"
+            value={programId}
+            onChange={(e) => setProgramId(e.target.value)}
+            className={selectClass}
+          >
+            {programs.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {cohorts.length > 0 && (
+          <Field label="Cohort">
             <select
-              name="programId"
-              value={programId}
-              onChange={(e) => setProgramId(e.target.value)}
+              name="cohortId"
+              defaultValue={enrollment.cohortId ?? ""}
               className={selectClass}
             >
-              {programs.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
+              <option value="">No cohort</option>
+              {cohorts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
                 </option>
               ))}
             </select>
           </Field>
-          {cohorts.length > 0 && (
-            <Field label="Cohort">
-              <select
-                name="cohortId"
-                defaultValue={currentCohortId ?? ""}
-                className={selectClass}
-              >
-                <option value="">No cohort</option>
-                {cohorts.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )}
-          <SubmitButton size="sm">Move student</SubmitButton>
-          <SaveState state={save} />
+        )}
+        <SubmitButton size="sm">Move</SubmitButton>
+        <SaveState state={save} />
+      </form>
+      {removable && (
+        <form action={remove}>
+          <input type="hidden" name="enrollmentId" value={enrollment.id} />
+          <SubmitButton size="sm" variant="ghost">
+            Take off {enrollment.label}
+          </SubmitButton>
+          <SaveState state={removeSave} />
         </form>
-      </RowActionGroup>
-    </RowActionMenu>
+      )}
+    </div>
+  );
+}
+
+/** Add a program to a student who is already in one. */
+function EnrollInProgram({
+  studentProfileId,
+  programs,
+}: {
+  studentProfileId: string;
+  programs: ProgramOption[];
+}) {
+  const [, action, save] = useSaveState(enrollStudent);
+  const [programId, setProgramId] = useState(programs[0]?.id ?? "");
+  const cohorts = programs.find((p) => p.id === programId)?.cohorts ?? [];
+
+  if (programs.length === 0) {
+    return (
+      <p className="text-xs text-muted-fg">
+        They are already in every program you administer.
+      </p>
+    );
+  }
+
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="studentProfileId" value={studentProfileId} />
+      <Field label="Program">
+        <select
+          name="programId"
+          value={programId}
+          onChange={(e) => setProgramId(e.target.value)}
+          className={selectClass}
+        >
+          {programs.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {cohorts.length > 0 && (
+        <Field label="Cohort">
+          <select name="cohortId" defaultValue="" className={selectClass}>
+            <option value="">No cohort</option>
+            {cohorts.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      <SubmitButton size="sm">Enroll</SubmitButton>
+      <SaveState state={save} />
+    </form>
   );
 }
 

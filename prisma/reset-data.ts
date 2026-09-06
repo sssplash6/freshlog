@@ -27,11 +27,18 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   // Delete children before parents so the RESTRICT foreign keys stay happy.
   await prisma.notification.deleteMany();
+  await prisma.interview.deleteMany();
   await prisma.session.deleteMany();
   await prisma.hourAllotmentChange.deleteMany();
   await prisma.hourAllocation.deleteMany();
+  // After the sessions that point at them (SetNull would spare the session,
+  // but the RESTRICT from Program to Assignment still has to be cleared).
+  await prisma.assignment.deleteMany();
   await prisma.mentorFeedback.deleteMany();
   await prisma.mentorAssignment.deleteMany();
+  // Enrollments cascade with the profile, but the RESTRICT on Program means
+  // they have to be gone before the programs are — so they are named here.
+  await prisma.studentEnrollment.deleteMany();
   await prisma.studentProfile.deleteMany();
   await prisma.cohort.deleteMany();
   await prisma.user.deleteMany();

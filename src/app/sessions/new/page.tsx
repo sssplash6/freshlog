@@ -59,6 +59,7 @@ export default async function LogSessionPage({
 
   const draft: LogSessionDraft = {
     studentProfileId: meeting?.studentId ?? one("student") ?? one("studentProfileId"),
+    programId: one("programId") ?? one("program"),
     assignmentId: one("assignmentId"),
     minutes: one("minutes"),
     date: meeting ? toDateInputValue(meeting.scheduledAt) : one("date"),

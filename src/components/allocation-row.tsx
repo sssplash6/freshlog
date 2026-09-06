@@ -41,6 +41,16 @@ type RowPerson = {
 export type AllocationEntry = {
   /** Null = granted before a mentor was chosen: the unassigned pool. */
   mentor: RowPerson | null;
+  /**
+   * The program the time was granted in.
+   *
+   * A row is one (program, mentor) grant, so a student in two programs has two
+   * rows for one mentor, with two balances and two use-by dates. The column is
+   * only drawn when there IS more than one program on the table — see
+   * `AllocationsTable` — because a program named on every row of a
+   * single-program student is a column of the same word.
+   */
+  program: { id: string; name: string };
   allocated: number;
   completed: number;
   missed: number;
@@ -66,6 +76,7 @@ export function toAllocationEntries(
       email: string;
       avatarUpdatedAt?: Date | null;
     } | null;
+    program: { id: string; name: string };
     allocated: number;
     completed: number;
     missed: number;
@@ -194,12 +205,15 @@ function Dash() {
 export function AllocationRow({
   entry,
   viewer,
+  showProgram = false,
   showAmountPaid = false,
   actions,
   index,
 }: {
   entry: AllocationEntry;
   viewer: ViewerContext;
+  /** Set by the table when its rows span more than one program. */
+  showProgram?: boolean;
   showAmountPaid?: boolean;
   actions?: React.ReactNode;
   index?: number;
@@ -216,6 +230,11 @@ export function AllocationRow({
       <Td>
         <AllocationPerson entry={entry} />
       </Td>
+      {showProgram && (
+        <Td label="Program" className="text-ink">
+          {entry.program.name}
+        </Td>
+      )}
       <Td label="Allocated" align="right" className="tabular-nums">
         {formatDuration(entry.allocated)}
       </Td>
@@ -272,9 +291,13 @@ export function AllocationsTable({
 }) {
   const rowActions = entries.map((e) => renderActions?.(e));
   const withActions = rowActions.some(Boolean);
+  // Only worth a column when it varies. One program is the page's own subject
+  // and gets said once, above the table, not on every line of it.
+  const showProgram = new Set(entries.map((e) => e.program.id)).size > 1;
 
   const columns: Column[] = [
     { label: "Mentor" },
+    ...(showProgram ? [{ label: "Program" } as Column] : []),
     { label: "Allocated", align: "right" },
     { label: "Completed", align: "right" },
     { label: "Missed", align: "right" },
@@ -288,9 +311,10 @@ export function AllocationsTable({
     <Table framed={framed} columns={columns} className={className}>
       {entries.map((entry, i) => (
         <AllocationRow
-          key={entry.mentor?.id ?? "unassigned"}
+          key={`${entry.program.id}:${entry.mentor?.id ?? "unassigned"}`}
           entry={entry}
           viewer={viewer}
+          showProgram={showProgram}
           showAmountPaid={showAmountPaid}
           actions={withActions ? rowActions[i] : undefined}
           index={i}

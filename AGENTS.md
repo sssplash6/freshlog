@@ -24,3 +24,31 @@ they ask live in `src/lib/authz.ts`. A gate that has to load a row before it
 can decide — "is this student in a program I administer?" — fetches the row
 first and gates second, and answers "not yours" and "does not exist"
 identically, so the error cannot be used to enumerate what exists.
+
+## A student's program is a set, not a column
+
+`StudentProfile.programId` is gone. A student holds `StudentEnrollment` rows —
+one per program — because Global Admissions and then the Master's Program is the
+ordinary path through this school, and a single column could only say it by
+rewriting history.
+
+So the ledger says which program it belongs to. `HourAllocation`, `Session`,
+`Assignment` and `HourAllotmentChange` each carry a `programId`, and an
+allocation is unique on `(studentId, programId, mentorId)`: the same mentor may
+hold separate time with the same student in two programs, with two deadlines and
+two balances.
+
+Three rules follow, and breaking any of them is silent:
+
+1. **Reaching a student is not reading them.** `canManageStudent` is an overlap
+   — any one of their programs is yours. `studentScope` is the narrower answer
+   every page then filters by. An admin of one program who opens a two-program
+   student must see one program's hours, tasks, sessions and grants, and not the
+   other's name either.
+2. **Ask the row, not the student.** A session, a grant and a task each name a
+   program; reach one through `student.enrollments` and you have asked a
+   question with two answers. Only `Interview` and `MentorFeedback` genuinely
+   have no program, and they go through the enrollments on purpose.
+3. **Never key a total on `studentId:mentorId`.** Forfeiture, draw-down and the
+   deadline reminders all key on `(student, program, mentor)`. A key without the
+   program spends one program's hours out of another program's grant.

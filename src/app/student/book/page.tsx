@@ -72,7 +72,10 @@ export default async function StudentBookPage() {
 
   const profile = await prisma.studentProfile.findUnique({
     where: { userId: user.id },
-    select: { id: true, programId: true, cohortId: true },
+    select: {
+      id: true,
+      enrollments: { select: { programId: true, cohortId: true } },
+    },
   });
 
   // Not onboarded / not approved yet — the home page explains what's next.

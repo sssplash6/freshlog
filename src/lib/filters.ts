@@ -743,7 +743,12 @@ export function studentsWhere(
 ): Prisma.StudentProfileWhereInput {
   const and: Prisma.StudentProfileWhereInput[] = [];
 
-  if (scope.programIds) and.push({ programId: { in: [...scope.programIds] } });
+  // A student's program is an enrollment row, and they may hold several — so
+  // "in my programs" is `some`, and a student in one program of mine and two of
+  // yours appears once, here, without their other programs coming with them.
+  if (scope.programIds) {
+    and.push({ enrollments: { some: { programId: { in: [...scope.programIds] } } } });
+  }
   if (scope.studentId) and.push({ id: scope.studentId });
   if (scope.mentorId) and.push(reachOf(scope.mentorId, scope.programIds));
 
@@ -751,9 +756,19 @@ export function studentsWhere(
   // ANDed alongside the scope rather than checked against it: a program id from
   // outside the grant then matches nothing, which is the honest answer, and
   // there is no branch in which it could widen the query.
-  if (program) and.push({ programId: program });
+  if (program) and.push({ enrollments: { some: { programId: program } } });
   const cohort = readParam(params, "cohort");
-  if (cohort) and.push({ cohortId: cohort });
+  // On the SAME enrollment as the program when both are given: a cohort of
+  // Global Admissions says nothing about the student's Master's Program row,
+  // and two separate `some` clauses would match a student who satisfies each
+  // in a different program.
+  if (cohort) {
+    and.push({
+      enrollments: {
+        some: { cohortId: cohort, ...(program ? { programId: program } : {}) },
+      },
+    });
+  }
 
   const mentor = readPerson(params, "mentor", scope);
   if (mentor) and.push(reachOf(mentor, scope.programIds));
@@ -835,8 +850,11 @@ export function sessionsWhere(
 ): Prisma.SessionWhereInput {
   const and: Prisma.SessionWhereInput[] = [];
 
+  // The session's own program, not its student's: a meeting drew ONE program's
+  // hours down, and reaching it through a student who may be in two would put
+  // the Master's Program's sessions on Global Admissions' list.
   if (scope.programIds) {
-    and.push({ student: { programId: { in: [...scope.programIds] } } });
+    and.push({ programId: { in: [...scope.programIds] } });
   }
   if (scope.mentorId) and.push({ mentorId: scope.mentorId });
   if (scope.studentId) and.push({ studentId: scope.studentId });
@@ -846,7 +864,7 @@ export function sessionsWhere(
   const mentor = readPerson(params, "mentor", scope);
   if (mentor) and.push({ mentorId: mentor });
   const program = readParam(params, "program");
-  if (program) and.push({ student: { programId: program } });
+  if (program) and.push({ programId: program });
 
   const date = dateWhere(readDateWindow(params, now));
   if (date) and.push({ date });
@@ -872,8 +890,17 @@ export function meetingsWhere(
 ): Prisma.InterviewWhereInput {
   const and: Prisma.InterviewWhereInput[] = [];
 
+  // A scheduled meeting names no program — it charges nothing, and which
+  // program it turns out to have been for is decided when it is logged — so it
+  // is reached through its student's enrollments. A student in two programs
+  // therefore has their meetings on both programs' lists, which is the honest
+  // answer for a diary entry that has not chosen yet.
   if (scope.programIds) {
-    and.push({ student: { programId: { in: [...scope.programIds] } } });
+    and.push({
+      student: {
+        enrollments: { some: { programId: { in: [...scope.programIds] } } },
+      },
+    });
   }
   if (scope.mentorId) and.push({ mentorId: scope.mentorId });
   if (scope.studentId) and.push({ studentId: scope.studentId });
@@ -883,7 +910,9 @@ export function meetingsWhere(
   const mentor = readPerson(params, "mentor", scope);
   if (mentor) and.push({ mentorId: mentor });
   const program = readParam(params, "program");
-  if (program) and.push({ student: { programId: program } });
+  if (program) {
+    and.push({ student: { enrollments: { some: { programId: program } } } });
+  }
 
   const date = dateWhere(readDateWindow(params, now));
   if (date) and.push({ scheduledAt: date });
@@ -897,10 +926,15 @@ export function meetingsWhere(
 /**
  * Mentor feedback, filtered.
  *
- * The scope clause is on `student.programId`, which is what closes the
+ * The scope clause is on the STUDENT's enrollments, which is what closes the
  * cross-program leak at `leader/feedback/page.tsx:18-27`: a leader was scoped
  * by the MENTOR's program, so a comment written by a shared mentor about
  * another program's student was readable.
+ *
+ * A rating names no program of its own — it is an opinion about a mentor, not
+ * about a course — so a student enrolled in two programs has their rating
+ * readable by the admins of both. That is the same reach those admins already
+ * have over the student, so it leaks nothing new.
  */
 export function feedbackWhere(
   params: SearchParams,
@@ -910,7 +944,11 @@ export function feedbackWhere(
   const and: Prisma.MentorFeedbackWhereInput[] = [];
 
   if (scope.programIds) {
-    and.push({ student: { programId: { in: [...scope.programIds] } } });
+    and.push({
+      student: {
+        enrollments: { some: { programId: { in: [...scope.programIds] } } },
+      },
+    });
   }
   if (scope.mentorId) and.push({ mentorId: scope.mentorId });
   if (scope.studentId) and.push({ studentId: scope.studentId });
@@ -918,7 +956,9 @@ export function feedbackWhere(
   const mentor = readPerson(params, "mentor", scope);
   if (mentor) and.push({ mentorId: mentor });
   const program = readParam(params, "program");
-  if (program) and.push({ student: { programId: program } });
+  if (program) {
+    and.push({ student: { enrollments: { some: { programId: program } } } });
+  }
 
   // "Rating at most N", which is how a low-scoring mentor is found. Anything
   // outside 1-5 is not a rating this product can store, so it is not a filter.

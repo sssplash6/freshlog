@@ -8,6 +8,7 @@ import {
 import { PageTitle } from "@/components/ui/section";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
+import { enrollmentsLabel, primaryEnrollment } from "@/lib/enrollments";
 import { homeFor, profileOf } from "@/lib/profile";
 import { prisma } from "@/lib/prisma";
 import { programOptions, toProgramOptions } from "@/lib/queries";
@@ -86,7 +87,12 @@ export default async function OnboardingPage() {
 
   const profile = await prisma.studentProfile.findUnique({
     where: { userId: user.id },
-    include: { program: true, cohort: true },
+    include: {
+      enrollments: {
+        include: { program: true, cohort: true },
+        orderBy: { program: { name: "asc" } },
+      },
+    },
   });
 
   // No profile means nobody registered this email — they signed in with Google
@@ -108,6 +114,9 @@ export default async function OnboardingPage() {
     );
   }
 
+  // The one to greet them by when the welcome has room for a single name.
+  const first = primaryEnrollment(profile.enrollments);
+
   // Registered by staff, first sign-in. The program is already theirs, so the
   // only things missing are the name Google may not have supplied and the
   // handle their mentors will message them on.
@@ -117,8 +126,8 @@ export default async function OnboardingPage() {
   if (!user.name?.trim() || !profile.telegramUsername) {
     return (
       <Step
-        eyebrow={profile.cohort?.name}
-        title={`Welcome to ${profile.program.name}`}
+        eyebrow={first?.cohort?.name}
+        title={`Welcome to ${enrollmentsLabel(profile.enrollments, "the academy")}`}
         sentence="Confirm your name and how your mentors reach you."
         form={<DetailsStepForm defaultName={user.name ?? ""} />}
       />
@@ -128,11 +137,7 @@ export default async function OnboardingPage() {
   if (user.status === USER_STATUS.PENDING) {
     return (
       <Step
-        eyebrow={
-          profile.cohort
-            ? `${profile.program.name} / ${profile.cohort.name}`
-            : profile.program.name
-        }
+        eyebrow={enrollmentsLabel(profile.enrollments, undefined)}
         title="Registration received"
         sentence="An admin will approve you shortly."
       />

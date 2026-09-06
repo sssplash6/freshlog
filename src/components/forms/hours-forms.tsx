@@ -50,6 +50,7 @@ import {
  */
 export function AllocationRowActions({
   studentProfileId,
+  programId,
   mentorId,
   mentorLabel,
   currentMinutes,
@@ -59,6 +60,10 @@ export function AllocationRowActions({
   currentAmountPaid = null,
 }: {
   studentProfileId: string;
+  /** Which program's grant this row is. An allocation cannot be addressed
+   *  without it: the same mentor may hold separate time with the same student
+   *  in two programs, with two deadlines. */
+  programId: string;
   mentorId: string;
   mentorLabel: string;
   currentMinutes: number;
@@ -87,6 +92,7 @@ export function AllocationRowActions({
             name="studentProfileId"
             value={studentProfileId}
           />
+          <input type="hidden" name="programId" value={programId} />
           <input type="hidden" name="mentorId" value={mentorId} />
           <input type="hidden" name="mode" value="set" />
 
@@ -143,7 +149,7 @@ export function AllocationRowActions({
         <ConfirmInline
           variant="quiet"
           action={delAction}
-          values={{ studentProfileId, mentorId }}
+          values={{ studentProfileId, programId, mentorId }}
           pending={delSave.kind === "saving"}
           label={mentorId ? "Remove mentor" : "Remove time"}
           // Naming the consequence, because it is wider than the row: the

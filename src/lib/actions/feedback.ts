@@ -19,6 +19,7 @@ async function requireStudentProfile() {
   if (!user || user.role !== ROLES.STUDENT) return null;
   const profile = await prisma.studentProfile.findUnique({
     where: { userId: user.id },
+    include: { enrollments: { select: { programId: true, cohortId: true } } },
   });
   return profile;
 }
@@ -55,7 +56,12 @@ export async function submitMentorFeedback(
     return { ok: false, error: "Pick one of your mentors." };
   }
 
-  const staff = await staffIdsFor(profile.programId);
+  // Every program the student is in: a rating is about a mentor they work
+  // with, and which of their programs that mentor sits in is not a question the
+  // student was asked. The admins of all of them hear it.
+  const staff = (
+    await Promise.all(profile.enrollments.map((e) => staffIdsFor(e.programId)))
+  ).flat();
 
   await prisma.$transaction(async (tx) => {
     await tx.mentorFeedback.create({

@@ -94,7 +94,7 @@ export async function deleteCohort(
   const cohort = await prisma.cohort.findUnique({
     where: { id: cohortId },
     include: {
-      _count: { select: { students: true, mentorAssignments: true } },
+      _count: { select: { enrollments: true, mentorAssignments: true } },
     },
   });
   if (!cohort) return { ok: false, error: "Cohort not found." };
@@ -104,10 +104,10 @@ export async function deleteCohort(
   const denied = await assertProgramScope(actor, cohort.programId);
   if (denied) return denied;
 
-  if (cohort._count.students > 0) {
+  if (cohort._count.enrollments > 0) {
     return {
       ok: false,
-      error: `${cohort.name} still has ${cohort._count.students} student${cohort._count.students === 1 ? "" : "s"}. Move them to another cohort first.`,
+      error: `${cohort.name} still has ${cohort._count.enrollments} student${cohort._count.enrollments === 1 ? "" : "s"}. Move them to another cohort first.`,
     };
   }
   if (cohort._count.mentorAssignments > 0) {
@@ -252,15 +252,17 @@ export async function deleteProgram(
     where: { id: programId },
     include: {
       cohorts: true,
-      _count: { select: { students: true, staffGrants: true, mentorAssignments: true } },
+      _count: {
+        select: { enrollments: true, staffGrants: true, mentorAssignments: true },
+      },
     },
   });
   if (!program) return { ok: false, error: "Program not found." };
 
-  if (program._count.students > 0) {
+  if (program._count.enrollments > 0) {
     return {
       ok: false,
-      error: `${program.name} still has ${program._count.students} student${program._count.students === 1 ? "" : "s"}. Remove or move them first.`,
+      error: `${program.name} still has ${program._count.enrollments} student${program._count.enrollments === 1 ? "" : "s"}. Remove or move them first.`,
     };
   }
   // Grants outlive the program row unless somebody looks: deleting a program

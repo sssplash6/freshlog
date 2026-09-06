@@ -16,7 +16,7 @@ import { prisma } from "@/lib/prisma";
 import { studentsWithHours } from "@/lib/queries";
 import { actionableCount, type ViewerContext } from "@/lib/status";
 
-import { PROGRAM_STATUS, programFlags, requestNow } from "./reads";
+import { PROGRAM_STATUS, programFlags, requestNow, studentsOf } from "./reads";
 
 /**
  * Every program this reader administers, and which of them is asking for
@@ -63,7 +63,10 @@ export default async function ProgramsPage({
       where: inScope ? { id: inScope } : {},
       orderBy: { name: "asc" },
     }),
-    studentsWithHours(inScope ? { programId: inScope } : {}, undefined, now),
+    studentsWithHours(
+      inScope ? { enrollments: { some: { programId: inScope } } } : {},
+      { now, programIds }
+    ),
     prisma.mentorAssignment.findMany({
       where: inScope ? { programId: inScope } : {},
       include: { mentor: true },
@@ -76,7 +79,7 @@ export default async function ProgramsPage({
     : active;
 
   const rows = shown.map((program) => {
-    const enrolled = students.filter((s) => s.programId === program.id);
+    const enrolled = studentsOf(students, program.id);
     const theirs = pairings.filter((p) => p.programId === program.id);
     // §8.6: the one helper, over the unsliced roster. No second reducer and no
     // SQL `groupBy` — forfeiture is per allocation against its own use-by date,

@@ -6,6 +6,7 @@ import { ExternalLink } from "@/components/ui/link";
 import { DeadlineText, StatusChip } from "@/components/ui/status-chip";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
+import { enrollmentsLabel } from "@/lib/enrollments";
 import { formatDate, formatDuration } from "@/lib/format";
 import { studentStatuses, type ViewerContext } from "@/lib/status";
 import type { StudentWithHours } from "@/lib/queries";
@@ -114,10 +115,11 @@ export function StudentsTable({
 
             {showProgram && (
               <Td label="Program" className="text-ink">
-                {s.program.name}
-                {s.cohort && (
-                  <span className="text-muted-fg"> · {s.cohort.name}</span>
-                )}
+                {/* Every program the READER may see them in — the rows were
+                    narrowed to the reader's scope before they got here, so a
+                    student in a program this person doesn't administer shows
+                    only the ones they do. */}
+                {enrollmentsLabel(s.enrollments)}
               </Td>
             )}
 

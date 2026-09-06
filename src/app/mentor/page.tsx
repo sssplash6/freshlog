@@ -113,9 +113,10 @@ export default async function MentorHomePage({
     if (!programs.has(a.programId)) programs.set(a.programId, a.program.name);
   }
   const selected = programs.has(program) ? program : "";
-  const inView = selected
-    ? students.filter((s) => s.profile.programId === selected)
-    : students;
+  // A caseload row is one (student, program) balance, so filtering by program
+  // is a question about the row rather than about the person: a student in two
+  // of this mentor's programs contributes one row to each.
+  const inView = selected ? students.filter((s) => s.program.id === selected) : students;
 
   // ---------------------------------------------------------------- Needs you
   //
@@ -159,7 +160,7 @@ export default async function MentorHomePage({
           poolMinutes: s.pool ?? 0,
           nextDeadline: s.deadline,
           mentorCount: 1,
-          program: { id: s.profile.programId, name: s.profile.program.name },
+          program: { id: s.program.id, name: s.program.name },
         },
         viewer
       ).map((row) => ({ ...row, href: `/mentor/students/${s.profile.id}` }))

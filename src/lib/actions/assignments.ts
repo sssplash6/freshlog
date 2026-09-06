@@ -34,11 +34,12 @@ import {
  * budget is the hours it was given. What lives here is everything that happens
  * to a task afterwards: editing it, stating its progress, removing it.
  *
- * Every write here is gated on the program of the STUDENT the task belongs to.
- * A task has no program of its own, and the student's is the one an admin
- * either holds a grant for or does not. A task outside that grant answers "no
- * longer exists" — the same sentence a deleted one gets, so the refusal can't
- * be used to confirm the task is there.
+ * Every write here is gated on the task's OWN program. It had none until 6
+ * September 2026 and borrowed the student's, which stopped meaning anything the
+ * moment a student could be in two: the program that budgeted the work is the
+ * one an admin either holds a grant for or does not. A task outside that grant
+ * answers "no longer exists" — the same sentence a deleted one gets, so the
+ * refusal can't be used to confirm the task is there.
  */
 
 const PROGRESS_VALUES: string[] = Object.values(ASSIGNMENT_PROGRESS);
@@ -125,13 +126,12 @@ export async function updateAssignment(
   if (!actor) return { ok: false, error: "Sign in to do that." };
 
   const id = String(formData.get("assignmentId") ?? "");
-  const existing = await prisma.assignment.findUnique({
-    where: { id },
-    include: { student: { select: { programId: true } } },
-  });
+  // Every scalar, `programId` included — the task now names its own program,
+  // so the gate no longer has to reach through the student for it.
+  const existing = await prisma.assignment.findUnique({ where: { id } });
   if (
     !existing ||
-    (await assertProgramScope(actor, existing.student.programId))
+    (await assertProgramScope(actor, existing.programId))
   ) {
     return { ok: false, error: "That task no longer exists." };
   }
@@ -287,13 +287,12 @@ export async function setAssignmentProgress(
     return { ok: false, error: "Pick a progress state." };
   }
 
-  const existing = await prisma.assignment.findUnique({
-    where: { id },
-    include: { student: { select: { programId: true } } },
-  });
+  // Every scalar, `programId` included — the task now names its own program,
+  // so the gate no longer has to reach through the student for it.
+  const existing = await prisma.assignment.findUnique({ where: { id } });
   if (
     !existing ||
-    (await assertProgramScope(actor, existing.student.programId))
+    (await assertProgramScope(actor, existing.programId))
   ) {
     return { ok: false, error: "That task no longer exists." };
   }
@@ -359,13 +358,12 @@ export async function deleteAssignment(
   if (!actor) return { ok: false, error: "Sign in to do that." };
 
   const id = String(formData.get("assignmentId") ?? "");
-  const existing = await prisma.assignment.findUnique({
-    where: { id },
-    include: { student: { select: { programId: true } } },
-  });
+  // Every scalar, `programId` included — the task now names its own program,
+  // so the gate no longer has to reach through the student for it.
+  const existing = await prisma.assignment.findUnique({ where: { id } });
   if (
     !existing ||
-    (await assertProgramScope(actor, existing.student.programId))
+    (await assertProgramScope(actor, existing.programId))
   ) {
     return { ok: false, error: "That task no longer exists." };
   }

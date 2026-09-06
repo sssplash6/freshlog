@@ -21,38 +21,67 @@ import type { Prisma } from "@/generated/prisma/client";
  * page only — which is the point: the grouped sums are keyed by the ids that
  * came back, so a page of twenty-five students costs the same three queries
  * whether the school has thirty students or three thousand.
+ *
+ * SCOPE. A student may be enrolled in several programs, and the hours they hold
+ * in one are not the hours they hold in another. `programIds` is the reader's
+ * reach, and it does two things that have to happen together: the totals are
+ * summed over those programs only, and the `enrollments` that come back are
+ * narrowed to them too. An admin of the Master's Program reading a student who
+ * is also in Global Admissions must not get Global Admissions' minutes in the
+ * figure OR its name in the cell — and one of those without the other is the
+ * more confusing half of a leak. `undefined` means every program, matching
+ * `FilterScope.programIds`.
+ *
+ * Every figure also comes back per program in `byProgram`, because the pages
+ * that print a program's total and the pages that print a student's are the
+ * same pages, and two queries would be two chances to disagree.
  */
 export async function studentsWithHours(
   where: Prisma.StudentProfileWhereInput = {},
-  slice?: { skip: number; take: number },
-  /**
-   * The instant forfeiture is judged against.
-   *
-   * A parameter rather than a call to the clock, so a page that hands one
-   * `now` to every component cannot get a different answer from its own
-   * query — the impurity `status.ts` exists to remove, and the reason the
-   * HoursRing and the ledger once disagreed by 4h 38m. Defaulted, because
-   * every existing caller means "right now".
-   */
-  now: Date = new Date()
+  {
+    slice,
+    /**
+     * The instant forfeiture is judged against.
+     *
+     * A parameter rather than a call to the clock, so a page that hands one
+     * `now` to every component cannot get a different answer from its own
+     * query — the impurity `status.ts` exists to remove, and the reason the
+     * HoursRing and the ledger once disagreed by 4h 38m. Defaulted, because
+     * every existing caller means "right now".
+     */
+    now = new Date(),
+    programIds,
+  }: {
+    slice?: { skip: number; take: number };
+    now?: Date;
+    programIds?: readonly string[];
+  } = {}
 ) {
+  const visible = programIds ? new Set(programIds) : null;
   const profiles = await prisma.studentProfile.findMany({
     where,
     include: {
       user: true,
-      program: true,
-      cohort: true,
+      enrollments: {
+        ...(visible ? { where: { programId: { in: [...visible] } } } : {}),
+        include: { program: true, cohort: true },
+        orderBy: { program: { name: "asc" } },
+      },
     },
-    orderBy: [{ program: { name: "asc" } }, { createdAt: "asc" }],
+    // Ordering by program name is no longer available — a student has several —
+    // so the list is alphabetical by person, which is how it is read anyway.
+    orderBy: [{ user: { name: "asc" } }, { createdAt: "asc" }],
     ...(slice ?? {}),
   });
   const ids = profiles.map((p) => p.id);
+  const inScope = visible ? { programId: { in: [...visible] } } : {};
 
   const [allocations, sessionSums] = await Promise.all([
     prisma.hourAllocation.findMany({
-      where: { studentId: { in: ids } },
+      where: { studentId: { in: ids }, ...inScope },
       select: {
         studentId: true,
+        programId: true,
         mentorId: true,
         minutes: true,
         deadline: true,
@@ -60,8 +89,8 @@ export async function studentsWithHours(
       },
     }),
     prisma.session.groupBy({
-      by: ["studentId", "mentorId", "attended", "withinPlan"],
-      where: { status: SESSION_STATUS.ACTIVE, studentId: { in: ids } },
+      by: ["studentId", "programId", "mentorId", "attended", "withinPlan"],
+      where: { status: SESSION_STATUS.ACTIVE, studentId: { in: ids }, ...inScope },
       _sum: { minutes: true },
       // The last time anybody met them. On the list this is the column that
       // answers "who has gone quiet", which no total can: a student can hold
@@ -70,86 +99,128 @@ export async function studentsWithHours(
     }),
   ]);
 
+  /** The seven figures, for one student or for one of their programs. */
+  type Tally = {
+    allottedMinutes: number;
+    completedMinutes: number;
+    missedMinutes: number;
+    extraMinutes: number;
+    forfeitedMinutes: number;
+    remainingMinutes: number;
+    amountPaid: number;
+    nextDeadline: Date | null;
+    lastSessionAt: Date | null;
+  };
   // Used = every CHARGING session (present + no-show); missed = the no-show
-  // subset. usedByPair drives per-allocation forfeiture on expired deadlines.
-  // Out-of-plan hours are counted apart: they were delivered, but they draw
-  // nothing down, so folding them in here would understate every balance.
-  const lastSessionById = new Map<string, Date>();
-  const usedById = new Map<string, number>();
-  const missedById = new Map<string, number>();
-  const extraById = new Map<string, number>();
-  const usedByPair = new Map<string, number>();
+  // subset. usedByAllocation drives per-allocation forfeiture on expired
+  // deadlines, and its key is (student, program, mentor) because that is what
+  // an allocation IS: the same mentor may hold separate time with the same
+  // student in two programs, and one key for both would forfeit against a
+  // balance the hours never came out of.
+  const used = new Map<string, number>();
+  const missed = new Map<string, number>();
+  const extra = new Map<string, number>();
+  const lastSession = new Map<string, Date>();
+  const usedByAllocation = new Map<string, number>();
+  /** Per student, and per (student, program) under the same accumulators. */
+  const keys = (s: { studentId: string; programId: string }) => [
+    s.studentId,
+    `${s.studentId}:${s.programId}`,
+  ];
+  const add = (map: Map<string, number>, key: string, n: number) =>
+    map.set(key, (map.get(key) ?? 0) + n);
   for (const s of sessionSums) {
     const at = s._max.date;
     if (at) {
-      const seen = lastSessionById.get(s.studentId);
-      if (!seen || at > seen) lastSessionById.set(s.studentId, at);
+      for (const k of keys(s)) {
+        const seen = lastSession.get(k);
+        if (!seen || at > seen) lastSession.set(k, at);
+      }
     }
-    const hrs = s._sum.minutes ?? 0;
+    const mins = s._sum.minutes ?? 0;
     if (!s.withinPlan) {
-      extraById.set(s.studentId, (extraById.get(s.studentId) ?? 0) + hrs);
+      for (const k of keys(s)) add(extra, k, mins);
       continue;
     }
-    usedById.set(s.studentId, (usedById.get(s.studentId) ?? 0) + hrs);
-    usedByPair.set(
-      `${s.studentId}:${s.mentorId}`,
-      (usedByPair.get(`${s.studentId}:${s.mentorId}`) ?? 0) + hrs
-    );
-    if (!s.attended) {
-      missedById.set(s.studentId, (missedById.get(s.studentId) ?? 0) + hrs);
-    }
+    for (const k of keys(s)) add(used, k, mins);
+    add(usedByAllocation, `${s.studentId}:${s.programId}:${s.mentorId}`, mins);
+    if (!s.attended) for (const k of keys(s)) add(missed, k, mins);
   }
 
-    // allotted per student, plus forfeited hours from allocations past deadline.
-  const at = now.getTime();
-  const allottedById = new Map<string, number>();
+  // allotted per student and per program, plus the minutes forfeited by
+  // allocations whose deadline has passed.
+  const allotted = new Map<string, number>();
+  const forfeited = new Map<string, number>();
+  const paid = new Map<string, number>();
   // The soonest use-by date that still has time behind it. Expiry is only
   // worth warning about while the hours can still be spent, so a passed
   // deadline is not a candidate — those minutes are already forfeited above.
-  const nextDeadlineById = new Map<string, Date>();
-  const forfeitedById = new Map<string, number>();
-  const paidById = new Map<string, number>();
+  const nextDeadline = new Map<string, Date>();
+  const at = now.getTime();
   for (const a of allocations) {
-    allottedById.set(a.studentId, (allottedById.get(a.studentId) ?? 0) + a.minutes);
-    if (a.amountPaid != null) {
-      paidById.set(a.studentId, (paidById.get(a.studentId) ?? 0) + a.amountPaid);
+    for (const k of keys(a)) {
+      add(allotted, k, a.minutes);
+      if (a.amountPaid != null) add(paid, k, a.amountPaid);
     }
-        if (a.deadline.getTime() < at) {
-      const used = usedByPair.get(`${a.studentId}:${a.mentorId}`) ?? 0;
-      const forfeited = Math.max(0, a.minutes - used);
-      if (forfeited > 0) {
-        forfeitedById.set(
-          a.studentId,
-          (forfeitedById.get(a.studentId) ?? 0) + forfeited
-        );
-      }
+    if (a.deadline.getTime() < at) {
+      const drawn =
+        usedByAllocation.get(`${a.studentId}:${a.programId}:${a.mentorId}`) ?? 0;
+      const lost = Math.max(0, a.minutes - drawn);
+      if (lost > 0) for (const k of keys(a)) add(forfeited, k, lost);
     } else {
-      const soonest = nextDeadlineById.get(a.studentId);
-      if (!soonest || a.deadline < soonest) {
-        nextDeadlineById.set(a.studentId, a.deadline);
+      for (const k of keys(a)) {
+        const soonest = nextDeadline.get(k);
+        if (!soonest || a.deadline < soonest) nextDeadline.set(k, a.deadline);
       }
     }
   }
 
-  return profiles.map((profile) => {
-    const allotted = allottedById.get(profile.id) ?? 0;
-    const used = usedById.get(profile.id) ?? 0;
-    const missed = missedById.get(profile.id) ?? 0;
-    const forfeited = forfeitedById.get(profile.id) ?? 0;
+  const tally = (key: string): Tally => {
+    const allottedMinutes = allotted.get(key) ?? 0;
+    const drawn = used.get(key) ?? 0;
+    const missedMinutes = missed.get(key) ?? 0;
+    const forfeitedMinutes = forfeited.get(key) ?? 0;
     return {
-      ...profile,
-      allottedMinutes: allotted,
-      completedMinutes: used - missed,
-      missedMinutes: missed,
-      extraMinutes: extraById.get(profile.id) ?? 0,
-      forfeitedMinutes: forfeited,
-            amountPaid: paidById.get(profile.id) ?? 0,
-      remainingMinutes: allotted - used - forfeited,
-      nextDeadline: nextDeadlineById.get(profile.id) ?? null,
-      lastSessionAt: lastSessionById.get(profile.id) ?? null,
+      allottedMinutes,
+      completedMinutes: drawn - missedMinutes,
+      missedMinutes,
+      extraMinutes: extra.get(key) ?? 0,
+      forfeitedMinutes,
+      remainingMinutes: allottedMinutes - drawn - forfeitedMinutes,
+      amountPaid: paid.get(key) ?? 0,
+      nextDeadline: nextDeadline.get(key) ?? null,
+      lastSessionAt: lastSession.get(key) ?? null,
     };
-  });
+  };
+
+  return profiles.map((profile) => ({
+    ...profile,
+    ...tally(profile.id),
+    /**
+     * The same figures, program by program — what a program's page totals and
+     * what the inbox tags a flag with. Only the programs the reader may see,
+     * since `enrollments` was narrowed to those before anything was summed.
+     */
+    byProgram: new Map(
+      profile.enrollments.map((e) => [
+        e.programId,
+        {
+          programId: e.programId,
+          program: e.program,
+          cohort: e.cohort,
+          ...tally(`${profile.id}:${e.programId}`),
+        },
+      ])
+    ),
+  }));
 }
+
+/** One student's figures inside one of their programs. */
+export type StudentProgramHours = Awaited<
+  ReturnType<typeof studentsWithHours>
+>[number]["byProgram"] extends Map<string, infer V>
+  ? V
+  : never;
 
 export type StudentWithHours = Awaited<
   ReturnType<typeof studentsWithHours>
@@ -162,16 +233,25 @@ export type StudentWithHours = Awaited<
  * spreadsheet this replaces was shared, and a mentor picking up an essay needs
  * to know what the last three meetings covered.
  */
-export async function studentLedger(studentProfileId: string) {
+export async function studentLedger(
+  studentProfileId: string,
+  /** The reader's programs. `undefined` is every one the student is in. */
+  programIds?: readonly string[]
+) {
+  const inScope = programIds ? { programId: { in: [...programIds] } } : {};
   const [sessions, assignments] = await Promise.all([
     prisma.session.findMany({
-      where: { studentId: studentProfileId },
-      include: { mentor: true, assignment: { select: { id: true, purpose: true } } },
+      where: { studentId: studentProfileId, ...inScope },
+      include: {
+        mentor: true,
+        program: true,
+        assignment: { select: { id: true, purpose: true } },
+      },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     }),
     prisma.assignment.findMany({
-      where: { studentId: studentProfileId },
-      include: { mentor: true },
+      where: { studentId: studentProfileId, ...inScope },
+      include: { mentor: true, program: true },
       orderBy: { position: "asc" },
     }),
   ]);
@@ -257,10 +337,13 @@ export async function recentMeetings({
     return prisma.session.findMany({
     where: {
       ...(mentorId ? { mentorId } : {}),
+      // The session's OWN program, not its student's: a student may be in two,
+      // and "sessions in this program" has to mean the meetings that drew this
+      // program's hours down rather than every meeting that person ever had.
       ...(programId
-        ? { student: { programId } }
+        ? { programId }
         : programIds
-          ? { student: { programId: { in: [...programIds] } } }
+          ? { programId: { in: [...programIds] } }
           : {}),
     },
         include: {
@@ -268,7 +351,8 @@ export async function recentMeetings({
       // The program comes along because a one-line session row names it —
       // "Malika logged 90 min with Aziza · Master's Program" — and looking it
       // up separately meant a second query for a string already one join away.
-      student: { include: { user: true, program: true } },
+      program: true,
+      student: { include: { user: true } },
       assignment: { select: { id: true, purpose: true } },
     },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
@@ -287,7 +371,7 @@ export type LedgerAssignment = Awaited<
  */
 export async function programTasks(programId: string) {
   const tasks = await prisma.assignment.findMany({
-    where: { student: { programId } },
+    where: { programId },
     include: {
       mentor: true,
       student: { include: { user: true } },
@@ -330,7 +414,7 @@ export type ProgramTask = Awaited<ReturnType<typeof programTasks>>[number];
  * One query for the whole log, not one per row.
  */
 export async function taskOptionsForSessions(
-  sessions: { id: string; studentId: string; mentorId: string }[]
+  sessions: { id: string; studentId: string; programId: string; mentorId: string }[]
 ): Promise<Record<string, { value: string; label: string }[]>> {
   if (sessions.length === 0) return {};
 
@@ -340,15 +424,19 @@ export async function taskOptionsForSessions(
     select: {
       id: true,
       studentId: true,
+      programId: true,
       mentorId: true,
       purpose: true,
       progress: true,
     },
   });
 
+  // Keyed with the program, because `resolveGoal` refuses a task from another
+  // one: offering it here would be offering a correction the action will then
+  // turn down.
   const byPair = new Map<string, { value: string; label: string }[]>();
   for (const task of tasks) {
-    const key = `${task.studentId}:${task.mentorId}`;
+    const key = `${task.studentId}:${task.programId}:${task.mentorId}`;
     const list = byPair.get(key) ?? [];
     // Done tasks stay pickable: a session may be the last one against work an
     // admin has already ticked off, and hiding it would strand the correction.
@@ -364,7 +452,9 @@ export async function taskOptionsForSessions(
 
   const bySession: Record<string, { value: string; label: string }[]> = {};
   for (const session of sessions) {
-    const list = byPair.get(`${session.studentId}:${session.mentorId}`);
+    const list = byPair.get(
+      `${session.studentId}:${session.programId}:${session.mentorId}`
+    );
     if (list) bySession[session.id] = list;
   }
   return bySession;
@@ -392,8 +482,8 @@ export async function mentorPrograms(mentorId: string) {
     where: {
       OR: [
         { mentorAssignments: { some: { mentorId } } },
-        { students: { some: { hourAllocations: { some: { mentorId } } } } },
-        { students: { some: { sessions: { some: { mentorId } } } } },
+        { hourAllocations: { some: { mentorId } } },
+        { sessions: { some: { mentorId } } },
       ],
     },
     orderBy: { name: "asc" },
@@ -422,7 +512,9 @@ export async function mentorOverview(
   mentorId: string,
   { programId, from, to }: MentorHoursWindow = {}
 ) {
-  const inProgram = programId ? { student: { programId } } : {};
+  // The row's own program — an allocation and a session each name one now, so
+  // neither has to be reached through the student, who may be in several.
+  const inProgram = programId ? { programId } : {};
   const inWindow =
     from || to
       ? {
@@ -437,14 +529,18 @@ export async function mentorOverview(
     prisma.hourAllocation.findMany({
       where: { mentorId, ...inProgram },
       include: {
-        student: { include: { user: true, program: true, cohort: true } },
+        program: true,
+        student: { include: { user: true } },
       },
       orderBy: { createdAt: "asc" },
     }),
     // Balances draw on every charging session this mentor ever logged, not just
-    // the ones the window happens to show.
+    // the ones the window happens to show. Grouped by program as well as
+    // student, because an allocation is per (student, program, mentor) and a
+    // balance summed across a student's programs would draw one program's
+    // hours out of another's grant.
     prisma.session.groupBy({
-      by: ["studentId", "attended"],
+      by: ["studentId", "programId", "attended"],
       where: { mentorId, ...CHARGED_SESSION },
       _sum: { minutes: true },
     }),
@@ -452,34 +548,36 @@ export async function mentorOverview(
       where: { mentorId, ...inProgram, ...inWindow },
       include: {
         mentor: true,
-        student: { include: { user: true, program: true } },
+        program: true,
+        student: { include: { user: true } },
         assignment: { select: { id: true, purpose: true } },
       },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     }),
   ]);
 
-  const usedByStudent = new Map<string, number>();
-  const missedByStudent = new Map<string, number>();
+  const usedByGrant = new Map<string, number>();
+  const missedByGrant = new Map<string, number>();
+  const grantKey = (s: { studentId: string; programId: string }) =>
+    `${s.studentId}:${s.programId}`;
   for (const s of lifetimeSums) {
     const hrs = s._sum.minutes ?? 0;
-    usedByStudent.set(s.studentId, (usedByStudent.get(s.studentId) ?? 0) + hrs);
+    const key = grantKey(s);
+    usedByGrant.set(key, (usedByGrant.get(key) ?? 0) + hrs);
     if (!s.attended) {
-      missedByStudent.set(
-        s.studentId,
-        (missedByStudent.get(s.studentId) ?? 0) + hrs
-      );
+      missedByGrant.set(key, (missedByGrant.get(key) ?? 0) + hrs);
     }
   }
 
   // Same forfeiture rule as lib/hours.ts: once the use-by date passes, unused
   // hours are gone and only an overdraw survives as "remaining".
   const students = allocations.map((a) => {
-    const used = usedByStudent.get(a.studentId) ?? 0;
-    const missed = missedByStudent.get(a.studentId) ?? 0;
+    const used = usedByGrant.get(grantKey(a)) ?? 0;
+    const missed = missedByGrant.get(grantKey(a)) ?? 0;
     const expired = deadlinePassed(a.deadline);
     return {
       student: a.student,
+      program: a.program,
       allocated: a.minutes,
       used,
       completed: used - missed,
@@ -529,7 +627,7 @@ export async function mentorOverview(
     return fresh;
   };
   for (const s of students) {
-    const row = rowFor(s.student.programId, s.student.program.name);
+    const row = rowFor(s.program.id, s.program.name);
     row.students += 1;
     row.allocated += s.allocated;
     row.used += s.used;
@@ -539,7 +637,7 @@ export async function mentorOverview(
   // A session can outlive its allocation (an admin may remove one), so the
   // window's hours land in their program's row either way.
   for (const s of active) {
-    const row = rowFor(s.student.programId, s.student.program.name);
+    const row = rowFor(s.programId, s.program.name);
     row.sessions += 1;
     if (!s.withinPlan) row.extra += s.minutes;
     else if (s.attended) row.delivered += s.minutes;
@@ -554,7 +652,9 @@ export async function mentorOverview(
     sessions,
     byProgram: [...rows.values()].sort((a, b) => a.name.localeCompare(b.name)),
     totals: {
-      students: students.length,
+      // Grants, not people: a student holding time from this mentor in two
+      // programs is two balances to read, and the rows below are one each.
+      students: new Set(students.map((s) => s.student.id)).size,
       sessions: active.length,
       delivered: sum((r) => r.delivered),
       missed: sum((r) => r.missed),
@@ -585,19 +685,27 @@ export async function mentorsInProgram(programId: string) {
 }
 
 /**
- * The mentor assignments visible to one student: program-wide assignments in
- * their program, plus their own cohort's assignments if they're in one.
+ * The mentor assignments visible to one student: in EACH program they are
+ * enrolled in, the program-wide pairings plus that enrollment's own cohort.
+ *
+ * One clause per enrollment rather than one clause with a list of programs,
+ * because the cohort belongs to a particular enrollment: a student in Global
+ * Admissions / Spring 25 and in the Master's Program may see Spring 25's
+ * mentors and the Master's Program's program-wide ones, and never Autumn 25's.
+ * A flattened `programId in (…) AND cohortId in (…)` says the wrong thing the
+ * moment two programs both have cohorts.
+ *
+ * A student enrolled in nothing matches nothing — `OR: []` is false in Prisma,
+ * which is the honest answer rather than every mentor in the school.
  */
 export function assignmentsForStudentWhere(profile: {
-  programId: string;
-  cohortId: string | null;
+  enrollments: readonly { programId: string; cohortId: string | null }[];
 }): Prisma.MentorAssignmentWhereInput {
   return {
-    programId: profile.programId,
-    OR: [
-      { cohortId: null },
-      ...(profile.cohortId ? [{ cohortId: profile.cohortId }] : []),
-    ],
+    OR: profile.enrollments.map((e) => ({
+      programId: e.programId,
+      OR: [{ cohortId: null }, ...(e.cohortId ? [{ cohortId: e.cohortId }] : [])],
+    })),
   };
 }
 
@@ -708,34 +816,141 @@ export function mentorReachWhere(
   const pairings = opts.pairings;
   if (pairings && pairings.length > 0) {
     // A pairing is program-wide (cohortId null) or to one cohort inside it,
-    // and a student is reached by whichever of the two the pairing says.
+    // and a student is reached by whichever of the two the pairing says —
+    // asked of their ENROLLMENTS, since a student may be in several programs
+    // and only one of them need be this mentor's.
     const inPairings: Prisma.StudentProfileWhereInput = {
-      OR: pairings.map((p) =>
-        p.cohortId
-          ? { programId: p.programId, cohortId: p.cohortId }
-          : { programId: p.programId }
-      ),
+      enrollments: {
+        some: {
+          OR: pairings.map((p) =>
+            p.cohortId
+              ? { programId: p.programId, cohortId: p.cohortId }
+              : { programId: p.programId }
+          ),
+        },
+      },
     };
     // Unassigned time in one of those programs: logging is the act that
-    // decides whose time it was.
-    reach.push({ AND: [inPairings, { hourAllocations: { some: { mentorId: null } } }] });
+    // decides whose time it was. The pool has to be in the SAME program as the
+    // pairing — a mentor working in Global Admissions must not be able to log
+    // against a pool the student holds in the Master's Program.
+    reach.push({
+      AND: [
+        inPairings,
+        {
+          hourAllocations: {
+            some: {
+              mentorId: null,
+              programId: { in: pairings.map((p) => p.programId) },
+            },
+          },
+        },
+      ],
+    });
     if (opts.includeProgram) reach.push(inPairings);
   }
 
   return { OR: reach };
 }
 
+/**
+ * Which of a student's programs this mentor may log a session into.
+ *
+ * The same five legs as `mentorReachWhere`, asked for a program rather than a
+ * yes/no: a grant here, a pool here they may claim, a meeting already logged
+ * here, a task on their list here, or simply a pairing with a program the
+ * student is enrolled in. `mentorReaches` says whether they may log at all;
+ * this says where the hours would come from, and the two agree by construction
+ * because they are the same five facts.
+ *
+ * Ordered with the programs that hold live time first, so a form that must pick
+ * a default picks the useful one.
+ */
+export async function reachablePrograms(
+  mentorId: string,
+  profile: {
+    id: string;
+    enrollments: readonly {
+      programId: string;
+      cohortId: string | null;
+      program: { id: string; name: string };
+    }[];
+  }
+): Promise<{ id: string; name: string }[]> {
+  const [pairings, allocations, sessions, tasks] = await Promise.all([
+    prisma.mentorAssignment.findMany({
+      where: { mentorId },
+      select: { programId: true, cohortId: true },
+    }),
+    prisma.hourAllocation.findMany({
+      where: { studentId: profile.id, OR: [{ mentorId }, { mentorId: null }] },
+      select: { programId: true, mentorId: true },
+    }),
+    prisma.session.findMany({
+      where: { studentId: profile.id, mentorId },
+      select: { programId: true },
+      distinct: ["programId"],
+    }),
+    prisma.assignment.findMany({
+      where: { studentId: profile.id, mentorId },
+      select: { programId: true },
+      distinct: ["programId"],
+    }),
+  ]);
+
+  const paired = (e: { programId: string; cohortId: string | null }) =>
+    pairings.some(
+      (p) => p.programId === e.programId && (!p.cohortId || p.cohortId === e.cohortId)
+    );
+  const granted = new Set(
+    allocations.filter((a) => a.mentorId === mentorId).map((a) => a.programId)
+  );
+  const pooled = new Set(
+    allocations.filter((a) => a.mentorId === null).map((a) => a.programId)
+  );
+  const met = new Set(sessions.map((x) => x.programId));
+  const tasked = new Set(tasks.map((x) => x.programId));
+
+  return profile.enrollments
+    .filter(
+      (e) =>
+        granted.has(e.programId) ||
+        met.has(e.programId) ||
+        tasked.has(e.programId) ||
+        // The pool leg and the plain in-program leg are the same condition
+        // here: both need a pairing that covers THIS enrollment, cohort and
+        // all — a Spring-25 mentor reaches Spring 25, not Global Admissions.
+        paired(e)
+    )
+    .map((e) => ({
+      id: e.program.id,
+      name: e.program.name,
+      live: granted.has(e.programId) || pooled.has(e.programId) ? 0 : 1,
+    }))
+    .sort((a, b) => a.live - b.live || a.name.localeCompare(b.name))
+    .map(({ id, name }) => ({ id, name }));
+}
+
 export type CaseloadStudent = {
   profile: {
     id: string;
-    programId: string;
-    cohortId: string | null;
     telegramUsername: string | null;
     folderUrl: string | null;
     user: { name: string | null; email: string; status: string };
-    program: { name: string };
-    cohort: { name: string } | null;
+    enrollments: {
+      programId: string;
+      cohortId: string | null;
+      program: { name: string };
+      cohort: { name: string } | null;
+    }[];
   };
+  /**
+   * WHICH program this row is about. A caseload row is a balance, and a
+   * balance belongs to one program: a student a mentor holds time with in two
+   * programs is two rows, with two deadlines, because that is two questions
+   * ("how much is left in the Master's Program?") with two answers.
+   */
+  program: { id: string; name: string };
   allocated: number;
   completed: number;
   missed: number;
@@ -756,9 +971,9 @@ export type MentorCaseload = {
   /** In the mentor's programs, but not theirs: pickable, never totalled. */
   loggable: {
     id: string;
-    programId: string;
+    /** The programs of theirs this mentor works in — where a log may land. */
+    programs: { id: string; name: string }[];
     user: { name: string | null; email: string };
-    program: { name: string };
   }[];
   /** studentId → the tasks this mentor may log against for them. */
   goalsByStudent: Map<string, { value: string; label: string }[]>;
@@ -773,19 +988,20 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
       mentorAssignments(mentorId),
       prisma.hourAllocation.findMany({
         where: { mentorId },
-        include: { student: { include: { user: true, program: true, cohort: true } } },
+        include: { program: true, student: { include: { user: true, enrollments: { include: { program: true, cohort: true } } } } },
         orderBy: { createdAt: "asc" },
       }),
       prisma.hourAllocation.findMany({
         where: { mentorId: null },
-        include: { student: { include: { user: true, program: true, cohort: true } } },
+        include: { program: true, student: { include: { user: true, enrollments: { include: { program: true, cohort: true } } } } },
         orderBy: { createdAt: "asc" },
       }),
       // Split by plan: in-plan rows are the balances (out-of-plan hours never
       // shrink what a student holds), and the whole set names everyone this
       // mentor has met — including students they only ever gave extra time to.
+      // Grouped by program too, since a balance is per (student, program).
       prisma.session.groupBy({
-        by: ["studentId", "attended", "withinPlan"],
+        by: ["studentId", "programId", "attended", "withinPlan"],
         where: { mentorId, status: SESSION_STATUS.ACTIVE },
         _sum: { minutes: true },
       }),
@@ -800,13 +1016,24 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
       prisma.assignment.findMany({
         where: { OR: [{ mentorId }, { mentorId: null }] },
         orderBy: [{ studentId: "asc" }, { position: "asc" }],
-        select: { id: true, studentId: true, mentorId: true, purpose: true, progress: true },
+        select: {
+          id: true,
+          studentId: true,
+          programId: true,
+          mentorId: true,
+          purpose: true,
+          progress: true,
+        },
       }),
     ]);
 
+  // Keyed by (student, program): a task belongs to one program's plan, and
+  // offering the Master's Program's essay against a Global Admissions session
+  // would attach delivered hours to work in a program that never ordered it.
   const goalsByStudent = new Map<string, { value: string; label: string }[]>();
   for (const g of myGoals) {
-    const list = goalsByStudent.get(g.studentId) ?? [];
+    const key = `${g.studentId}:${g.programId}`;
+    const list = goalsByStudent.get(key) ?? [];
     // Done tasks stay pickable: a mentor may log a final session for work an
     // admin already ticked off, and hiding it would strand those hours.
     list.push({
@@ -818,32 +1045,39 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
             ? `${g.purpose} (unassigned)`
             : g.purpose,
     });
-    goalsByStudent.set(g.studentId, list);
+    goalsByStudent.set(key, list);
   }
 
+  // Keyed by (student, program) — the shape of an allocation, and so the shape
+  // of a balance. A key of student alone would spend one program's minutes out
+  // of another program's grant.
   const used = new Map<string, number>();
   const missedBy = new Map<string, number>();
   const extraBy = new Map<string, number>();
+  const key = (s: { studentId: string; programId: string }) =>
+    `${s.studentId}:${s.programId}`;
   for (const s of mySessionSums) {
     const minutes = s._sum.minutes ?? 0;
+    const k = key(s);
     if (!s.withinPlan) {
-      extraBy.set(s.studentId, (extraBy.get(s.studentId) ?? 0) + minutes);
+      extraBy.set(k, (extraBy.get(k) ?? 0) + minutes);
       continue;
     }
-    used.set(s.studentId, (used.get(s.studentId) ?? 0) + minutes);
-    if (!s.attended) missedBy.set(s.studentId, (missedBy.get(s.studentId) ?? 0) + minutes);
+    used.set(k, (used.get(k) ?? 0) + minutes);
+    if (!s.attended) missedBy.set(k, (missedBy.get(k) ?? 0) + minutes);
   }
 
   const students: CaseloadStudent[] = allocations.map((a) => {
-    const drawn = used.get(a.studentId) ?? 0;
-    const missed = missedBy.get(a.studentId) ?? 0;
+    const drawn = used.get(key(a)) ?? 0;
+    const missed = missedBy.get(key(a)) ?? 0;
     const expired = deadlinePassed(a.deadline);
     return {
       profile: a.student,
+      program: a.program,
       allocated: a.minutes,
       completed: drawn - missed,
       missed,
-      extra: extraBy.get(a.studentId) ?? 0,
+      extra: extraBy.get(key(a)) ?? 0,
       // Unused hours on an expired allocation are forfeited.
       remaining: expired ? Math.min(0, a.minutes - drawn) : a.minutes - drawn,
       deadline: a.deadline,
@@ -853,25 +1087,41 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
     };
   });
 
-  const inScope = (s: { programId: string; cohortId: string | null }) =>
-    assignments.some(
-      (a) => a.programId === s.programId && (!a.cohortId || a.cohortId === s.cohortId)
+  /**
+   * Does one of this mentor's pairings cover this student IN THIS PROGRAM?
+   *
+   * The enrollment is what carries the cohort, so the question is asked of the
+   * student's row for that program rather than of the student: somebody in
+   * Global Admissions / Autumn 25 and in the Master's Program is reachable by a
+   * Spring-25-only mentor in neither.
+   */
+  const inScope = (
+    student: { enrollments: readonly { programId: string; cohortId: string | null }[] },
+    programId: string
+  ) =>
+    student.enrollments.some(
+      (e) =>
+        e.programId === programId &&
+        assignments.some(
+          (a) => a.programId === programId && (!a.cohortId || a.cohortId === e.cohortId)
+        )
     );
 
-  // Skipped once the mentor holds their own grant (that row already exists, and
-  // their sessions draw their own hours), and once the pool is empty or
-  // expired — there is nothing left to log against.
-  const mine = new Set(allocations.map((a) => a.studentId));
+  // Skipped once the mentor holds their own grant IN THAT PROGRAM (that row
+  // already exists, and their sessions draw their own hours), and once the pool
+  // is empty or expired — there is nothing left to log against.
+  const mine = new Set(allocations.map((a) => key(a)));
   for (const p of poolAllocations) {
-    if (mine.has(p.studentId)) continue;
+    if (mine.has(key(p))) continue;
     if (p.minutes <= 0 || deadlinePassed(p.deadline)) continue;
-    if (!inScope(p.student)) continue;
+    if (!inScope(p.student, p.programId)) continue;
     students.push({
       profile: p.student,
+      program: p.program,
       allocated: 0,
       completed: 0,
       missed: 0,
-      extra: extraBy.get(p.studentId) ?? 0,
+      extra: extraBy.get(key(p)) ?? 0,
       remaining: 0,
       deadline: p.deadline,
       expired: false,
@@ -881,31 +1131,58 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
     });
   }
 
-  const listed = new Set(students.map((s) => s.profile.id));
-  const metIds = [...new Set(mySessionSums.map((s) => s.studentId))].filter(
-    (id) => !listed.has(id)
+  // A row is one (student, program) pair from here on: the same person can be
+  // a granted balance in one program and a bare "we have met" in another.
+  const listed = new Set(students.map((s) => `${s.profile.id}:${s.program.id}`));
+  /** Fetch the profiles behind a set of (student, program) keys, once. */
+  const profilesFor = async (pairs: readonly string[]) => {
+    const ids = [...new Set(pairs.map((k) => k.split(":")[0]))];
+    if (ids.length === 0) return new Map<string, CaseloadStudent["profile"]>();
+    const rows = await prisma.studentProfile.findMany({
+      where: { id: { in: ids } },
+      include: { user: true, enrollments: { include: { program: true, cohort: true } } },
+    });
+    return new Map(rows.map((r) => [r.id, r]));
+  };
+  const programName = new Map<string, string>();
+  for (const a of [...allocations, ...poolAllocations]) {
+    programName.set(a.programId, a.program.name);
+  }
+  /** A program's row, fetched only for the ids no allocation already named. */
+  const namePrograms = async (ids: readonly string[]) => {
+    const missing = [...new Set(ids)].filter((id) => !programName.has(id));
+    if (missing.length === 0) return;
+    const rows = await prisma.program.findMany({
+      where: { id: { in: missing } },
+      select: { id: true, name: true },
+    });
+    for (const r of rows) programName.set(r.id, r.name);
+  };
+
+  const metKeys = [...new Set(mySessionSums.map((s) => key(s)))].filter(
+    (k) => !listed.has(k)
   );
-  const met = metIds.length
-    ? await prisma.studentProfile.findMany({
-        where: { id: { in: metIds } },
-        include: { user: true, program: true, cohort: true },
-      })
-    : [];
-  for (const p of met) {
-    const drawn = used.get(p.id) ?? 0;
-    const missed = missedBy.get(p.id) ?? 0;
-    listed.add(p.id);
+  const metProfiles = await profilesFor(metKeys);
+  await namePrograms(metKeys.map((k) => k.split(":")[1]));
+  for (const k of metKeys) {
+    const [studentId, programId] = k.split(":");
+    const profile = metProfiles.get(studentId);
+    if (!profile) continue;
+    const drawn = used.get(k) ?? 0;
+    const missed = missedBy.get(k) ?? 0;
+    listed.add(k);
     students.push({
-      profile: p,
+      profile,
+      program: { id: programId, name: programName.get(programId) ?? "" },
       allocated: 0,
       completed: drawn - missed,
       missed,
-      extra: extraBy.get(p.id) ?? 0,
+      extra: extraBy.get(k) ?? 0,
       // Nothing was allotted, so every charged minute is the overdraw it is.
       remaining: -drawn,
       deadline: null,
       expired: false,
-      approved: p.user.status === USER_STATUS.ACTIVE,
+      approved: profile.user.status === USER_STATUS.ACTIVE,
       reach: "met",
     });
   }
@@ -917,21 +1194,23 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
   // work while their own page listed ten people and their headline figure
   // counted only the hours they had been granted long ago. The students the
   // work belongs to were nowhere on it.
-  const taskOnlyIds = [
+  const taskOnlyKeys = [
     ...new Set(
-      myGoals.filter((g) => g.mentorId === mentorId).map((g) => g.studentId)
+      myGoals
+        .filter((g) => g.mentorId === mentorId)
+        .map((g) => `${g.studentId}:${g.programId}`)
     ),
-  ].filter((id) => !listed.has(id));
-  const tasked = taskOnlyIds.length
-    ? await prisma.studentProfile.findMany({
-        where: { id: { in: taskOnlyIds } },
-        include: { user: true, program: true, cohort: true },
-      })
-    : [];
-  for (const p of tasked) {
-    listed.add(p.id);
+  ].filter((k) => !listed.has(k));
+  const taskedProfiles = await profilesFor(taskOnlyKeys);
+  await namePrograms(taskOnlyKeys.map((k) => k.split(":")[1]));
+  for (const k of taskOnlyKeys) {
+    const [studentId, programId] = k.split(":");
+    const profile = taskedProfiles.get(studentId);
+    if (!profile) continue;
+    listed.add(k);
     students.push({
-      profile: p,
+      profile,
+      program: { id: programId, name: programName.get(programId) ?? "" },
       // Nothing granted and nothing spent: the row's own emptiness is the
       // news, and `studentStatuses` turns it into "No time with you".
       allocated: 0,
@@ -941,25 +1220,49 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
       remaining: 0,
       deadline: null,
       expired: false,
-      approved: p.user.status === USER_STATUS.ACTIVE,
+      approved: profile.user.status === USER_STATUS.ACTIVE,
       reach: "task",
     });
   }
 
+  // Everyone else in the mentor's programs. A student already listed for ONE
+  // program still belongs here for another they share — the row above is a
+  // balance in the Master's Program, and the Global Admissions meeting that
+  // has not happened yet still has to be loggable.
+  const inMyPairings = assignments.map((a) =>
+    a.cohortId
+      ? { programId: a.programId, cohortId: a.cohortId }
+      : { programId: a.programId }
+  );
   const loggable = assignments.length
-    ? await prisma.studentProfile.findMany({
-        where: {
-          id: { notIn: [...listed] },
-          user: { status: USER_STATUS.ACTIVE },
-          OR: assignments.map((a) =>
-            a.cohortId
-              ? { programId: a.programId, cohortId: a.cohortId }
-              : { programId: a.programId }
-          ),
-        },
-        include: { user: true, program: true },
-        orderBy: { createdAt: "asc" },
-      })
+    ? (
+        await prisma.studentProfile.findMany({
+          where: {
+            user: { status: USER_STATUS.ACTIVE },
+            enrollments: { some: { OR: inMyPairings } },
+          },
+          include: {
+            user: true,
+            enrollments: { include: { program: true } },
+          },
+          orderBy: { createdAt: "asc" },
+        })
+      )
+        .map((p) => ({
+          id: p.id,
+          user: p.user,
+          programs: p.enrollments
+            .filter(
+              (e) =>
+                assignments.some(
+                  (a) =>
+                    a.programId === e.programId &&
+                    (!a.cohortId || a.cohortId === e.cohortId)
+                ) && !listed.has(`${p.id}:${e.programId}`)
+            )
+            .map((e) => ({ id: e.programId, name: e.program.name })),
+        }))
+        .filter((p) => p.programs.length > 0)
     : [];
 
   const sum = (rows: typeof lifetime) =>
@@ -986,38 +1289,103 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
  * for on a normal Monday; everyone else in their programs last, because that
  * pick exists for the meeting that happened before any hours were granted.
  * Both lines are searchable, so an email is there to be typed at, not read.
+ *
+ * ONE OPTION PER PERSON, carrying the programs a log could land in. The
+ * caseload is per (student, program) — that is what a balance is — but a mentor
+ * picking a student is picking a person, and offering the same name twice with
+ * two balances under it is a puzzle, not a choice. So the rows are folded back
+ * together here and the program becomes a second, smaller question the form
+ * only asks when there is more than one answer.
  */
 export function logSessionOptions(caseload: MentorCaseload) {
   const { students, loggable, goalsByStudent } = caseload;
-  return [
-    ...students
-      .filter((s) => s.approved && !s.expired)
-      .map((s) => ({
-        profileId: s.profile.id,
-        label: s.profile.user.name ?? s.profile.user.email,
+
+  /** One program a session could be logged into, and what it holds. */
+  type Choice = {
+    id: string;
+    name: string;
+    balance: string;
+    /** Sorts live time above bare reach, so the default pick is the useful one. */
+    rank: number;
+    goals: { value: string; label: string }[];
+  };
+  const byStudent = new Map<
+    string,
+    { label: string; email: string; choices: Choice[] }
+  >();
+  const at = (id: string, label: string, email: string) => {
+    const row = byStudent.get(id) ?? { label, email, choices: [] };
+    byStudent.set(id, row);
+    return row;
+  };
+
+  for (const s of students) {
+    if (!s.approved || s.expired) continue;
+    const row = at(
+      s.profile.id,
+      s.profile.user.name ?? s.profile.user.email,
+      s.profile.user.email
+    );
+    row.choices.push({
+      id: s.program.id,
+      name: s.program.name,
+      balance:
+        s.pool != null
+          ? `${formatDuration(s.pool)} unassigned — logging makes it yours`
+          : s.allocated > 0
+            ? `${formatDuration(s.remaining)} left with you`
+            : "No time allocated to you",
+      rank: s.pool != null || s.allocated > 0 ? 0 : 1,
+      goals: goalsByStudent.get(`${s.profile.id}:${s.program.id}`) ?? [],
+    });
+  }
+
+  for (const p of loggable) {
+    const row = at(p.id, p.user.name ?? p.user.email, p.user.email);
+    for (const program of p.programs) {
+      if (row.choices.some((c) => c.id === program.id)) continue;
+      row.choices.push({
+        id: program.id,
+        name: program.name,
+        balance: "No time allocated to you",
+        rank: 2,
+        goals: goalsByStudent.get(`${p.id}:${program.id}`) ?? [],
+      });
+    }
+  }
+
+  const best = (row: { choices: Choice[] }) =>
+    Math.min(...row.choices.map((c) => c.rank));
+
+  return [...byStudent.entries()]
+    // Students holding live time first, then everyone else, then alphabetical
+    // inside each group — the order the picker is read in.
+    .sort(([, a], [, b]) => best(a) - best(b) || a.label.localeCompare(b.label))
+    .map(([profileId, row]) => {
+      const choices = [...row.choices].sort(
+        (a, b) => a.rank - b.rank || a.name.localeCompare(b.name)
+      );
+      const lead = choices[0];
+      return {
+        profileId,
+        label: row.label,
+        // The hint is what the searchable dropdown shows on the closed row, so
+        // it names the program only when the choice is real.
         hint:
-          s.pool != null
-            ? `${formatDuration(s.pool)} unassigned — logging makes them yours · ${s.profile.program.name} · ${s.profile.user.email}`
-            : s.allocated > 0
-              ? `${formatDuration(s.remaining)} left with you · ${s.profile.program.name} · ${s.profile.user.email}`
-              : `No time allocated to you · ${s.profile.program.name} · ${s.profile.user.email}`,
-                // Shown under the closed select, where the dropdown's searchable hint
+          choices.length === 1
+            ? `${lead.balance} · ${lead.name} · ${row.email}`
+            : `${choices.length} programs · ${row.email}`,
+        programs: choices.map((c) => ({
+          value: c.id,
+          label: c.name,
+          balance: c.balance,
+          goals: c.goals,
+        })),
+        // Shown under the closed select, where the dropdown's searchable hint
         // is no longer visible and the one thing a mentor re-checks before
         // typing minutes is how much time there is to spend.
-        balance:
-          s.pool != null
-            ? `${formatDuration(s.pool)} unassigned — logging makes it yours`
-            : s.allocated > 0
-              ? `${formatDuration(s.remaining)} left with you`
-              : "No time allocated to you",
-        goals: goalsByStudent.get(s.profile.id) ?? [],
-      })),
-    ...loggable.map((p) => ({
-      profileId: p.id,
-      label: p.user.name ?? p.user.email,
-      hint: `No time allocated to you · ${p.program.name} · ${p.user.email}`,
-      balance: "No time allocated to you",
-      goals: goalsByStudent.get(p.id) ?? [],
-    })),
-  ];
+        balance: lead.balance,
+        goals: lead.goals,
+      };
+    });
 }

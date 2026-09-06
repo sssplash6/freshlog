@@ -27,20 +27,38 @@ const labelClass =
  */
 export function AssignTaskForm({
   studentProfileId,
+  programs,
   mentors,
   openTasksByMentor = {},
-  showAmountPaid = false,
+  paymentPrograms = [],
 }: {
   studentProfileId: string;
+  /**
+   * The student's programs, as the reader may see them.
+   *
+   * Time is granted IN a program — that is where its deadline, its totals and
+   * its admins come from — so this is asked whenever the answer is more than
+   * one, and posted silently when it is one.
+   */
+  programs: SelectOption[];
   /** Every mentor who could take this on. */
   mentors: SelectOption[];
-  /** mentorId → the open tasks they already have with this student. */
+  /** `programId:mentorId` → the open tasks they already have with this student. */
   openTasksByMentor?: Record<string, OpenTask[]>;
-  showAmountPaid?: boolean;
+  /** The programs that also record what was paid. */
+  paymentPrograms?: readonly string[];
 }) {
   const [, action, save] = useSaveState(setMentorAllocation);
   const [mentorId, setMentorId] = useState("");
+  const [programId, setProgramId] = useState(
+    programs.length === 1 ? programs[0].value : ""
+  );
   const today = toDateInputValue(new Date());
+  // The money fields belong to the grant, so they follow the program picked
+  // rather than the student: a student in the Master's Program and in Global
+  // Admissions is asked what they paid for one and not for the other.
+  const showAmountPaid = paymentPrograms.includes(programId);
+  const openTasks = openTasksByMentor[`${programId}:${mentorId}`] ?? [];
 
   return (
     <form action={action}>
@@ -52,8 +70,27 @@ export function AssignTaskForm({
       </p>
       <input type="hidden" name="studentProfileId" value={studentProfileId} />
       <input type="hidden" name="mode" value="add" />
+      {programs.length === 1 && (
+        <input type="hidden" name="programId" value={programs[0].value} />
+      )}
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {programs.length > 1 && (
+          <div className="min-w-0">
+            <span className={labelClass}>
+              Program <span className="text-accent-ink">*</span>
+            </span>
+            <div className="mt-1">
+              <Select
+                name="programId"
+                ariaLabel="Program"
+                options={programs}
+                placeholder="Which program is this for?"
+                onChange={setProgramId}
+              />
+            </div>
+          </div>
+        )}
         <div className="min-w-0">
           <span className={labelClass}>Mentor</span>
           <div className="mt-1">
@@ -72,12 +109,12 @@ export function AssignTaskForm({
             picked for one mentor must never be left selected under another's.
             The "" key is the unassigned pool's own open tasks. */}
         <TaskPicker
-          key={mentorId}
+          key={`${programId}:${mentorId}`}
           className="lg:col-span-2"
           optional
-          openTasks={openTasksByMentor[mentorId] ?? []}
+          openTasks={openTasks}
           hint={
-            (openTasksByMentor[mentorId]?.length ?? 0) > 0
+            openTasks.length > 0
               ? "Picking a task they already have open adds this time to its budget."
               : undefined
           }

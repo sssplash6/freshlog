@@ -103,12 +103,42 @@ export async function canManageProgram(
   return scopeCovers(await adminScope(user), programId);
 }
 
-/** May this person administer this student? Their program decides. */
+/**
+ * May this person administer this student? Their programs decide — ANY of
+ * them.
+ *
+ * Overlap, not equality, since a student may study in several: an admin of the
+ * Master's Program administers a student who is also in Global Admissions,
+ * because one of the two is theirs. What that admin may then SEE of the
+ * student is a narrower question — `studentScope` below — and the two are
+ * deliberately separate: reaching the page must not mean reading another
+ * program's ledger on it.
+ */
 export async function canManageStudent(
   user: User,
-  profile: { programId: string }
+  profile: { enrollments: readonly { programId: string }[] }
 ): Promise<boolean> {
-  return canManageProgram(user, profile.programId);
+  const scope = await adminScope(user);
+  if (scope === "ALL") return profile.enrollments.length > 0;
+  return profile.enrollments.some((e) => scope.has(e.programId));
+}
+
+/**
+ * WHICH of a student's programs this person may read — the answer every page
+ * about one student filters its ledger by.
+ *
+ * A platform admin gets every program the student is in; anybody else gets the
+ * intersection with their grants. Empty means they administer none of the
+ * student's programs, which `canManageStudent` has already turned away.
+ */
+export async function studentScope(
+  user: User,
+  profile: { enrollments: readonly { programId: string }[] }
+): Promise<string[]> {
+  const scope = await adminScope(user);
+  const ids = profile.enrollments.map((e) => e.programId);
+  if (scope === "ALL") return ids;
+  return ids.filter((id) => scope.has(id));
 }
 
 /**
@@ -184,6 +214,27 @@ export async function assertProgramScope(
   return {
     ok: false,
     error: "You don't administer that program.",
+  };
+}
+
+/**
+ * The same check, asked about a STUDENT rather than a program id: does the
+ * actor administer any program this student is in?
+ *
+ * A separate function because the two refusals are different sentences and the
+ * wrong one leaks. "You don't administer that program" is right when the caller
+ * named a program; a student page never did — the actor picked a person, and
+ * the honest answer is about the person.
+ */
+export async function assertStudentScope(
+  actor: User | null,
+  profile: { enrollments: readonly { programId: string }[] }
+): Promise<Denied | null> {
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+  if (await canManageStudent(actor, profile)) return null;
+  return {
+    ok: false,
+    error: "You don't administer any program this student is in.",
   };
 }
 

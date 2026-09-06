@@ -18,45 +18,68 @@ import { CHARGED_SESSION, SESSION_STATUS } from "@/lib/constants";
  * "Charging" is `chargesAllocation()` in lib/constants.ts — active and in-plan.
  */
 
-export async function completedMinutes(studentProfileId: string): Promise<number> {
+export async function completedMinutes(
+  studentProfileId: string,
+  programId?: string
+): Promise<number> {
   const result = await prisma.session.aggregate({
-    where: { studentId: studentProfileId, ...CHARGED_SESSION },
+    where: {
+      studentId: studentProfileId,
+      ...(programId ? { programId } : {}),
+      ...CHARGED_SESSION,
+    },
     _sum: { minutes: true },
   });
   return result._sum.minutes ?? 0;
 }
 
-/** Per-mentor balances for one student, plus overall totals, in minutes. */
-export async function allocationSummary(studentProfileId: string) {
+/**
+ * Per-mentor balances for one student, plus overall totals, in minutes.
+ *
+ * `programIds` is the reader's reach. A student may study in several programs
+ * and holds a separate balance in each — separate grants, separate deadlines,
+ * separate forfeiture — so an admin of one of them gets that program's ledger
+ * and no other, and the student themself (no filter) gets all of it. A row is
+ * one (program, mentor) pair, which is what an allocation is.
+ */
+export async function allocationSummary(
+  studentProfileId: string,
+  programIds?: readonly string[]
+) {
+  const inScope = programIds ? { programId: { in: [...programIds] } } : {};
   const [allocations, sessionSums] = await Promise.all([
     prisma.hourAllocation.findMany({
-      where: { studentId: studentProfileId },
-      include: { mentor: true },
-      orderBy: { createdAt: "asc" },
+      where: { studentId: studentProfileId, ...inScope },
+      include: { mentor: true, program: true },
+      orderBy: [{ program: { name: "asc" } }, { createdAt: "asc" }],
     }),
     // Grouped by withinPlan as well as attendance, so one query answers both
     // "what did this draw down?" and "what was given on top?".
     prisma.session.groupBy({
-      by: ["mentorId", "attended", "withinPlan"],
-      where: { studentId: studentProfileId, status: SESSION_STATUS.ACTIVE },
+      by: ["programId", "mentorId", "attended", "withinPlan"],
+      where: { studentId: studentProfileId, status: SESSION_STATUS.ACTIVE, ...inScope },
       _sum: { minutes: true },
     }),
   ]);
 
-  // Minutes drawn down per mentor (present + no-show), the no-show subset, and —
-  // separately, because they move no balance — the out-of-plan minutes.
+  // Minutes drawn down per (program, mentor) — the key an allocation has —
+  // plus the no-show subset and, separately because they move no balance, the
+  // out-of-plan minutes. Keying on the mentor alone would let a session logged
+  // in one program draw down the grant they hold in another.
   const usedByMentor = new Map<string, number>();
   const missedByMentor = new Map<string, number>();
   const extraByMentor = new Map<string, number>();
+  const pair = (programId: string, mentorId: string) => `${programId}:${mentorId}`;
   for (const s of sessionSums) {
     const mins = s._sum.minutes ?? 0;
+    const k = pair(s.programId, s.mentorId);
     if (!s.withinPlan) {
-      extraByMentor.set(s.mentorId, (extraByMentor.get(s.mentorId) ?? 0) + mins);
+      extraByMentor.set(k, (extraByMentor.get(k) ?? 0) + mins);
       continue;
     }
-    usedByMentor.set(s.mentorId, (usedByMentor.get(s.mentorId) ?? 0) + mins);
+    usedByMentor.set(k, (usedByMentor.get(k) ?? 0) + mins);
     if (!s.attended) {
-      missedByMentor.set(s.mentorId, (missedByMentor.get(s.mentorId) ?? 0) + mins);
+      missedByMentor.set(k, (missedByMentor.get(k) ?? 0) + mins);
     }
   }
 
@@ -65,6 +88,8 @@ export async function allocationSummary(studentProfileId: string) {
   const now = Date.now();
   const perMentor: {
     mentor: (typeof allocations)[number]["mentor"];
+    /** The program the grant was made in — a row is one of these per mentor. */
+    program: { id: string; name: string };
     allocated: number;
     completed: number;
     missed: number;
@@ -77,13 +102,15 @@ export async function allocationSummary(studentProfileId: string) {
   }[] = allocations.map((a) => {
     // The unassigned pool (mentor null) can never have sessions against it —
     // sessions are logged by a mentor — so its used/missed are always 0.
-    const used = (a.mentorId && usedByMentor.get(a.mentorId)) || 0;
-    const missed = (a.mentorId && missedByMentor.get(a.mentorId)) || 0;
-    const extra = (a.mentorId && extraByMentor.get(a.mentorId)) || 0;
+    const k = a.mentorId ? pair(a.programId, a.mentorId) : null;
+    const used = (k && usedByMentor.get(k)) || 0;
+    const missed = (k && missedByMentor.get(k)) || 0;
+    const extra = (k && extraByMentor.get(k)) || 0;
     const expired = a.deadline.getTime() < now;
     const forfeited = expired ? Math.max(0, a.minutes - used) : 0;
     return {
       mentor: a.mentor,
+      program: a.program,
       allocated: a.minutes,
       completed: used - missed,
       missed,
@@ -105,21 +132,38 @@ export async function allocationSummary(studentProfileId: string) {
   // otherwise the student and the admin read an overdraw that no row explains.
   // A derived row, so: nothing allotted, no deadline to be past, and whatever
   // was charged showing as the overdraw it is.
-  const granted = new Set(allocations.flatMap((a) => (a.mentorId ? [a.mentorId] : [])));
-  const ungranted = [...new Set(sessionSums.map((s) => s.mentorId))].filter(
-    (id) => !granted.has(id)
+  const granted = new Set(
+    allocations.flatMap((a) => (a.mentorId ? [pair(a.programId, a.mentorId)] : []))
   );
+  const ungranted = [
+    ...new Set(sessionSums.map((s) => pair(s.programId, s.mentorId))),
+  ].filter((k) => !granted.has(k));
   if (ungranted.length > 0) {
-    const mentors = await prisma.user.findMany({ where: { id: { in: ungranted } } });
-    for (const mentor of mentors) {
-      const used = usedByMentor.get(mentor.id) ?? 0;
-      const missed = missedByMentor.get(mentor.id) ?? 0;
+    const [mentors, programs] = await Promise.all([
+      prisma.user.findMany({
+        where: { id: { in: ungranted.map((k) => k.split(":")[1]) } },
+      }),
+      prisma.program.findMany({
+        where: { id: { in: ungranted.map((k) => k.split(":")[0]) } },
+        select: { id: true, name: true },
+      }),
+    ]);
+    const mentorById = new Map(mentors.map((m) => [m.id, m]));
+    const programById = new Map(programs.map((p) => [p.id, p]));
+    for (const k of ungranted) {
+      const [programId, mentorId] = k.split(":");
+      const mentor = mentorById.get(mentorId);
+      const program = programById.get(programId);
+      if (!mentor || !program) continue;
+      const used = usedByMentor.get(k) ?? 0;
+      const missed = missedByMentor.get(k) ?? 0;
       perMentor.push({
         mentor,
+        program,
         allocated: 0,
         completed: used - missed,
         missed,
-        extra: extraByMentor.get(mentor.id) ?? 0,
+        extra: extraByMentor.get(k) ?? 0,
         remaining: -used,
         forfeited: 0,
         expired: false,
@@ -160,20 +204,32 @@ export async function allocationSummary(studentProfileId: string) {
 
 export type AllocationSummary = Awaited<ReturnType<typeof allocationSummary>>;
 
-/** Minutes a student has left with one specific mentor. */
+/**
+ * Minutes a student has left with one specific mentor, in one program.
+ *
+ * The program is part of the question, not context: the same mentor may hold
+ * separate time with the same student in two programs, and "how much is left
+ * with Aziza?" has two different right answers.
+ */
 export async function remainingWithMentor(
   studentProfileId: string,
+  programId: string,
   mentorId: string
 ): Promise<number | null> {
   const allocation = await prisma.hourAllocation.findUnique({
     where: {
-      studentId_mentorId: { studentId: studentProfileId, mentorId },
+      studentId_programId_mentorId: {
+        studentId: studentProfileId,
+        programId,
+        mentorId,
+      },
     },
   });
   if (!allocation) return null;
   const used = await prisma.session.aggregate({
     where: {
       studentId: studentProfileId,
+      programId,
       mentorId,
       ...CHARGED_SESSION,
     },

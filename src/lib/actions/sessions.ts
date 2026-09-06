@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/dal";
 import {
   adminScope,
-  canManageStudent,
+  canManageProgram,
   mentorReaches,
   scopeCovers,
   scopeIsEmpty,
@@ -41,6 +41,7 @@ import {
   parseMinutesField,
   type ActionState,
 } from "@/lib/actions/shared";
+import { reachablePrograms } from "@/lib/queries";
 
 /**
  * Which of the four kinds of meeting this was. Defaults to Attended, so a form
@@ -124,15 +125,17 @@ async function requireActiveMentor() {
   return actor;
 }
 
-/** Remaining hours the student holds with this mentor (derived). */
+/** Remaining hours the student holds with this mentor, in this program. */
 async function remainingWith(
   studentProfileId: string,
+  programId: string,
   mentorId: string,
   allocatedHours: number
 ): Promise<number> {
   const sum = await prisma.session.aggregate({
     where: {
       studentId: studentProfileId,
+      programId,
       mentorId,
       ...CHARGED_SESSION,
     },
@@ -154,6 +157,7 @@ async function remainingWith(
 async function resolveGoal(
   raw: FormDataEntryValue | null,
   studentProfileId: string,
+  programId: string,
   mentorId: string
 ): Promise<
   | { value: { id: string; purpose: string; unassigned: boolean } | null }
@@ -166,6 +170,10 @@ async function resolveGoal(
   if (
     !assignment ||
     assignment.studentId !== studentProfileId ||
+    // A task belongs to one program's plan. Logging a Master's Program meeting
+    // against a Global Admissions essay would put delivered hours on work in a
+    // program that never ordered them.
+    assignment.programId !== programId ||
     (assignment.mentorId !== null && assignment.mentorId !== mentorId)
   ) {
     return { error: "That task isn't one of yours for this student." };
@@ -200,6 +208,7 @@ async function resolveGoal(
  */
 const LOG_FIELDS = [
   "studentProfileId",
+  "programId",
   "assignmentId",
   "minutes",
   "date",
@@ -252,7 +261,10 @@ export async function logSession(
 
   const profile = await prisma.studentProfile.findUnique({
     where: { id: studentProfileId },
-    include: { user: true },
+    include: {
+      user: true,
+      enrollments: { include: { program: true } },
+    },
   });
   if (!profile) return bad("Student not found.", "studentProfileId");
   if (profile.user.status !== USER_STATUS.ACTIVE) {
@@ -273,21 +285,49 @@ export async function logSession(
     );
   }
 
-  // Sessions draw down hours an admin allocated to THIS mentor — or, when the
-  // mentor holds none, the student's unassigned pool: those hours deliberately
-  // named no mentor yet, and logging is the act that decides one. The
-  // logged hours are carved out of the pool into this mentor's own allocation
-  // inside the transaction below, so every number afterwards reads the same as
-  // if an admin had granted them directly.
+  // WHICH program this meeting was for. A student may be enrolled in several,
+  // and each holds its own time with its own deadline, so a session that could
+  // not say which one it spent would spend the wrong one. The mentor is asked
+  // only when the answer is genuinely more than one; with a single shared
+  // program — which is nearly every meeting — the form fills it in silently.
+  const reachable = await reachablePrograms(mentor.id, profile);
+  const named = String(formData.get("programId") ?? "").trim();
+  const programId = named
+    ? reachable.find((p) => p.id === named)?.id
+    : reachable.length === 1
+      ? reachable[0].id
+      : undefined;
+  if (!programId) {
+    return bad(
+      named
+        ? "You don't work in that program, or the student isn't in it."
+        : reachable.length === 0
+          ? "You aren't assigned to any program this student is in, so you can't log hours for them."
+          : "This student is in more than one of your programs — pick which one this session was for.",
+      "programId"
+    );
+  }
+  const program = reachable.find((p) => p.id === programId)!;
+
+  // Sessions draw down hours an admin allocated to THIS mentor in THIS
+  // program — or, when the mentor holds none, the student's unassigned pool
+  // there: those hours deliberately named no mentor yet, and logging is the act
+  // that decides one. The logged hours are carved out of the pool into this
+  // mentor's own allocation inside the transaction below, so every number
+  // afterwards reads the same as if an admin had granted them directly.
   const allocation = await prisma.hourAllocation.findUnique({
     where: {
-      studentId_mentorId: { studentId: profile.id, mentorId: mentor.id },
+      studentId_programId_mentorId: {
+        studentId: profile.id,
+        programId,
+        mentorId: mentor.id,
+      },
     },
   });
   const pool = allocation
     ? null
     : await prisma.hourAllocation.findFirst({
-        where: { studentId: profile.id, mentorId: null },
+        where: { studentId: profile.id, programId, mentorId: null },
       });
 
   // Whether the hours charge is the mentor's own answer to "Whose hours?", and
@@ -322,6 +362,7 @@ export async function logSession(
   const resolved = await resolveGoal(
     formData.get("assignmentId"),
     profile.id,
+    programId,
     mentor.id
   );
   if ("error" in resolved) return bad(resolved.error, "assignmentId");
@@ -341,6 +382,7 @@ export async function logSession(
     where: {
       mentorId: mentor.id,
       studentId: profile.id,
+      programId,
       minutes: minutesParsed.value,
       date: dateParsed.value,
       status: SESSION_STATUS.ACTIVE,
@@ -353,14 +395,18 @@ export async function logSession(
     );
   }
 
-  const staff = await staffIdsFor(profile.programId);
+  const staff = await staffIdsFor(programId);
   const mentorLabel = mentor.name ?? mentor.email;
   const studentName = profile.user.name ?? profile.user.email;
+  // Said out loud only when the mentor had a choice to make. Confirming the
+  // program back to somebody who was never asked about it is noise.
+  const inProgram = reachable.length > 1 ? ` in ${program.name}` : "";
 
   const { sessionId, sync, carved, poolAfter, meeting } = await prisma.$transaction(async (tx) => {
     const session = await tx.session.create({
       data: {
         studentId: profile.id,
+        programId,
         mentorId: mentor.id,
         assignmentId: goal?.id ?? null,
         minutes: minutesParsed.value,
@@ -416,7 +462,11 @@ export async function logSession(
         // (student, mentor) unique index.
         const mine = await tx.hourAllocation.findUnique({
           where: {
-            studentId_mentorId: { studentId: profile.id, mentorId: mentor.id },
+            studentId_programId_mentorId: {
+              studentId: profile.id,
+              programId,
+              mentorId: mentor.id,
+            },
           },
         });
         const mineBefore = mine?.minutes ?? 0;
@@ -430,6 +480,7 @@ export async function logSession(
           await tx.hourAllocation.create({
             data: {
               studentId: profile.id,
+              programId,
               mentorId: mentor.id,
               minutes: carved,
               deadline: freshPool.deadline,
@@ -442,6 +493,7 @@ export async function logSession(
           data: [
             {
               studentId: profile.id,
+              programId,
               mentorId: null,
               changedById: mentor.id,
               oldMinutes: available,
@@ -449,6 +501,7 @@ export async function logSession(
             },
             {
               studentId: profile.id,
+              programId,
               mentorId: mentor.id,
               changedById: mentor.id,
               oldMinutes: mineBefore,
@@ -551,14 +604,19 @@ export async function logSession(
   // that were never going to move a balance.
   let headline: string;
   if (!withinPlan) {
-    headline = `Logged ${formatMinutes(minutesParsed.value)} with ${studentName} as extra time.`;
+    headline = `Logged ${formatMinutes(minutesParsed.value)} with ${studentName}${inProgram} as extra time.`;
     notes.push(`On top of the plan, so their balance is unchanged.`);
   } else if (rescheduled) {
-    headline = `Rescheduled meeting with ${studentName} recorded — no time charged.`;
+    headline = `Rescheduled meeting with ${studentName}${inProgram} recorded — no time charged.`;
     if (pool) {
       notes.push("Their unassigned pool is untouched.");
     } else if (allocation) {
-      const left = await remainingWith(profile.id, mentor.id, allocation.minutes);
+      const left = await remainingWith(
+        profile.id,
+        programId,
+        mentor.id,
+        allocation.minutes
+      );
       notes.push(`They still have ${formatDuration(left)} left with you.`);
     }
     // Nothing allocated means no balance to reassure anyone about — "0h left
@@ -567,7 +625,7 @@ export async function logSession(
     // What the carve just did, in the mentor's terms: these hours are theirs
     // now, and here is what the pool still holds for whoever meets them next.
     const short = Number((minutesParsed.value - carved).toFixed(2));
-    headline = `Logged ${formatMinutes(minutesParsed.value)} with ${studentName}.`;
+    headline = `Logged ${formatMinutes(minutesParsed.value)} with ${studentName}${inProgram}.`;
     notes.push(
       short > 0
         ? `${formatDuration(carved)} unassigned minutes moved to you — the pool came up ${formatDuration(short)} short, so they are overdrawn with you.`
@@ -576,10 +634,11 @@ export async function logSession(
   } else {
     const remaining = await remainingWith(
       profile.id,
+      programId,
       mentor.id,
       allocation?.minutes ?? 0
     );
-    headline = `Logged ${formatMinutes(minutesParsed.value)} with ${studentName}.`;
+    headline = `Logged ${formatMinutes(minutesParsed.value)} with ${studentName}${inProgram}.`;
     notes.push(
       remaining >= 0
         ? `${formatDuration(remaining)} left with you.`
@@ -653,8 +712,10 @@ async function requireSessionAuthority(
     include: { student: { include: { user: true } }, mentor: true },
   });
   const mine = isMentor && session?.mentorId === actor.id;
-  const inScope =
-    session !== null && scopeCovers(scope, session.student.programId);
+  // The SESSION's program, not its student's: the row says which program's
+  // hours it drew, and a student in two programs must not make their Master's
+  // Program ledger correctable by Global Admissions' admin.
+  const inScope = session !== null && scopeCovers(scope, session.programId);
   if (
     !session ||
     session.status === SESSION_STATUS.VOIDED ||
@@ -709,7 +770,12 @@ export async function editSession(
   const rawGoal = String(formData.get("assignmentId") ?? "").trim();
   let assignmentId = session.assignmentId;
   if (rawGoal && rawGoal !== session.assignmentId) {
-    const resolved = await resolveGoal(rawGoal, session.studentId, session.mentorId);
+    const resolved = await resolveGoal(
+      rawGoal,
+      session.studentId,
+      session.programId,
+      session.mentorId
+    );
     if ("error" in resolved) return { ok: false, error: resolved.error };
     assignmentId = resolved.value?.id ?? null;
   }
@@ -726,7 +792,7 @@ export async function editSession(
       : kind === TIME_KIND.EXTRA
         ? " These hours are now extra, on top of the plan — they no longer count against the allocation."
         : " These hours now count against the allocation.";
-  const staff = await staffIdsFor(session.student.programId);
+  const staff = await staffIdsFor(session.programId);
   const actorLabel = actor.name ?? actor.email;
   const mentorLabel = session.mentor.name ?? session.mentor.email;
   const studentName = session.student.user.name ?? session.student.user.email;
@@ -798,7 +864,7 @@ export async function voidSession(
   }
   const { actor, session } = auth;
 
-  const staff = await staffIdsFor(session.student.programId);
+  const staff = await staffIdsFor(session.programId);
   const actorLabel = actor.name ?? actor.email;
   const mentorLabel = session.mentor.name ?? session.mentor.email;
   const studentName = session.student.user.name ?? session.student.user.email;
@@ -867,14 +933,14 @@ export async function deleteSession(
   // first and the gate second. One sentence for both outcomes: an id that finds
   // nothing and an id in someone else's program must read the same, or deleting
   // becomes a way to enumerate a ledger you can't see.
-  if (!session || !(await canManageStudent(actor, session.student))) {
+  if (!session || !(await canManageProgram(actor, session.programId))) {
     return {
       ok: false,
       error: "That session is gone, or isn't in a program you administer.",
     };
   }
 
-  const staff = await staffIdsFor(session.student.programId);
+  const staff = await staffIdsFor(session.programId);
   const actorLabel = actor.name ?? actor.email;
   const mentorLabel = session.mentor.name ?? session.mentor.email;
   const studentName = session.student.user.name ?? session.student.user.email;

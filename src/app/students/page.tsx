@@ -84,7 +84,14 @@ export default async function StudentsPage({
       where: programIds ? { id: { in: [...programIds] } } : {},
       orderBy: { name: "asc" },
     }),
-    studentsWithHours(where, { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }, now),
+    // `programIds` twice over on purpose: it narrows WHICH students the `where`
+    // returns, and — here — which of each student's programs their hours and
+    // their program cell are summed from.
+    studentsWithHours(where, {
+      slice: { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE },
+      now,
+      programIds,
+    }),
     prisma.studentProfile.count({ where }),
   ]);
 

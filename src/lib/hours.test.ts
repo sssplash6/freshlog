@@ -229,7 +229,9 @@ describe("remainingWithMentor", () => {
     const s = await student();
     const m = await mentor();
 
-    expect(await remainingWithMentor(s.id, m.id)).toBeNull();
+    expect(
+      await remainingWithMentor(s.id, s.enrollments[0].programId, m.id)
+    ).toBeNull();
   });
 
   it("counts only that mentor's charging sessions", async () => {
@@ -246,7 +248,9 @@ describe("remainingWithMentor", () => {
       withinPlan: false,
     });
 
-    expect(await remainingWithMentor(s.id, mine.id)).toBe(510);
+    expect(
+      await remainingWithMentor(s.id, s.enrollments[0].programId, mine.id)
+    ).toBe(510);
   });
 });
 

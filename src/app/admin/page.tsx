@@ -108,7 +108,14 @@ export default async function AdminInboxPage() {
     ).map((d) => dismissalKey(d.type, d.subjectId))
   );
   const inScope = programIds ? { in: [...programIds] } : undefined;
-  const ofMine = inScope ? { student: { programId: inScope } } : {};
+  // "Belongs to a program I administer", in the two shapes the rows come in:
+  // a session, a grant and a task each name their own program now, while a
+  // rating and a scheduled meeting name none and are reached through the
+  // student's enrollments.
+  const ofMine = inScope ? { programId: inScope } : {};
+  const ofMyStudents = inScope
+    ? { student: { enrollments: { some: { programId: inScope } } } }
+    : {};
 
   // One instant for the whole render, so no two sections can disagree about
   // what today is or what has expired.
@@ -137,7 +144,10 @@ export default async function AdminInboxPage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    studentsWithHours(inScope ? { programId: inScope } : {}),
+    studentsWithHours(
+      inScope ? { enrollments: { some: { programId: inScope } } } : {},
+      { now, programIds }
+    ),
     prisma.mentorAssignment.findMany({
       where: inScope ? { programId: inScope } : {},
       select: { mentorId: true, programId: true, calendlyUrl: true },
@@ -152,7 +162,7 @@ export default async function AdminInboxPage() {
     }),
     prisma.mentorFeedback.groupBy({
       by: ["mentorId"],
-      where: ofMine,
+      where: ofMyStudents,
       _avg: { rating: true },
       _count: true,
     }),
@@ -160,7 +170,7 @@ export default async function AdminInboxPage() {
     // to expire is the question, so a date already passed is not an answer —
     // that time is forfeited, and `studentsWithHours` has already counted it.
     prisma.hourAllocation.groupBy({
-      by: ["studentId"],
+      by: ["studentId", "programId"],
       where: { deadline: { gte: now }, ...ofMine },
       _min: { deadline: true },
     }),
@@ -170,7 +180,7 @@ export default async function AdminInboxPage() {
         progress: { not: ASSIGNMENT_PROGRESS.DONE },
         ...ofMine,
       },
-      include: { student: { include: { user: true } } },
+      include: { program: true, student: { include: { user: true } } },
       orderBy: { createdAt: "asc" },
     }),
     prisma.session.groupBy({
@@ -195,9 +205,21 @@ export default async function AdminInboxPage() {
           ],
         },
         scheduledAt: { lte: horizon },
-        ...ofMine,
+        ...ofMyStudents,
       },
-      include: { mentor: true, student: { include: { user: true } } },
+      include: {
+        mentor: true,
+        student: {
+          include: {
+            user: true,
+            enrollments: {
+              ...(inScope ? { where: { programId: inScope } } : {}),
+              orderBy: { program: { name: "asc" } },
+              select: { programId: true },
+            },
+          },
+        },
+      },
       orderBy: { scheduledAt: "asc" },
     }),
     recentMeetings({ take: RECENT_SHOWN, programIds }),
@@ -205,7 +227,11 @@ export default async function AdminInboxPage() {
 
   const programById = new Map(programs.map((p) => [p.id, p]));
   const studentById = new Map(students.map((s) => [s.id, s]));
-  const useByById = new Map(useByDates.map((d) => [d.studentId, d._min.deadline]));
+  // Keyed per (student, program): a student in two programs has a use-by date
+  // in each, and the flag has to sit in the right program's count.
+  const useByById = new Map(
+    useByDates.map((d) => [`${d.studentId}:${d.programId}`, d._min.deadline])
+  );
   const ratingByMentor = new Map(ratings.map((r) => [r.mentorId, r]));
   const minutesByTask = new Map(
     taskMinutes.map((t) => [t.assignmentId ?? "", t._sum.minutes ?? 0])
@@ -236,25 +262,46 @@ export default async function AdminInboxPage() {
     }
   };
 
+  /**
+   * A student is read once PER PROGRAM they are in, with that program's
+   * figures — because that is where their balance lives. Somebody overdrawn in
+   * the Master's Program and comfortable in Global Admissions is one flag, on
+   * the right program, and a merged reading would be neither.
+   *
+   * Three of the rows are about the ACCOUNT rather than the hours — waiting for
+   * approval, never signed in, a placeholder email — and are true once however
+   * many programs the person is in. They are kept from the first program and
+   * dropped from the rest, so the inbox says "approve Malika" once.
+   */
+  const ACCOUNT_LEVEL = new Set<StatusType>([
+    "STUDENT_PENDING_APPROVAL",
+    "STUDENT_NOT_SIGNED_IN",
+    "STUDENT_PLACEHOLDER_EMAIL",
+  ]);
   for (const s of students) {
-    flag(
-      s.programId,
-      studentStatuses(
+    let first = true;
+    for (const [programId, figures] of s.byProgram) {
+      const rows = studentStatuses(
         {
           id: s.id,
           name: s.user.name,
           email: s.user.email,
           accountStatus: s.user.status,
           telegramUsername: s.telegramUsername,
-          allottedMinutes: s.allottedMinutes,
-          remainingMinutes: s.remainingMinutes,
-          forfeitedMinutes: s.forfeitedMinutes,
-          nextDeadline: useByById.get(s.id) ?? null,
-          program: { id: s.programId, name: s.program.name },
+          allottedMinutes: figures.allottedMinutes,
+          remainingMinutes: figures.remainingMinutes,
+          forfeitedMinutes: figures.forfeitedMinutes,
+          nextDeadline: useByById.get(`${s.id}:${programId}`) ?? null,
+          program: { id: programId, name: figures.program.name },
         },
         viewer
-      )
-    );
+      );
+      flag(
+        programId,
+        first ? rows : rows.filter((r) => !ACCOUNT_LEVEL.has(r.type))
+      );
+      first = false;
+    }
   }
 
   for (const m of mentors) {
@@ -282,7 +329,7 @@ export default async function AdminInboxPage() {
 
   for (const t of unassignedTasks) {
     flag(
-      t.student.programId,
+      t.programId,
       taskStatuses(
         {
           id: t.id,
@@ -325,7 +372,10 @@ export default async function AdminInboxPage() {
   );
   for (const m of meetings) {
     const state = meetingState.get(m.id);
-    if (state) flag(m.student.programId, [state]);
+    // A scheduled meeting names no program, so it is tagged with the
+    // student's — the first alphabetically when they are in several, which is
+    // arbitrary but keeps the per-program counts adding up to the total.
+    if (state) flag(m.student.enrollments[0]?.programId ?? null, [state]);
   }
 
   // Nothing in scope at all is a state, not an empty page: one line that says
@@ -389,7 +439,13 @@ export default async function AdminInboxPage() {
 
   const overall = programTotals(students);
   const rows = programs.map((p) => {
-    const enrolled = students.filter((s) => s.programId === p.id);
+    // That program's figures for each student in it — never the student's
+    // combined row, which would put another program's hours in this total and
+    // count a two-program student twice.
+    const enrolled = students.flatMap((s) => {
+      const figures = s.byProgram.get(p.id);
+      return figures ? [figures] : [];
+    });
     const totals = programTotals(enrolled);
     return {
       ...p,

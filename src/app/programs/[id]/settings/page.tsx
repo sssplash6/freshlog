@@ -153,7 +153,7 @@ export default async function ProgramSettingsPage({
           <ul className="divide-y divide-line/60 text-sm">
             {cohorts.map((c) => {
               const inUse =
-                c._count.students > 0 || c._count.mentorAssignments > 0;
+                c._count.enrollments > 0 || c._count.mentorAssignments > 0;
               return (
                 <li
                   key={c.id}
@@ -162,8 +162,8 @@ export default async function ProgramSettingsPage({
                   <div>
                     <div className="font-medium text-ink">{c.name}</div>
                     <div className="text-xs text-muted-fg">
-                      {c._count.students} student
-                      {c._count.students === 1 ? "" : "s"} ·{" "}
+                      {c._count.enrollments} student
+                      {c._count.enrollments === 1 ? "" : "s"} ·{" "}
                       {c._count.mentorAssignments} mentor
                       {c._count.mentorAssignments === 1 ? "" : "s"}
                     </div>

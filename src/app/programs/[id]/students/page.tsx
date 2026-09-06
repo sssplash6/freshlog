@@ -65,7 +65,12 @@ export default async function ProgramStudentsPage({
     now
   );
   const [students, total] = await Promise.all([
-    studentsWithHours(where, { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }, now),
+    studentsWithHours(where, {
+      slice: { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE },
+      now,
+      // This page IS one program, so the hours on it are that program's.
+      programIds: [id],
+    }),
     prisma.studentProfile.count({ where }),
   ]);
 

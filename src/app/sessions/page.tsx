@@ -198,7 +198,8 @@ export default async function SessionsPage({
       where,
       include: {
         mentor: true,
-        student: { include: { user: true, program: true } },
+        program: true,
+        student: { include: { user: true } },
         assignment: { select: { id: true, purpose: true } },
       },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],

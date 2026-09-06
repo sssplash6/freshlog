@@ -4,7 +4,7 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
-import { studentsWithHours } from "@/lib/queries";
+import { studentsWithHours, type StudentWithHours } from "@/lib/queries";
 import {
   mentorStatuses,
   programStatuses,
@@ -62,9 +62,18 @@ export const programOf = cache(async (id: string) => {
   return program;
 });
 
-/** Everyone enrolled, with their hours. The one source of every total. */
+/**
+ * Everyone enrolled, with their hours IN THIS PROGRAM. The one source of every
+ * total on every page about it.
+ *
+ * `programIds: [id]` is doing real work: a student who also studies in another
+ * program brings none of that program's minutes — or its name — onto this page.
+ */
 export const programStudents = cache((id: string) =>
-  studentsWithHours({ programId: id }, undefined, requestNow())
+  studentsWithHours(
+    { enrollments: { some: { programId: id } } },
+    { now: requestNow(), programIds: [id] }
+  )
 );
 
 /** Mentor pairings — the program's own rows, not the mentors' whole reach. */
@@ -81,7 +90,7 @@ export const programCohorts = cache((id: string) =>
   prisma.cohort.findMany({
     where: { programId: id },
     orderBy: { name: "asc" },
-    include: { _count: { select: { students: true, mentorAssignments: true } } },
+    include: { _count: { select: { enrollments: true, mentorAssignments: true } } },
   })
 );
 
@@ -97,6 +106,35 @@ export const programGrants = cache((id: string) =>
     orderBy: { createdAt: "asc" },
   })
 );
+
+/**
+ * One student's row as it reads INSIDE one program: their figures for that
+ * program, over their identity.
+ *
+ * The projection every "per program" total goes through. A student in two
+ * programs has one row from `studentsWithHours` carrying both the combined
+ * figures and a `byProgram` map; a page about one program wants the map's
+ * entry, and adding the two together — which is what filtering the rows and
+ * summing them used to do — would put Global Admissions' hours in the Master's
+ * Program's total and count the person twice.
+ *
+ * Returns null when they are not in that program, so callers `flatMap`.
+ */
+export function inProgram(row: StudentWithHours, programId: string) {
+  const figures = row.byProgram.get(programId);
+  return figures ? { ...row, ...figures } : null;
+}
+
+/** Every student of a set, as they read inside one program. */
+export function studentsOf(
+  rows: readonly StudentWithHours[],
+  programId: string
+) {
+  return rows.flatMap((r) => {
+    const scoped = inProgram(r, programId);
+    return scoped ? [scoped] : [];
+  });
+}
 
 /** What `studentStatuses` needs, exactly as `studentsWithHours` returns it. */
 type StudentRow = {

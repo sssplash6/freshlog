@@ -27,18 +27,18 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  role      String // ADMIN | DEPT_LEADER | SALES | MENTOR | STUDENT
-  isMentor  Boolean  @default(false) // ADMINs with this flag can also act as a mentor and toggle into the mentor dashboard
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  role          String // ADMIN | DEPT_LEADER | SALES | MENTOR | STUDENT
+  isMentor      Boolean  @default(false) // ADMINs with this flag can also act as a mentor and toggle into the mentor dashboard
   // Runs the platform: sees every program without a grant, and is the only
   // person who can write ProgramStaff rows. Everyone else who administers
   // anything does it through the grants below, program by program.
-  platformAdmin Boolean @default(false)
-  status    String   @default("ACTIVE") // ACTIVE | UNASSIGNED (freshly signed-up mentors) | PENDING (self-signed-up students awaiting approval)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  platformAdmin Boolean  @default(false)
+  status        String   @default("ACTIVE") // ACTIVE | UNASSIGNED (freshly signed-up mentors) | PENDING (self-signed-up students awaiting approval)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Profile picture. The BYTES live in AvatarImage; this column carries only
   // "is there one, and how new is it" so that the chip components can decide
@@ -54,24 +54,25 @@ model User {
   // re-run of the cron, or two instances firing at once, must not send twice.
   digestSentAt DateTime?
 
-  studentProfile    StudentProfile?       @relation("StudentUser")
-  createdStudents   StudentProfile[]      @relation("CreatedBy")
-  mentorAssignments MentorAssignment[]    @relation("MentorUser")
-  staffGrants       ProgramStaff[]        @relation("StaffGrantUser")
-  grantsMade        ProgramStaff[]        @relation("StaffGrantCreatedBy")
-  mentorSessions    Session[]             @relation("SessionMentor")
-  hourAllocations   HourAllocation[]      @relation("AllocationMentor")
-  assignments       Assignment[]          @relation("AssignmentMentor")
-  createdAssignments Assignment[]         @relation("AssignmentCreatedBy")
-  allotmentChanges  HourAllotmentChange[] @relation("ChangedBy")
-  allotmentMentions HourAllotmentChange[] @relation("ChangeMentor")
-  notifications     Notification[]
-  causedNotifications Notification[]      @relation("NotificationActor")
-  mentorFeedback    MentorFeedback[]      @relation("FeedbackMentor")
-  interviews        Interview[]           @relation("InterviewMentor")
-  avatarImage       AvatarImage?
-  notificationPrefs NotificationPreference[]
-  dismissals        StatusDismissal[]
+  studentProfile      StudentProfile?          @relation("StudentUser")
+  createdStudents     StudentProfile[]         @relation("CreatedBy")
+  enrolledStudents    StudentEnrollment[]      @relation("EnrolledBy")
+  mentorAssignments   MentorAssignment[]       @relation("MentorUser")
+  staffGrants         ProgramStaff[]           @relation("StaffGrantUser")
+  grantsMade          ProgramStaff[]           @relation("StaffGrantCreatedBy")
+  mentorSessions      Session[]                @relation("SessionMentor")
+  hourAllocations     HourAllocation[]         @relation("AllocationMentor")
+  assignments         Assignment[]             @relation("AssignmentMentor")
+  createdAssignments  Assignment[]             @relation("AssignmentCreatedBy")
+  allotmentChanges    HourAllotmentChange[]    @relation("ChangedBy")
+  allotmentMentions   HourAllotmentChange[]    @relation("ChangeMentor")
+  notifications       Notification[]
+  causedNotifications Notification[]           @relation("NotificationActor")
+  mentorFeedback      MentorFeedback[]         @relation("FeedbackMentor")
+  interviews          Interview[]              @relation("InterviewMentor")
+  avatarImage         AvatarImage?
+  notificationPrefs   NotificationPreference[]
+  dismissals          StatusDismissal[]
 }
 
 // One profile picture, stored in the database rather than on disk so it travels
@@ -93,24 +94,32 @@ model AvatarImage {
 }
 
 model Program {
-  id      String   @id @default(cuid())
-  name    String   @unique
+  id                String                @id @default(cuid())
+  name              String                @unique
   // ACTIVE | ARCHIVED. A finished program stops appearing in the pickers
   // without being deleted — deletion is refused while it holds students, and
   // a program that ran is part of the record either way.
-  status     String    @default("ACTIVE")
-  archivedAt DateTime?
+  status            String                @default("ACTIVE")
+  archivedAt        DateTime?
   // Does allocating time here also record what the student paid?
   //
   // A column rather than a comparison against the program's NAME, which is how
   // this was decided at four call sites: renaming the Master's Program — which
   // its own settings page offers — would have switched the money fields off
   // across the app, silently.
-  tracksPayment Boolean @default(false)
-  cohorts Cohort[]
-  students          StudentProfile[]
+  tracksPayment     Boolean               @default(false)
+  cohorts           Cohort[]
+  enrollments       StudentEnrollment[]
   mentorAssignments MentorAssignment[]
   staffGrants       ProgramStaff[]
+  // The ledger, program by program. A student may be enrolled in several, and
+  // the time they hold in one is not the time they hold in another: these
+  // back-relations are what makes "this program's hours" a query rather than a
+  // sum somebody has to remember to filter.
+  hourAllocations   HourAllocation[]
+  sessions          Session[]
+  assignments       Assignment[]
+  allotmentChanges  HourAllotmentChange[]
 }
 
 // One person may administer one program. This table IS the permission model
@@ -126,9 +135,9 @@ model Program {
 // here: a grant list in config would be re-applied on every boot and would
 // quietly restore an admin the owner had just removed.
 model ProgramStaff {
-  id String @id @default(cuid())
-  userId    String
-  programId String
+  id          String   @id @default(cuid())
+  userId      String
+  programId   String
   // ADMIN | LEADER | SALES — what this person may do inside this program.
   // ADMIN is the only level the UI grants today; the other two are the old
   // roles, kept as values so the grant can express them when they return.
@@ -148,8 +157,8 @@ model Cohort {
   name      String
   programId String
 
-  program           Program            @relation(fields: [programId], references: [id])
-  students          StudentProfile[]
+  program           Program             @relation(fields: [programId], references: [id])
+  enrollments       StudentEnrollment[]
   mentorAssignments MentorAssignment[]
 
   @@unique([programId, name])
@@ -177,11 +186,19 @@ model MentorAssignment {
   @@unique([mentorId, programId, cohortId])
 }
 
+// The person. ONE row per student account, however many programs they study
+// in — which is why no `programId` lives here any more.
+//
+// It was a column until 6 September 2026, and that column WAS the assumption
+// that a student belongs to exactly one program. A student who finished Global
+// Admissions and went on to the Master's Program could only be represented by
+// moving them, which rewrote history: their old program's totals lost them,
+// and the hours they had used there followed them into a program that never
+// granted them. The enrollment is its own row now, and the ledger says which
+// program each grant, session and task belongs to.
 model StudentProfile {
   id               String   @id @default(cuid())
   userId           String   @unique
-  programId        String
-  cohortId         String? // only set in programs that have cohorts (Global Admissions)
   telegramUsername String? // collected during the student's first sign-in
   folderUrl        String? // link to the student's folder (Drive/Docs/…), for mentors
   createdById      String // staff user who created the student, or the student themself (self-signup)
@@ -189,15 +206,46 @@ model StudentProfile {
   updatedAt        DateTime @updatedAt
 
   user             User                  @relation("StudentUser", fields: [userId], references: [id])
-  program          Program               @relation(fields: [programId], references: [id])
-  cohort           Cohort?               @relation(fields: [cohortId], references: [id])
   createdBy        User                  @relation("CreatedBy", fields: [createdById], references: [id])
+  enrollments      StudentEnrollment[]
   sessions         Session[]
   hourAllocations  HourAllocation[]
   assignments      Assignment[]
   allotmentChanges HourAllotmentChange[]
   mentorFeedback   MentorFeedback[]
   interviews       Interview[]
+}
+
+// One student, in one program — the membership fact, and nothing else.
+//
+// A student may hold several. Every question the app used to ask of
+// `StudentProfile.programId` ("may this admin see them?", "does this mentor
+// reach them?", "who is in this program?") is now a question about whether ANY
+// of these rows matches, which is why the unique key is the pair: enrolling
+// somebody twice in the same program is not a second membership, it is a
+// double-click.
+//
+// The cohort belongs here rather than on the profile for the same reason the
+// program does — a student in two programs is in at most one cohort of each,
+// and a single column could not say which cohort went with which program.
+model StudentEnrollment {
+  id          String   @id @default(cuid())
+  studentId   String
+  programId   String
+  cohortId    String? // only set in programs that have cohorts (Global Admissions)
+  // Who enrolled them. Null for the rows the migration created out of the old
+  // single-program column, which nobody made — the same convention as
+  // `ProgramStaff.createdById`.
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  program   Program        @relation(fields: [programId], references: [id])
+  cohort    Cohort?        @relation(fields: [cohortId], references: [id])
+  createdBy User?          @relation("EnrolledBy", fields: [createdById], references: [id])
+
+  @@unique([studentId, programId])
+  @@index([programId])
 }
 
 // One planned piece of work for a student: what it is for, which mentor is
@@ -212,13 +260,17 @@ model StudentProfile {
 // sessions draw down and deadlines forfeit; an Assignment is the plan on top,
 // so `minuteLimit` is a budget for that piece of work, not a grant of time.
 model Assignment {
-  id        String  @id @default(cuid())
-  studentId String
+  id             String    @id @default(cuid())
+  studentId      String
+  // The program whose work this is. A task is planned against a program's
+  // hours, so it carries the same program as the grant that budgeted it, and a
+  // session may only name a task from its own program.
+  programId      String
   // Null = no consultant chosen yet: the work is planned and budgeted but not
   // on anyone's list. An admin picks the consultant later via the row's edit.
-  mentorId  String?
-  purpose   String // what this work is: "Main essay", "Recommendation letters"
-  minuteLimit Int? // minutes this piece of work should take; null = not budgeted
+  mentorId       String?
+  purpose        String // what this work is: "Main essay", "Recommendation letters"
+  minuteLimit    Int? // minutes this piece of work should take; null = not budgeted
   // When the work is due, in the two forms it actually comes in.
   //
   // `dueNote` is free text on purpose: the tracking sheet holds both "Aug 7"
@@ -228,34 +280,36 @@ model Assignment {
   //
   // Neither is HourAllocation.deadline, which is a hard date that forfeits the
   // hours it carries. Missing a task's due date costs nothing automatically.
-  dueNote String?
-  dueOn   DateTime?
+  dueNote        String?
+  dueOn          DateTime?
   // What a person needs to say about this task that the state can't: "missed an
   // hour, not excused", "GMAT prep but when?". The tracking spreadsheet wrote
   // exactly this into its Progress cells next to the state, so a status word
   // alone would have dropped the half that matters on import.
-  note String?
+  note           String?
   // NOT_STARTED | IN_PROGRESS | DONE. Normally DERIVED from time logged against
   // this goal (see lib/goal-progress.ts): the first session moves it to
   // IN_PROGRESS, reaching minuteLimit moves it to DONE.
-  progress String @default("NOT_STARTED")
+  progress       String    @default("NOT_STARTED")
   // Set when an ADMIN states the progress by hand, which pins it: work finished
   // under budget is done even though the hours say otherwise, and auto-sync must
   // not quietly overrule a person. Cleared when the admin hands control back.
-  progressManual Boolean @default(false)
+  progressManual Boolean   @default(false)
   // Ties a row to its place in the list, so reordering never depends on
   // createdAt and two rows added in the same second keep a stable order.
-  position    Int
-  createdById String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  position       Int
+  createdById    String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   student   StudentProfile @relation(fields: [studentId], references: [id])
+  program   Program        @relation(fields: [programId], references: [id])
   mentor    User?          @relation("AssignmentMentor", fields: [mentorId], references: [id])
   createdBy User           @relation("AssignmentCreatedBy", fields: [createdById], references: [id])
   sessions  Session[]
 
   @@index([studentId, position])
+  @@index([programId])
 }
 
 // Mentoring time an admin granted a student FROM a specific mentor, in minutes
@@ -269,42 +323,57 @@ model Assignment {
 // mentor. NOTE: SQLite treats NULLs as distinct in unique indexes, so "one
 // pool row per student" is enforced in setMentorAllocation, not here.
 model HourAllocation {
-  id        String    @id @default(cuid())
-  studentId String
-  mentorId  String?
-  minutes   Int
-  amountPaid Float? // total the student paid for this time; collected only for Master's Program allocations (null elsewhere)
-  deadline  DateTime // required date the time must be used by; shown to student and mentor. Once it passes, unused minutes are FORFEITED and no new sessions may be logged against the allocation.
+  id            String   @id @default(cuid())
+  studentId     String
+  // Which program this time was granted IN. Required: a grant with no program
+  // could not be shown on a program's page, scoped to the admins who made it,
+  // or told apart from the grant the same student holds in another program.
+  programId     String
+  mentorId      String?
+  minutes       Int
+  amountPaid    Float? // total the student paid for this time; collected only for Master's Program allocations (null elsewhere)
+  deadline      DateTime // required date the time must be used by; shown to student and mentor. Once it passes, unused minutes are FORFEITED and no new sessions may be logged against the allocation.
   deadlineStage String? // reminder bookkeeping: null | UPCOMING_SENT | PASSED_SENT; reset when the deadline changes
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   student StudentProfile @relation(fields: [studentId], references: [id])
+  program Program        @relation(fields: [programId], references: [id])
   mentor  User?          @relation("AllocationMentor", fields: [mentorId], references: [id])
 
-  @@unique([studentId, mentorId])
+  // One grant per mentor per program per student. The program is part of the
+  // key, not decoration: the same mentor may hold time with the same student in
+  // two programs, with two deadlines and two balances, and those must not
+  // collide into one row.
+  @@unique([studentId, programId, mentorId])
+  @@index([programId])
 }
 
 // A completed mentoring session logged by a mentor, in minutes. ACTIVE sessions
 // draw down the student's time; VOIDED sessions do not count.
 model Session {
-  id        String   @id @default(cuid())
-  studentId String
-  mentorId  String
+  id           String   @id @default(cuid())
+  studentId    String
+  // Which program the meeting happened in — and so which allocation it draws
+  // down. Derived from the student's single program until 6 September 2026;
+  // stored since, because a student in two programs has two balances and a
+  // session that cannot say which one it spent is a session that spends both.
+  programId    String
+  mentorId     String
   // Which task this meeting went toward. Optional: naming one is how planned
   // hours are read against delivered ones, but a meeting that fits none of them
   // still happened and still has to be loggable — and the sessions logged before
   // tasks existed keep their history instead of being backfilled with a guess.
   assignmentId String?
-  minutes   Int
-  date      DateTime
-  attended  Boolean  @default(true) // was the student present? false = no-show; the time is still charged but tallied as "missed"
-  late      Boolean  @default(false) // the student turned up, but late — a label on the meeting, not on the time
-  note      String? // what was covered, in the mentor's words (one field, optional)
+  minutes      Int
+  date         DateTime
+  attended     Boolean  @default(true) // was the student present? false = no-show; the time is still charged but tallied as "missed"
+  late         Boolean  @default(false) // the student turned up, but late — a label on the meeting, not on the time
+  note         String? // what was covered, in the mentor's words (one field, optional)
   // ACTIVE | VOIDED | RESCHEDULED. Only ACTIVE sessions draw time down: a
   // voided one gave it back, and a rescheduled one never delivered anything —
   // it is a record that the meeting moved.
-  status    String   @default("ACTIVE")
+  status       String   @default("ACTIVE")
   // Does this meeting come OUT of the time the student was allocated?
   //
   //   true  (default)  in-plan: the minutes draw the allocation down, as always
@@ -315,11 +384,12 @@ model Session {
   // Nothing reads this column raw — `chargesAllocation()` in lib/constants.ts is
   // the one place the rule lives, so "does out-of-plan spend time?" stays a
   // single decision rather than a filter copied into a dozen queries.
-  withinPlan Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  withinPlan   Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   student    StudentProfile @relation(fields: [studentId], references: [id])
+  program    Program        @relation(fields: [programId], references: [id])
   mentor     User           @relation("SessionMentor", fields: [mentorId], references: [id])
   // SetNull, not Cascade: deleting a goal must never delete the time that was
   // already delivered against it. The session survives, minus its goal.
@@ -328,6 +398,8 @@ model Session {
   interview  Interview?
 
   @@index([assignmentId])
+  @@index([programId])
+  @@index([studentId, programId, mentorId])
 }
 
 // A meeting a mentor put in the diary — an interview, a mock, a review — before
@@ -339,27 +411,27 @@ model Session {
 // The student answers it: PROPOSED until they say whether they'll be there,
 // which is the whole point of scheduling it here rather than over Telegram.
 model Interview {
-  id        String @id @default(cuid())
-  studentId String
-  mentorId  String
+  id          String    @id @default(cuid())
+  studentId   String
+  mentorId    String
   // When it happens. Stored as the mentor typed it — a wall-clock instant on
   // the UTC calendar, never converted — so the time the student reads back is
   // the time the mentor wrote. `hasTime` says whether a time was given at all;
   // without it, "no time yet" and "midnight" would be the same row.
   scheduledAt DateTime
-  hasTime     Boolean  @default(false)
-  link        String?  // where it happens: Meet, Zoom, a room
-  note        String?  // what it's about, in the mentor's words
+  hasTime     Boolean   @default(false)
+  link        String? // where it happens: Meet, Zoom, a room
+  note        String? // what it's about, in the mentor's words
   // PROPOSED | CONFIRMED | DECLINED | CANCELLED | HELD. See INTERVIEW_STATUS in
   // lib/constants.ts. Rescheduling returns a row to PROPOSED: a new time is a
   // new question, and an old "I'll be there" is not an answer to it.
-  status      String   @default("PROPOSED")
+  status      String    @default("PROPOSED")
   respondedAt DateTime? // when the student confirmed or declined
   // Set when the meeting turned into logged time, which is what retires it
   // from the upcoming list. Unique: one session per scheduled meeting.
-  sessionId String? @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  sessionId   String?   @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   student StudentProfile @relation(fields: [studentId], references: [id])
   mentor  User           @relation("InterviewMentor", fields: [mentorId], references: [id])
@@ -375,6 +447,7 @@ model Interview {
 model HourAllotmentChange {
   id          String   @id @default(cuid())
   studentId   String
+  programId   String // the program whose allocation was changed
   mentorId    String? // the mentor whose allocation was changed; null = the unassigned pool
   changedById String
   oldMinutes  Int
@@ -382,6 +455,7 @@ model HourAllotmentChange {
   createdAt   DateTime @default(now())
 
   student   StudentProfile @relation(fields: [studentId], references: [id])
+  program   Program        @relation(fields: [programId], references: [id])
   mentor    User?          @relation("ChangeMentor", fields: [mentorId], references: [id])
   changedBy User           @relation("ChangedBy", fields: [changedById], references: [id])
 }
@@ -389,29 +463,29 @@ model HourAllotmentChange {
 // One thing that happened, addressed to one person. See lib/notify.ts — every
 // producer goes through it rather than writing this table directly.
 model Notification {
-  id      String @id @default(cuid())
-  userId  String
-  type    String // see NOTIFICATION_TYPES in lib/constants.ts
-  message String
+  id        String    @id @default(cuid())
+  userId    String
+  type      String // see NOTIFICATION_TYPES in lib/constants.ts
+  message   String
   // Where this notification is ABOUT. Without it a reader learns that something
   // happened and then has to go hunt for the student it happened to.
-  href String?
+  href      String?
   // Who caused it, when that was a person: shown as their identity chip so a
   // list of events is scannable by who did them. Null for system notices like
   // deadline reminders.
   actorId   String?
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  read      Boolean   @default(false)
+  createdAt DateTime  @default(now())
   // Which of the six things this is about: HOURS | SESSIONS | MEETINGS | TASKS
   // | DEADLINES | ACCOUNTS. See NOTIFICATION_CATEGORY in lib/constants.ts.
   //
   // Stored rather than derived from `type` at read time, because it is what the
   // feed filters on and what the per-category email preferences switch — and a
   // mapping living in a switch statement is one the database cannot group by.
-  category String @default("ACCOUNTS")
+  category  String    @default("ACCOUNTS")
   // When it was read. `read` stays for the unread badge and the unsubscribe
   // path; this is the half that lets a feed say "new since you last looked".
-  readAt   DateTime?
+  readAt    DateTime?
 
   user  User  @relation(fields: [userId], references: [id])
   // SetNull so removing a staff account never deletes the history of what they
@@ -428,7 +502,7 @@ model Notification {
 // expresses a preference, so the table is the size of the decisions actually
 // made rather than users x categories.
 model NotificationPreference {
-  userId String
+  userId   String
   // One of NOTIFICATION_CATEGORY, or WEEKLY_SUMMARY — which is a subscription
   // rather than a kind of notice, and is why this is a string.
   category String
@@ -451,9 +525,9 @@ model NotificationPreference {
 // Per READER on purpose: this is an opinion about a list, not a fact about the
 // school, and one admin having seen enough must not hide a row from everyone.
 model StatusDismissal {
-  userId String
+  userId    String
   // A StatusType from lib/status.ts.
-  type String
+  type      String
   /// The student, mentor, program or task it is about; "" for a rolled-up row.
   subjectId String   @default("")
   createdAt DateTime @default(now())

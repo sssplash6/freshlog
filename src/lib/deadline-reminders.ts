@@ -44,14 +44,22 @@ export async function ensureDeadlineReminders() {
 
   // Only mentor-held allocations can have sessions drawing them down; the
   // unassigned pool never does.
+  // Keyed by (student, program, mentor) — the shape of an allocation. A key
+  // without the program would let the hours a mentor delivered in one program
+  // count against the deadline of the grant they hold with the same student in
+  // another, and silence the reminder for time that really is about to expire.
   const pairs = due
     .filter((a) => a.mentorId)
-    .map((a) => ({ studentId: a.studentId, mentorId: a.mentorId as string }));
+    .map((a) => ({
+      studentId: a.studentId,
+      programId: a.programId,
+      mentorId: a.mentorId as string,
+    }));
   const sums =
     pairs.length === 0
       ? []
       : await prisma.session.groupBy({
-          by: ["studentId", "mentorId"],
+          by: ["studentId", "programId", "mentorId"],
           // Charging sessions only: hours given out of plan never drew this
           // allocation down, so counting them would understate what is at risk
           // of expiring and silence a reminder that should have gone out.
@@ -59,13 +67,17 @@ export async function ensureDeadlineReminders() {
           _sum: { minutes: true },
         });
   const usedBy = new Map(
-    sums.map((s) => [`${s.studentId}:${s.mentorId}`, s._sum.minutes ?? 0])
+    sums.map((s) => [
+      `${s.studentId}:${s.programId}:${s.mentorId}`,
+      s._sum.minutes ?? 0,
+    ])
   );
 
   for (const a of due) {
     const deadline = a.deadline;
     const passed = deadline.getTime() < now.getTime();
-    const remaining = a.minutes - (usedBy.get(`${a.studentId}:${a.mentorId}`) ?? 0);
+    const remaining =
+      a.minutes - (usedBy.get(`${a.studentId}:${a.programId}:${a.mentorId}`) ?? 0);
     // Unassigned pool: nothing draws it down and there is no mentor to tell,
     // but the student's reminder still has to go out — those hours expire too.
     const mentorLabel = a.mentor ? (a.mentor.name ?? a.mentor.email) : null;

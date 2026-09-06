@@ -15,7 +15,7 @@ import {
   RemoveStudentButton,
   StudentEmailChange,
   StudentFolderChange,
-  StudentProgramChange,
+  StudentPrograms,
 } from "@/components/forms/student-details-forms";
 import { LedgerBoard } from "@/components/ledger-board";
 import { PersonChip } from "@/components/person-chip";
@@ -34,7 +34,14 @@ import {
   canActAsMentor,
   interviewIsOpen,
 } from "@/lib/constants";
-import { adminScope, canManageStudent, mentorReaches, scopeProgramFilter } from "@/lib/authz";
+import {
+  adminScope,
+  canManageStudent,
+  mentorReaches,
+  scopeProgramFilter,
+  studentScope,
+} from "@/lib/authz";
+import { enrollmentLabel, enrollmentsLabel } from "@/lib/enrollments";
 import { requireUser } from "@/lib/dal";
 import { deadlinePassed } from "@/lib/deadlines";
 import {
@@ -82,7 +89,13 @@ export default async function StudentWorkspacePage({
 
   const profile = await prisma.studentProfile.findUnique({
     where: { id },
-    include: { user: true, program: true, cohort: true },
+    include: {
+      user: true,
+      enrollments: {
+        include: { program: true, cohort: true },
+        orderBy: { program: { name: "asc" } },
+      },
+    },
   });
   if (!profile) notFound();
 
@@ -106,14 +119,31 @@ export default async function StudentWorkspacePage({
   };
 
   const programIds = scopeProgramFilter(await adminScope(me));
+  /**
+   * WHICH of this student's programs this reader may read.
+   *
+   * `manages` says they may open the page — one of the student's programs is
+   * theirs. This says which, and everything below is filtered by it: an admin
+   * of Global Admissions opening a student who also studies in the Master's
+   * Program sees their Global Admissions hours, tasks, sessions and grants, and
+   * no trace of the other. A mentor is not scoped by grants at all; they see
+   * the student's whole record, as they always have, because their reach is the
+   * caseload rather than a program.
+   */
+  const visible = manages ? await studentScope(me, profile) : undefined;
+  const enrollments = visible
+    ? profile.enrollments.filter((e) => visible.includes(e.programId))
+    : profile.enrollments;
+  const ledgerWhere = visible ? { programId: { in: visible } } : {};
+
   const [hours, ledger, meetings, changes, programs, mentors] = await Promise.all([
-    allocationSummary(profile.id),
-    studentLedger(profile.id),
+    allocationSummary(profile.id, visible),
+    studentLedger(profile.id, visible),
     studentMeetings(profile.id),
     manages
       ? prisma.hourAllotmentChange.findMany({
-          where: { studentId: profile.id },
-          include: { mentor: true, changedBy: true },
+          where: { studentId: profile.id, ...ledgerWhere },
+          include: { mentor: true, program: true, changedBy: true },
           orderBy: { createdAt: "desc" },
           take: 20,
         })
@@ -222,12 +252,14 @@ export default async function StudentWorkspacePage({
     (t) => t.progress !== ASSIGNMENT_PROGRESS.DONE
   );
 
-  // Their open tasks per mentor, so granting more hours for work already
-  // underway tops that budget up instead of starting a second row of the same
-  // name. "" keys the unassigned pool's own.
+  // Their open tasks per (program, mentor), so granting more hours for work
+  // already underway tops that budget up instead of starting a second row of
+  // the same name — and so the Master's Program's essay is never offered as a
+  // top-up target for a Global Admissions grant. An empty mentor half keys the
+  // unassigned pool's own.
   const openTasksByMentor: Record<string, { purpose: string; hint?: string }[]> = {};
   for (const task of openTasks) {
-    (openTasksByMentor[task.mentorId ?? ""] ??= []).push({
+    (openTasksByMentor[`${task.programId}:${task.mentorId ?? ""}`] ??= []).push({
       purpose: task.purpose,
       hint:
         task.minuteLimit != null
@@ -240,7 +272,13 @@ export default async function StudentWorkspacePage({
     value: m.id,
     label: m.name ?? m.email,
   }));
-  const tracksPayment = profile.program.tracksPayment;
+  // Any of the reader's programs that bills per student. The money fields
+  // belong to the grant, and the grant names its program, so the form asks
+  // per program rather than once for the whole student.
+  const paymentPrograms = new Set(
+    enrollments.filter((e) => e.program.tracksPayment).map((e) => e.programId)
+  );
+  const tracksPayment = paymentPrograms.size > 0;
   // Two primary actions at most, in either lens — the admin's power lives in
   // the ⋮ menus on the rows it belongs to.
   const primaryIsLog = lens === "mentor";
@@ -250,7 +288,7 @@ export default async function StudentWorkspacePage({
       <PageTitle
         backHref="/students"
         backLabel="Students"
-        eyebrow={`Student · ${profile.program.name}${profile.cohort ? ` › ${profile.cohort.name}` : ""}`}
+        eyebrow={`Student · ${enrollmentsLabel(enrollments)}`}
         title={
           <span className="flex flex-wrap items-center gap-3">
             {name}
@@ -346,9 +384,13 @@ export default async function StudentWorkspacePage({
           <div className="px-4 py-4 sm:px-5">
             <AssignTaskForm
               studentProfileId={profile.id}
+              programs={enrollments.map((e) => ({
+                value: e.programId,
+                label: enrollmentLabel(e),
+              }))}
               mentors={mentorOptions}
               openTasksByMentor={openTasksByMentor}
-              showAmountPaid={tracksPayment}
+              paymentPrograms={[...paymentPrograms]}
             />
           </div>
         </Section>
@@ -392,6 +434,7 @@ export default async function StudentWorkspacePage({
                 ? (entry) => (
                     <AllocationRowActions
                       studentProfileId={profile.id}
+                      programId={entry.program.id}
                       mentorId={entry.mentor?.id ?? ""}
                       mentorLabel={
                         entry.mentor
@@ -402,8 +445,12 @@ export default async function StudentWorkspacePage({
                       currentDeadline={
                         entry.deadline ? toDateInputValue(entry.deadline) : null
                       }
-                      openTasks={openTasksByMentor[entry.mentor?.id ?? ""] ?? []}
-                      showAmountPaid={tracksPayment}
+                      openTasks={
+                        openTasksByMentor[
+                          `${entry.program.id}:${entry.mentor?.id ?? ""}`
+                        ] ?? []
+                      }
+                      showAmountPaid={paymentPrograms.has(entry.program.id)}
                       currentAmountPaid={entry.amountPaid ?? null}
                     />
                   )
@@ -457,14 +504,18 @@ export default async function StudentWorkspacePage({
                   ),
                 },
                 {
-                  label: "Program",
-                  value: `${profile.program.name}${profile.cohort ? ` › ${profile.cohort.name}` : ""}`,
+                  label: enrollments.length === 1 ? "Program" : "Programs",
+                  value: enrollmentsLabel(enrollments, "Not in any program"),
                   change: (
-                    <StudentProgramChange
+                    <StudentPrograms
                       studentProfileId={profile.id}
                       programs={toProgramOptions(programs)}
-                      currentProgramId={profile.programId}
-                      currentCohortId={profile.cohortId}
+                      enrollments={enrollments.map((e) => ({
+                        id: e.id,
+                        programId: e.programId,
+                        cohortId: e.cohortId,
+                        label: enrollmentLabel(e),
+                      }))}
                     />
                   ),
                 },

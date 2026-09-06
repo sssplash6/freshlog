@@ -115,34 +115,42 @@ export default async function MentorsPage({
       },
       orderBy: { createdAt: "asc" },
     }),
-    // Students holding time from each mentor. `HourAllocation` is unique on
-    // (student, mentor), so a row IS a student — and this is the same set
-    // `mentorOverview` counts on the mentor's own page, so the list and the
+    // Students holding time from each mentor. An allocation is unique on
+    // (student, program, mentor), so a row is a student IN A PROGRAM — the
+    // distinct student ids are what makes this a headcount, and it is the same
+    // set `mentorOverview` counts on the mentor's own page, so the list and the
     // page cannot disagree about the number.
-    prisma.hourAllocation.groupBy({
-      by: ["mentorId"],
+    prisma.hourAllocation.findMany({
       where: {
         mentorId: { in: ids },
-        ...(inScope ? { student: { programId: inScope } } : {}),
+        ...(inScope ? { programId: inScope } : {}),
       },
-      _count: { studentId: true },
+      select: { mentorId: true, studentId: true },
     }),
-    // Scoped on the STUDENT's program, not the mentor's: a rating written by
+    // Scoped on the STUDENT's programs, not the mentor's: a rating written by
     // another program's student is not this reader's to average.
     prisma.mentorFeedback.groupBy({
       by: ["mentorId"],
       where: {
         mentorId: { in: ids },
-        ...(inScope ? { student: { programId: inScope } } : {}),
+        ...(inScope
+          ? { student: { enrollments: { some: { programId: inScope } } } }
+          : {}),
       },
       _avg: { rating: true },
       _count: true,
     }),
   ]);
 
-  const holdingByMentor = new Map(
-    holdings.map((h) => [h.mentorId, h._count.studentId])
-  );
+  const holdingByMentor = new Map<string, number>();
+  const heldBy = new Map<string, Set<string>>();
+  for (const h of holdings) {
+    if (!h.mentorId) continue;
+    const seen = heldBy.get(h.mentorId) ?? new Set<string>();
+    seen.add(h.studentId);
+    heldBy.set(h.mentorId, seen);
+  }
+  for (const [mentorId, seen] of heldBy) holdingByMentor.set(mentorId, seen.size);
   const ratingByMentor = new Map(ratings.map((r) => [r.mentorId, r]));
   const programsWithCohorts = new Set(
     programs.filter((p) => p.cohorts.length > 0).map((p) => p.id)

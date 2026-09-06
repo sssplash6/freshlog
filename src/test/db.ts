@@ -19,6 +19,7 @@ export async function resetDb() {
   await prisma.notification.deleteMany();
   await prisma.mentorAssignment.deleteMany();
   await prisma.programStaff.deleteMany();
+  await prisma.studentEnrollment.deleteMany();
   await prisma.studentProfile.deleteMany();
   await prisma.avatarImage.deleteMany();
   await prisma.user.deleteMany();
@@ -100,7 +101,15 @@ export async function cohort(opts: { programId: string; name?: string }) {
   });
 }
 
-/** A student and their profile; the profile id is what the hours engine takes. */
+/**
+ * A student and their profile; the profile id is what the hours engine takes.
+ *
+ * `programId` is the program they are enrolled in — one, because that is the
+ * ordinary case and a test that does not say otherwise should get it. A student
+ * in several is `enroll()` called again, which is what the app does too. The
+ * returned row carries `enrollments`, since almost everything that takes a
+ * profile now asks it which programs it is in.
+ */
 export async function student(
   opts: { programId?: string; name?: string; cohortId?: string | null } = {}
 ) {
@@ -118,15 +127,44 @@ export async function student(
   return prisma.studentProfile.create({
     data: {
       userId: user.id,
-      programId,
-      cohortId: opts.cohortId ?? null,
       createdById: createdBy.id,
+      enrollments: {
+        create: { programId, cohortId: opts.cohortId ?? null },
+      },
+    },
+    include: { enrollments: true },
+  });
+}
+
+/** A second (or third) program for a student already in one. */
+export async function enroll(opts: {
+  studentId: string;
+  programId: string;
+  cohortId?: string | null;
+}) {
+  return prisma.studentEnrollment.create({
+    data: {
+      studentId: opts.studentId,
+      programId: opts.programId,
+      cohortId: opts.cohortId ?? null,
     },
   });
 }
 
+/** The program a fixture row belongs to, when the caller did not say. */
+async function programOfStudent(studentId: string): Promise<string> {
+  const first = await prisma.studentEnrollment.findFirst({
+    where: { studentId },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!first) throw new Error("Student is in no program — enroll them first.");
+  return first.programId;
+}
+
 export async function allocation(opts: {
   studentId: string;
+  /** Defaults to the student's only (or first) program. */
+  programId?: string;
   mentorId?: string | null;
   minutes: number;
   /** Days from NOW; negative is an expired allocation. Default: 30 days out. */
@@ -136,6 +174,7 @@ export async function allocation(opts: {
   return prisma.hourAllocation.create({
     data: {
       studentId: opts.studentId,
+      programId: opts.programId ?? (await programOfStudent(opts.studentId)),
       mentorId: opts.mentorId ?? null,
       minutes: opts.minutes,
       deadline: inDays(opts.deadlineInDays ?? 30),
@@ -146,6 +185,8 @@ export async function allocation(opts: {
 
 export async function session(opts: {
   studentId: string;
+  /** Defaults to the student's only (or first) program. */
+  programId?: string;
   mentorId: string;
   minutes: number;
   attended?: boolean;
@@ -157,6 +198,7 @@ export async function session(opts: {
   return prisma.session.create({
     data: {
       studentId: opts.studentId,
+      programId: opts.programId ?? (await programOfStudent(opts.studentId)),
       mentorId: opts.mentorId,
       minutes: opts.minutes,
       date: inDays(-1),
@@ -171,6 +213,8 @@ export async function session(opts: {
 
 export async function assignment(opts: {
   studentId: string;
+  /** Defaults to the student's only (or first) program. */
+  programId?: string;
   mentorId?: string | null;
   purpose?: string;
   minuteLimit?: number | null;
@@ -180,6 +224,7 @@ export async function assignment(opts: {
   return prisma.assignment.create({
     data: {
       studentId: opts.studentId,
+      programId: opts.programId ?? (await programOfStudent(opts.studentId)),
       mentorId: opts.mentorId ?? null,
       purpose: opts.purpose ?? "Essay writing",
       minuteLimit: opts.minuteLimit ?? null,

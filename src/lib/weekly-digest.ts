@@ -77,10 +77,14 @@ async function loadPairings(now: Date): Promise<Pairing[]> {
     prisma.hourAllocation.findMany({
       include: {
         mentor: { select: { id: true, name: true, email: true } },
+        // The grant names its own program now, so the digest reads it from the
+        // row rather than from the student — who may be in more than one, and
+        // whose other program's name would be the wrong one to print beside
+        // these hours.
+        program: { select: { name: true } },
         student: {
           include: {
             user: { select: { id: true, name: true, email: true, status: true } },
-            program: { select: { name: true } },
           },
         },
       },
@@ -89,6 +93,7 @@ async function loadPairings(now: Date): Promise<Pairing[]> {
       where: { status: SESSION_STATUS.ACTIVE },
       select: {
         studentId: true,
+        programId: true,
         mentorId: true,
         minutes: true,
         attended: true,
@@ -98,8 +103,11 @@ async function loadPairings(now: Date): Promise<Pairing[]> {
     }),
   ]);
 
-  const key = (studentId: string, mentorId: string | null) =>
-    `${studentId}:${mentorId}`;
+  // One row per (student, program, mentor) — the key an allocation has, so a
+  // student's Master's Program hours are never drawn down by a Global
+  // Admissions session.
+  const key = (studentId: string, programId: string, mentorId: string | null) =>
+    `${studentId}:${programId}:${mentorId}`;
   const used = new Map<string, number>();
   const deliveredWeek = new Map<string, number>();
   const missedWeek = new Map<string, number>();
@@ -108,7 +116,7 @@ async function loadPairings(now: Date): Promise<Pairing[]> {
     map.set(k, (map.get(k) ?? 0) + n);
 
   for (const s of sessions) {
-    const k = key(s.studentId, s.mentorId);
+    const k = key(s.studentId, s.programId, s.mentorId);
     // Out-of-plan hours draw nothing down, so they stay out of `used` — the
     // digest's whole subject is hours at risk of expiring unused.
     if (s.withinPlan) bump(used, k, s.minutes);
@@ -120,7 +128,7 @@ async function loadPairings(now: Date): Promise<Pairing[]> {
   }
 
   return allocations.map((a) => {
-    const k = key(a.studentId, a.mentorId);
+    const k = key(a.studentId, a.programId, a.mentorId);
     const drawn = used.get(k) ?? 0;
     const expired = a.deadline.getTime() < now.getTime();
     return {
@@ -132,7 +140,7 @@ async function loadPairings(now: Date): Promise<Pairing[]> {
       mentorLabel: a.mentor
         ? (a.mentor.name ?? a.mentor.email)
         : "no mentor yet",
-      programName: a.student.program.name,
+      programName: a.program.name,
       allocated: a.minutes,
       deadline: a.deadline,
       used: drawn,

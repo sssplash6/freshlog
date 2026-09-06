@@ -171,7 +171,9 @@ async function MentorRecord({
     prisma.mentorFeedback.aggregate({
       where: {
         mentorId: mentor.id,
-        ...(programIds ? { student: { programId: { in: [...programIds] } } } : {}),
+        ...(programIds
+          ? { student: { enrollments: { some: { programId: { in: [...programIds] } } } } }
+          : {}),
       },
       _avg: { rating: true },
       _count: true,
@@ -195,12 +197,11 @@ async function MentorRecord({
    */
   const pairings = allPairings.filter((a) => inReach(a.programId));
   const byProgram = overview.byProgram.filter((row) => inReach(row.id));
-  const students = overview.students.filter((s) =>
-    inReach(s.student.programId)
-  );
-  const sessions = overview.sessions.filter((s) =>
-    inReach(s.student.programId)
-  );
+  // A balance row and a session each name their own program now, so the
+  // narrowing asks the row rather than the student — who may study in a program
+  // this reader does not hold.
+  const students = overview.students.filter((s) => inReach(s.program.id));
+  const sessions = overview.sessions.filter((s) => inReach(s.programId));
   const sum = (pick: (row: (typeof byProgram)[number]) => number) =>
     byProgram.reduce((total, row) => total + pick(row), 0);
   const entries = toSessionEntries(sessions, { studentBase: "/students" });
@@ -522,7 +523,7 @@ async function MentorRecord({
                     // The program rides here rather than in a seventh column:
                     // a table stacks to one labelled line per field on a phone,
                     // and six is the cap.
-                    secondary={`${s.student.user.email} · ${s.student.program.name}`}
+                    secondary={`${s.student.user.email} · ${s.program.name}`}
                   >
                     {s.student.user.status === USER_STATUS.PENDING && (
                       <span className="shrink-0 text-xs font-normal text-warn-ink">
@@ -657,6 +658,7 @@ async function MentorCard({
   if (isStudent) {
     const profile = await prisma.studentProfile.findUnique({
       where: { userId: viewer.id },
+      include: { enrollments: { select: { programId: true, cohortId: true } } },
     });
     // Not onboarded, or not approved yet — their home says what is next.
     if (!profile || viewer.status !== USER_STATUS.ACTIVE) redirect("/student");

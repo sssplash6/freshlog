@@ -76,7 +76,10 @@ export default async function ProgramOverviewPage({
             ],
           },
           scheduledAt: { lte: new Date(now.getTime() + HORIZON) },
-          student: { programId: id },
+          // A scheduled meeting names no program of its own — it charges
+          // nothing yet — so it belongs to this page by way of the student
+          // being enrolled here.
+          student: { enrollments: { some: { programId: id } } },
         },
         include: { mentor: true, student: { include: { user: true } } },
         orderBy: { scheduledAt: "asc" },

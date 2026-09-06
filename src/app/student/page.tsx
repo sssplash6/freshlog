@@ -26,6 +26,7 @@ import {
 } from "@/lib/constants";
 import { requireRole } from "@/lib/dal";
 import { formatDate, formatMinutes } from "@/lib/format";
+import { enrollmentsLabel } from "@/lib/enrollments";
 import { allocationSummary } from "@/lib/hours";
 import { bucketOf } from "@/lib/when";
 import { prisma } from "@/lib/prisma";
@@ -182,7 +183,7 @@ export default async function StudentHomePage() {
 
   const profile = await prisma.studentProfile.findUnique({
     where: { userId: user.id },
-    include: { program: true, cohort: true },
+    include: { enrollments: { include: { program: true, cohort: true } } },
   });
 
   // Everything unfinished about this account is finished at /onboarding, and
@@ -401,9 +402,7 @@ export default async function StudentHomePage() {
     <div className="space-y-6">
       <PageTitle
         eyebrow={
-          profile.cohort
-            ? `${profile.program.name} / ${profile.cohort.name}`
-            : profile.program.name
+          enrollmentsLabel(profile.enrollments)
         }
         title={`Hi, ${user.name.split(" ")[0]}`}
         // Unconditional now: the only student who could not follow this link

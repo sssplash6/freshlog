@@ -28,11 +28,26 @@ export type LogSessionStudent = {
   balance?: string;
   /** The mentor's own open tasks for this student, in the admin's order. */
   goals: { value: string; label: string }[];
+  /**
+   * The programs of theirs this mentor could be logging into, best first.
+   *
+   * Almost always one, and then the form never mentions it — it posts the id
+   * and asks nothing. A student in two of the mentor's programs gets a select,
+   * because the hours, the deadline and the task list are all different on the
+   * other side of that choice.
+   */
+  programs: {
+    value: string;
+    label: string;
+    balance: string;
+    goals: { value: string; label: string }[];
+  }[];
 };
 
 /** What the form should open with — a URL draft, or the last failed attempt. */
 export type LogSessionDraft = {
   studentProfileId?: string;
+  programId?: string;
   assignmentId?: string;
   minutes?: string;
   date?: string;
@@ -103,8 +118,17 @@ export function LogSessionForm({
   const today = toDateInputValue(new Date());
 
   const student = students.find((s) => s.profileId === studentId);
-  const goals = student?.goals ?? [];
-  const noGoals = Boolean(student) && goals.length === 0;
+  const programs = student?.programs ?? [];
+  // Reset with the student: last week's program is not an answer about this
+  // one, and a stale id would be rejected by the action rather than silently
+  // used — but a rejection the mentor cannot see the cause of is worse.
+  const [programId, setProgramId] = useState(opening.programId ?? "");
+  const chosen =
+    programs.find((p) => p.value === programId) ??
+    (programs.length === 1 ? programs[0] : undefined);
+  const goals = chosen?.goals ?? student?.goals ?? [];
+  const balance = chosen?.balance ?? student?.balance;
+  const noGoals = Boolean(student) && Boolean(chosen) && goals.length === 0;
 
   /**
    * Keep the draft in the URL, so a phone interruption — a call, a lock
@@ -125,6 +149,7 @@ export function LogSessionForm({
     // than either.
     for (const name of [
       "studentProfileId",
+      "programId",
       "assignmentId",
       "minutes",
       "date",
@@ -177,6 +202,7 @@ export function LogSessionForm({
               defaultValue={studentId}
               onChange={(value) => {
                 setStudentId(value);
+                setProgramId("");
                 rememberDraft();
               }}
               // A mentor logs for the same few students week after week, and a
@@ -190,18 +216,45 @@ export function LogSessionForm({
               }))}
             />
           </div>
-          {student?.balance && (
-            <p className="mt-1 text-xs text-muted-fg">{student.balance}</p>
-          )}
+          {balance && <p className="mt-1 text-xs text-muted-fg">{balance}</p>}
           <FieldError show={badField === "studentProfileId"} state={state} />
         </div>
+        {/* Only when it is a real question. One program is posted, not asked:
+            a select with a single option is a control that cannot be wrong and
+            still costs a row of the screen to read. */}
+        {programs.length === 1 && (
+          <input type="hidden" name="programId" value={programs[0].value} />
+        )}
+        {programs.length > 1 && (
+          <div className="block min-w-0 text-sm">
+            <span className="text-muted-fg">Program *</span>
+            <div className="mt-0.5">
+              <Select
+                key={studentId}
+                name="programId"
+                ariaLabel="Program"
+                defaultValue={programId || programs[0].value}
+                onChange={(value) => {
+                  setProgramId(value);
+                  rememberDraft();
+                }}
+                options={programs.map((p) => ({
+                  value: p.value,
+                  label: p.label,
+                  hint: p.balance,
+                }))}
+              />
+            </div>
+            <FieldError show={badField === "programId"} state={state} />
+          </div>
+        )}
         <div className="block min-w-0 text-sm">
           <span className="text-muted-fg">Task worked on</span>
           <div className="mt-0.5">
             <Select
               // Remount per student so the previous student's goal is never
               // left selected behind the new student's list.
-              key={studentId}
+              key={`${studentId}:${chosen?.value ?? ""}`}
               name="assignmentId"
               ariaLabel="Task worked on"
               defaultValue={opening.assignmentId}
