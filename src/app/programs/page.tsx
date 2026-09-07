@@ -4,6 +4,7 @@ import { CreateProgramForm } from "@/components/forms/program-forms";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Figure } from "@/components/ui/figure";
 import { ArrowLink } from "@/components/ui/link";
+import { ProgramChip } from "@/components/program-chip";
 import { PageTitle } from "@/components/ui/section";
 import { TabLinks } from "@/components/ui/segmented";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
@@ -157,7 +158,10 @@ export default async function ProgramsPage({
           {rows.map((p) => (
             <Tr key={p.id}>
               <Td label="Program">
-                <span className="font-medium text-ink">{p.name}</span>
+                <ProgramChip
+                  program={{ id: p.id, name: p.name }}
+                  className="font-medium"
+                />
                 {p.tracksPayment && p.paid > 0 && (
                   <span className="block text-xs text-muted-fg">
                     {formatMoney(p.paid)} paid

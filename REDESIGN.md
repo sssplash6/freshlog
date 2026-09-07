@@ -579,7 +579,17 @@ orange) · all 106 raw palette classes.
    share the neutral chip so "nothing wrong" is calm. **No green anywhere** — `ok` is a `✓` glyph in
    ink on a neutral chip.
 5. Identity tones appear only on `Avatar`/`PersonChip`/`PersonCell`, from `User.toneIndex` (0-2).
-   **Programs have no hue and no monogram** — a program is a place, not a person.
+   **A program has a hue and no monogram** — a place gets a mark on the map, not a face.
+   *(Amended 8 September 2026. The original rule read "programs have no hue"; it was right about
+   what it was banning — the monogram cards and gradient washes this redesign deleted — and wrong
+   about the need, once a student could be enrolled in several programs at once and every roster
+   started showing one name on two rows.)* Four hues at 246 / 192 / 282 / 215, from
+   `programTone(id)`, deliberately clear of the three person tones (160 / 306 / 79) and of amber
+   and red. They appear ONLY as `ProgramDot`/`ProgramChip` — a dot and a label. Never a tinted
+   card, never a wash, never a monogram. The single exception is `/programs/[id]`, where the page
+   IS one program and its mentor list wears the program's tone instead of each person's: identity
+   is unambiguous there, and a mentor who appears under three programs on `/mentors` keeps their
+   own hue.
 
    **One shape per POSITION, never per person.** Which of the four a name takes is decided by where
    it sits, not by whether it is a student or a mentor — deciding it per call site is how the ledger

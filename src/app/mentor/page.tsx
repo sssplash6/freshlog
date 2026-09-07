@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AttentionList } from "@/components/attention-list";
 import { PersonCell } from "@/components/person-chip";
+import { ProgramChip } from "@/components/program-chip";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Figure, FigureRow } from "@/components/ui/figure";
@@ -435,8 +436,8 @@ export default async function MentorHomePage({
                   </PersonCell>
                 </Td>
                 {showProgram && (
-                  <Td label="Program" className="text-ink">
-                    {s.program.name}
+                  <Td label="Program">
+                    <ProgramChip program={s.program} />
                   </Td>
                 )}
                 <Td label="Remaining with you" align="right" className="tabular-nums">

@@ -1,4 +1,5 @@
 import { PersonChip } from "@/components/person-chip";
+import { ProgramChip } from "@/components/program-chip";
 import { Meter } from "@/components/ui/meter";
 import { DeadlineText, StatusChip } from "@/components/ui/status-chip";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
@@ -229,8 +230,8 @@ export function AllocationRow({
         <AllocationPerson entry={entry} />
       </Td>
       {showProgram && (
-        <Td label="Program" className="text-ink">
-          {entry.program.name}
+        <Td label="Program">
+          <ProgramChip program={entry.program} />
         </Td>
       )}
       <Td label="Total" align="right" className="tabular-nums">

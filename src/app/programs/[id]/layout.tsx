@@ -2,6 +2,7 @@ import { LinkButton } from "@/components/ui/button";
 import { Figure } from "@/components/ui/figure";
 import { PageTitle } from "@/components/ui/section";
 import { TabLinks } from "@/components/ui/segmented";
+import { ProgramDot } from "@/components/program-chip";
 import { StatusChip } from "@/components/ui/status-chip";
 import { adminScope } from "@/lib/authz";
 import { requireProgramScope } from "@/lib/dal";
@@ -64,6 +65,9 @@ export default async function ProgramLayout({
         eyebrow="Program"
         title={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {/* The mark, at the one place the program is the subject. Not a
+                wash and not a monogram — see `program-tone.ts`. */}
+            <ProgramDot program={program} className="h-3 w-3" />
             {program.name}
             {program.status === PROGRAM_STATUS.ARCHIVED && (
               <StatusChip severity="neutral">Archived</StatusChip>

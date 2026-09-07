@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Avatar } from "@/components/avatar";
 import { cn } from "@/lib/cn";
-import { personTone } from "@/lib/person-tone";
+import { personTone, type PersonTone } from "@/lib/person-tone";
 
 /**
  * `avatarUpdatedAt` is optional so the many call sites that `select` only
@@ -45,14 +45,26 @@ export function PersonChip({
   person,
   size = "md",
   href,
+  tone: toneOverride,
   className,
 }: {
   person: Person;
   size?: "sm" | "md";
   href?: string;
+  /**
+   * Wear somebody else's hue.
+   *
+   * Only one caller has a reason to: a program's own page, where every mentor
+   * on the list belongs to that program and the owner asked for them to match
+   * it. Identity is unambiguous there — the page is one program and the row is
+   * one person — so the chip can spend its colour on the place instead. Nowhere
+   * else: a mentor in three programs must not be three colours on the roster
+   * that lists all three.
+   */
+  tone?: PersonTone;
   className?: string;
 }) {
-  const tone = personTone(person.id);
+  const tone = toneOverride ?? personTone(person.id);
   const label = person.name ?? person.email;
   const sm = size === "sm";
 

@@ -1,5 +1,6 @@
 import { AttentionList } from "@/components/attention-list";
 import { PersonChip } from "@/components/person-chip";
+import { programTone } from "@/lib/program-tone";
 import { Timeline, type TimelineEntry } from "@/components/timeline";
 import { ArrowLink } from "@/components/ui/link";
 import { Section } from "@/components/ui/section";
@@ -194,10 +195,16 @@ export default async function ProgramOverviewPage({
                 className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-5"
               >
                 <span className="flex min-w-0 flex-wrap items-center gap-2">
+                  {/* "Their mentors can have matching colours." This is the
+                      one page where that is unambiguous: every row belongs to
+                      this program, so the chip can spend its hue on the place.
+                      On /mentors, where a mentor may appear under three
+                      programs, they keep their own. */}
                   <PersonChip
                     person={mentor}
                     size="sm"
                     href={`/mentors/${mentor.id}`}
+                    tone={programTone(program.id)}
                   />
                   {cohorts.length > 0 && (
                     <span className="text-xs text-muted-fg">

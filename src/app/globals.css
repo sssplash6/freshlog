@@ -56,8 +56,13 @@
    * `soft` is 6.32 / 7.69 / 6.26:1 and white on `dot` clears 4.5:1, so initials
    * are legible in a 20px badge.
    *
-   * Programs deliberately have none. A program is a place, not a face; it is
-   * identified by its name. */
+   * Programs have their own four, added September 2026 at the owner's ask:
+   * "different programs can have thematic colours and their mentors can have
+   * matching colours". A program is still a place rather than a face, so its
+   * hue is a DOT and a label, never a tinted card or a wash — and the four sit
+   * at hues 246 / 192 / 282 / 215, clear of the three person tones (160 / 306 /
+   * 79) and clear of amber and red, which DESIGN.md keeps for status and which
+   * a programme colour must never be mistaken for. */
   --color-tone-teal-soft: #dcefe6;
   --color-tone-teal-ink: #175f4a;
   --color-tone-teal-dot: #2e8468;
@@ -69,6 +74,24 @@
   --color-tone-moss-soft: #e8eedb;
   --color-tone-moss-ink: #485c1c;
   --color-tone-moss-dot: #5f7a2b;
+
+  /* Program hues. Same three-part shape as a person tone, so one chip
+     component can wear either. */
+  --color-prog-indigo-soft: #e5e7f7;
+  --color-prog-indigo-ink: #3b3f8f;
+  --color-prog-indigo-dot: #5257ad;
+
+  --color-prog-cyan-soft: #dceef2;
+  --color-prog-cyan-ink: #145c6b;
+  --color-prog-cyan-dot: #1f7f93;
+
+  --color-prog-violet-soft: #eee5f6;
+  --color-prog-violet-ink: #5d3187;
+  --color-prog-violet-dot: #7a4aa8;
+
+  --color-prog-slate-soft: #e3e8ee;
+  --color-prog-slate-ink: #3d4d61;
+  --color-prog-slate-dot: #536780;
 
   /* Elevation is rare and quiet. When a surface lifts (hovered island, menu),
      the shadow is tinted toward the brand blue, never flat black — softer and

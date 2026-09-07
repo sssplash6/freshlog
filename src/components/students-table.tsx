@@ -1,12 +1,12 @@
 import { FolderIcon, SendIcon } from "@/components/icons";
 
 import { PersonCell } from "@/components/person-chip";
+import { ProgramChip } from "@/components/program-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ExternalLink } from "@/components/ui/link";
 import { DeadlineText, StatusChip } from "@/components/ui/status-chip";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
-import { enrollmentsLabel } from "@/lib/enrollments";
 import { formatDate, formatDuration } from "@/lib/format";
 import { studentStatuses, type ViewerContext } from "@/lib/status";
 import type { StudentWithHours } from "@/lib/queries";
@@ -128,12 +128,26 @@ export function StudentsTable({
             </Td>
 
             {showProgram && (
-              <Td label="Program" className="text-ink">
+              <Td label="Program">
                 {/* Every program the READER may see them in — the rows were
                     narrowed to the reader's scope before they got here, so a
                     student in a program this person doesn't administer shows
-                    only the ones they do. */}
-                {enrollmentsLabel(s.enrollments)}
+                    only the ones they do. One chip each rather than one joined
+                    string, because two enrollments is the case this column
+                    exists for and "Global Admissions · Master's" is a sentence
+                    the reader has to parse. */}
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  {s.enrollments.map((e) => (
+                    <ProgramChip
+                      key={e.program.id}
+                      program={e.program}
+                      className="text-[13px]"
+                    />
+                  ))}
+                  {s.enrollments.length === 0 && (
+                    <span className="text-muted-fg">—</span>
+                  )}
+                </span>
               </Td>
             )}
 
