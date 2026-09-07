@@ -580,6 +580,18 @@ orange) · all 106 raw palette classes.
    ink on a neutral chip.
 5. Identity tones appear only on `Avatar`/`PersonChip`/`PersonCell`, from `User.toneIndex` (0-2).
    **Programs have no hue and no monogram** — a program is a place, not a person.
+
+   **One shape per POSITION, never per person.** Which of the four a name takes is decided by where
+   it sits, not by whether it is a student or a mentor — deciding it per call site is how the ledger
+   came to stack a bare-ink student on top of a coloured mentor pill *in the same cell*, and how one
+   mentor was a cell on `/feedback`, a chip in its own Ratings list and a badge on `/student/book`:
+
+   | | when |
+   |---|---|
+   | `PersonCell` | the person **is** the row — a table's first column, a settings row's subject. Face, name at reading weight, detail quiet underneath. Carries an `Avatar`: dropping the pill must not drop the identity. |
+   | `PersonChip` | the person is a **value inside** a row about something else — who ran this session, who owns this task, who holds this grant. |
+   | `PersonBadge` | the face alone, where there is no room for a name. |
+   | bare text | running prose **only**: a sentence, a receipt, a toast, an email, a notification message, a `title` or an `aria-label`. Never a cell, never a row's subject. |
 6. Two text tiers only: `ink` and `muted-fg`. No coloured eyebrows.
 7. No gradients, tinted headers, watermarks, tilts or brand-tinted hover shadows. `shadow-soft` is
    for popovers only.

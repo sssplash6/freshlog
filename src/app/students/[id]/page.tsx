@@ -18,6 +18,7 @@ import {
   StudentPrograms,
 } from "@/components/forms/student-details-forms";
 import { LedgerBoard } from "@/components/ledger-board";
+import { Avatar } from "@/components/avatar";
 import { PersonChip } from "@/components/person-chip";
 import { Timeline, type TimelineEntry } from "@/components/timeline";
 import { LinkButton } from "@/components/ui/button";
@@ -289,6 +290,20 @@ export default async function StudentWorkspacePage({
         backHref="/students"
         backLabel="Students"
         eyebrow={`Student · ${enrollmentsLabel(enrollments)}`}
+        // The mentor's page opens with their face; the student's opened with
+        // nothing, on the same data model. A person's own page is the one place
+        // identity is unambiguously the subject.
+        leading={
+          <Avatar
+            person={{
+              id: profile.id,
+              name: profile.user.name,
+              email: profile.user.email,
+              avatarUpdatedAt: profile.user.avatarUpdatedAt,
+            }}
+            className="h-16 w-16 text-lg"
+          />
+        }
         title={
           <span className="flex flex-wrap items-center gap-3">
             {name}

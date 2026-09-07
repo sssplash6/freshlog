@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { ExpandableText } from "@/components/expandable-text";
 import { PersonChip } from "@/components/person-chip";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -243,15 +241,11 @@ export function TaskRow({
 
   const people = (
     <>
+      {/* Same shape as the mentor below: both are "who this task involves",
+          and a bare name on top of a pill read as two kinds of value. */}
       {student && columns.includes("student") && (
         <span className="block min-w-0">
-          {student.href ? (
-            <Link href={student.href} className="text-ink hover:text-brand">
-              {nameOf(student)}
-            </Link>
-          ) : (
-            <span className="text-ink">{nameOf(student)}</span>
-          )}
+          <PersonChip person={student} size="sm" href={student.href} />
         </span>
       )}
       {mentor ? (

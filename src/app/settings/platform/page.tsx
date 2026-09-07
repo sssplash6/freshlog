@@ -55,7 +55,7 @@ export default async function PlatformPage() {
 
   const rows: GrantRow[] = people.map((p) => ({
     userId: p.id,
-    name: p.name ?? p.email,
+    name: p.name,
     email: p.email,
     platformAdmin: p.platformAdmin,
     grants: Object.fromEntries(p.staffGrants.map((g) => [g.programId, g.role])),

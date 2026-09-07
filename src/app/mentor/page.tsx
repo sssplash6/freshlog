@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { AttentionList } from "@/components/attention-list";
 import { MeetingRowActions } from "@/components/forms/meeting-forms";
-import { PersonChip } from "@/components/person-chip";
+import { PersonCell } from "@/components/person-chip";
 import { Timeline, type TimelineEntry } from "@/components/timeline";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -468,24 +468,25 @@ export default async function MentorHomePage({
             {caseloadRows.map((s) => (
               <Tr key={s.profile.id}>
                 <Td>
-                  <Link
+                  {/* The student IS this row, so they are a cell, not a chip
+                      inside somebody else's link — which is also what this was:
+                      a chip with no href of its own, made clickable by an
+                      ancestor, the only place in the app that happened. */}
+                  <PersonCell
+                    person={{
+                      id: s.profile.id,
+                      name: s.profile.user.name,
+                      email: s.profile.user.email,
+                    }}
                     href={`/mentor/students/${s.profile.id}`}
-                    className="flex min-w-0 items-center gap-2"
+                    secondary={false}
                   >
-                    <PersonChip
-                      person={{
-                        id: s.profile.id,
-                        name: s.profile.user.name,
-                        email: s.profile.user.email,
-                      }}
-                      size="sm"
-                    />
-                                        {s.profile.user.status !== USER_STATUS.ACTIVE && (
-                      <span className="shrink-0 text-xs text-muted-fg">
+                    {s.profile.user.status !== USER_STATUS.ACTIVE && (
+                      <span className="shrink-0 text-xs font-normal text-muted-fg">
                         not approved
                       </span>
                     )}
-                  </Link>
+                  </PersonCell>
                 </Td>
                 {showProgram && (
                   <Td label="Program" className="text-ink">

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { PersonBadge } from "@/components/person-chip";
+import { PersonCell } from "@/components/person-chip";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ExternalLink } from "@/components/ui/link";
@@ -260,17 +260,16 @@ function MentorRow({
       {/* Name and balance hold one line: the name truncates, the figure never
           does. As tinted pills the long names wrapped and pushed the balance
           onto a second row, so two cards side by side disagreed about where
-          their own numbers live. A face and a name is enough identity here —
-          this is the reader's own list of five people, not a table where one
-          has to be told from another at a glance. */}
+          their own numbers live — which is exactly the shape `PersonCell` is,
+          and this card had been building its own copy of it out of a badge and
+          a span. The mentor IS this card, so they are a cell. */}
       <div className="flex items-center justify-between gap-x-3">
-        <Link
+        <PersonCell
+          person={mentor}
           href={`/mentors/${mentor.id}`}
-          className="flex min-w-0 items-center gap-2 text-[15px] font-medium text-ink hover:text-brand"
-        >
-          <PersonBadge person={mentor} />
-          <span className="min-w-0 truncate">{name}</span>
-        </Link>
+          secondary={false}
+          className="min-w-0 flex-1"
+        />
         <span className="shrink-0">
           {hours ? (
             <AllocationBalance entry={hours} />

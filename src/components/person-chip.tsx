@@ -16,6 +16,21 @@ type Person = {
 };
 
 /**
+ * ONE RULE FOR NAMES, and it is decided by POSITION, not by who the person is:
+ *
+ *   PersonCell   the person IS the row — the first column of a table, a
+ *                settings row's subject. Face, name at reading weight, the
+ *                identifying detail quiet underneath.
+ *   PersonChip   the person is a VALUE inside a row about something else — who
+ *                ran this session, who owns this task, who holds this grant.
+ *   PersonBadge  the face alone, where there is no room for a name.
+ *   bare text    running prose only: a sentence, a receipt, a toast, an email,
+ *                a notification message, a `title` or an aria-label.
+ *
+ * It was decided per call site instead, which is how the ledger ended up
+ * stacking a bare-ink student on top of a coloured mentor pill IN THE SAME
+ * CELL, and how one mentor was a cell, a chip and a badge on three pages.
+ *
  * A person as a colored chip with their initials — the "Team" and "Mentor"
  * cells of the ledger. Everyone keeps one color across the whole app, so a
  * column of sessions can be read by who ran them without reading any names.
@@ -82,8 +97,8 @@ export function PersonChip({
 }
 
 /**
- * The same person as a table cell: their name, one line under it, and — where
- * a page exists for them — the whole block as the link to it.
+ * The same person as a table cell: their face, their name, one line under it,
+ * and — where a page exists for them — the whole block as the link to it.
  *
  * The chip is wrong in a first column. Its pill fills the cell, its hue
  * competes with the status chips beside the name, and a tinted background
@@ -92,6 +107,12 @@ export function PersonChip({
  * that is what six files had each built by hand: `students-table.tsx`,
  * `mentor-list.tsx`, the mentor page's student table, the program settings
  * roster, `mentor-feedback-list.tsx` and the app shell's account block.
+ *
+ * THE AVATAR IS NOT DECORATION. Dropping the pill dropped the identity with
+ * it, so the five tables that followed this rule were the five colourless
+ * columns in the app — and `person-tone.ts` exists precisely so "a column can
+ * be read by who is in it without reading any names". The face comes back; the
+ * tint does not.
  *
  * The name is the way in wherever there is somewhere to go: clicking a person
  * should open them, not send the reader hunting for a link at the far right of
@@ -112,25 +133,32 @@ export function PersonCell({
   /**
    * The line under the name. Defaults to their email, and is dropped entirely
    * when the email IS the name — an invited person who has not signed in yet
-   * should not have their address printed twice.
+   * should not have their address printed twice. Pass `false` for a dense
+   * table that wants the name alone.
    */
-  secondary?: React.ReactNode;
+  secondary?: React.ReactNode | false;
   children?: React.ReactNode;
   className?: string;
 }) {
-  const sub = secondary ?? (person.name ? person.email : null);
+  const sub =
+    secondary === false
+      ? null
+      : (secondary ?? (person.name ? person.email : null));
 
   const body = (
     <>
-      <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-medium text-ink group-hover:text-brand">
-        <span className="min-w-0 truncate">{person.name ?? person.email}</span>
-        {children}
-      </span>
-      {sub && (
-        <span className="block min-w-0 truncate text-xs text-muted-fg">
-          {sub}
+      <Avatar person={person} className="h-8 w-8 shrink-0 text-[11px]" />
+      <span className="min-w-0 flex-1">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-medium text-ink group-hover:text-brand">
+          <span className="min-w-0 truncate">{person.name ?? person.email}</span>
+          {children}
         </span>
-      )}
+        {sub && (
+          <span className="block min-w-0 truncate text-xs text-muted-fg">
+            {sub}
+          </span>
+        )}
+      </span>
     </>
   );
 
@@ -141,7 +169,7 @@ export function PersonCell({
       <Link
         href={href}
         className={cn(
-          "group flex min-h-11 min-w-0 flex-col justify-center",
+          "group flex min-h-11 min-w-0 items-center gap-2.5",
           className,
         )}
       >
@@ -150,7 +178,11 @@ export function PersonCell({
     );
   }
 
-  return <div className={cn("min-w-0", className)}>{body}</div>;
+  return (
+    <div className={cn("flex min-w-0 items-center gap-2.5", className)}>
+      {body}
+    </div>
+  );
 }
 
 /**

@@ -337,20 +337,18 @@ export function SessionRow({
           case "people":
             return (
               <Td key={slot} label={peopleLabel(columns)}>
+                {/* Both people in this cell are the same kind of value — who
+                    this session was between — so both are the same shape. The
+                    student used to be bare ink stacked on the mentor's pill,
+                    which read as two different kinds of thing and left students
+                    the only people in the ledger with no identity colour. */}
                 {showStudent && student && (
                   <span className="block min-w-0">
-                    {student.href ? (
-                      <Link
-                        href={student.href}
-                        className="font-medium text-ink hover:text-brand"
-                      >
-                        {nameOf(student)}
-                      </Link>
-                    ) : (
-                      <span className="font-medium text-ink">{nameOf(student)}</span>
-                    )}
+                    <PersonChip person={student} size="sm" href={student.href} />
                     {student.program && (
-                      <span className="block text-xs text-muted-fg">{student.program}</span>
+                      <span className="mt-0.5 block text-xs text-muted-fg">
+                        {student.program}
+                      </span>
                     )}
                   </span>
                 )}
