@@ -68,10 +68,20 @@ function StudentRows({
   };
 
   // A row is ready when it has both halves of an identity: the address they sign
-  // in with, and the name everyone will read them by.
-  const validCount = rows.filter(
-    (r) => EMAIL_RE.test(normalizeEmail(r.email)) && r.name.trim().length > 0,
-  ).length;
+  // in with, and the name everyone will read them by. ANY name — a mononym is a
+  // name, and nothing here or on the server has ever counted words.
+  const ready = (r: Row) =>
+    EMAIL_RE.test(normalizeEmail(r.email)) && r.name.trim().length > 0;
+  const validCount = rows.filter(ready).length;
+
+  // Why nothing is ready, for the row somebody has started filling in.
+  const started = rows.filter((r) => r.email.trim() || r.name.trim());
+  const blocking =
+    started.length === 0
+      ? null
+      : started.some((r) => !EMAIL_RE.test(normalizeEmail(r.email)))
+        ? "Every row needs a valid email address."
+        : "Every row needs a name.";
 
   const update = (
     id: number,
@@ -100,8 +110,8 @@ function StudentRows({
                 type="text"
                 value={r.name}
                 onChange={(e) => update(r.id, "name", e.target.value)}
-                placeholder="Full name"
-                aria-label={`Student ${i + 1} full name`}
+                placeholder="Name"
+                aria-label={`Student ${i + 1} name`}
               />
               {/* Not type="url": native validation would reject a pasted
                   `drive.google.com/…`, which the action accepts and https-fixes. */}
@@ -135,22 +145,27 @@ function StudentRows({
             + Add another student
           </button>
           <p className="text-xs text-muted-fg">
-            Email and full name are both needed. The folder link is optional —
-            paste the student&apos;s Drive or Docs URL and their mentors can open
-            it from their page.
+            Email and name are both needed; one word is a name. The folder link
+            is optional — paste the student&apos;s Drive or Docs URL and their
+            mentors can open it from their page.
           </p>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* A disabled button with no reason beside it is how "the name field
+            wants a surname" gets invented: the admin types one word, nothing
+            happens, and they guess. Say which half is missing. */}
         <p className="text-xs text-muted-fg" aria-live="polite">
-          {validCount > 0 && (
+          {validCount > 0 ? (
             <>
               <span className="font-medium tabular-nums text-ink">
                 {validCount}
               </span>{" "}
               ready to add
             </>
+          ) : (
+            blocking
           )}
         </p>
         <div className="flex flex-wrap items-center gap-3">

@@ -1,9 +1,7 @@
 import Link from "next/link";
 
 import { AttentionList } from "@/components/attention-list";
-import { MeetingRowActions } from "@/components/forms/meeting-forms";
 import { PersonCell } from "@/components/person-chip";
-import { Timeline, type TimelineEntry } from "@/components/timeline";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Figure, FigureRow } from "@/components/ui/figure";
@@ -13,13 +11,9 @@ import { TabLinks } from "@/components/ui/segmented";
 import { DeadlineText } from "@/components/ui/status-chip";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
-import {
-  SESSION_STATUS,
-  USER_STATUS,
-  interviewIsOpen,
-} from "@/lib/constants";
+import { SESSION_STATUS, USER_STATUS } from "@/lib/constants";
 import { requireMentor } from "@/lib/dal";
-import { formatDate, formatDuration, formatRough, toDateInputValue, toTimeInputValue } from "@/lib/format";
+import { formatDate, formatDuration, formatRough } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { mentorCaseload, mentorMeetings } from "@/lib/queries";
 import {
@@ -32,10 +26,7 @@ import {
   dismissalKey,
   notDismissed,
 } from "@/lib/status";
-import { bucketOf, daysAway } from "@/lib/when";
 
-/** How far ahead a use-by date is worth putting in a mentor's diary. */
-const DEADLINE_HORIZON_DAYS = 7;
 /** Students shown before the table offers to unfold the rest. */
 const CASELOAD_ROWS = 8;
 /** Attention rows shown before the section says how many it is holding back. */
@@ -213,86 +204,6 @@ export default async function MentorHomePage({
   const attentionRows = attentionList(live, viewer).length;
   const needsYou = attentionList(live, viewer, { limit: NEEDS_YOU_ROWS });
 
-  // ------------------------------------------------------------------ Up next
-  //
-  // Meetings and use-by dates in one chronology, because a deadline three days
-  // out matters more than a meeting next month and a mentor should not have to
-  // merge two lists to see that.
-  const entries: TimelineEntry[] = [
-        ...diary
-      // `mentorMeetings` returns every interview ever, and logging a session
-      // sets HELD while cancelling sets CANCELLED — so without this every
-      // meeting the mentor has ever finished sat under Overdue forever, with a
-      // live Move/Cancel menu on a meeting that is already closed. Overdue is
-      // the first bucket and sorts ascending, so "Up next" opened with their
-      // oldest meeting ever. Every other reader of this query already filters
-      // it; this page was the one that forgot.
-      .filter(interviewIsOpen)
-      .filter((m) => bucketOf(m.scheduledAt, viewer.now) !== "later")
-      .map((m) => ({
-        id: m.id,
-        at: m.scheduledAt,
-        hasTime: m.hasTime,
-        // A time still to be set is not an all-day event. The student's page
-        // says so; the mentor who booked it was told nothing.
-        timePending: !m.hasTime,
-        title: "Meeting",
-        status: meetingStatus(
-          {
-            id: m.id,
-            status: m.status,
-            scheduledAt: m.scheduledAt,
-            sessionId: m.sessionId,
-            student: {
-              id: m.student.id,
-              name: m.student.user.name ?? m.student.user.email,
-            },
-          },
-          viewer
-        ),
-        person: {
-          id: m.student.id,
-          name: m.student.user.name,
-          email: m.student.user.email,
-        },
-        joinUrl: m.link,
-        note: m.note,
-        // Every meeting in this list is one this mentor scheduled, so every
-        // row is theirs to move. The old component offered these controls on
-        // any list a mentor was looking at, including other people's.
-        action: (
-          <MeetingRowActions
-            meeting={{
-              id: m.id,
-              date: toDateInputValue(m.scheduledAt),
-              time: m.hasTime ? toTimeInputValue(m.scheduledAt) : "",
-              link: m.link,
-              note: m.note,
-            }}
-          />
-        ),
-      })),
-    ...inView
-      .filter(
-        (s) =>
-          s.deadline != null &&
-          s.remaining > 0 &&
-          daysAway(s.deadline, viewer.now) <= DEADLINE_HORIZON_DAYS
-      )
-      .map((s) => ({
-        id: `deadline-${s.profile.id}`,
-        at: s.deadline as Date,
-        hasTime: false,
-        title: `${formatDuration(s.remaining)} expires`,
-        person: {
-          id: s.profile.id,
-          name: s.profile.user.name,
-          email: s.profile.user.email,
-        },
-        href: `/mentor/students/${s.profile.id}`,
-      })),
-  ];
-
   // -------------------------------------------------------------- Title figure
   //
   // Only time that can still be spent: folding an overdraw into the sum would
@@ -394,14 +305,6 @@ export default async function MentorHomePage({
         {...(attentionRows > NEEDS_YOU_ROWS
           ? { moreLabel: `${attentionRows - NEEDS_YOU_ROWS} more` }
           : {})}
-      />
-
-      <Timeline
-        entries={entries}
-        now={viewer.now}
-        moreHref="/sessions?view=scheduled"
-        moreLabel="All scheduled"
-        empty="Nothing scheduled. Meetings are scheduled from a student's page."
       />
 
       <Section

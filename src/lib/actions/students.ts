@@ -117,7 +117,7 @@ export async function createStudents(
     .map((r) => `${r.email} (not a valid email)`);
   const nameless = withFolders
     .filter((r) => EMAIL_RE.test(r.email) && !r.name)
-    .map((r) => `${r.email} (no full name)`);
+    .map((r) => `${r.email} (no name)`);
   const valid = withFolders.filter((r) => EMAIL_RE.test(r.email) && r.name);
 
   // An address already in the system is one of three things, and they are not
