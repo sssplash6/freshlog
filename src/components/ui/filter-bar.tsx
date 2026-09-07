@@ -373,6 +373,7 @@ export function FilterBar({
           {reset && count > 0 && (
             <Link
               href={resetHref(basePath, params)}
+              scroll={false}
               className="inline-flex min-h-11 items-center text-xs font-semibold text-brand hover:text-brand-dark"
             >
               Reset
@@ -420,6 +421,9 @@ function Chip({
   return (
     <Link
       href={href}
+      // Filtering is not going somewhere: the reader stays where they were
+      // looking. See the same note on `TabLinks`.
+      scroll={false}
       title={hint}
       aria-pressed={active}
       className={cn(

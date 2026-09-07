@@ -182,6 +182,12 @@ export function TabLinks({
           <Link
             key={item.href}
             href={item.href}
+            // A tab is a different slice of the page you are already reading,
+            // not a different page. Next scrolls to the top on every
+            // navigation, so switching program threw a mentor back to the
+            // masthead and made them find the table again — the table they
+            // were looking at when they asked the question.
+            scroll={false}
             aria-current={active ? "page" : undefined}
             className={cn(SEGMENT, active ? ON : OFF)}
           >
