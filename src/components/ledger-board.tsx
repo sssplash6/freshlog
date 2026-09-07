@@ -200,7 +200,7 @@ export function LedgerBoard({
             caption={
               activeCount === 0 && ahead.length === 0
                 ? "Nothing planned"
-                : `${formatDuration(totals.completed)} delivered`
+                : `${formatDuration(totals.completed)} completed`
             }
           />
           {ahead.length === 0 && logged.length === 0 ? (

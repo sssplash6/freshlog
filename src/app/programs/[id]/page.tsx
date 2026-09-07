@@ -221,7 +221,7 @@ export default async function ProgramOverviewPage({
         {lastSession
           ? `Last session ${formatDate(lastSession.date)} by ${lastSession.mentor.name ?? lastSession.mentor.email}`
           : "No sessions have been logged in this program"}
-        {` · ${formatDuration(totals.completed)} logged`}
+        {` · ${formatDuration(totals.completed)} completed`}
         {totals.missed > 0 && ` · ${formatDuration(totals.missed)} missed`}
         {" · "}
         {/* The figures above are lifetime. This is how somebody asks the same

@@ -457,7 +457,6 @@ export default async function StudentHomePage() {
         <Section title="Your time">
           <div className="px-4 py-4 sm:px-5">
             <HoursBreakdown
-              audience="student"
               allotted={hours.allotted}
               completed={hours.completed}
               missed={hours.missed}

@@ -557,7 +557,7 @@ export async function logSession(
         // The hand-off is news an admin would otherwise reconstruct from the
         // allocation history: the pool chose its mentor.
         (carved > 0
-          ? ` The time came out of the unassigned pool (${formatDuration(poolAfter)} left in it).`
+          ? ` The time came out of the unassigned pool (${formatDuration(poolAfter)} remaining in it).`
           : ""),
     });
 
@@ -617,10 +617,10 @@ export async function logSession(
         mentor.id,
         allocation.minutes
       );
-      notes.push(`They still have ${formatDuration(left)} left with you.`);
+      notes.push(`${formatDuration(left)} remaining with you.`);
     }
-    // Nothing allocated means no balance to reassure anyone about — "0h left
-    // with you" would read as a loss.
+    // Nothing allocated means no balance to reassure anyone about — "0h
+    // remaining with you" would read as a loss.
   } else if (pool) {
     // What the carve just did, in the mentor's terms: these hours are theirs
     // now, and here is what the pool still holds for whoever meets them next.
@@ -641,7 +641,7 @@ export async function logSession(
     headline = `Logged ${formatMinutes(minutesParsed.value)} with ${studentName}${inProgram}.`;
     notes.push(
       remaining >= 0
-        ? `${formatDuration(remaining)} left with you.`
+        ? `${formatDuration(remaining)} remaining with you.`
         : allocation
           ? `Heads up: they are now overdrawn by ${formatDuration(-remaining)} with you.`
           : // No allocation at all, so this overdraw isn't a balance run down —

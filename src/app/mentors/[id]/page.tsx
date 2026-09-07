@@ -238,7 +238,7 @@ async function MentorRecord({
 
   const studentColumns: Column[] = [
     { label: "Student" },
-    { label: "Allocated", align: "right" },
+    { label: "Total", align: "right" },
     { label: "Completed", align: "right" },
     { label: "Missed", align: "right" },
     { label: "Remaining", align: "right" },
@@ -373,7 +373,7 @@ async function MentorRecord({
 
       <Section
         eyebrow="Time"
-        title="Delivered"
+        title="Completed"
         action={
           <TabLinks
             label="Period"
@@ -391,7 +391,7 @@ async function MentorRecord({
         <div className="px-4 sm:px-5">
           <FigureRow framed={false} className="pt-4">
             <Figure
-              label={`Delivered · ${win.label}`}
+              label={`Completed · ${win.label}`}
               value={formatDuration(delivered)}
               size="lead"
               tone="hours"
@@ -420,9 +420,9 @@ async function MentorRecord({
             columns={[
               { label: "Program" },
               { label: "Students", align: "right" },
-              { label: "Delivered", align: "right" },
+              { label: "Completed", align: "right" },
               { label: "Missed", align: "right" },
-              { label: "Allocated", align: "right" },
+              { label: "Total", align: "right" },
               { label: "Remaining", align: "right" },
             ]}
           >
@@ -448,7 +448,7 @@ async function MentorRecord({
                   {row.students}
                 </Td>
                 <Td
-                  label="Delivered"
+                  label="Completed"
                   align="right"
                   className="font-semibold tabular-nums text-ink"
                 >
@@ -464,7 +464,7 @@ async function MentorRecord({
                 >
                   {row.missed > 0 ? formatDuration(row.missed) : "—"}
                 </Td>
-                <Td label="Allocated" align="right" className="tabular-nums">
+                <Td label="Total" align="right" className="tabular-nums">
                   {formatDuration(row.allocated)}
                 </Td>
                 <Td
@@ -532,7 +532,7 @@ async function MentorRecord({
                     )}
                   </PersonCell>
                 </Td>
-                <Td label="Allocated" align="right" className="tabular-nums">
+                <Td label="Total" align="right" className="tabular-nums">
                   {formatDuration(s.allocated)}
                 </Td>
                 <Td label="Completed" align="right" className="tabular-nums">

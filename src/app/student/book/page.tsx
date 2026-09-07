@@ -201,7 +201,7 @@ export default async function StudentBookPage() {
 
         {folded.length > 0 && (
           <Disclosure
-            label="Mentors with no time left"
+            label="Mentors with no time remaining"
             count={folded.length}
             className="border-t border-line px-4 sm:px-5"
           >
@@ -284,7 +284,7 @@ function MentorRow({
         <AllocationMeter
           entry={hours}
           viewer={viewer}
-          label={`Time used with ${name}`}
+          label={`Time with ${name}`}
           className="mt-2"
         />
       )}

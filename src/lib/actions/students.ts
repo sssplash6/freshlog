@@ -962,7 +962,7 @@ export async function setMentorAllocation(
   const mode = String(formData.get("mode") ?? "set");
   const parsed = parseMinutesField(formData.get("minutes"), {
     min: 0,
-    label: "Allocated hours",
+    label: "Total hours",
   });
   if ("error" in parsed) return { ok: false, error: parsed.error };
   const enteredHours = parsed.value;

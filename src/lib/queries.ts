@@ -1333,7 +1333,7 @@ export function logSessionOptions(caseload: MentorCaseload) {
         s.pool != null
           ? `${formatDuration(s.pool)} unassigned — logging makes it yours`
           : s.allocated > 0
-            ? `${formatDuration(s.remaining)} left with you`
+            ? `${formatDuration(s.remaining)} remaining with you`
             : "No time allocated to you",
       rank: s.pool != null || s.allocated > 0 ? 0 : 1,
       goals: goalsByStudent.get(`${s.profile.id}:${s.program.id}`) ?? [],

@@ -4,16 +4,16 @@ import { cn } from "@/lib/cn";
 /**
  * Where a student's time actually went, as one bar and its key.
  *
- * The ring answers "how many left?"; this answers the question underneath it,
- * which the numbers alone made people do arithmetic for: an allotment splits
- * into delivered, hours charged for meetings missed, hours lost to a
- * deadline, and hours still there. Reading those four out of a strip of stat
- * cards meant holding four figures at once and subtracting; as segments of one
- * bar the proportions are the answer.
+ * The ring answers "how much is remaining?"; this answers the question
+ * underneath it, which the numbers alone made people do arithmetic for: a
+ * total splits into completed, hours charged for meetings missed, hours lost
+ * to a deadline, and hours still there. Reading those four out of a strip of
+ * stat cards meant holding four figures at once and subtracting; as segments
+ * of one bar the proportions are the answer.
  *
- * Extra hours sit OUTSIDE the bar on purpose. They were delivered but charged
- * to nobody, so putting them inside an allotment they were never part of would
- * make the bar lie about what was bought.
+ * Extra hours sit OUTSIDE the bar on purpose. They were completed but charged
+ * to nobody, so putting them inside a total they were never part of would make
+ * the bar lie about what was bought.
  */
 
 type Segment = {
@@ -28,7 +28,7 @@ type Segment = {
   ink: string;
   /**
    * The key's swatch SHAPE, so the legend survives without colour: a filled
-   * dot for delivered, a striped square for charged-but-missed, a hollow ring
+   * dot for completed, a striped square for charged-but-missed, a hollow ring
    * for what is still the student's.
    */
   swatch?: "striped" | "ring";
@@ -42,7 +42,6 @@ export function HoursBreakdown({
     remaining,
   extra = 0,
   statesRemaining = true,
-  audience = "staff",
   className,
 }: {
   allotted: number;
@@ -51,12 +50,6 @@ export function HoursBreakdown({
   forfeited: number;
   remaining: number;
   extra?: number;
-  /**
-   * Whose word for the last segment. §5.7 allows exactly two spellings of this
-   * quantity — "left" to a student and "remaining" to staff — after ten were
-   * found in use, of which "Still yours" was one.
-   */
-  audience?: "staff" | "mentor" | "student";
   /**
    * Whether the key names what is still left.
    *
@@ -70,7 +63,7 @@ export function HoursBreakdown({
   className?: string;
 }) {
   const overdrawn = remaining < 0;
-  // Charged time is charged time: delivered and missed are the SAME hue, told
+  // Charged time is charged time: completed and missed are the SAME hue, told
   // apart by a stripe rather than by a second warm colour nine degrees away.
   const stripedAccent = {
     backgroundImage:
@@ -79,7 +72,7 @@ export function HoursBreakdown({
   const segments: Segment[] = [
     {
       key: "completed",
-      label: "Delivered",
+      label: "Completed",
       minutes: completed,
       fill: "bg-accent",
       ink: "text-accent-ink",
@@ -102,7 +95,7 @@ export function HoursBreakdown({
     },
     {
       key: "remaining",
-      label: overdrawn ? "Overdrawn" : audience === "student" ? "Left" : "Remaining",
+      label: overdrawn ? "Overdrawn" : "Remaining",
       minutes: overdrawn ? -remaining : remaining,
       fill: overdrawn ? "bg-danger" : "bg-line",
       ink: overdrawn ? "text-danger-ink" : "text-ink",
@@ -110,7 +103,7 @@ export function HoursBreakdown({
     },
   ];
 
-  // The bar is drawn over whichever is larger — the allotment, or what has
+  // The bar is drawn over whichever is larger — the total, or what has
   // actually been drawn against it. Without that an overdrawn student's bar
   // would be a full accent block with the overdraw invisible past its end.
   const drawn = completed + missed + forfeited;
@@ -141,7 +134,7 @@ export function HoursBreakdown({
       <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2.5">
         <div>
           <dt className="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-fg">
-            Allotted
+            Total
           </dt>
           <dd className="mt-0.5 text-[15px] font-bold tabular-nums text-ink">
             {formatDuration(allotted)}
@@ -188,8 +181,8 @@ export function HoursBreakdown({
 
       {extra > 0 && (
         <p className="mt-2.5 text-xs text-muted-fg">
-          {formatDuration(extra)} was given on top of the allotment and drew
-          none of it down, so it sits outside the bar.
+          {formatDuration(extra)} was given on top of the total and drew none
+          of it down, so it sits outside the bar.
         </p>
       )}
     </div>

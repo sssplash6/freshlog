@@ -80,8 +80,8 @@ export function WeeklyDigestForm({
       htmlFor={id}
       description={
         student
-          ? "Every Monday: the hours you used last week and the time you still have to book, with their deadlines."
-          : "Every Monday: the hours delivered last week and what remains, with the deadlines they fall under."
+          ? "Every Monday: the hours completed last week and the time remaining to book, with their deadlines."
+          : "Every Monday: the hours completed last week and what is remaining, with the deadlines they fall under."
       }
       control={
         <form action={setWeeklyDigest} className="flex items-center gap-2">

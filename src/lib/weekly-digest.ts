@@ -199,7 +199,7 @@ function studentDigest(mine: Pairing[], now: Date): Mail | null {
             // Says both numbers rather than one: a no-show draws hours down too,
             // so "2.5 used" while 3.5 left the balance is not the truth.
             missedMinutes > 0
-              ? `${formatDuration(redeemedHours)} delivered, and ${formatDuration(missedMinutes)} charged for a missed session.`
+              ? `${formatDuration(redeemedHours)} completed, and ${formatDuration(missedMinutes)} charged for a missed session.`
               : `${formatDuration(redeemedHours)} across ${redeemed.length} ${redeemed.length === 1 ? "mentor" : "mentors"}.`,
           ],
     rows: redeemed.map((p) => {
@@ -221,7 +221,7 @@ function studentDigest(mine: Pairing[], now: Date): Mail | null {
 
   if (live.length > 0) {
     sections.push({
-      heading: "Still yours to use",
+      heading: "Remaining",
       lines: [`${formatDuration(totalRemaining)} in total.`],
       rows: [...live].sort(soonest).map((p) => ({
         label: p.mentorLabel,
@@ -255,7 +255,7 @@ function studentDigest(mine: Pairing[], now: Date): Mail | null {
   const subject = urgent
     ? `${formatDuration(urgent.remaining)} with ${urgent.mentorLabel} ${deadlinePhrase(urgent.deadline, now)}`
     : totalRemaining > 0
-      ? `You have ${formatDuration(totalRemaining)} left to book`
+      ? `You have ${formatDuration(totalRemaining)} remaining to book`
       : "Your time last week";
 
   const to = mine[0];
@@ -317,7 +317,7 @@ function mentorDigest(mine: Pairing[], now: Date): Mail | null {
           ? ["No sessions logged last week."]
           : [
               missedMinutes > 0
-                ? `${formatDuration(deliveredMinutes)} delivered, and ${formatDuration(missedMinutes)} charged for a missed session.`
+                ? `${formatDuration(deliveredMinutes)} completed, and ${formatDuration(missedMinutes)} charged for a missed session.`
                 : `${formatDuration(deliveredMinutes)} across ${logged.length} ${logged.length === 1 ? "student" : "students"}.`,
             ],
       rows: logged.map((p) => {
@@ -380,7 +380,7 @@ function mentorDigest(mine: Pairing[], now: Date): Mail | null {
     preheader:
       expiringSoon.length > 0
         ? `Soonest: ${expiringSoon[0].studentLabel}, ${formatDate(expiringSoon[0].deadline)}.`
-        : `${formatDuration(deliveredMinutes)} delivered last week.`,
+        : `${formatDuration(deliveredMinutes)} completed last week.`,
     title: subject,
     intro: `Your mentoring week, as of ${formatDate(now)}.`,
     sections,

@@ -43,7 +43,7 @@ const NEEDS_YOU_ROWS = 10;
 
 const STUDENT_COLUMNS: Column[] = [
   { label: "Student" },
-  { label: "Left with you", align: "right" },
+  { label: "Remaining with you", align: "right" },
   { label: "Use by" },
   { label: "Last session" },
   { label: "" },
@@ -316,7 +316,7 @@ export default async function MentorHomePage({
         title="Inbox"
                 subtitle={
           // A mentor holding time gets the figure; one holding none gets the
-          // programs they work in, because "0 min left across 0 students" is a
+          // programs they work in, because "0 min remaining across 0 students" is a
           // true sentence that tells a new mentor nothing except that the page
           // could not think of anything to say.
           spendable.length > 0 ? (
@@ -324,7 +324,7 @@ export default async function MentorHomePage({
               size="inline"
               tone="hours"
                             value={formatRough(left)}
-              suffix={`left across ${spendable.length} ${
+              suffix={`remaining across ${spendable.length} ${
                 spendable.length === 1 ? "student" : "students"
               }`}
             />
@@ -440,7 +440,7 @@ export default async function MentorHomePage({
                     )}
                   </Link>
                 </Td>
-                <Td label="Left with you" align="right" className="tabular-nums">
+                <Td label="Remaining with you" align="right" className="tabular-nums">
                   <span
                     className={cn(
                       "font-medium",

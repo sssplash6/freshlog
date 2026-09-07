@@ -30,6 +30,21 @@ const BANNED = [
   { re: /newest first/i, why: "the order is visible; do not state it" },
   { re: /\bHrs\b/, why: "a figure carries its own unit — use formatDuration" },
   { re: /still to deliver/i, why: "vocabulary drift — one word per quantity" },
+  // The ledger's three headline words are Total, Completed and Remaining, and
+  // they are the same for every reader (REDESIGN.md §5.7.3). Each spelling
+  // below was in the app at once, so a student's "Left" and an admin's
+  // "Remaining" were the same number under two names. Only LABEL positions are
+  // matched — a `label=`/`title=` prop, a `{ label: "…" }` column, a `<dt>` —
+  // because "left" is also a CSS word and "delivered" is fine in prose about
+  // sessions.
+  {
+    re: /(?:label|title|heading|suffix)\s*[:=]\s*\{?["'`][^"'`]*\b(Allotted|Allocated|Delivered|Left)\b/,
+    why: "the ledger says Total / Completed / Remaining, to every reader",
+  },
+  {
+    re: /\b(time left|left with you|left to book|left across|no time left|Still yours|Hrs left)\b/i,
+    why: "the ledger says Total / Completed / Remaining, to every reader",
+  },
   { re: /Talk to your|program contact/i, why: "name the person or link them — see programContact()" },
   { re: /config\/app-config\.ts/, why: "never put a source path in user-facing copy" },
   {

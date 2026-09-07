@@ -118,7 +118,7 @@ export function AllocationBalance({ entry }: { entry: AllocationEntry }) {
       >
         {formatDuration(Math.abs(entry.remaining))}
       </span>{" "}
-      {overdrawn ? "over" : "left"}
+      {overdrawn ? "over" : "remaining"}
     </span>
   );
 }
@@ -138,7 +138,7 @@ export function AllocationMeter({
 }: {
   entry: AllocationEntry;
   viewer: ViewerContext;
-  /** What the bar is measuring, for a screen reader: "Time used with Malika". */
+  /** What the bar is measuring, for a screen reader: "Time with Malika". */
   label: string;
   className?: string;
 }) {
@@ -168,7 +168,8 @@ export function AllocationMeter({
       />
       <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs text-muted-fg">
         <span className="tabular-nums">
-          {formatDuration(used)} of {formatDuration(entry.allocated)} used
+          {formatDuration(entry.completed)} of {formatDuration(entry.allocated)}{" "}
+          completed
           {entry.missed > 0 ? ` · ${formatDuration(entry.missed)} missed` : ""}
         </span>
         {expiringSoon ? (
@@ -235,7 +236,7 @@ export function AllocationRow({
           {entry.program.name}
         </Td>
       )}
-      <Td label="Allocated" align="right" className="tabular-nums">
+      <Td label="Total" align="right" className="tabular-nums">
         {formatDuration(entry.allocated)}
       </Td>
       <Td label="Completed" align="right" className="tabular-nums">
@@ -298,7 +299,7 @@ export function AllocationsTable({
   const columns: Column[] = [
     { label: "Mentor" },
     ...(showProgram ? [{ label: "Program" } as Column] : []),
-    { label: "Allocated", align: "right" },
+    { label: "Total", align: "right" },
     { label: "Completed", align: "right" },
     { label: "Missed", align: "right" },
     { label: "Remaining", align: "right" },

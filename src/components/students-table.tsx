@@ -24,7 +24,7 @@ import type { StudentWithHours } from "@/lib/queries";
  * Remaining was four right-aligned figures the reader had to subtract in their
  * head, and the set was incomplete in the one way that matters: it omitted
  * FORFEITED, so a student at zero because their time expired was indis-
- * tinguishable from one who used every minute of it. One "Left" column now,
+ * tinguishable from one who used every minute of it. One "Remaining" column
  * with the total muted beside it, and the chip beside the name says which of
  * the two happened.
  *
@@ -65,7 +65,10 @@ export function StudentsTable({
   const columns: Column[] = [
     { label: "Student" },
     ...(showProgram ? [{ label: "Program" } as Column] : []),
-    { label: viewer.audience === "mentor" ? "Left with you" : "Left", align: "right" },
+    {
+      label: viewer.audience === "mentor" ? "Remaining with you" : "Remaining",
+      align: "right",
+    },
     { label: "Use by" },
     { label: "Last session" },
     { label: "Contact" },
@@ -123,7 +126,7 @@ export function StudentsTable({
               </Td>
             )}
 
-            <Td label="Left" align="right" className="tabular-nums">
+            <Td label="Remaining" align="right" className="tabular-nums">
               <span
                 className={cn(
                   "font-medium",

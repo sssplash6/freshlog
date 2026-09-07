@@ -603,9 +603,13 @@ under `src/`, with one allowlisted file for the Google logo (`login/page.tsx`).
 2. **One verb each:** Add (students) · Register (mentor) · New (program) · Log (session) ·
    Schedule / Move / Cancel (meeting) · Allocate / Correct (time) · Approve / Reject · Edit ·
    Remove · Archive.
-3. **One label per quantity.** Remaining is **left** to students and **remaining** to staff, and
-   nothing else; the ten current spellings ("Still yours", "Hrs left", "you can book", "still to
-   deliver", …) all go.
+3. **One label per quantity, one word for every reader.** The ledger has exactly three headline
+   words and they are the same on every surface — student, mentor, admin, email:
+   **Total** (what was granted) · **Completed** (what has been delivered) · **Remaining** (what is
+   still there). No audience spelling, no synonyms. All of *Allotted, Allocated, Delivered, Left,
+   "time left", "Still yours", "Hrs left", "you can book", "still to deliver", "X used"* go. The
+   three quantities that are NOT the triple keep their own names and are never folded into it:
+   **Missed** (charged, not delivered), **Expired unused** (forfeited), **Extra** (out of plan).
 4. **A figure carries its unit once** — never `2h 30m h left` (`mentor-hours-list.tsx:79`),
    `16h 52m hours logged`, `45 min unused minutes` (`deadline-reminders.ts:94`).
 5. **Status = word + glyph**, ≤4-word label, ≤12-word explanation, per audience: a student reads

@@ -48,7 +48,7 @@ the reader would otherwise work out by reading.
   red badge; sign-out hover is canvas and ink, not red.
 - **Accent** (`accent` #f18d05, and `accent-ink` — the same hex, for text)
   means **hours and progress, and nothing else**: `Meter` fills, the
-  `HoursRing` stroke, `HoursBreakdown`'s delivered segment, and
+  `HoursRing` stroke, `HoursBreakdown`'s completed segment, and
   `Figure tone="hours"`. Never a button, chip, badge, tab, border, wash or role
   label. #f18d05 on white is **2.46:1** — an accepted brand trade-off at ≥24px
   readouts only, which is why the token is restricted to large figures and
@@ -131,7 +131,7 @@ Geist is the single product typeface; Geist Mono appears once, on the error
 digest. Numbers use tabular figures.
 
 Durations are minutes until minutes stop being readable. One meeting or one
-task budget is a plain minute count ("90 min"); a roll-up — an allotment, a
+task budget is a plain minute count ("90 min"); a roll-up — a total, a
 balance — splits past the hour ("18h 20m"), because nobody reads "1100 minutes
 remaining" as an amount of time. A figure a reader only **orients** by is
 rounded and takes a "+" ("130+ hours"); a figure that **is** the record — one
@@ -273,10 +273,10 @@ orange and is gone). `ui/meter` grows its fill from zero once, on mount.
 `ui/disclosure`, `ui/empty-state`, `error-state`, `ui/receipt`,
 `expandable-text`, `avatar`, `hours-ring`, `hours-breakdown`.
 
-`HoursBreakdown` is an allotment as one bar and its key — delivered, missed but
+`HoursBreakdown` is a total as one bar and its key — completed, missed but
 charged, expired unused, still yours — so the proportions answer the question
 the four figures made people subtract for. It has **three fills, not four**:
-delivered is `accent`, missed-but-charged is the *same* accent as a 135°
+completed is `accent`, missed-but-charged is the *same* accent as a 135°
 diagonal stripe, expired and overdrawn are `danger`, and the remainder is
 `line`. The version before it put `bg-accent` (hue 35°) beside `bg-amber-400`
 (hue 44°) — nine degrees apart and identical for deutan and protan readers.

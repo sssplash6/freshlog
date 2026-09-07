@@ -413,7 +413,7 @@ export default async function StudentWorkspacePage({
       >
         {tracksPayment && manages && (
           <div className="px-4 pt-4 sm:px-5">
-            <Figure label="Total paid" value={formatMoney(hours.paid)} tone="muted" />
+            <Figure label="Paid" value={formatMoney(hours.paid)} tone="muted" />
           </div>
         )}
 

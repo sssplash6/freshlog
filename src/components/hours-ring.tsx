@@ -2,8 +2,9 @@ import { cn } from "@/lib/cn";
 import { formatDuration } from "@/lib/format";
 
 /**
- * The student's balance as a ring that draws itself once on load: used
- * sweep round, the number in the middle is what's left. A student opens this app
+ * The student's balance as a ring that draws itself once on load: the time
+ * that is gone sweeps round, the number in the middle is what is remaining. A
+ * student opens this app
  * to answer one question, so that answer gets a shape rather than a row in a
  * table of five other numbers.
  *
@@ -106,14 +107,12 @@ export function HoursRing({
           {formatDuration(overdrawn ? -remaining : remaining)}
         </div>
         <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-fg">
-          {overdrawn ? "over" : "time left"}
+          {overdrawn ? "over" : "remaining"}
         </div>
       </div>
       {/* The ring is decorative; the numbers it encodes are stated for readers
           who never see it. */}
-      <span className="sr-only">
-        {formatDuration(used)} of {formatDuration(allotted)} used.
-      </span>
+      <span className="sr-only">of {formatDuration(allotted)} total.</span>
     </div>
   );
 }
