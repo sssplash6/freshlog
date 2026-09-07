@@ -100,6 +100,27 @@ function NotificationRow({
 }
 
 /**
+ * The rows on their own, for a caller that already owns the list around them.
+ *
+ * The homes render the feed inside the Notifications section, under a rule
+ * that section draws itself — so they need the `<li>`s, not a second `<ul>`
+ * and a second "Earlier" heading.
+ */
+export function NotificationRows({
+  notifications,
+}: {
+  notifications: FeedNotification[];
+}) {
+  return (
+    <>
+      {notifications.map((n, i) => (
+        <NotificationRow key={n.id} notification={n} index={i} />
+      ))}
+    </>
+  );
+}
+
+/**
  * The feed, split into what's new and what's been seen. Splitting beats one
  * merged list sorted by date: the unread group is the reason anyone opens this
  * page, and it should not be interleaved with things already dealt with.

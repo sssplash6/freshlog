@@ -17,7 +17,7 @@ import { dismissalKey, notDismissed } from "@/lib/status";
 import { formatRough } from "@/lib/format";
 import { programTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
-import { studentsWithHours } from "@/lib/queries";
+import { recentNotifications, studentsWithHours } from "@/lib/queries";
 import {
   actionableCount,
   attentionList,
@@ -135,6 +135,7 @@ export default async function AdminInboxPage() {
     unassignedTasks,
     taskMinutes,
     meetings,
+    feed,
   ] = await Promise.all([
     prisma.program.findMany({
       where: inScope ? { id: inScope } : {},
@@ -219,6 +220,7 @@ export default async function AdminInboxPage() {
       },
       orderBy: { scheduledAt: "asc" },
     }),
+    recentNotifications(user.id),
   ]);
 
   const programById = new Map(programs.map((p) => [p.id, p]));
@@ -495,6 +497,7 @@ export default async function AdminInboxPage() {
       <AttentionList
         dismissible
         statuses={shown}
+        feed={feed}
         renderAction={(s) =>
           s.type === "STUDENT_PENDING_APPROVAL" && s.subject ? (
             <ApproveStudentButtons studentProfileId={s.subject.id} />

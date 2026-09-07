@@ -6,7 +6,6 @@ import { ExpandableText } from "@/components/expandable-text";
 import { InterviewResponse } from "@/components/forms/interview-response";
 import { HoursBreakdown } from "@/components/hours-breakdown";
 import { HoursRing } from "@/components/hours-ring";
-import { NotificationList } from "@/components/notification-list";
 import { PersonChip } from "@/components/person-chip";
 import { Timeline, type TimelineEntry } from "@/components/timeline";
 import { Disclosure } from "@/components/ui/disclosure";
@@ -32,6 +31,7 @@ import { bucketOf } from "@/lib/when";
 import { prisma } from "@/lib/prisma";
 import {
   assignmentsForStudentWhere,
+  recentNotifications,
   studentLedger,
   studentMeetings,
   type LedgerAssignment,
@@ -205,7 +205,7 @@ export default async function StudentHomePage() {
   // Before the feed is read rather than after, so a deadline reminder this very
   // request creates is the change the page reports.
 
-  const [hours, ledger, meetings, pairings, latest] = await Promise.all([
+  const [hours, ledger, meetings, pairings, feed] = await Promise.all([
     allocationSummary(profile.id),
     studentLedger(profile.id),
     studentMeetings(profile.id),
@@ -213,15 +213,7 @@ export default async function StudentHomePage() {
       where: assignmentsForStudentWhere(profile),
       include: { mentor: true },
     }),
-    prisma.notification.findFirst({
-      where: { userId: user.id },
-      include: {
-        actor: {
-          select: { id: true, name: true, email: true, avatarUpdatedAt: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    }),
+    recentNotifications(user.id),
   ]);
 
   // Time granted before a mentor was chosen. An expired pool has nothing left
@@ -429,6 +421,7 @@ export default async function StudentHomePage() {
 
       <AttentionList
         statuses={needsYou}
+        feed={feed}
         empty="Nothing to do right now."
         renderAction={(s) => {
           const meeting = answerTo.get(s);
@@ -546,21 +539,6 @@ export default async function StudentHomePage() {
         </Section>
       )}
 
-      {latest && (
-        <Section
-          title="Latest change"
-          action={
-            <Link
-              href="/notifications"
-              className="text-xs font-medium text-brand hover:underline"
-            >
-              All notifications
-            </Link>
-          }
-        >
-          <NotificationList notifications={[latest]} />
-        </Section>
-      )}
     </div>
   );
 }

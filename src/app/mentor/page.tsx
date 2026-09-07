@@ -16,7 +16,11 @@ import { requireMentor } from "@/lib/dal";
 import { formatDate, formatDuration, formatRough } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { applySort, readSort } from "@/lib/sort";
-import { mentorCaseload, mentorMeetings } from "@/lib/queries";
+import {
+  mentorCaseload,
+  mentorMeetings,
+  recentNotifications,
+} from "@/lib/queries";
 import {
   attentionList,
   meetingStatus,
@@ -110,7 +114,7 @@ export default async function MentorHomePage({
   const caseload = await mentorCaseload(user.id);
   const { students, assignments } = caseload;
 
-  const [diary, lastSessions, ratings] = await Promise.all([
+  const [diary, lastSessions, ratings, feed] = await Promise.all([
     mentorMeetings(user.id),
     // The date of this mentor's most recent session with each student. A
     // caseload row without it cannot answer "who have I not seen in a while",
@@ -125,6 +129,7 @@ export default async function MentorHomePage({
       _avg: { rating: true },
       _count: true,
     }),
+    recentNotifications(user.id),
   ]);
   const lastSeen = new Map(lastSessions.map((s) => [s.studentId, s._max.date]));
 
@@ -337,6 +342,7 @@ export default async function MentorHomePage({
       <AttentionList
         dismissible
         statuses={needsYou}
+        feed={feed}
         empty="Nothing needs you."
         // A cap that discards row 11 in silence reads as a complete list.
         {...(attentionRows > NEEDS_YOU_ROWS
