@@ -43,19 +43,24 @@ const DOMAIN = "freshman.academy";
  * silently-skipped grant is somebody who cannot open the page they are
  * responsible for.
  */
+/** The three research programs, held by more than one person. */
+const RESEARCH = [
+  "Advanced Research Program",
+  "Emerging Researchers Program",
+  "Frontiers Researchers Program",
+];
+
 const ADMINS: Record<string, string[]> = {
   "sega@freshman.academy": ["Global Admissions Program", "Flexible Program"],
   "sanjar@freshman.academy": ["Global Admissions Program"],
   "assistant@freshman.academy": ["Global Admissions Program"],
   "sharofiddin@freshman.academy": ["Master's Program"],
   "khusanboy@freshman.academy": ["Imkon Scholars"],
-  // "Any research program" — all three of them, so a fourth one opened next
-  // term needs a line here rather than inheriting quietly.
-  "nigel@freshman.academy": [
-    "Advanced Research Program",
-    "Emerging Researchers Program",
-    "Frontiers Researchers Program",
-  ],
+  // "Any research program" — all three of them, written out rather than matched
+  // on the word, so a fourth one opened next term needs a line here instead of
+  // inheriting access quietly.
+  "nigel@freshman.academy": RESEARCH,
+  "research@freshman.academy": RESEARCH,
   "valera@freshman.academy": ["Full Support", "Pre-Full Support"],
 };
 
