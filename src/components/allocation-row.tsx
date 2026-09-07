@@ -4,7 +4,7 @@ import { DeadlineText, StatusChip } from "@/components/ui/status-chip";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import { formatDuration, formatMoney } from "@/lib/format";
-import { EXPIRY_WINDOW_DAYS, severityOf, type ViewerContext } from "@/lib/status";
+import { EXPIRY_WINDOW_DAYS, type ViewerContext } from "@/lib/status";
 
 /**
  * One student's time with one mentor, wherever it is read.
@@ -149,13 +149,7 @@ export function AllocationMeter({
   // A month, because that is the window a student can act inside — the same
   // number `studentStatuses` warns on, so a row and a home page cannot
   // disagree about which dates are close.
-  const daysLeft = entry.deadline
-    ? (entry.deadline.getTime() - viewer.now.getTime()) / 86_400_000
-    : null;
-  const expiringSoon =
-    daysLeft !== null &&
-    daysLeft >= 0 &&
-    daysLeft <= EXPIRY_WINDOW_DAYS[viewer.audience === "student" ? "student" : "staff"];
+  const within = EXPIRY_WINDOW_DAYS[viewer.audience === "student" ? "student" : "staff"];
 
   return (
     <div className={className}>
@@ -172,15 +166,18 @@ export function AllocationMeter({
           completed
           {entry.missed > 0 ? ` · ${formatDuration(entry.missed)} missed` : ""}
         </span>
-        {expiringSoon ? (
-          <StatusChip severity={severityOf("ALLOCATION_EXPIRING")}>
-            Use by <DeadlineText deadline={entry.deadline} now={viewer.now} />
-          </StatusChip>
-        ) : (
-          <span>
-            Use by <DeadlineText deadline={entry.deadline} now={viewer.now} />
-          </span>
-        )}
+        {/* One alarm, not two. This used to wrap the date in an amber chip when
+            it was close; `DeadlineText` now carries close, past and ahead in
+            its own weight and colour, and a chip around an already-amber date
+            says the same thing twice. */}
+        <span>
+          Use by{" "}
+          <DeadlineText
+            deadline={entry.deadline}
+            now={viewer.now}
+            within={within}
+          />
+        </span>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/format";
-import { GLYPH, type Severity, type Status } from "@/lib/status";
+import { EXPIRY_WINDOW_DAYS, GLYPH, type Severity, type Status } from "@/lib/status";
+import { daysAway } from "@/lib/when";
 
 /**
  * One chip, for every state in the product.
@@ -76,7 +77,22 @@ export function StatusChip({ className, glyph, ...rest }: Props) {
 }
 
 /**
- * An allocation's use-by date, and whether it has gone.
+ * An allocation's use-by date, and how much of it is left.
+ *
+ * This is the only date in the product that DESTROYS something when it passes:
+ * unused hours are forfeited and no further session may be logged against them.
+ * It rendered as plain inherited text in a column of ordinary dates, in the
+ * same weight as "Last session" beside it — the one value on the row with a
+ * consequence, drawn like the one without. So it takes three states now:
+ *
+ *   past      red, and it says so
+ *   soon      amber, with the countdown, because "Sep 30" does not tell anybody
+ *             on the 24th that they have six days to book
+ *   ahead     ink and medium — quiet, but never the muted grey of a value
+ *             nobody has to act on
+ *
+ * Still not a chip: this sits in a column of dates, and a chip among dates
+ * reads as a different kind of value. Weight and colour carry it instead.
  *
  * `now` is a prop rather than a call to the clock: this used to read
  * `Date.now()` while rendering, which made the answer depend on the moment a
@@ -87,20 +103,48 @@ export function StatusChip({ className, glyph, ...rest }: Props) {
 export function DeadlineText({
   deadline,
   now,
+  within = EXPIRY_WINDOW_DAYS.staff,
   className,
 }: {
   deadline: Date | null;
   now: Date;
+  /**
+   * How many days ahead counts as soon. Defaults to the staff window, and a
+   * page passes `EXPIRY_WINDOW_DAYS[audience]` when it knows whose table this
+   * is — a student is warned a month out, a mentor a week.
+   */
+  within?: number;
   className?: string;
 }) {
   if (!deadline) return <span className="text-muted-fg">—</span>;
   const expired = deadline.getTime() < now.getTime();
-  // Not a chip: this sits in a column of dates, and a chip among dates reads as
-  // a different kind of value.
+  const days = daysAway(deadline, now);
+  const soon = !expired && days <= within;
+
   return (
-    <span className={cn(expired && "font-medium text-danger-ink", className)}>
+    <span
+      className={cn(
+        "whitespace-nowrap",
+        expired
+          ? "font-semibold text-danger-ink"
+          : soon
+            ? "font-semibold text-warn-ink"
+            : "font-medium text-ink",
+        className
+      )}
+    >
       {formatDate(deadline)}
-      {expired && " · expired"}
+      {expired
+        ? " · expired"
+        : soon
+          ? ` · ${
+              days <= 0
+                ? "today"
+                : days === 1
+                  ? "tomorrow"
+                  : `${days} days`
+            }`
+          : ""}
     </span>
   );
 }
