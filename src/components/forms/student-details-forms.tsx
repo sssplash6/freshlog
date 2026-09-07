@@ -8,6 +8,7 @@ import {
   moveStudent,
   setStudentEmail,
   setStudentFolder,
+  setStudentTelegram,
   unenrollStudent,
 } from "@/lib/actions/students";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
@@ -18,8 +19,8 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import type { ProgramOption } from "@/lib/queries";
 
 /**
- * The three facts about a student that only staff may correct, each as a
- * "Change" beside the fact itself rather than a panel of its own.
+ * The facts about a student that only staff may correct, each as a "Change"
+ * beside the fact itself rather than a panel of its own.
  *
  * They were three stacked panels — Corrections, Folder, and a Callout — which
  * put the rarest controls on the page in the same visual weight as the ledger
@@ -30,6 +31,44 @@ import type { ProgramOption } from "@/lib/queries";
 
 const selectClass =
   "min-h-11 w-full rounded-lg border border-line bg-surface px-3.5 py-2 text-sm text-ink transition hover:border-brand/40 focus:border-brand focus:outline-none";
+
+/**
+ * The handle their mentors message them on.
+ *
+ * A student sets this at first sign-in and it was read-only here forever
+ * after, so one wrong character made them unreachable and nobody on the staff
+ * side could correct it — while the row above it, an email address, has had a
+ * pencil all along.
+ */
+export function StudentTelegramChange({
+  studentProfileId,
+  currentHandle,
+}: {
+  studentProfileId: string;
+  currentHandle: string | null | undefined;
+}) {
+  const [, action, save] = useSaveState(setStudentTelegram);
+  return (
+    <RowActionMenu trigger="pencil" label="Change Telegram handle" verb="Change">
+      <RowActionGroup label="Telegram">
+        <form action={action} className="space-y-2">
+          <input type="hidden" name="studentProfileId" value={studentProfileId} />
+          <Field label="Username" hint="With or without the @.">
+            <Input
+              name="telegramUsername"
+              type="text"
+              required
+              placeholder="username"
+              defaultValue={currentHandle ?? ""}
+            />
+          </Field>
+          <SubmitButton size="sm">Save handle</SubmitButton>
+          <SaveState state={save} />
+        </form>
+      </RowActionGroup>
+    </RowActionMenu>
+  );
+}
 
 /**
  * The address they sign in with. Students brought over from the tracking sheet

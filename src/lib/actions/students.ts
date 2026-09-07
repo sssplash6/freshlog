@@ -11,6 +11,7 @@ import {
   ASSIGNMENT_PROGRESS,
   canActAsMentor,
   NOTIFICATION_TYPES,
+  PLACEHOLDER_EMAIL_DOMAIN,
   ROLES,
   USER_STATUS,
 } from "@/lib/constants";
@@ -309,6 +310,49 @@ export async function setStudentFolder(
 }
 
 /**
+ * The handle the team actually reaches a student on, corrected by staff.
+ *
+ * It was write-once and student-only: set at first sign-in and then read-only
+ * on the admin's page forever. So a student who typed one character wrong was
+ * unreachable and nobody could fix it, and a coordinator who already had the
+ * handle in a spreadsheet had no way to put it in. `parseTelegramField` is the
+ * same validator the student's own form uses, so one rule decides what a handle
+ * is on both sides.
+ */
+export async function setStudentTelegram(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+
+  const profileId = String(formData.get("studentProfileId") ?? "");
+  const profile = await prisma.studentProfile.findUnique({
+    where: { id: profileId },
+    include: { user: true, enrollments: { select: { programId: true } } },
+  });
+  if (!profile) return { ok: false, error: "Student not found." };
+
+  const denied = await assertStudentScope(actor, profile);
+  if (denied) return denied;
+
+  const telegram = parseTelegramField(formData.get("telegramUsername"));
+  if ("error" in telegram) return { ok: false, error: telegram.error };
+  if (telegram.value === profile.telegramUsername) {
+    return { ok: true, message: "No change: that's already their handle." };
+  }
+
+  await prisma.studentProfile.update({
+    where: { id: profile.id },
+    data: { telegramUsername: telegram.value },
+  });
+
+  revalidatePath("/", "layout");
+  const who = profile.user.name ?? profile.user.email;
+  return { ok: true, message: `Telegram saved for ${who}: @${telegram.value}.` };
+}
+
+/**
  * First sign-in step for staff-registered students: confirm full name and
  * Telegram username, completing the profile the staff member created.
  */
@@ -466,9 +510,9 @@ export async function setStudentEmail(
 
   // A real address means the weekly summary email can reach them, so it goes back
   // to the app's default. A placeholder had it switched off on the way in.
-  const reachable = !email.endsWith("@import.invalid");
+  const reachable = !email.endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`);
   const firstRealAddress =
-    reachable && profile.user.email.endsWith("@import.invalid");
+    reachable && profile.user.email.endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`);
   await prisma.user.update({
     where: { id: profile.userId },
     data: { email, ...(reachable ? { weeklyDigest: true } : {}) },

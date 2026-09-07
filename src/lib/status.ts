@@ -1,6 +1,7 @@
 import {
   ASSIGNMENT_PROGRESS,
   INTERVIEW_STATUS,
+  PLACEHOLDER_EMAIL_DOMAIN,
   SESSION_STATUS,
   USER_STATUS,
 } from "@/lib/constants";
@@ -759,7 +760,7 @@ export function studentStatuses(
     // registered student has not yet completed a first sign-in.
     out.push(of("STUDENT_NOT_SIGNED_IN"));
   }
-  if (s.email.endsWith("@import.invalid")) {
+  if (s.email.endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`)) {
     out.push(of("STUDENT_PLACEHOLDER_EMAIL"));
   }
 

@@ -16,6 +16,7 @@ import {
   StudentEmailChange,
   StudentFolderChange,
   StudentPrograms,
+  StudentTelegramChange,
 } from "@/components/forms/student-details-forms";
 import { LedgerBoard } from "@/components/ledger-board";
 import { Avatar } from "@/components/avatar";
@@ -546,7 +547,15 @@ export default async function StudentWorkspacePage({
                 },
                 {
                   label: "Telegram",
-                  value: handle ? `@${handle}` : "Not set — they add it on first sign-in",
+                  value: handle
+                    ? `@${handle}`
+                    : "Not set — they add it on first sign-in",
+                  change: (
+                    <StudentTelegramChange
+                      studentProfileId={profile.id}
+                      currentHandle={handle}
+                    />
+                  ),
                 },
                 { label: "Registered", value: formatDate(profile.createdAt) },
                 {

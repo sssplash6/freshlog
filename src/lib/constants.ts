@@ -21,6 +21,15 @@ export const USER_STATUS = {
 
 export type UserStatus = (typeof USER_STATUS)[keyof typeof USER_STATUS];
 
+/**
+ * The domain the sheet import gives a student whose real address the sheet
+ * never had. RFC 2606 reserves `.invalid`, so mail to it can never be
+ * delivered — which is the point: a placeholder must be undeliverable rather
+ * than quietly landing on somebody else's server. Anything that emails or
+ * counts reachable students filters on this.
+ */
+export const PLACEHOLDER_EMAIL_DOMAIN = "import.invalid";
+
 export const SESSION_STATUS = {
   ACTIVE: "ACTIVE",
   VOIDED: "VOIDED",

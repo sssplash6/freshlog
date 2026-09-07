@@ -40,9 +40,13 @@ export function OwnTelegramForm({ defaultHandle }: { defaultHandle: string }) {
       state={<SaveState state={save} />}
       control={
         <form action={action} className="flex flex-wrap items-center gap-2">
+          {/* Required here as it is at sign-in: the server refuses an empty
+              handle either way, and a field that looks optional and is not is
+              how a student learns the rule from an error message. */}
           <Input
             id={id}
             name="telegramUsername"
+            required
             value={handle}
             onChange={(e) => setHandle(e.target.value)}
             placeholder="username"

@@ -200,6 +200,10 @@ model StudentProfile {
   id               String   @id @default(cuid())
   userId           String   @unique
   telegramUsername String? // collected during the student's first sign-in
+  // When we last nudged them to supply one. Null means never asked. Kept so a
+  // re-run of the reminder job is a no-op rather than a second email, the same
+  // guard `User.digestSentAt` gives the weekly digest.
+  telegramReminderAt DateTime?
   folderUrl        String? // link to the student's folder (Drive/Docs/…), for mentors
   createdById      String // staff user who created the student, or the student themself (self-signup)
   createdAt        DateTime @default(now())
