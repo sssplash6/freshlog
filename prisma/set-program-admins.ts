@@ -49,8 +49,14 @@ const ADMINS: Record<string, string[]> = {
   "assistant@freshman.academy": ["Global Admissions Program"],
   "sharofiddin@freshman.academy": ["Master's Program"],
   "khusanboy@freshman.academy": ["Imkon Scholars"],
-  "nigel@freshman.academy": ["Research"],
-  "valera@freshman.academy": ["Research Full Support"],
+  // "Any research program" — all three of them, so a fourth one opened next
+  // term needs a line here rather than inheriting quietly.
+  "nigel@freshman.academy": [
+    "Advanced Research Program",
+    "Emerging Researchers Program",
+    "Frontiers Researchers Program",
+  ],
+  "valera@freshman.academy": ["Full Support", "Pre-Full Support"],
 };
 
 const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL! });
