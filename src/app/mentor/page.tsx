@@ -6,7 +6,7 @@ import { PersonChip } from "@/components/person-chip";
 import { Timeline, type TimelineEntry } from "@/components/timeline";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Figure } from "@/components/ui/figure";
+import { Figure, FigureRow } from "@/components/ui/figure";
 import { ArrowLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
 import { TabLinks } from "@/components/ui/segmented";
@@ -41,13 +41,27 @@ const CASELOAD_ROWS = 8;
 /** Attention rows shown before the section says how many it is holding back. */
 const NEEDS_YOU_ROWS = 10;
 
-const STUDENT_COLUMNS: Column[] = [
-  { label: "Student" },
-  { label: "Remaining with you", align: "right" },
-  { label: "Use by" },
-  { label: "Last session" },
-  { label: "" },
-];
+/**
+ * The caseload's columns.
+ *
+ * Program is drawn only when the rows actually span more than one, the same
+ * rule `AllocationsTable` follows: a mentor who works in one program would
+ * otherwise read their own program's name down every line of the table, and a
+ * mentor who has just narrowed to one with the tabs above would read the
+ * answer to the question they just asked. It matters the rest of the time
+ * because a student can be enrolled twice — two rows, one name, two balances —
+ * and without the column those two rows look like a duplicate.
+ */
+function studentColumns(showProgram: boolean): Column[] {
+  return [
+    { label: "Student" },
+    ...(showProgram ? [{ label: "Program" } as Column] : []),
+    { label: "Remaining with you", align: "right" },
+    { label: "Use by" },
+    { label: "Last session" },
+    { label: "" },
+  ];
+}
 
 /**
  * A mentor's Monday morning.
@@ -285,7 +299,16 @@ export default async function MentorHomePage({
   // quietly cancel out someone else's balance, and the overdraw is already a
   // row above with a name on it.
   const spendable = inView.filter((s) => s.remaining > 0);
-  const left = spendable.reduce((sum, s) => sum + s.remaining, 0);
+  const remaining = spendable.reduce((sum, s) => sum + s.remaining, 0);
+  // Everything this mentor has actually delivered against the grants in view.
+  // Lifetime, and it moves with the program tabs, because the question is
+  // "what have I done here" and the tabs are how a mentor asks it of one
+  // program.
+  const completed = inView.reduce((sum, s) => sum + s.completed, 0);
+
+  // Two rows for one student in two programs is not a duplicate, and the
+  // column is what says so.
+  const showProgram = new Set(inView.map((s) => s.program.id)).size > 1;
 
   const sortedCaseload = [...inView].sort((a, b) => {
     // Holding time with you first: that is who the next session is for.
@@ -301,6 +324,9 @@ export default async function MentorHomePage({
   // This page's own address, with both of its states kept: a mentor who
   // narrowed to one program must not be thrown back to all of them for asking
   // to see more rows, and switching program must not silently re-fold them.
+  // Nothing granted and nothing delivered: the strip would be two zeroes.
+  const hasFigures = completed > 0 || remaining > 0;
+
   const homeHref = (opts: { program?: string; all?: boolean }) => {
     const q = new URLSearchParams();
     if (opts.program) q.set("program", opts.program);
@@ -314,21 +340,13 @@ export default async function MentorHomePage({
       <PageTitle
         eyebrow="Mentor"
         title="Inbox"
-                subtitle={
-          // A mentor holding time gets the figure; one holding none gets the
-          // programs they work in, because "0 min remaining across 0 students" is a
-          // true sentence that tells a new mentor nothing except that the page
-          // could not think of anything to say.
-          spendable.length > 0 ? (
-            <Figure
-              size="inline"
-              tone="hours"
-                            value={formatRough(left)}
-              suffix={`remaining across ${spendable.length} ${
-                spendable.length === 1 ? "student" : "students"
-              }`}
-            />
-          ) : programs.size > 0 ? (
+        subtitle={
+          // The programs, and only when there is no figure strip below to say
+          // more than they do. A mentor holding no time at all is the one
+          // reader for whom "0 min completed · 0 min remaining" is a true
+          // sentence that says nothing except that the page could not think of
+          // anything to tell them.
+          hasFigures ? undefined : programs.size > 0 ? (
             [...programs.values()].join(" · ")
           ) : undefined
         }
@@ -339,7 +357,36 @@ export default async function MentorHomePage({
         }
       />
 
-            <AttentionList
+      {/* The mentor's own two numbers, and the only two they asked for: what
+          they have delivered, and what is still theirs to deliver. Both lead —
+          a rule this page breaks on purpose, because they are two halves of
+          one quantity and ranking one above the other would answer half the
+          question. `formatRough` because these orient rather than settle: the
+          exact figure is a row in the table below, with a name on it. */}
+      {hasFigures && (
+        <FigureRow>
+          <Figure
+            size="lead"
+            tone="hours"
+            label="Completed"
+            value={formatRough(completed)}
+          />
+          <Figure
+            size="lead"
+            tone={remaining > 0 ? "hours" : "muted"}
+            label={
+              spendable.length > 0
+                ? `Remaining across ${spendable.length} ${
+                    spendable.length === 1 ? "student" : "students"
+                  }`
+                : "Remaining"
+            }
+            value={formatRough(remaining)}
+          />
+        </FigureRow>
+      )}
+
+      <AttentionList
         dismissible
         statuses={needsYou}
         empty="Nothing needs you."
@@ -417,7 +464,7 @@ export default async function MentorHomePage({
               : "An admin allocates it. You can still log a meeting with anyone in your programs."}
           </EmptyState>
         ) : (
-          <Table columns={STUDENT_COLUMNS} framed={false}>
+          <Table columns={studentColumns(showProgram)} framed={false}>
             {caseloadRows.map((s) => (
               <Tr key={s.profile.id}>
                 <Td>
@@ -440,6 +487,11 @@ export default async function MentorHomePage({
                     )}
                   </Link>
                 </Td>
+                {showProgram && (
+                  <Td label="Program" className="text-ink">
+                    {s.program.name}
+                  </Td>
+                )}
                 <Td label="Remaining with you" align="right" className="tabular-nums">
                   <span
                     className={cn(
