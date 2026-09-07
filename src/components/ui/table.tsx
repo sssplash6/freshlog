@@ -1,8 +1,19 @@
 import type { ComponentProps, ReactNode } from "react";
 
+import { SortHeader } from "@/components/ui/sort-header";
 import { cn } from "@/lib/cn";
 
-export type Column = { label?: ReactNode; align?: "right" };
+export type Column = {
+  label?: ReactNode;
+  align?: "right";
+  /**
+   * The `?sort=` key this column orders by. Present turns the heading into a
+   * `SortHeader`; the page reads the parameter back with `readSort`/`applySort`
+   * from `lib/sort.ts`. Absent leaves a plain label, which is what a column
+   * nobody would ever order by should look like.
+   */
+  sort?: string;
+};
 
 /**
  * The shared data-table chrome: hairline header on a mist tint, divided rows,
@@ -49,7 +60,13 @@ export function Table({
                   c.align === "right" && "text-right",
                 )}
               >
-                {c.label}
+                {c.sort && c.label ? (
+                  <SortHeader sortKey={c.sort} align={c.align}>
+                    {c.label}
+                  </SortHeader>
+                ) : (
+                  c.label
+                )}
               </th>
             ))}
           </tr>

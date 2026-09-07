@@ -51,10 +51,20 @@ export async function studentsWithHours(
      */
     now = new Date(),
     programIds,
+    order = "asc",
   }: {
     slice?: { skip: number; take: number };
     now?: Date;
     programIds?: readonly string[];
+    /**
+     * Which way round the roster reads.
+     *
+     * A parameter rather than a sort of the returned page, because the page IS
+     * a slice: reversing forty rows out of four hundred reverses the wrong
+     * forty, and the reader gets the last page's names in the first page's
+     * place.
+     */
+    order?: "asc" | "desc";
   } = {}
 ) {
   const visible = programIds ? new Set(programIds) : null;
@@ -70,7 +80,7 @@ export async function studentsWithHours(
     },
     // Ordering by program name is no longer available — a student has several —
     // so the list is alphabetical by person, which is how it is read anyway.
-    orderBy: [{ user: { name: "asc" } }, { createdAt: "asc" }],
+    orderBy: [{ user: { name: order } }, { createdAt: "asc" }],
     ...(slice ?? {}),
   });
   const ids = profiles.map((p) => p.id);

@@ -16,6 +16,7 @@ import {
   type SearchParams,
 } from "@/lib/filters";
 import { prisma } from "@/lib/prisma";
+import { readSort } from "@/lib/sort";
 import { homeFor, profileOf } from "@/lib/profile";
 import { redirect } from "next/navigation";
 import { studentsWithHours } from "@/lib/queries";
@@ -56,6 +57,16 @@ export default async function StudentsPage({
 
   const params = await searchParams;
   const page = parsePage(readParam(params, "page"));
+  // The one column this roster can honestly order by. The rest are computed
+  // per row after the query has sliced the list into pages.
+  const asked = readSort(
+    {
+      ...(readParam(params, "sort") ? { sort: readParam(params, "sort") } : {}),
+      ...(readParam(params, "dir") ? { dir: readParam(params, "dir") } : {}),
+    },
+    ["student"] as const
+  );
+  const nameOrder = asked?.dir === "desc" ? "desc" : "asc";
   // One instant for the whole page: the "expiring" and "expired" chips and the
   // forfeiture the table shows have to be judged against the same clock, or a
   // student can be in the filtered list and unexpired in the row.
@@ -91,6 +102,7 @@ export default async function StudentsPage({
       slice: { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE },
       now,
       programIds,
+      order: nameOrder,
     }),
     prisma.studentProfile.count({ where }),
   ]);
@@ -152,7 +164,7 @@ export default async function StudentsPage({
         )
       ) : (
         <>
-          <StudentsTable students={students} viewer={lens} />
+          <StudentsTable students={students} viewer={lens} sortable />
           <Pagination
             basePath="/students"
             params={params}

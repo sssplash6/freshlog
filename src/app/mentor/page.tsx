@@ -15,6 +15,7 @@ import { SESSION_STATUS, USER_STATUS } from "@/lib/constants";
 import { requireMentor } from "@/lib/dal";
 import { formatDate, formatDuration, formatRough } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { applySort, readSort } from "@/lib/sort";
 import { mentorCaseload, mentorMeetings } from "@/lib/queries";
 import {
   attentionList,
@@ -45,14 +46,23 @@ const NEEDS_YOU_ROWS = 10;
  */
 function studentColumns(showProgram: boolean): Column[] {
   return [
-    { label: "Student" },
-    ...(showProgram ? [{ label: "Program" } as Column] : []),
-    { label: "Remaining with you", align: "right" },
-    { label: "Use by" },
-    { label: "Last session" },
+    { label: "Student", sort: "student" },
+    ...(showProgram ? [{ label: "Program", sort: "program" } as Column] : []),
+    { label: "Remaining with you", align: "right", sort: "remaining" },
+    { label: "Use by", sort: "deadline" },
+    { label: "Last session", sort: "seen" },
     { label: "" },
   ];
 }
+
+/** What each of those headings orders by. `Column.sort` names the key. */
+const CASELOAD_SORTS = [
+  "student",
+  "program",
+  "remaining",
+  "deadline",
+  "seen",
+] as const;
 
 /**
  * A mentor's Monday morning.
@@ -72,7 +82,12 @@ function studentColumns(showProgram: boolean): Column[] {
 export default async function MentorHomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ program?: string; students?: string }>;
+  searchParams: Promise<{
+    program?: string;
+    students?: string;
+    sort?: string;
+    dir?: string;
+  }>;
 }) {
   const user = await requireMentor();
   // One instant for the whole page, so two sections cannot disagree about what
@@ -86,7 +101,7 @@ export default async function MentorHomePage({
       })
     ).map((d) => dismissalKey(d.type, d.subjectId))
   );
-  const { program = "", students: studentRows } = await searchParams;
+  const { program = "", students: studentRows, sort, dir } = await searchParams;
   // "Show me the rest of them", in the URL, so it survives a reload and can be
   // linked. The whole caseload on the page it is already on beats a second
   // address for the same nine rows.
@@ -221,13 +236,27 @@ export default async function MentorHomePage({
   // column is what says so.
   const showProgram = new Set(inView.map((s) => s.program.id)).size > 1;
 
-  const sortedCaseload = [...inView].sort((a, b) => {
-    // Holding time with you first: that is who the next session is for.
-    if ((b.remaining > 0 ? 1 : 0) !== (a.remaining > 0 ? 1 : 0)) {
-      return (b.remaining > 0 ? 1 : 0) - (a.remaining > 0 ? 1 : 0);
-    }
-    return b.remaining - a.remaining;
-  });
+  // The reader's own order when they have asked for one; otherwise the page's,
+  // which is the answer to "who is my next session for".
+  const asked = readSort(
+    { ...(sort ? { sort } : {}), ...(dir ? { dir } : {}) },
+    CASELOAD_SORTS
+  );
+  const sortedCaseload = asked
+    ? applySort(inView, asked, {
+        student: (s) => s.profile.user.name ?? s.profile.user.email,
+        program: (s) => s.program.name,
+        remaining: (s) => s.remaining,
+        deadline: (s) => s.deadline,
+        seen: (s) => lastSeen.get(s.profile.id) ?? null,
+      })
+    : [...inView].sort((a, b) => {
+        // Holding time with you first: that is who the next session is for.
+        if ((b.remaining > 0 ? 1 : 0) !== (a.remaining > 0 ? 1 : 0)) {
+          return (b.remaining > 0 ? 1 : 0) - (a.remaining > 0 ? 1 : 0);
+        }
+        return b.remaining - a.remaining;
+      });
   const caseloadRows = showAllStudents
     ? sortedCaseload
     : sortedCaseload.slice(0, CASELOAD_ROWS);
@@ -242,6 +271,14 @@ export default async function MentorHomePage({
     const q = new URLSearchParams();
     if (opts.program) q.set("program", opts.program);
     if (opts.all) q.set("students", "all");
+    // The three states compose. Narrowing to one program while the table is
+    // ordered by use-by must not silently put it back in the page's own order:
+    // a reader who asked one question does not expect answering a second to
+    // cancel the first.
+    if (asked) {
+      q.set("sort", asked.key);
+      q.set("dir", asked.dir);
+    }
     const query = q.toString();
     return query ? `/mentor?${query}` : "/mentor";
   };

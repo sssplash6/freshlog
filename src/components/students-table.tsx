@@ -37,6 +37,7 @@ export function StudentsTable({
   viewer,
   showProgram = true,
   href = "/students",
+  sortable = false,
   framed = true,
   empty,
 }: {
@@ -47,6 +48,12 @@ export function StudentsTable({
   showProgram?: boolean;
   /** Base path for a row's link. */
   href?: string;
+  /**
+   * Offer the name as a sort. Only for a page that reads `?sort=`/`?dir=` back
+   * into its own query — a header that changes the URL and not the order is
+   * worse than a header that does nothing.
+   */
+  sortable?: boolean;
   framed?: boolean;
   /** Pass an `EmptyState variant="no-results"` when a filter did the emptying. */
   empty?: React.ReactNode;
@@ -63,7 +70,11 @@ export function StudentsTable({
   }
 
   const columns: Column[] = [
-    { label: "Student" },
+    // Only the name is offered, and only where the page can honour it. The
+    // other four are computed per row after the query has already sliced the
+    // roster into pages, so ordering by them here would order one page of
+    // forty and call it the list.
+    { label: "Student", ...(sortable ? { sort: "student" } : {}) },
     ...(showProgram ? [{ label: "Program" } as Column] : []),
     {
       label: viewer.audience === "mentor" ? "Remaining with you" : "Remaining",
