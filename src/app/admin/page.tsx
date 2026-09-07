@@ -12,13 +12,12 @@ import {
   SESSION_STATUS,
 } from "@/lib/constants";
 import { adminScope, scopeProgramFilter } from "@/lib/authz";
-import { SessionRow, toSessionEntries } from "@/components/session-row";
 import { requireStaff } from "@/lib/dal";
 import { dismissalKey, notDismissed } from "@/lib/status";
 import { formatRough } from "@/lib/format";
 import { programTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
-import { recentMeetings, studentsWithHours } from "@/lib/queries";
+import { studentsWithHours } from "@/lib/queries";
 import {
   actionableCount,
   attentionList,
@@ -78,9 +77,8 @@ const NEEDS_YOU = new Set<StatusType>([
 /** At most twenty rows, and more than three of one state collapse to a line. */
 const ROW_CAP = 20;
 const ROLL_UP_AT = 3;
-/** Up next is a week's diary, not a ledger; Recent is a glance, not a log. */
+/** Up next is a week's diary, not a ledger. */
 const UP_NEXT_CAP = 10;
-const RECENT_SHOWN = 5;
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -137,7 +135,6 @@ export default async function AdminInboxPage() {
     unassignedTasks,
     taskMinutes,
     meetings,
-    recent,
   ] = await Promise.all([
     prisma.program.findMany({
       where: inScope ? { id: inScope } : {},
@@ -222,7 +219,6 @@ export default async function AdminInboxPage() {
       },
       orderBy: { scheduledAt: "asc" },
     }),
-    recentMeetings({ take: RECENT_SHOWN, programIds }),
   ]);
 
   const programById = new Map(programs.map((p) => [p.id, p]));
@@ -563,26 +559,6 @@ export default async function AdminInboxPage() {
         </Section>
       )}
 
-      {/* Read-only, and hidden when there is nothing to read: the section is
-          five lines of reassurance that time is being logged, and an empty box
-          explaining its own absence would be more words than the section. */}
-      {recent.length > 0 && (
-        <Section title="Recent">
-          <ul className="divide-y divide-line">
-            {toSessionEntries(recent, { studentBase: "/students" }).map(
-              (session, i) => (
-                <SessionRow
-                  key={session.id}
-                  session={session}
-                  viewer={viewer}
-                  variant="line"
-                  index={i}
-                />
-              )
-            )}
-          </ul>
-        </Section>
-      )}
     </div>
   );
 }

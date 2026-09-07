@@ -299,10 +299,30 @@ export function SessionRow({
               />
             </div>
           )}
+          {/* Folded, not clamped. `Disclosure`'s own doctrine sends free text
+              to `ExpandableText` instead — and that is what this was — but two
+              lines of prose per row, down a ledger of forty sessions, is still
+              eighty lines of prose between a reader and the next date. The
+              summary says whether there is a note at all, so nothing is hidden
+              that the reader did not already know was there.
+
+              Native `<details>`: keyboard and screen-reader behaviour arrive
+              free, it works before hydration, and find-in-page opens it. */}
           {note && (
-            <div className="mt-1">
-              <ExpandableText text={note} lines={2} className={cn("text-[15px]", textTone)} />
-            </div>
+            <details className="group/note mt-1">
+              <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-xs text-muted-fg transition-colors hover:text-ink [&::-webkit-details-marker]:hidden">
+                <span
+                  aria-hidden="true"
+                  className="text-[9px] transition-transform group-open/note:rotate-90"
+                >
+                  ▸
+                </span>
+                note
+              </summary>
+              <p className={cn("mt-1 whitespace-pre-line text-[15px]", textTone)}>
+                {note}
+              </p>
+            </details>
           )}
           {chips && <div className="mt-2">{chips}</div>}
           {actions && <div className="mt-1.5 flex flex-wrap items-center gap-2">{actions}</div>}
