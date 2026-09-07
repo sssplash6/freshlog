@@ -1,12 +1,19 @@
 import { redirect } from "next/navigation";
 
 import { InterviewResponse } from "@/components/forms/interview-response";
+import { SessionAnswerForm } from "@/components/forms/session-answer-form";
 import { SessionRow } from "@/components/session-row";
 import { Timeline, type TimelineEntry } from "@/components/timeline";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
-import { INTERVIEW_STATUS, ROLES, interviewIsOpen } from "@/lib/constants";
+import {
+  CONFIRM_WINDOW_DAYS,
+  INTERVIEW_STATUS,
+  ROLES,
+  SESSION_STATUS,
+  interviewIsOpen,
+} from "@/lib/constants";
 import { requireRole } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { studentLedger, studentMeetings } from "@/lib/queries";
@@ -81,6 +88,20 @@ export default async function StudentMeetingsPage() {
   // backwards from the most recent, which is the order `studentLedger` returns.
   const past = ledger.sessions;
 
+  /**
+   * Whether this row still has a question in it.
+   *
+   * The same three conditions `sessionStatuses` uses to raise the chip, so the
+   * row cannot say "Confirm this session" and then offer no way to. A month,
+   * after which it stops asking: an unanswered session from March is not a job
+   * anybody is going to do.
+   */
+  const needsAnswer = (s: (typeof past)[number]) =>
+    s.status === SESSION_STATUS.ACTIVE &&
+    s.withinPlan &&
+    !s.studentAnswer &&
+    (now.getTime() - s.date.getTime()) / 86_400_000 <= CONFIRM_WINDOW_DAYS;
+
   return (
     <div className="space-y-6">
       <PageTitle
@@ -123,10 +144,25 @@ export default async function StudentMeetingsPage() {
                   status: s.status,
                   withinPlan: s.withinPlan,
                   note: s.note,
+                  studentAnswer: s.studentAnswer,
+                  studentRating: s.studentRating,
+                  studentNote: s.studentNote,
                   mentor: s.mentor,
                   task: s.assignment,
                 }}
-                
+                // The one write on this page, and only where there is
+                // something to answer: a live, in-plan session they have not
+                // spoken about yet. An extra hour given on top of the plan
+                // charged nothing, so there is no balance to agree with; a
+                // voided one has already been taken back.
+                actions={
+                  needsAnswer(s) ? (
+                    <SessionAnswerForm
+                      sessionId={s.id}
+                      mentorName={s.mentor.name ?? s.mentor.email}
+                    />
+                  ) : undefined
+                }
               />
             ))}
           </ul>

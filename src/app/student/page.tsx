@@ -39,6 +39,7 @@ import {
 import {
   attentionList,
   meetingStatus,
+  sessionStatuses,
   status,
   studentStatuses,
   taskStatuses,
@@ -332,12 +333,43 @@ export default async function StudentHomePage() {
     return s ? [s] : [];
   });
 
+  // Sessions their mentors logged that they have not spoken about yet. One
+  // row each, capped by `attentionList`'s own roll-up once there are more than
+  // three, and every one of them a link to the page that can answer it.
+  const unconfirmed = held.flatMap((s) => {
+    const row = sessionStatuses(
+      {
+        attended: s.attended,
+        late: s.late,
+        status: s.status,
+        withinPlan: s.withinPlan,
+        studentAnswer: s.studentAnswer,
+        date: s.date,
+      },
+      viewer
+    ).find((x) => x.type === "SESSION_UNCONFIRMED");
+    return row
+      ? [
+          {
+            ...row,
+            subject: {
+              kind: "mentor" as const,
+              id: s.mentor.id,
+              name: s.mentor.name ?? s.mentor.email,
+            },
+            href: "/student/meetings",
+            at: s.date,
+          },
+        ]
+      : [];
+  });
+
   // `attentionList` adds an ALL_CLEAR row when nothing is actionable, which
   // `AttentionList` already says in this page's own words — and with an
   // informational row still on screen "Nothing needs you" would be contradicted
   // by the line directly under it.
   const needsYou = attentionList(
-    [...mine, ...meetingRows, ...overdueTasks, ...bookingRows],
+    [...mine, ...meetingRows, ...overdueTasks, ...bookingRows, ...unconfirmed],
     viewer
   ).filter((s) => s.type !== "ALL_CLEAR");
 

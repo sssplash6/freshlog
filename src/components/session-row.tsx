@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ExpandableText } from "@/components/expandable-text";
 import { PersonChip } from "@/components/person-chip";
+import { Rating } from "@/components/rating";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusChip } from "@/components/ui/status-chip";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
@@ -78,6 +79,12 @@ export type SessionEntry = {
   /** False = given out of plan: delivered, but charged to no allocation. */
   withinPlan: boolean;
   note: string | null;
+  /** `SESSION_ANSWER`, or null while the student has not answered. */
+  studentAnswer?: string | null;
+  /** 1-5 on this meeting, when they left one. */
+  studentRating?: number | null;
+  /** Their words: what was wrong, or what was good. */
+  studentNote?: string | null;
   mentor: RowPerson;
   /** Present only on a log that spans students. */
   student?: (RowPerson & { program?: string | null }) | null;
@@ -324,6 +331,18 @@ export function SessionRow({
               </p>
             </details>
           )}
+          {/* What the student said back. It sits under the mentor's own note
+              on purpose: the row reads as the record, then the answer to it. */}
+          {session.studentAnswer && (session.studentRating || session.studentNote) && (
+            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[13px]">
+              {session.studentRating ? <Rating value={session.studentRating} /> : null}
+              {session.studentNote && (
+                <span className="min-w-0 text-muted-fg">
+                  &ldquo;{session.studentNote}&rdquo;
+                </span>
+              )}
+            </div>
+          )}
           {chips && <div className="mt-2">{chips}</div>}
           {actions && <div className="mt-1.5 flex flex-wrap items-center gap-2">{actions}</div>}
         </div>
@@ -462,6 +481,9 @@ export type LoggedSession = {
   note: string | null;
   status: string;
   withinPlan: boolean;
+  studentAnswer?: string | null;
+  studentRating?: number | null;
+  studentNote?: string | null;
   mentor: { id: string; name: string | null; email: string; avatarUpdatedAt?: Date | null };
   student?: {
     id: string;
@@ -491,6 +513,9 @@ export function toSessionEntries(
     status: s.status,
     withinPlan: s.withinPlan,
     note: s.note,
+    studentAnswer: s.studentAnswer ?? null,
+    studentRating: s.studentRating ?? null,
+    studentNote: s.studentNote ?? null,
     mentor: {
       id: s.mentor.id,
       name: s.mentor.name,

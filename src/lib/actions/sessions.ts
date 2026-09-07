@@ -25,6 +25,7 @@ import {
   timeKindOf,
   INTERVIEW_STATUS,
   NOTIFICATION_TYPES,
+  SESSION_ANSWER,
   SESSION_STATUS,
   USER_STATUS,
 } from "@/lib/constants";
@@ -697,6 +698,111 @@ type SessionAuthority =
  * A refusal never separates "gone" from "voided" from "another program's":
  * telling those apart is how somebody maps a ledger they cannot read.
  */
+/**
+ * The student's answer to a session their mentor logged.
+ *
+ * The one write in this file a STUDENT may make, and the reason it exists: the
+ * ledger's promise is that these numbers are trusted by everyone, and until
+ * now a mentor's word moved a student's balance with nowhere for the student
+ * to say "that did not happen" or "it was thirty minutes". Confirming is the
+ * ordinary case and takes one tap; disputing raises a flag with their words on
+ * it.
+ *
+ * IT MOVES NO BALANCE, either way. A dispute is a fact an admin acts on by
+ * correcting or voiding the session — both audited writes that notify — and a
+ * button that reversed a charge directly would be a button that reversed one
+ * by accident. This is the same reason `attended: false` still charges: the
+ * ledger records what happened and a human decides what it means.
+ *
+ * Answering again is allowed and overwrites: a student who taps Confirm and
+ * then remembers the meeting ran short must be able to say so, and the
+ * alternative is asking an admin to undo an answer nobody disputes.
+ */
+export async function answerSession(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Sign in to do that." };
+
+  const sessionId = String(formData.get("sessionId") ?? "");
+  const session = await prisma.session.findUnique({
+    where: { id: sessionId },
+    include: {
+      student: { include: { user: true } },
+      mentor: true,
+      program: true,
+    },
+  });
+  // "Not yours" and "does not exist" answer identically, so the error cannot be
+  // used to find out which sessions exist.
+  if (!session || session.student.userId !== user.id) {
+    return { ok: false, error: "That session is not yours." };
+  }
+  if (session.status !== SESSION_STATUS.ACTIVE) {
+    return {
+      ok: false,
+      error: "That session was already corrected — nothing to answer.",
+    };
+  }
+
+  const raw = String(formData.get("answer") ?? "").toUpperCase();
+  if (raw !== SESSION_ANSWER.CONFIRMED && raw !== SESSION_ANSWER.DISPUTED) {
+    return { ok: false, error: "Say whether the session happened." };
+  }
+  const disputed = raw === SESSION_ANSWER.DISPUTED;
+
+  const noteRaw = String(formData.get("studentNote") ?? "").trim();
+  // A dispute with no words is a flag nobody can act on: the mentor and the
+  // admin both need to know WHAT is wrong before either can correct it.
+  if (disputed && noteRaw.length === 0) {
+    return { ok: false, error: "Say what was wrong, so it can be corrected." };
+  }
+  const note = noteRaw.slice(0, 1000) || null;
+
+  const ratingRaw = Number(formData.get("studentRating") ?? 0);
+  const rating =
+    Number.isInteger(ratingRaw) && ratingRaw >= 1 && ratingRaw <= 5
+      ? ratingRaw
+      : null;
+
+  await prisma.session.update({
+    where: { id: session.id },
+    data: {
+      studentAnswer: raw,
+      studentAnsweredAt: new Date(),
+      studentNote: note,
+      // A rating belongs to a session that happened. Keeping one on a disputed
+      // row would be rating a meeting the student says did not take place.
+      studentRating: disputed ? null : rating,
+    },
+  });
+
+  const who = session.student.user.name ?? session.student.user.email;
+  const when = formatDate(session.date);
+  const staff = disputed ? await staffIdsFor(session.programId) : [];
+  await notify(prisma, {
+    // The mentor always hears it. Staff hear only a dispute — a stream of
+    // "confirmed" rows is not something an admin can act on.
+    to: [session.mentorId, ...staff],
+    type: NOTIFICATION_TYPES.SESSION_ANSWERED,
+    actorId: user.id,
+    href: notificationHref.adminStudent(session.studentId),
+    message: disputed
+      ? `${who} disputes the ${formatMinutes(session.minutes)} logged on ${when}: "${note}"`
+      : `${who} confirmed the ${formatMinutes(session.minutes)} logged on ${when}.` +
+        (rating ? ` They rated it ${rating}/5.` : ""),
+  });
+
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: disputed
+      ? "Thank you — your mentor and your program have been told."
+      : "Confirmed. Thank you.",
+  };
+}
+
 async function requireSessionAuthority(
   sessionId: string
 ): Promise<SessionAuthority> {

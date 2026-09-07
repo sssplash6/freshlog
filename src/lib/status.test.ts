@@ -457,6 +457,63 @@ describe("sessionStatuses", () => {
     expect(sessionStatuses(noShow, view("student"))[0].label).toBe("Missed, time charged");
     expect(sessionStatuses(noShow, view("mentor"))[0].label).toBe("No-show, time charged");
   });
+
+  it("asks a recent, unanswered, charging session to be confirmed", () => {
+    const recent = session({ date: inDays(-3) });
+    expect(types(sessionStatuses(recent, view("student")))).toEqual([
+      "SESSION_UNCONFIRMED",
+    ]);
+    // The one voice that can act on it says so; the other two are told.
+    expect(sessionStatuses(recent, view("student"))[0].kind).toBe("actionable");
+    expect(sessionStatuses(recent, view("mentor"))[0].kind).toBe("informational");
+    expect(sessionStatuses(recent, view("staff"))[0].kind).toBe("informational");
+  });
+
+  it("stops asking once the row is a month old", () => {
+    // An unanswered session from March is not a job anybody is going to do,
+    // and a chip on every old row is a chip that stops meaning anything.
+    expect(
+      types(sessionStatuses(session({ date: inDays(-31) }), view("student")))
+    ).toEqual([]);
+  });
+
+  it("never asks about time that charged nothing", () => {
+    // Out of plan moved no balance, so there is nothing to agree with; a
+    // voided one has already been taken back.
+    expect(
+      types(sessionStatuses(session({ date: inDays(-1), withinPlan: false }), view("student")))
+    ).toEqual(["SESSION_EXTRA"]);
+    expect(
+      types(
+        sessionStatuses(
+          session({ date: inDays(-1), status: SESSION_STATUS.VOIDED }),
+          view("student")
+        )
+      )
+    ).toEqual(["SESSION_VOIDED"]);
+  });
+
+  it("carries the answer once it is given, and only that answer", () => {
+    const confirmed = session({ date: inDays(-3), studentAnswer: "CONFIRMED" });
+    expect(types(sessionStatuses(confirmed, view("staff")))).toEqual([
+      "SESSION_CONFIRMED",
+    ]);
+    const disputed = session({ date: inDays(-3), studentAnswer: "DISPUTED" });
+    expect(types(sessionStatuses(disputed, view("staff")))).toEqual([
+      "SESSION_DISPUTED",
+    ]);
+    // A dispute is the staff member's job, not the mentor's: only an admin can
+    // correct or void the row.
+    expect(sessionStatuses(disputed, view("staff"))[0].kind).toBe("actionable");
+    expect(sessionStatuses(disputed, view("mentor"))[0].kind).toBe("informational");
+  });
+
+  it("answers an old session's answer even past the window", () => {
+    // The window governs the ASK, not the record: a confirmation given in March
+    // is still a fact about that row in September.
+    const old = session({ date: inDays(-200), studentAnswer: "CONFIRMED" });
+    expect(types(sessionStatuses(old, view("staff")))).toEqual(["SESSION_CONFIRMED"]);
+  });
 });
 
 describe("meetingStatus", () => {

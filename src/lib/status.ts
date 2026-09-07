@@ -1,7 +1,9 @@
 import {
   ASSIGNMENT_PROGRESS,
+  CONFIRM_WINDOW_DAYS,
   INTERVIEW_STATUS,
   PLACEHOLDER_EMAIL_DOMAIN,
+  SESSION_ANSWER,
   SESSION_STATUS,
   USER_STATUS,
 } from "@/lib/constants";
@@ -75,6 +77,9 @@ export type StatusType =
   | "SESSION_EXTRA"
   | "SESSION_RESCHEDULED"
   | "SESSION_VOIDED"
+  | "SESSION_UNCONFIRMED"
+  | "SESSION_CONFIRMED"
+  | "SESSION_DISPUTED"
   // A piece of planned work
   | "TASK_NOT_STARTED"
   | "TASK_IN_PROGRESS"
@@ -149,6 +154,8 @@ export const EXPIRY_WINDOW_DAYS = { staff: 14, mentor: 7, student: 30 } as const
 
 const DAY = 24 * 60 * 60 * 1000;
 const daysUntil = (date: Date, now: Date) => (date.getTime() - now.getTime()) / DAY;
+/** Whole days since something happened. Negative for a date in the future. */
+const daysSince = (date: Date, now: Date) => (now.getTime() - date.getTime()) / DAY;
 
 /**
  * Everything a label might need to interpolate.
@@ -463,6 +470,50 @@ const META: Record<StatusType, Meta> = {
       mentor: { kind: "informational", label: () => "Came late" },
       student: { kind: "informational", label: () => "Started late" },
     },
+  },
+
+  SESSION_UNCONFIRMED: {
+    severity: "attention",
+    voices: {
+      // The one voice that can act. Staff and mentors get told, because "the
+      // student has not said yes" is the difference between a settled row and
+      // one that might still be corrected — but neither of them can answer it.
+      student: {
+        kind: "actionable",
+        label: () => "Confirm this session",
+        explanation: () => "Say whether it happened, and how it went.",
+      },
+      mentor: { kind: "informational", label: () => "Not confirmed yet" },
+      staff: { kind: "informational", label: () => "Not confirmed yet" },
+    },
+    many: (n) => `${n} sessions are waiting to be confirmed`,
+  },
+
+  SESSION_CONFIRMED: {
+    severity: "ok",
+    voices: {
+      staff: { kind: "informational", label: () => "Confirmed" },
+      mentor: { kind: "informational", label: () => "Confirmed" },
+      student: { kind: "informational", label: () => "You confirmed this" },
+    },
+  },
+
+  SESSION_DISPUTED: {
+    severity: "problem",
+    voices: {
+      staff: {
+        kind: "actionable",
+        label: () => "Disputed",
+        explanation: () => "Correct or void the session, or ask them what happened.",
+      },
+      mentor: {
+        kind: "informational",
+        label: () => "Disputed",
+        explanation: () => "An admin corrects it. Their note says what is wrong.",
+      },
+      student: { kind: "informational", label: () => "You raised this" },
+    },
+    many: (n) => `${n} sessions are disputed`,
   },
 
   SESSION_EXTRA: {
@@ -934,6 +985,10 @@ export type SessionStatusInput = {
   /** `SESSION_STATUS`. */
   status: string;
   withinPlan: boolean;
+  /** `SESSION_ANSWER`, or null while the student has not answered. */
+  studentAnswer?: string | null;
+  /** The day it was logged, for the window the row keeps asking inside. */
+  date?: Date;
 };
 
 /**
@@ -952,6 +1007,26 @@ export function sessionStatuses(s: SessionStatusInput, v: ViewerContext): Status
     else if (s.late) out.push(status("SESSION_LATE", v));
   }
   if (!s.withinPlan) out.push(status("SESSION_EXTRA", v));
+
+  // What the student said about it, and — while it is still recent and still
+  // live — that they have not said anything. Only for a session that charged
+  // something: an extra hour given on top of the plan moved no balance, so
+  // there is nothing for a student to be asked to agree with.
+  if (s.status === SESSION_STATUS.ACTIVE && s.withinPlan) {
+    if (s.studentAnswer === SESSION_ANSWER.CONFIRMED) {
+      out.push(status("SESSION_CONFIRMED", v));
+    } else if (s.studentAnswer === SESSION_ANSWER.DISPUTED) {
+      out.push(status("SESSION_DISPUTED", v));
+    } else if (
+      // A month, then the row stops asking. An unanswered session from March is
+      // not a job anybody is going to do, and a permanent chip on every old row
+      // is a chip that stops meaning anything.
+      s.date &&
+      daysSince(s.date, v.now) <= CONFIRM_WINDOW_DAYS
+    ) {
+      out.push(status("SESSION_UNCONFIRMED", v));
+    }
+  }
 
   return out.filter((x): x is Status => x !== null);
 }

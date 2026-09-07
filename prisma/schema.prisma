@@ -389,6 +389,32 @@ model Session {
   // the one place the rule lives, so "does out-of-plan spend time?" stays a
   // single decision rather than a filter copied into a dozen queries.
   withinPlan   Boolean  @default(true)
+
+  // What the STUDENT says about the meeting the mentor logged.
+  //
+  // Until 8 September 2026 hours moved on one party's word: a mentor logged a
+  // session, the student's balance changed, the student was notified, and there
+  // was nowhere for them to say "that did not happen" or "it was 30 minutes,
+  // not 60". The ledger's own promise is that these numbers are trusted by
+  // everyone, and trust that cannot be withheld is not trust.
+  //
+  //   null        not answered yet
+  //   CONFIRMED   the student says it happened
+  //   DISPUTED    the student says something is wrong; the note says what
+  //
+  // Deliberately does NOT move the balance. A dispute is a flag for a human,
+  // not an automatic reversal — an admin corrects or voids the session, which
+  // is already an audited write. A student who could reverse a charge by
+  // pressing a button would be a student who could reverse it by mistake.
+  studentAnswer     String?
+  studentAnsweredAt DateTime?
+  // 1-5 on the session itself, not on the mentor. `MentorFeedback` rates a
+  // person over time and is anonymous to them; this rates one meeting and is
+  // not, because a mentor cannot act on "one of your sessions was a 2".
+  studentRating     Int?
+  // Their words: what was wrong, or what was good. Optional either way.
+  studentNote       String?
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

@@ -42,6 +42,29 @@ export const SESSION_STATUS = {
 export type SessionStatus = (typeof SESSION_STATUS)[keyof typeof SESSION_STATUS];
 
 /**
+ * What the student says about a session their mentor logged.
+ *
+ * Null (no row value) is "not answered yet" and is the state every session
+ * starts in — including every session logged before this existed, which is why
+ * nothing was backfilled.
+ *
+ * Neither answer moves a balance. A dispute raises a flag an admin acts on by
+ * correcting or voiding the session, which is an audited write with a
+ * notification; a button that reversed a charge directly would be a button that
+ * reversed it by accident.
+ */
+export const SESSION_ANSWER = {
+  CONFIRMED: "CONFIRMED",
+  DISPUTED: "DISPUTED",
+} as const;
+
+export type SessionAnswer =
+  (typeof SESSION_ANSWER)[keyof typeof SESSION_ANSWER];
+
+/** How long a student has before the row stops asking. */
+export const CONFIRM_WINDOW_DAYS = 30;
+
+/**
  * What kind of meeting a mentor is logging. One question with four answers,
  * because they are mutually exclusive and each one means something different for
  * the hours:
@@ -306,6 +329,7 @@ export const NOTIFICATION_TYPES = {
   INTERVIEW_MOVED: "INTERVIEW_MOVED", // to the student: that meeting changed time, please confirm again
   INTERVIEW_CANCELLED: "INTERVIEW_CANCELLED", // to the other side: it's off
   INTERVIEW_ANSWERED: "INTERVIEW_ANSWERED", // to the mentor: the student confirmed, or can't make it
+  SESSION_ANSWERED: "SESSION_ANSWERED", // to the mentor + admins: the student confirmed or disputed a logged session
   FEEDBACK_RECEIVED: "FEEDBACK_RECEIVED", // to admins: a student rated a mentor
   WEEKLY_SUMMARY: "WEEKLY_SUMMARY", // to everyone who wants it: the Monday digest, in the feed too
 } as const;
@@ -359,6 +383,7 @@ export const CATEGORY_OF: Record<NotificationType, NotificationCategory> = {
   SESSION_EDITED: "SESSIONS",
   SESSION_VOIDED: "SESSIONS",
   SESSION_DELETED: "SESSIONS",
+  SESSION_ANSWERED: "SESSIONS",
   STUDENT_SIGNUP: "ACCOUNTS",
   ACCOUNT_APPROVED: "ACCOUNTS",
   MENTOR_ASSIGNED: "ACCOUNTS",
@@ -392,6 +417,7 @@ export const NOTIFICATION_META: Record<
   SESSION_EDITED: { label: "Session corrected", tone: "warning" },
   SESSION_VOIDED: { label: "Session voided", tone: "warning" },
   SESSION_DELETED: { label: "Session removed", tone: "warning" },
+  SESSION_ANSWERED: { label: "Session answer", tone: "success" },
   STUDENT_SIGNUP: { label: "New signup", tone: "brand" },
   ACCOUNT_APPROVED: { label: "Approved", tone: "success" },
   MENTOR_ASSIGNED: { label: "Assigned", tone: "brand" },

@@ -13,14 +13,25 @@ const inputClass =
 
 /** Native radio inputs retain expected keyboard behavior while labels render
  * as a large, tap-friendly star picker. */
-function StarRating({ name, idPrefix }: { name: string; idPrefix: string }) {
+export function StarRating({
+  name,
+  idPrefix,
+  legend = "Rating *",
+  required = true,
+}: {
+  name: string;
+  idPrefix: string;
+  legend?: string;
+  /** False where a rating is a courtesy rather than the point of the form. */
+  required?: boolean;
+}) {
   const [value, setValue] = useState(0);
   const [hovered, setHovered] = useState(0);
   const shown = hovered || value;
 
   return (
     <fieldset className="block text-sm">
-      <legend className="text-muted-fg">Rating *</legend>
+      <legend className="text-muted-fg">{legend}</legend>
       <div
         className="mt-1 flex items-center gap-0.5"
         onMouseLeave={() => setHovered(0)}
@@ -36,7 +47,7 @@ function StarRating({ name, idPrefix }: { name: string; idPrefix: string }) {
               type="radio"
               name={name}
               value={n}
-              required={n === 1}
+              required={required && n === 1}
               checked={value === n}
               onChange={() => setValue(n)}
               className="peer sr-only"
