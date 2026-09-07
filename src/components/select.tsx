@@ -487,7 +487,7 @@ export function Select({
               visibility: anchored ? "visible" : "hidden",
             }}
             className={cn(
-              "pop-in z-50 flex max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-soft",
+              "pop-in z-50 flex max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-lg",
               anchored?.up ? "[--pop-origin:bottom]" : "[--pop-origin:top]",
             )}
           >

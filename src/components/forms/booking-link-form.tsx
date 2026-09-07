@@ -64,7 +64,7 @@ export function BookingLinksForm({
   const missing = assignments.filter((a) => !a.calendlyUrl).length;
 
   return (
-    <section className="rounded-xl border border-line bg-surface p-4">
+    <section className="rounded-xl border border-line bg-surface shadow-sm p-4">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

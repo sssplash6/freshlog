@@ -89,7 +89,7 @@ export function MentorFeedbackForm({
   return (
     // No heading of its own: the page's title says "Rate a mentor" directly
     // above this, and the form was repeating it word for word.
-    <form action={action} className="rounded-xl border border-line bg-surface p-4">
+    <form action={action} className="rounded-xl border border-line bg-surface shadow-sm p-4">
       <p className="text-xs text-muted-fg">
         Your name isn&apos;t shown to the mentor.
       </p>

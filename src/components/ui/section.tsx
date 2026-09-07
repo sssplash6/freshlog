@@ -122,7 +122,7 @@ export function Section({
 }) {
   return (
     <section
-      className={cn("overflow-hidden rounded-2xl border border-line bg-surface", className)}
+      className={cn("overflow-hidden rounded-2xl border border-line bg-surface shadow-sm", className)}
       {...props}
     >
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-line px-4 py-3.5 sm:px-5">

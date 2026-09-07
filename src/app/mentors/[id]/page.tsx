@@ -704,7 +704,7 @@ async function MentorCard({
         {visible.map((a) => (
           <li
             key={a.id}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface shadow-sm px-4 py-3"
           >
             {/* Named only when there is a choice to make. One pairing is
                 already named in the line under the h1, and a page of twenty

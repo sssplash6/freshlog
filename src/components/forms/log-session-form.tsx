@@ -179,7 +179,7 @@ export function LogSessionForm({
       ref={formRef}
       action={action}
       onChange={rememberDraft}
-      className={cn(!page && "rounded-xl border border-line bg-surface p-4")}
+      className={cn(!page && "rounded-xl border border-line bg-surface shadow-sm p-4")}
     >
       {!page && (
         <h2 className="text-base font-semibold text-ink">Log a completed session</h2>

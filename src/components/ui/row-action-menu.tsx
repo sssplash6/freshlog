@@ -72,8 +72,12 @@ export function RowActionMenu({
           // 44px on a phone, where a mis-tap opens the wrong row's menu, and
           // 36px from sm up, where the pointer is precise and a column of
           // 44px squares is louder than the rows it sits beside.
-          "group inline-flex h-11 items-center justify-center rounded-lg text-muted-fg transition-colors",
-          "hover:bg-canvas hover:text-ink data-[open]:bg-canvas data-[open]:text-ink",
+          "group inline-flex h-11 items-center justify-center rounded-lg text-muted-fg transition",
+          // The tint says "target" and the ring says "pressable" — a border
+          // sitting there permanently would say it on every row of the table at
+          // once, which is the same as saying it nowhere.
+          "hover:bg-brand-soft hover:text-brand hover:ring-2 hover:ring-brand/15",
+          "data-[open]:bg-brand-soft data-[open]:text-brand data-[open]:ring-2 data-[open]:ring-brand/15",
           trigger === "dots"
             ? "w-11 sm:h-9 sm:w-9"
             : "gap-1.5 whitespace-nowrap px-2.5 text-[13px] font-medium sm:h-9",

@@ -44,7 +44,7 @@ function NotificationBell({ count, href }: { count: number; href: string }) {
       /* shrink-0 is load-bearing, and was measured: as a flex item beside the
          wordmark and the account button, the 44px box shrank to 27px wide at
          390px — the target this commit widened, quietly given back. */
-      className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
+      className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-fg transition hover:bg-brand-soft hover:text-brand hover:ring-2 hover:ring-brand/15"
     >
       <svg
         aria-hidden="true"

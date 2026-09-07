@@ -232,7 +232,7 @@ function AttentionRow({
 export function AttentionRows({ statuses }: { statuses: Status[] }) {
   if (statuses.length === 0) return null;
   return (
-    <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
+    <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
       {statuses.map((s, i) => (
         <AttentionRow key={`${s.type}-${s.subject?.id ?? i}`} status={s} />
       ))}

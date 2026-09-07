@@ -43,7 +43,7 @@ export default async function UnsubscribePage({
 
   return (
     <main className="flex min-h-full flex-1 items-center justify-center bg-canvas px-4 py-16">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-line bg-surface">
+      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
         <div className="h-[3px] w-full bg-accent" aria-hidden="true" />
         <div className="p-6 sm:p-7">
           <div className="text-[15px] font-bold text-brand">freshlog</div>

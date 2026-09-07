@@ -308,7 +308,7 @@ export function Popover({
               visibility: anchored ? "visible" : "hidden",
             }}
             className={cn(
-              "pop-in z-50 overflow-y-auto overscroll-contain rounded-xl border border-line bg-surface text-left shadow-soft focus:outline-none",
+              "pop-in z-50 overflow-y-auto overscroll-contain rounded-xl border border-line bg-surface text-left shadow-lg focus:outline-none",
               // The width is a ceiling on a phone: `useAnchoredPosition` pins
               // whichever edge `origin` names, so on a 320px screen a w-80
               // panel would hang the other edge off the side.

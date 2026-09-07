@@ -45,7 +45,7 @@ export function Table({
     <div
       className={cn(
         "sm:overflow-x-auto",
-        framed && "rounded-xl border border-line bg-surface",
+        framed && "rounded-xl border border-line bg-surface shadow-sm",
         className,
       )}
     >

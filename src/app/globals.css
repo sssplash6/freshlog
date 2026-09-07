@@ -93,10 +93,21 @@
   --color-prog-slate-ink: #3d4d61;
   --color-prog-slate-dot: #536780;
 
-  /* Elevation is rare and quiet. When a surface lifts (hovered island, menu),
-     the shadow is tinted toward the brand blue, never flat black — softer and
-     on-brand than a default grey drop shadow. */
-  --shadow-soft: 0 4px 20px -8px rgb(18 75 132 / 0.16), 0 1px 3px rgb(18 75 132 / 0.06);
+  /* Elevation is brand-tinted, never flat black — softer and on-brand than a
+     default grey drop shadow. Three steps, and each one means a distance:
+
+       shadow-sm   a card resting on the canvas. Every framed surface.
+       shadow-lg   a menu or a popover floating above the page.
+       shadow-xl   a modal, with the page dimmed behind it.
+
+     The redesign had removed all three and left `--shadow-soft` for popovers
+     alone, which flattened every card in the app into an outline drawn on
+     grey. Restored 8 September 2026 after reading it beside `freshbot/Weak`,
+     where the same tokens carry a shadow and the difference is the whole
+     difference between "built" and "wireframe". */
+  --shadow-sm: 0 1px 2px rgb(18 75 132 / 0.06), 0 1px 3px rgb(18 75 132 / 0.05);
+  --shadow-lg: 0 4px 20px -6px rgb(18 75 132 / 0.18), 0 2px 6px rgb(18 75 132 / 0.07);
+  --shadow-xl: 0 16px 48px -12px rgb(18 75 132 / 0.28), 0 4px 12px rgb(18 75 132 / 0.10);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);

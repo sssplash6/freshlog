@@ -74,12 +74,15 @@ the reader would otherwise work out by reading.
 - **Neutrals** — `canvas` #f4f5f6 is the page ground, `surface` #ffffff a card,
   `line` #e5e6e8 every hairline. Text is two tiers and only two: `ink` primary,
   `muted-fg` secondary. No coloured eyebrows.
-- **`shadow-soft`** is tinted toward brand blue rather than flat black, and is
-  for popovers and menus only. Elevation is rare.
+- **Elevation is three steps**, all tinted toward brand blue rather than flat
+  black: `shadow-sm` for a card, a table or a button resting on the canvas;
+  `shadow-lg` for a menu or popover floating above the page; `shadow-xl` for a
+  modal with the page dimmed behind it. Each step is a distance, and nothing
+  uses a step it has not travelled.
 
 There is **no green**. "Nothing wrong" is a `✓` glyph in ink on a neutral chip,
 so the two colours that remain are never spent on good news. There are no
-gradients, tinted section headers, watermarks or brand-tinted hover shadows.
+gradients, tinted section headers or watermarks.
 
 ### The rule the build enforces
 

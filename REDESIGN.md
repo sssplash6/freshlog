@@ -603,8 +603,14 @@ orange) · all 106 raw palette classes.
    | `PersonBadge` | the face alone, where there is no room for a name. |
    | bare text | running prose **only**: a sentence, a receipt, a toast, an email, a notification message, a `title` or an `aria-label`. Never a cell, never a row's subject. |
 6. Two text tiers only: `ink` and `muted-fg`. No coloured eyebrows.
-7. No gradients, tinted headers, watermarks, tilts or brand-tinted hover shadows. `shadow-soft` is
-   for popovers only.
+7. No gradients, tinted headers, watermarks or tilts. **Elevation is three steps and each one is a
+   distance:** `shadow-sm` on every framed card, table and button; `shadow-lg` on a menu or popover
+   floating above the page; `shadow-xl` on a modal with the page dimmed behind it. All three are
+   brand-tinted, never flat black.
+   *(Amended 8 September 2026. The rule read "`shadow-soft` is for popovers only", which flattened
+   every card in the app into an outline drawn on grey. Read beside `freshbot/Weak` — the same
+   tokens, the same brand, the same motion curves, but a shadow under each card — the difference
+   was the whole difference between "built" and "wireframe".)*
 8. Every hairline is `line`. A section is separated by whitespace and at most one rule.
 
 **The hours bar has three fills, not four:** delivered `accent`; missed-but-charged the *same*
