@@ -339,39 +339,53 @@ export function TaskRow({
         className={cn("px-4 py-3 sm:px-5", index != null && "deal-in")}
         style={stagger}
       >
-        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
-          <div className="min-w-0 flex-1 text-[15px] leading-snug">{title}</div>
+        {/* Two columns from sm up, because the one-column version left the
+            whole right half of the row empty and stacked the budget, the due
+            date and the bar under the title in a narrow ribbon down the left.
+            What the work IS goes left; what it COSTS goes right, on the same
+            baseline as the title it belongs to. Below sm they stack, which is
+            the only shape that fits 390px. */}
+        <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+          <div className="min-w-0 flex-1 basis-56">
+            <div className="text-[15px] leading-snug">{title}</div>
+
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+              {mentor ? (
+                <PersonChip person={mentor} size="sm" href={mentor.href} />
+              ) : (
+                needsMentor && <StatusChip status={needsMentor} />
+              )}
+              {progressChip}
+            </div>
+
+            {note && (
+              <div className="mt-1.5">
+                <ExpandableText text={note} lines={2} className="text-xs text-muted-fg" />
+              </div>
+            )}
+          </div>
+
+          <div className="w-full shrink-0 text-xs sm:w-48">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:justify-end">
+              {hours}
+              {overBudget && <StatusChip status={overBudget} />}
+            </div>
+            {(overdue || dueText) && (
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 sm:justify-end">
+                {overdue ? (
+                  <StatusChip status={overdue} />
+                ) : (
+                  <span className="text-muted-fg">Due {dueText}</span>
+                )}
+              </div>
+            )}
+            {/* The budget as a bar, so a plan running past its hours is visible
+                without reading two numbers and subtracting them. */}
+            {meter && <div className="mt-1.5">{meter}</div>}
+          </div>
+
           {actions && <span className="shrink-0">{actions}</span>}
         </div>
-
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-          {mentor ? (
-            <PersonChip person={mentor} size="sm" href={mentor.href} />
-          ) : (
-            needsMentor && <StatusChip status={needsMentor} />
-          )}
-          {progressChip}
-        </div>
-
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-          {hours}
-          {overBudget && <StatusChip status={overBudget} />}
-          {overdue ? (
-            <StatusChip status={overdue} />
-          ) : (
-            dueText && <span className="text-muted-fg">Due {dueText}</span>
-          )}
-        </div>
-
-        {/* The budget as a bar, so a plan running past its hours is visible
-            without reading two numbers and subtracting them. */}
-        {meter && <div className="mt-1.5">{meter}</div>}
-
-        {note && (
-          <div className="mt-1.5">
-            <ExpandableText text={note} lines={2} className="text-xs text-muted-fg" />
-          </div>
-        )}
       </li>
     );
   }
