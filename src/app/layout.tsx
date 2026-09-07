@@ -53,8 +53,25 @@ export const metadata: Metadata = {
  * of Next 14 and warns during the build.
  */
 export const viewport: Viewport = {
-  themeColor: "#ffffff",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#161d26" },
+  ],
 };
+
+/**
+ * Set the theme BEFORE the first paint.
+ *
+ * Inline and synchronous on purpose: anything deferred — a `useEffect`, a
+ * module the bundler splits out — runs after the browser has already painted,
+ * so a reader who chose dark gets a full white page first. That flash is the
+ * whole reason this is a `<script>` in the document and not a component.
+ *
+ * A stored choice wins; with none, the operating system decides. Wrapped in
+ * try/catch because reading `localStorage` throws outright in a browser set to
+ * block site data, and a theme is not worth a blank page.
+ */
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t!=="dark"&&t!=="light"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t}catch(e){}})()`;
 
 export default function RootLayout({
   children,
@@ -65,7 +82,11 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">
         {children}
         <Toaster />

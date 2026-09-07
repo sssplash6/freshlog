@@ -12,6 +12,12 @@
   --color-line: #e5e6e8; /* borders / tracks */
 
   --color-brand: #124b84; /* deep blue — structural chrome + primary action */
+  /* The ink that sits ON a saturated fill, rather than beside it. White here;
+     in dark it is near-black, because a dark theme's brand has to be light
+     enough to read AGAINST the card, and nothing can be both light enough for
+     that and dark enough to carry white text. Splitting the two is what lets
+     both clear AA instead of one of them landing at 3.4:1. */
+  --color-on-brand: #ffffff;
   --color-brand-dark: #0e3c6a; /* hover */
   --color-brand-soft: #e7eef5; /* tint background */
 
@@ -34,6 +40,7 @@
   --color-warn-ink: #8a5a08;
 
   --color-danger: #c10007; /* fill: overdrawn meter, forfeited segment */
+  --color-on-danger: #ffffff;
   --color-danger-soft: #fef2f2;
   --color-danger-line: #ffc9c9;
   --color-danger-ink: #b42318; /* 6.57:1 on surface — the only red for text */
@@ -118,6 +125,105 @@
   --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
   --default-transition-duration: 150ms;
   --default-transition-timing-function: var(--ease-out-strong);
+}
+
+/* ---- Dark ------------------------------------------------------------- *
+ *
+ * Every component in this app reads a semantic token — `bg-surface`,
+ * `text-ink`, `border-line` — and `scripts/check-colors.mjs` fails the build on
+ * anything that does not. So dark is this one block and nothing else: no
+ * `dark:` variant anywhere in `src/`, no component that has to know which
+ * theme it is in.
+ *
+ * RE-STEPPED, NEVER FLIPPED. A light wash inverted onto a dark surface goes
+ * muddy, and a dark ink lightened by a filter loses its hue. Each token is
+ * chosen again for the dark ground:
+ *
+ *   soft washes  deep versions of their own hue, held 1.10–1.20 against the
+ *                card so a tint still reads as a band instead of a grey slab
+ *   ink text     lightened until it is legible on #161d26, keeping the hue
+ *   dot fills    UNCHANGED. They carry white initials in a 20px badge and
+ *                already clear 4.5:1 against white; lightening them would
+ *                break the one contrast this palette guarantees.
+ *   shadows      black, not brand blue. A blue-tinted shadow on a near-black
+ *                canvas is invisible, so elevation is carried by alpha here
+ *                and by hue in light.
+ *
+ * The base six are taken verbatim from `freshbot/Weak`, which solved this
+ * first and shares this palette — the two apps are meant to be readable as one
+ * product, and re-deriving a slightly different navy would be the drift the
+ * July lockstep exists to prevent. */
+:root {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-canvas: #0d1219;
+  --color-surface: #161d26;
+  --color-line: #29323d;
+
+  /* Brightened so white labels stay legible on `bg-brand` and `text-brand`
+     links stay legible on the card — one token serving both, as in light. */
+  --color-brand: #57a0e0;
+  --color-brand-dark: #74b3ec; /* hover — lighter than brand in dark */
+  --color-brand-soft: #17293d;
+  --color-on-brand: #0b1017;
+
+  --color-accent: #f79a2e;
+  --color-accent-dark: #ffb057;
+  --color-accent-soft: #33240f;
+  /* The one place light and dark genuinely disagree: light keeps the vivid
+     #f18d05 for orange readouts as brand fidelity, accepting 2.46:1. On this
+     ground the same hue is already legible, so dark gets the contrast free. */
+  --color-accent-ink: #e0912f;
+
+  --color-ink: #e7ebf0;
+  --color-muted-fg: #98a2b0;
+
+  --color-warn-soft: #33280f;
+  --color-warn-line: #55431a;
+  --color-warn-ink: #e2a83c;
+
+  --color-danger: #e5484d; /* fill: overdrawn meter, forfeited segment */
+  --color-on-danger: #2b0a0c;
+  --color-danger-soft: #3a1518;
+  --color-danger-line: #5d2126;
+  --color-danger-ink: #ff8085; /* the only red for text, on #161d26 */
+
+  --color-tone-teal-soft: #102b2a;
+  --color-tone-teal-ink: #4ecec0;
+
+  --color-tone-plum-soft: #2d1c2b;
+  --color-tone-plum-ink: #d79ed0;
+
+  --color-tone-moss-soft: #1f2614;
+  --color-tone-moss-ink: #adc86e;
+
+  --color-prog-indigo-soft: #1e2342;
+  --color-prog-indigo-ink: #9aa2f6;
+
+  --color-prog-cyan-soft: #0f2932;
+  --color-prog-cyan-ink: #56c2df;
+
+  --color-prog-violet-soft: #261741;
+  --color-prog-violet-ink: #c48af0;
+
+  --color-prog-slate-soft: #1c242e;
+  --color-prog-slate-ink: #aebccc;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.40), 0 1px 3px rgb(0 0 0 / 0.30);
+  --shadow-lg: 0 4px 20px -6px rgb(0 0 0 / 0.62), 0 2px 6px rgb(0 0 0 / 0.42);
+  --shadow-xl: 0 16px 48px -12px rgb(0 0 0 / 0.76), 0 4px 12px rgb(0 0 0 / 0.50);
+}
+
+/* The one pair of classes that reads the theme directly, so `ThemeToggle` can
+   say which theme it is in without holding a copy of the answer in React. See
+   the note in that file. */
+:root[data-theme="dark"] .theme-light-only,
+:root:not([data-theme="dark"]) .theme-dark-only {
+  display: none;
 }
 
 body {

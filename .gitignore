@@ -54,3 +54,4 @@ next-env.d.ts
 # python bytecode from scripts/
 __pycache__/
 prisma/test.db*
+.playwright-mcp/

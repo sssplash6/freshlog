@@ -9,6 +9,7 @@ import {
   ProfileSwitchMenu,
 } from "@/components/profile-switch";
 import { PublicShell } from "@/components/public-shell";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Sidebar } from "@/components/sidebar";
 import { TabBar } from "@/components/tab-bar";
 import { Popover } from "@/components/ui/popover";
@@ -61,7 +62,7 @@ function NotificationBell({ count, href }: { count: number; href: string }) {
         />
       </svg>
       {count > 0 && (
-        <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-white">
+        <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-on-brand">
           {count > 99 ? "99+" : count}
         </span>
       )}
@@ -167,6 +168,12 @@ function AccountMenu({
           My profile
         </Link>
       )}
+
+      {/* Under the destinations and above Sign out: it is the one row here
+          that changes nothing about where you are. */}
+      <div className="mt-1 border-t border-line pt-1">
+        <ThemeToggle />
+      </div>
 
       <form action={signOutAction} className="mt-1 border-t border-line pt-1">
         <button

@@ -38,7 +38,7 @@ export function NavCount({ count, muted }: { count: number; muted?: boolean }) {
     <span
       className={cn(
         "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums",
-        muted ? "bg-canvas text-muted-fg" : "bg-brand text-white"
+        muted ? "bg-canvas text-muted-fg" : "bg-brand text-on-brand"
       )}
     >
       {count > 99 ? "99+" : count}

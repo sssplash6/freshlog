@@ -67,7 +67,10 @@ export function HoursBreakdown({
   // apart by a stripe rather than by a second warm colour nine degrees away.
   const stripedAccent = {
     backgroundImage:
-      "repeating-linear-gradient(135deg, var(--color-accent) 0 4px, color-mix(in srgb, var(--color-accent) 40%, white) 4px 8px)",
+      // Mixed toward the SURFACE, not toward white: on a dark card the light
+      // half of the stripe has to be the card's own ground, or the bar keeps a
+      // pale band that belongs to a theme it is no longer in.
+      "repeating-linear-gradient(135deg, var(--color-accent) 0 4px, color-mix(in srgb, var(--color-accent) 40%, var(--color-surface)) 4px 8px)",
   };
   const segments: Segment[] = [
     {

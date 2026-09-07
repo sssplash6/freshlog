@@ -14,7 +14,7 @@ export type ButtonSize = "xs" | "sm" | "md";
 /** Brand (blue) = actions (DESIGN.md). No accent-colored buttons — orange is
  * reserved for hours/progress. Red only for destructive. */
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-brand text-white shadow-sm hover:bg-brand-dark",
+  primary: "bg-brand text-on-brand shadow-sm hover:bg-brand-dark",
   // A white chip with a hairline, not an outlined brand button that INVERTS to
   // solid blue on hover. The inverting version shouted: a secondary action that
   // turns into the loudest thing on the row when the cursor crosses it is a
@@ -26,7 +26,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
   danger: "border border-danger-line text-danger-ink hover:bg-danger-soft",
   // The second half of a two-step confirm: by then the destructive choice IS
   // the primary action, so it is filled, not outlined.
-  dangerSolid: "bg-danger text-white shadow-sm hover:bg-danger/90",
+  dangerSolid: "bg-danger text-on-danger shadow-sm hover:bg-danger/90",
 };
 
 /** Fixed, proportionate heights — sm for inline/table actions, md for the

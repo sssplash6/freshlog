@@ -353,7 +353,7 @@ function TaskPanel({
                 aria-current={current}
                 className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-default ${
                   current
-                    ? "bg-brand text-white"
+                    ? "bg-brand text-on-brand"
                     : "border border-line text-ink hover:border-brand hover:text-brand disabled:opacity-50"
                 }`}
               >

@@ -63,7 +63,7 @@ export default async function UnsubscribePage({
                 <input type="hidden" name="t" value={t} />
                 <button
                   type="submit"
-                  className="inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-4 text-sm font-medium text-white transition-colors hover:bg-brand-dark"
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-4 text-sm font-medium text-on-brand transition-colors hover:bg-brand-dark"
                 >
                   Turn them off
                 </button>
