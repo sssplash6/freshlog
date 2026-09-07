@@ -73,8 +73,21 @@ export function useAnchoredPosition(
           ...(up
             ? { bottom: window.innerHeight - rect.top + gap }
             : { top: rect.bottom + gap }),
+          // Both edges are clamped, on both alignments. `end` used to clamp
+          // only the RIGHT edge — which keeps a panel off the right of the
+          // screen and does nothing about the left, so a right-aligned panel
+          // wider than the space to the left of its trigger simply hung off
+          // that side. The account menu in the 220px sidebar is exactly that
+          // case: its trigger's right edge is at 211px and the panel is 240
+          // wide, so it opened 29px past the edge of the window with its own
+          // left border and padding cut off.
           ...(align === "end"
-            ? { right: Math.max(8, window.innerWidth - rect.right) }
+            ? {
+                right: Math.min(
+                  Math.max(8, window.innerWidth - rect.right),
+                  Math.max(8, window.innerWidth - panelW - 8),
+                ),
+              }
             : {
                 left: Math.max(
                   8,
