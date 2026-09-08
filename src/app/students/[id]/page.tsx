@@ -198,15 +198,11 @@ export default async function StudentWorkspacePage({
       remainingMinutes: hours.remaining,
       forfeitedMinutes: hours.forfeited,
       poolMinutes: pool?.remaining ?? 0,
-      nextDeadline: hours.perMentor.reduce<Date | null>(
-        (soonest, m) =>
-          m.deadline &&
-          !deadlinePassed(m.deadline) &&
-          (!soonest || m.deadline < soonest)
-            ? m.deadline
-            : soonest,
-        null
-      ),
+      // From the ledger, so the date and the minutes on it cannot disagree.
+      // This page used to pick the soonest DATE here and let `studentStatuses`
+      // pair it with the total remaining, which is how a student with 2h until
+      // the 20th and 43h 30m until 2027 was told "45h 30m expires September 20".
+      expiring: hours.expiring,
       mentorCount: hours.perMentor.filter((m) => m.mentor).length,
     },
     viewer

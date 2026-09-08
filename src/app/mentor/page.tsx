@@ -15,6 +15,7 @@ import { cn } from "@/lib/cn";
 import { SESSION_STATUS, USER_STATUS } from "@/lib/constants";
 import { requireMentor } from "@/lib/dal";
 import { formatDate, formatDuration, formatRough } from "@/lib/format";
+import { soonestExpiry } from "@/lib/deadlines";
 import { prisma } from "@/lib/prisma";
 import { applySort, readSort } from "@/lib/sort";
 import {
@@ -184,7 +185,9 @@ export default async function MentorHomePage({
           remainingMinutes: s.remaining,
           forfeitedMinutes: s.expired ? Math.max(0, s.allocated - s.completed - s.missed) : 0,
           poolMinutes: s.pool ?? 0,
-          nextDeadline: s.deadline,
+          // Already one grant, so the pair is this row's own remaining and
+          // its own date — the aggregate confusion cannot arise here.
+          expiring: soonestExpiry([s], viewer.now),
           mentorCount: 1,
           program: { id: s.program.id, name: s.program.name },
         },

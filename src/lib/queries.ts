@@ -1,5 +1,6 @@
 import "server-only";
 
+import { soonestExpiry } from "@/lib/deadlines";
 import { prisma } from "@/lib/prisma";
 import {
   ASSIGNMENT_PROGRESS,
@@ -145,7 +146,13 @@ export async function studentsWithHours(
     forfeitedMinutes: number;
     remainingMinutes: number;
     amountPaid: number;
-    nextDeadline: Date | null;
+    /**
+     * The soonest use-by date still ahead and only the minutes behind it, as
+     * one value. It replaced a bare `nextDeadline`, which callers were pairing
+     * with `remainingMinutes` — a total across every grant, most of them
+     * running years later — and printing as one sentence.
+     */
+    expiring: { minutes: number; date: Date } | null;
     lastSessionAt: Date | null;
   };
   // Used = every CHARGING session (present + no-show); missed = the no-show
@@ -189,25 +196,27 @@ export async function studentsWithHours(
   const allotted = new Map<string, number>();
   const forfeited = new Map<string, number>();
   const paid = new Map<string, number>();
-  // The soonest use-by date that still has time behind it. Expiry is only
-  // worth warning about while the hours can still be spent, so a passed
-  // deadline is not a candidate — those minutes are already forfeited above.
-  const nextDeadline = new Map<string, Date>();
+  // Every grant that can still expire, per key, so `soonestExpiry` can pair
+  // the soonest DATE with the minutes actually behind it. Collected rather
+  // than reduced on the fly: the soonest date is not known until every grant
+  // has been seen, and the minutes wanted are only the ones on that date.
+  const live = new Map<string, { remaining: number; deadline: Date | null }[]>();
   const at = now.getTime();
   for (const a of allocations) {
     for (const k of keys(a)) {
       add(allotted, k, a.minutes);
       if (a.amountPaid != null) add(paid, k, a.amountPaid);
     }
+    const drawn =
+      usedByAllocation.get(`${a.studentId}:${a.programId}:${a.mentorId}`) ?? 0;
     if (a.deadline.getTime() < at) {
-      const drawn =
-        usedByAllocation.get(`${a.studentId}:${a.programId}:${a.mentorId}`) ?? 0;
       const lost = Math.max(0, a.minutes - drawn);
       if (lost > 0) for (const k of keys(a)) add(forfeited, k, lost);
     } else {
       for (const k of keys(a)) {
-        const soonest = nextDeadline.get(k);
-        if (!soonest || a.deadline < soonest) nextDeadline.set(k, a.deadline);
+        const rows = live.get(k) ?? [];
+        rows.push({ remaining: a.minutes - drawn, deadline: a.deadline });
+        live.set(k, rows);
       }
     }
   }
@@ -225,7 +234,7 @@ export async function studentsWithHours(
       forfeitedMinutes,
       remainingMinutes: allottedMinutes - drawn - forfeitedMinutes,
       amountPaid: paid.get(key) ?? 0,
-      nextDeadline: nextDeadline.get(key) ?? null,
+      expiring: soonestExpiry(live.get(key) ?? [], now),
       lastSessionAt: lastSession.get(key) ?? null,
     };
   };

@@ -775,8 +775,17 @@ export type StudentStatusInput = {
   forfeitedMinutes: number;
   /** Live, unassigned pool minutes. */
   poolMinutes?: number;
-  /** Soonest use-by date across their live allocations. */
-  nextDeadline?: Date | null;
+  /**
+   * The soonest use-by date still ahead, and only the minutes that expire ON
+   * it — from `soonestExpiry` in `lib/deadlines.ts`.
+   *
+   * One object rather than two fields, because two fields disagreed: this took
+   * `nextDeadline` on its own and paired it with `remainingMinutes`, so a
+   * student with 2h ending on the 20th and 43h 30m ending in 2027 was told
+   * "45h 30m expires September 20". A date and an amount that mean different
+   * things must not be assemblable into one sentence by accident.
+   */
+  expiring?: { minutes: number; date: Date } | null;
   mentorCount?: number;
   program?: { id: string; name: string };
 };
@@ -831,16 +840,18 @@ export function studentStatuses(
     out.push(of("NO_MENTOR"));
   }
 
-  // Only time that is still spendable can expire: an overdrawn or empty balance
-  // has nothing left to lose, and saying otherwise would be a false alarm.
-  if (s.nextDeadline && s.remainingMinutes > 0) {
-    const days = daysUntil(s.nextDeadline, v.now);
+  // Only time that is still spendable can expire, and only the time actually
+  // behind THIS date: `soonestExpiry` has already excluded passed deadlines,
+  // empty grants and every grant that runs later, so nothing here needs to
+  // consult the total balance.
+  if (s.expiring && s.expiring.minutes > 0) {
+    const days = daysUntil(s.expiring.date, v.now);
     if (days >= 0 && days <= EXPIRY_WINDOW_DAYS[v.audience]) {
       out.push(
         of(
           "ALLOCATION_EXPIRING",
-          { minutes: s.remainingMinutes, date: s.nextDeadline },
-          s.nextDeadline
+          { minutes: s.expiring.minutes, date: s.expiring.date },
+          s.expiring.date
         )
       );
     }

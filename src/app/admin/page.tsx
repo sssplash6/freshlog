@@ -131,7 +131,6 @@ export default async function AdminInboxPage() {
     pairings,
     mentors,
     ratings,
-    useByDates,
     unassignedTasks,
     taskMinutes,
     meetings,
@@ -163,14 +162,6 @@ export default async function AdminInboxPage() {
       where: ofMyStudents,
       _avg: { rating: true },
       _count: true,
-    }),
-    // The soonest use-by date a student still has AHEAD of them. What is about
-    // to expire is the question, so a date already passed is not an answer —
-    // that time is forfeited, and `studentsWithHours` has already counted it.
-    prisma.hourAllocation.groupBy({
-      by: ["studentId", "programId"],
-      where: { deadline: { gte: now }, ...ofMine },
-      _min: { deadline: true },
     }),
     prisma.assignment.findMany({
       where: {
@@ -225,11 +216,11 @@ export default async function AdminInboxPage() {
 
   const programById = new Map(programs.map((p) => [p.id, p]));
   const studentById = new Map(students.map((s) => [s.id, s]));
-  // Keyed per (student, program): a student in two programs has a use-by date
-  // in each, and the flag has to sit in the right program's count.
-  const useByById = new Map(
-    useByDates.map((d) => [`${d.studentId}:${d.programId}`, d._min.deadline])
-  );
+  // The soonest use-by date used to be a query of its own — `_min(deadline)`
+  // per (student, program) — handed to `studentStatuses` beside a total
+  // remaining that came from somewhere else. Two sources for the two halves of
+  // one sentence is what let them disagree; `studentsWithHours` now returns
+  // the pair, and this query is gone.
   const ratingByMentor = new Map(ratings.map((r) => [r.mentorId, r]));
   const minutesByTask = new Map(
     taskMinutes.map((t) => [t.assignmentId ?? "", t._sum.minutes ?? 0])
@@ -289,7 +280,9 @@ export default async function AdminInboxPage() {
           allottedMinutes: figures.allottedMinutes,
           remainingMinutes: figures.remainingMinutes,
           forfeitedMinutes: figures.forfeitedMinutes,
-          nextDeadline: useByById.get(`${s.id}:${programId}`) ?? null,
+          // From the same tally as every other figure on this row, rather
+          // than a separate `_min(deadline)` query paired with a total.
+          expiring: figures.expiring,
           program: { id: programId, name: figures.program.name },
         },
         viewer
@@ -423,7 +416,9 @@ export default async function AdminInboxPage() {
     if (s.type !== "ALLOCATION_EXPIRING" || !s.subject || !s.at) continue;
     const student = studentById.get(s.subject.id);
     upNext.push({
-      id: `use-by-${s.subject.id}`,
+      // The program is in the key: a student expiring in two programs is two
+      // rows, and keying on the student alone gave them the same React key.
+      id: `use-by-${s.subject.id}-${s.program?.id ?? ""}`,
       at: s.at,
       hasTime: false,
       // The chip already says "4h 38m expires September 30", so the title names

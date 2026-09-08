@@ -143,7 +143,7 @@ type StudentRow = {
   allottedMinutes: number;
   remainingMinutes: number;
   forfeitedMinutes: number;
-  nextDeadline: Date | null;
+  expiring: { minutes: number; date: Date } | null;
   user: { name: string | null; email: string; status: string };
 };
 
@@ -196,7 +196,7 @@ export function programFlags(
           allottedMinutes: s.allottedMinutes,
           remainingMinutes: s.remainingMinutes,
           forfeitedMinutes: s.forfeitedMinutes,
-          nextDeadline: s.nextDeadline,
+          expiring: s.expiring,
           program,
         },
         viewer

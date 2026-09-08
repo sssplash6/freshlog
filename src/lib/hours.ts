@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { CHARGED_SESSION, SESSION_STATUS } from "@/lib/constants";
+import { soonestExpiry } from "@/lib/deadlines";
 
 /**
  * Derived time values (spec §5): never stored as mutable counters. Every figure
@@ -199,6 +200,16 @@ export async function allocationSummary(
     forfeited,
     paid,
     remaining: allotted - used - forfeited,
+    /**
+     * The soonest use-by date still ahead, with only the minutes behind IT.
+     *
+     * Computed here, from the rows, rather than left to each page to assemble
+     * out of `remaining` and a date it picked separately — which is how a
+     * student holding 2h until the 20th and 43h 30m until 2027 came to be told
+     * "45h 30m expires September 20". The two halves of that sentence now
+     * arrive as one value that cannot disagree with itself.
+     */
+    expiring: soonestExpiry(perMentor, new Date(now)),
   };
 }
 

@@ -222,13 +222,6 @@ export default async function StudentHomePage() {
   const pool = hours.perMentor
     .filter((m) => !m.mentor)
     .reduce((total, m) => total + Math.max(0, m.remaining), 0);
-  // The soonest use-by that still has time under it: an allocation already
-  // spent, or already forfeited, has no expiry left to warn anyone about.
-  const nextDeadline =
-    hours.perMentor
-      .flatMap((m) => (m.deadline && !m.expired && m.remaining > 0 ? [m.deadline] : []))
-      .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
-
   const mine = studentStatuses(
     {
       id: profile.id,
@@ -240,7 +233,7 @@ export default async function StudentHomePage() {
       remainingMinutes: hours.remaining,
       forfeitedMinutes: hours.forfeited,
       poolMinutes: pool,
-      nextDeadline,
+      expiring: hours.expiring,
       // Paired mentors, not mentors who have logged something: a mentor with no
       // grant of their own is not the pairing NO_MENTOR is asking an admin for.
       mentorCount: hours.perMentor.filter((m) => m.mentor && m.allocated > 0).length,

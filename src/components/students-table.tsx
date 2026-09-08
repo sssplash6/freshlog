@@ -101,7 +101,7 @@ export function StudentsTable({
             allottedMinutes: s.allottedMinutes,
             remainingMinutes: s.remainingMinutes,
             forfeitedMinutes: s.forfeitedMinutes,
-            nextDeadline: s.nextDeadline,
+            expiring: s.expiring,
           },
           viewer
         );
@@ -168,8 +168,8 @@ export function StudentsTable({
             </Td>
 
             <Td label="Use by" className="whitespace-nowrap">
-              {s.nextDeadline ? (
-                <DeadlineText deadline={s.nextDeadline} now={viewer.now} />
+              {s.expiring ? (
+                <DeadlineText deadline={s.expiring.date} now={viewer.now} />
               ) : s.forfeitedMinutes > 0 ? (
                 // Not a missing date: every date they had has passed, and the
                 // minutes behind them are gone. A dash would read as "none set".

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { formatDate } from "@/lib/format";
+
 import {
   ASSIGNMENT_PROGRESS,
   INTERVIEW_STATUS,
@@ -258,28 +260,45 @@ describe("studentStatuses", () => {
   });
 
   it("warns each reader about an expiry on their own horizon", () => {
-    const soon = student({ nextDeadline: inDays(20), remainingMinutes: 278 });
+    const soon = student({ expiring: { minutes: 278, date: inDays(20) } });
     // 20 days out: inside a student's month, outside a fortnight and a week.
     expect(types(studentStatuses(soon, view("student")))).toContain("ALLOCATION_EXPIRING");
     expect(types(studentStatuses(soon, view("staff")))).not.toContain("ALLOCATION_EXPIRING");
     expect(types(studentStatuses(soon, view("mentor")))).not.toContain("ALLOCATION_EXPIRING");
 
-    const sooner = student({ nextDeadline: inDays(5), remainingMinutes: 278 });
+    const sooner = student({ expiring: { minutes: 278, date: inDays(5) } });
     for (const a of AUDIENCES) {
       expect(types(studentStatuses(sooner, view(a))), a).toContain("ALLOCATION_EXPIRING");
     }
   });
 
   it("does not warn about time expiring when there is none left to lose", () => {
-    const overdrawn = student({ remainingMinutes: -60, nextDeadline: inDays(3) });
+    // `soonestExpiry` returns null for a grant with nothing in it, so an
+    // overdrawn student never reaches the branch. Stated here too, because the
+    // caller is what changed and this is the promise readers depend on.
+    const overdrawn = student({ remainingMinutes: -60, expiring: null });
     expect(types(studentStatuses(overdrawn, view("staff")))).not.toContain(
       "ALLOCATION_EXPIRING"
     );
   });
 
   it("does not warn about a deadline that has already gone", () => {
-    const past = student({ nextDeadline: inDays(-2), remainingMinutes: 100 });
+    const past = student({ expiring: { minutes: 100, date: inDays(-2) } });
     expect(types(studentStatuses(past, view("staff")))).not.toContain("ALLOCATION_EXPIRING");
+  });
+
+  it("states the minutes behind THAT date, never the whole balance", () => {
+    // The bug this replaces: a student holding 2h until the 20th and 43h 30m
+    // until 2027 was told "45h 30m expires September 20" — the soonest date
+    // paired with the total remaining, a figure twenty times too big, on an
+    // actionable row asking somebody to do something about it.
+    const list = studentStatuses(
+      student({ remainingMinutes: 2730, expiring: { minutes: 120, date: inDays(12) } }),
+      view("staff")
+    );
+    expect(find(list, "ALLOCATION_EXPIRING")?.label).toBe(
+      `2h expires ${formatDate(inDays(12))}`
+    );
   });
 
   it("names forfeited time as a problem and blocks the mentor", () => {
@@ -301,7 +320,7 @@ describe("studentStatuses", () => {
   });
 
   it("is a pure function of the clock it is handed", () => {
-    const s = student({ nextDeadline: inDays(10), remainingMinutes: 100 });
+    const s = student({ expiring: { minutes: 100, date: inDays(10) } });
     const later: ViewerContext = { ...view("staff"), now: inDays(30) };
     expect(types(studentStatuses(s, view("staff")))).toContain("ALLOCATION_EXPIRING");
     // Same input, a clock a month on: the deadline is now in the past.
