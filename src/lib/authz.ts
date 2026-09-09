@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
+import { canActAsMentor, USER_STATUS } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { mentorReachWhere } from "@/lib/queries";
 import type { User } from "@/generated/prisma/client";
@@ -235,6 +236,47 @@ export async function assertStudentScope(
   return {
     ok: false,
     error: "You don't administer any program this student is in.",
+  };
+}
+
+/**
+ * May this actor correct a TASK?
+ *
+ * Two ways in, and the second is new. An admin whose scope covers the task's
+ * own program may always correct it — that is `assertProgramScope`, and it was
+ * the only rule until 9 September 2026. The mentor the task belongs to may now
+ * correct it too, because they are the person who finds out it is wrong: they
+ * are the one who discovers the budget was set for the wrong essay, that the
+ * deadline moved, or that the work is further along than the row says. Sending
+ * them to find an admin to change a note on their own task is how a plan stops
+ * describing the work.
+ *
+ * The task's OWN `programId` decides the admin half, never the student's
+ * enrollments: a student in two programs must not have their Master's Program
+ * plan corrected by Global Admissions' admin.
+ *
+ * Assignment, not reach. A mentor who merely has access to the student is not
+ * the owner of somebody else's task, and an UNASSIGNED task belongs to nobody
+ * — giving it a mentor is the admin write that creates the ownership this
+ * checks for.
+ */
+export async function assertTaskScope(
+  actor: User | null,
+  task: { programId: string; mentorId: string | null }
+): Promise<Denied | null> {
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+  if (
+    task.mentorId === actor.id &&
+    canActAsMentor(actor) &&
+    actor.status === USER_STATUS.ACTIVE
+  ) {
+    return null;
+  }
+  const scope = await adminScope(actor);
+  if (scopeCovers(scope, task.programId)) return null;
+  return {
+    ok: false,
+    error: "That task is not yours to change.",
   };
 }
 

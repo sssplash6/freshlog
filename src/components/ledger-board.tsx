@@ -141,6 +141,8 @@ export function LedgerBoard({
   assignments,
   totals,
   mentorBase,
+  renderSessionActions,
+  renderTaskActions,
   viewer,
 }: {
   sessions: LedgerSession[];
@@ -155,6 +157,22 @@ export function LedgerBoard({
     extra: number;
   };
   mentorBase?: string;
+  /**
+   * The ⋮ menus, resolved by the page for this reader.
+   *
+   * Both were missing, and their absence was the same bug twice: the board is
+   * where a student's sessions and tasks are actually READ, and neither could
+   * be corrected from it. A logged session had to be found again on /sessions;
+   * a task could not be corrected anywhere at all, because `TaskRowActions`
+   * and `TaskTable` were written, exported, and never rendered by anything.
+   *
+   * Functions rather than booleans, because whether a row has a menu is a
+   * question about that row and its reader — a mentor gets one on the sessions
+   * they logged and the tasks they own, an admin on everything in their
+   * programs — and the page is the only thing holding the answer.
+   */
+  renderSessionActions?: (session: LedgerSession) => React.ReactNode;
+  renderTaskActions?: (task: LedgerAssignment) => React.ReactNode;
   /** One instant for the whole board, so its two columns cannot disagree. */
   viewer: ViewerContext;
 }) {
@@ -224,6 +242,7 @@ export function LedgerBoard({
                     viewer={viewer}
                     variant="timeline"
                     index={i}
+                    actions={renderSessionActions?.(logged[i])}
                   />
                 ))}
               </ul>
@@ -257,6 +276,7 @@ export function LedgerBoard({
                     viewer={viewer}
                     variant="list"
                     index={i}
+                    actions={renderTaskActions?.(open[i])}
                   />
                 ))}
               </ul>
@@ -264,8 +284,14 @@ export function LedgerBoard({
               {/* Finished work is one line each: it is here to be counted and
                   to be findable, not to be read again. */}
               <ul className="divide-y divide-line/50">
-                {toTaskEntries(finished, { mentorBase }).map((t) => (
-                  <TaskRow key={t.id} task={t} viewer={viewer} variant="line" />
+                {toTaskEntries(finished, { mentorBase }).map((t, i) => (
+                  <TaskRow
+                    key={t.id}
+                    task={t}
+                    viewer={viewer}
+                    variant="line"
+                    actions={renderTaskActions?.(finished[i])}
+                  />
                 ))}
               </ul>
             </>

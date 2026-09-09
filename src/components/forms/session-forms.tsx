@@ -7,7 +7,12 @@ import { Field, GrowingField, Input, inputClasses } from "@/components/ui/field"
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { deleteSession, editSession, voidSession } from "@/lib/actions/sessions";
+import {
+  deleteSession,
+  editSession,
+  restoreSession,
+  voidSession,
+} from "@/lib/actions/sessions";
 
 /**
  * Correct, void or remove one logged session. A mentor gets this on their own
@@ -46,6 +51,7 @@ export function SessionRowActions({
   const [, editAction, editSave] = useSaveState(editSession);
   const [, voidAction, voidSave] = useSaveState(voidSession);
   const [, delAction, delSave] = useSaveState(deleteSession);
+  const [, restoreAction, restoreSave] = useSaveState(restoreSession);
 
   return (
     <RowActionMenu
@@ -55,11 +61,21 @@ export function SessionRowActions({
       width="lg"
     >
       {!canEdit && (
-        <RowActionGroup>
+        <RowActionGroup label="This session is voided">
           <p className="text-xs text-muted-fg">
-            This session is voided — its hours already went back, so there is
-            nothing left to correct. It can still be removed from the log.
+            Its hours went back to the balance. Restoring charges them again;
+            correcting it is only possible once it counts.
           </p>
+          {/* Void's inverse, which did not exist: a voided row could not be
+              corrected and could not be un-voided, so the fix for one mis-tap
+              was to delete the record and log it again from memory. */}
+          <form action={restoreAction} className="mt-2">
+            <input type="hidden" name="sessionId" value={session.id} />
+            <SubmitButton size="sm" variant="secondary">
+              Restore it
+            </SubmitButton>
+            <SaveState state={restoreSave} />
+          </form>
         </RowActionGroup>
       )}
 

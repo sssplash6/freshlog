@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { assertProgramScope } from "@/lib/authz";
+import { assertProgramScope, assertTaskScope } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import {
@@ -129,10 +129,9 @@ export async function updateAssignment(
   // Every scalar, `programId` included — the task now names its own program,
   // so the gate no longer has to reach through the student for it.
   const existing = await prisma.assignment.findUnique({ where: { id } });
-  if (
-    !existing ||
-    (await assertProgramScope(actor, existing.programId))
-  ) {
+  // "Not yours" and "does not exist" answer identically, so the refusal
+  // cannot be used to find out which tasks exist.
+  if (!existing || (await assertTaskScope(actor, existing))) {
     return { ok: false, error: "That task no longer exists." };
   }
 
@@ -290,10 +289,9 @@ export async function setAssignmentProgress(
   // Every scalar, `programId` included — the task now names its own program,
   // so the gate no longer has to reach through the student for it.
   const existing = await prisma.assignment.findUnique({ where: { id } });
-  if (
-    !existing ||
-    (await assertProgramScope(actor, existing.programId))
-  ) {
+  // "Not yours" and "does not exist" answer identically, so the refusal
+  // cannot be used to find out which tasks exist.
+  if (!existing || (await assertTaskScope(actor, existing))) {
     return { ok: false, error: "That task no longer exists." };
   }
 
@@ -361,10 +359,11 @@ export async function deleteAssignment(
   // Every scalar, `programId` included — the task now names its own program,
   // so the gate no longer has to reach through the student for it.
   const existing = await prisma.assignment.findUnique({ where: { id } });
-  if (
-    !existing ||
-    (await assertProgramScope(actor, existing.programId))
-  ) {
+  // Removing a task stays an ADMIN write, where correcting one is not. A
+  // mentor fixing the budget or the note on their own work is a correction; a
+  // mentor deleting work an admin planned, and the hours budgeted against it,
+  // is a decision about the plan. Voiding a session is the same distinction.
+  if (!existing || (await assertProgramScope(actor, existing.programId))) {
     return { ok: false, error: "That task no longer exists." };
   }
 

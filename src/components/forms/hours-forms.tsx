@@ -200,13 +200,22 @@ type TaskFields = {
 export function TaskRowActions({
   task,
   mentors,
+  canDelete = false,
 }: {
   task: TaskFields;
   mentors: SelectOption[];
+  /**
+   * Admins only. A mentor may correct their own task — the budget, the
+   * deadline, the note, the progress — because they are the person who finds
+   * out it is wrong. Removing work an admin planned is a decision about the
+   * plan, not a correction to it, and `deleteAssignment` refuses it server-side
+   * whatever this prop says.
+   */
+  canDelete?: boolean;
 }) {
   return (
     <RowActionMenu trigger="dots" label={`Manage "${task.purpose}"`} width="md">
-      <TaskPanel task={task} mentors={mentors} />
+      <TaskPanel task={task} mentors={mentors} canDelete={canDelete} />
     </RowActionMenu>
   );
 }
@@ -225,9 +234,11 @@ export function TaskRowActions({
 function TaskPanel({
   task,
   mentors,
+  canDelete,
 }: {
   task: TaskFields;
   mentors: SelectOption[];
+  canDelete: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [, progressAction, progressSave] = useSaveState(setAssignmentProgress);
@@ -387,6 +398,7 @@ function TaskPanel({
         >
           Edit this task
         </button>
+        {canDelete && (
         <ConfirmInline
           variant="quiet"
           action={delAction}
@@ -401,7 +413,8 @@ function TaskPanel({
           confirmLabel="Yes, remove"
           pendingLabel="Removing…"
         />
-        <SaveState state={delSave} />
+        )}
+        {canDelete && <SaveState state={delSave} />}
       </RowActionGroup>
     </>
   );

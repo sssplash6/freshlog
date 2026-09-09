@@ -25,8 +25,10 @@ import {
 } from "@/lib/filters";
 import {
   SESSION_STATUS,
+  attendanceOf,
   canActAsMentor,
   interviewIsOpen,
+  timeKindOf,
 } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import { formatDuration, toDateInputValue, toTimeInputValue } from "@/lib/format";
@@ -294,12 +296,14 @@ export default async function SessionsPage({
                     id: row.id,
                     minutes: row.minutes,
                     date: toDateInputValue(row.date),
-                    attendance: row.attended
-                      ? row.late
-                        ? "LATE"
-                        : "ATTENDED"
-                      : "NO_SHOW",
-                    timeKind: row.withinPlan ? "PLAN" : "EXTRA",
+                    // `attendanceOf`, not a hand-rolled ternary. This spelt
+                    // the absent state "NO_SHOW", which is not a value in
+                    // `ATTENDANCE` — so `readAttendance` did not recognise it,
+                    // the picker opened a no-show row on "Attended", and
+                    // saving without touching it turned the no-show into an
+                    // attended session.
+                    attendance: attendanceOf(row),
+                    timeKind: timeKindOf(row),
                     note: row.note,
                     assignmentId: row.task?.id ?? null,
                   }}

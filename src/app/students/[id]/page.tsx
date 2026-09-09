@@ -8,7 +8,7 @@ import {
 } from "@/components/allocation-row";
 import { ApproveStudentButtons } from "@/components/forms/approve-student-buttons";
 import { AssignTaskForm } from "@/components/forms/assign-task-form";
-import { AllocationRowActions } from "@/components/forms/hours-forms";
+import { AllocationRowActions, TaskRowActions } from "@/components/forms/hours-forms";
 import { MeetingRowActions } from "@/components/forms/meeting-forms";
 import { ScheduleInterviewForm } from "@/components/forms/schedule-interview-form";
 import {
@@ -30,11 +30,15 @@ import { Figure } from "@/components/ui/figure";
 import { ExternalLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
+import { SessionRowActions } from "@/components/forms/session-forms";
 import {
   ASSIGNMENT_PROGRESS,
+  SESSION_STATUS,
   USER_STATUS,
+  attendanceOf,
   canActAsMentor,
   interviewIsOpen,
+  timeKindOf,
 } from "@/lib/constants";
 import {
   adminScope,
@@ -62,6 +66,7 @@ import {
   programOptions,
   studentLedger,
   studentMeetings,
+  taskOptionsForSessions,
   toProgramOptions,
 } from "@/lib/queries";
 import { meetingStatus, studentStatuses } from "@/lib/status";
@@ -266,6 +271,13 @@ export default async function StudentWorkspacePage({
     });
   }
 
+  // The tasks each logged session could be re-pointed at, keyed by session.
+  // `taskOptionsForSessions` is the same helper /sessions uses, and it keys on
+  // (student, program, mentor) because `resolveGoal` refuses a task from
+  // another program — offering one here would offer a correction the action
+  // then turns down.
+  const sessionTasks = await taskOptionsForSessions(ledger.sessions);
+
   const mentorOptions = mentors.map((m) => ({
     value: m.id,
     label: m.name ?? m.email,
@@ -385,6 +397,53 @@ export default async function StudentWorkspacePage({
         assignments={ledger.assignments}
         totals={hours}
         mentorBase="/mentors"
+        // The board is where these rows are READ, so it is where they have to
+        // be correctable. Neither menu was here: a logged session had to be
+        // hunted down again on /sessions, and a task could not be corrected
+        // anywhere at all — `TaskRowActions` was written and never rendered.
+        //
+        // An admin of the row's program gets both. A mentor gets a session
+        // they logged themselves and a task assigned to them, which are the
+        // same two rules the server enforces in `requireSessionAuthority` and
+        // `assertTaskScope`; the menu is not the gate, it is the affordance
+        // for a gate that will agree with it.
+        renderSessionActions={(session) =>
+          manages || session.mentorId === me.id ? (
+            <SessionRowActions
+              session={{
+                id: session.id,
+                minutes: session.minutes,
+                date: toDateInputValue(session.date),
+                attendance: attendanceOf(session),
+                timeKind: timeKindOf(session),
+                note: session.note,
+                assignmentId: session.assignmentId,
+              }}
+              goals={sessionTasks[session.id] ?? []}
+              canEdit={session.status !== SESSION_STATUS.VOIDED}
+              canDelete={manages}
+            />
+          ) : null
+        }
+        renderTaskActions={(task) =>
+          manages || task.mentorId === me.id ? (
+            <TaskRowActions
+              task={{
+                id: task.id,
+                purpose: task.purpose,
+                mentorId: task.mentorId,
+                minuteLimit: task.minuteLimit,
+                dueNote: task.dueNote,
+                dueOn: task.dueOn,
+                note: task.note,
+                progress: task.progress,
+                progressManual: task.progressManual,
+              }}
+              mentors={mentorOptions}
+              canDelete={manages}
+            />
+          ) : null
+        }
       />
 
       {manages && mentorOptions.length > 0 && (

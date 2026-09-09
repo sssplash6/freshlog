@@ -1014,6 +1014,84 @@ export async function voidSession(
  * brought in twice, a meeting logged against the wrong student, a test entry.
  * The hours return the same way, and everyone who could see the row is told.
  */
+/**
+ * Put a voided session back. The inverse of `voidSession`, which had none.
+ *
+ * A void was one-way: `requireSessionAuthority` refuses a voided row, so once
+ * voided a session could not be corrected and could not be un-voided — the
+ * only remaining tool was Delete, which throws the record away. So the fix for
+ * one mis-tap was to destroy the row and log it again from memory, losing the
+ * date, the note and the task it was against.
+ *
+ * Charges the time again, because that is what restoring means: the meeting
+ * happened after all. A task the hours had completed re-closes, the same way
+ * voiding reopened it.
+ *
+ * Its own gate rather than `requireSessionAuthority`, whose whole job is to
+ * refuse voided rows — the one action that needs a voided row cannot be built
+ * on the check that rejects them.
+ */
+export async function restoreSession(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+  const scope = await adminScope(actor);
+  const administers = !scopeIsEmpty(scope);
+  const isMentor = canActAsMentor(actor) && actor.status === USER_STATUS.ACTIVE;
+  if (!administers && !isMentor) {
+    return { ok: false, error: "Only the mentor who logged a session, or an admin, can restore it." };
+  }
+
+  const session = await prisma.session.findUnique({
+    where: { id: String(formData.get("sessionId") ?? "") },
+    include: { student: { include: { user: true } }, mentor: true },
+  });
+  const mine = isMentor && session?.mentorId === actor.id;
+  const inScope = session !== null && scopeCovers(scope, session.programId);
+  if (!session || (!mine && !inScope)) {
+    return { ok: false, error: "That session no longer exists." };
+  }
+  if (session.status !== SESSION_STATUS.VOIDED) {
+    return { ok: true, message: "That session is already counting." };
+  }
+
+  const staff = await staffIdsFor(session.programId);
+  const actorLabel = actor.name ?? actor.email;
+  const mentorLabel = session.mentor.name ?? session.mentor.email;
+  const studentName = session.student.user.name ?? session.student.user.email;
+  const whose = session.mentorId === actor.id ? "the" : `${mentorLabel}'s`;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.session.update({
+      where: { id: session.id },
+      data: { status: SESSION_STATUS.ACTIVE },
+    });
+    // The hours count again, so work these hours had finished is finished.
+    if (session.assignmentId) {
+      await syncGoalProgress(tx, session.assignmentId);
+    }
+    await notify(tx, {
+      to: [session.student.userId, session.mentorId],
+      type: NOTIFICATION_TYPES.SESSION_EDITED,
+      actorId: actor.id,
+      href: notificationHref.studentHome(),
+      message: `${actorLabel} restored ${whose} ${formatMinutes(session.minutes)} session from ${formatDate(session.date)}. That time is charged again.`,
+    });
+    await notify(tx, {
+      to: staff,
+      type: NOTIFICATION_TYPES.SESSION_EDITED,
+      actorId: actor.id,
+      href: notificationHref.adminStudent(session.studentId),
+      message: `${actorLabel} restored ${whose} ${formatMinutes(session.minutes)} session with ${studentName} from ${formatDate(session.date)}; the hours are charged again.`,
+    });
+  });
+
+  revalidatePath("/", "layout");
+  return { ok: true, message: "Session restored; hours charged again." };
+}
+
 export async function deleteSession(
   _prev: ActionState,
   formData: FormData
