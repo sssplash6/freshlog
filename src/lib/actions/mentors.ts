@@ -21,6 +21,7 @@ import {
 import {
   EMAIL_RE,
   normalizeEmail,
+  parseNameField,
   type ActionState,
 } from "@/lib/actions/shared";
 
@@ -37,10 +38,13 @@ export async function completeMentorProfile(
     return { ok: false, error: "Only mentors can complete this step." };
   }
 
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) return { ok: false, error: "Enter your full name." };
+  const parsed = parseNameField(formData.get("name"), "your");
+  if ("error" in parsed) return { ok: false, error: parsed.error };
 
-  await prisma.user.update({ where: { id: actor.id }, data: { name } });
+  await prisma.user.update({
+    where: { id: actor.id },
+    data: { name: parsed.value },
+  });
 
   revalidatePath("/", "layout");
   redirect("/mentor");
@@ -107,8 +111,9 @@ export async function createMentor(
   if (!EMAIL_RE.test(email)) {
     return { ok: false, error: "Enter a valid email address." };
   }
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) return { ok: false, error: "Enter the mentor's full name." };
+  const parsed = parseNameField(formData.get("name"), "the mentor's");
+  if ("error" in parsed) return { ok: false, error: parsed.error };
+  const name = parsed.value;
 
   const targets = await resolveAssignmentTargets(formData.getAll("targets"));
   if (!targets || targets.length === 0) {
@@ -190,8 +195,9 @@ export async function updateMentor(
   // A dual-role admin stays ADMIN/ACTIVE — assignments don't gate their status.
   const isPureMentor = mentor.role === ROLES.MENTOR;
 
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) return { ok: false, error: "Enter the mentor's full name." };
+  const parsed = parseNameField(formData.get("name"), "the mentor's");
+  if ("error" in parsed) return { ok: false, error: parsed.error };
+  const name = parsed.value;
   const email = normalizeEmail(formData.get("email"));
   if (!EMAIL_RE.test(email)) {
     return { ok: false, error: "Enter a valid email address." };

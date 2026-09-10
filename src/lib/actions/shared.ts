@@ -151,3 +151,46 @@ export function parseTelegramField(
   }
   return { value };
 }
+
+/**
+ * The rule for a person's name, in one place: a FULL name, not a first name.
+ *
+ * Every list, chip, session row and booking card in the app reads people by
+ * name, and a roster of "Malika", "Aziza", "Malika" is a roster nobody can act
+ * on — two mentors asking an admin which Malika they mean is the failure this
+ * prevents. The forms all said "Full name" and all accepted one word.
+ *
+ * Deliberately shallow: two parts separated by whitespace, and nothing about
+ * what a part may contain. It is a completeness check, not a spelling one — a
+ * transliterated name, a hyphen, an apostrophe and a middle name all pass, and
+ * the person typing it knows better than a regex what their name is. Runs of
+ * whitespace collapse so "Malika   Karimova" stores the way it reads.
+ *
+ * `label` names whose name it is, because the same rule is applied to your own
+ * name, a mentor's and a student's, and "Enter your first and last name" is
+ * the wrong sentence in two of those three places.
+ */
+export function parseNameField(
+  raw: FormDataEntryValue | null,
+  label = "their"
+): { value: string } | { error: string } {
+  const value = String(raw ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
+  if (!value) return { error: `Enter ${label} full name.` };
+  if (value.length > NAME_MAX) {
+    return { error: `That name is too long (${NAME_MAX} characters max).` };
+  }
+  if (!FULL_NAME_RE.test(value)) {
+    return {
+      error: `Enter ${label} full name — first and last, not just one word.`,
+    };
+  }
+  return { value };
+}
+
+/** Two words or more. The pattern the name inputs enforce in the browser too. */
+export const FULL_NAME_RE = /^\S+(?: \S+)+$/;
+
+/** What `User.name` holds, and what every name input caps itself at. */
+export const NAME_MAX = 80;

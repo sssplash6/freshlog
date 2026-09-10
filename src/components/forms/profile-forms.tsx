@@ -5,7 +5,7 @@ import { useId, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { Select } from "@/components/select";
 import { Button, buttonClasses } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/field";
+import { Field, Input, NameInput } from "@/components/ui/field";
 import {
   SaveState,
   saveStateFrom,
@@ -50,20 +50,13 @@ import type { ProgramOption } from "@/lib/queries";
  * ------------------------------------------------------------------ */
 
 /**
- * The one name field. `maxLength` matches `updateOwnName`'s 80-character
- * refusal, so the browser stops what the server would reject anyway.
+ * The one name field. `NameInput` carries the rule — first and last, 80
+ * characters — so the browser stops what `parseNameField` would reject anyway.
  */
 function NameField({ defaultValue }: { defaultValue: string }) {
   return (
-    <Field label="Full name" required>
-      <Input
-        name="name"
-        type="text"
-        required
-        maxLength={80}
-        autoComplete="name"
-        defaultValue={defaultValue}
-      />
+    <Field label="Full name" required hint="First and last name.">
+      <NameInput name="name" required defaultValue={defaultValue} />
     </Field>
   );
 }
@@ -222,15 +215,13 @@ export function OwnNameForm({ defaultName }: { defaultName: string }) {
     <SettingsRow
       label="Full name"
       htmlFor={id}
-      description="What everyone reads you by — session rows, chips, your students' booking cards."
+      description="First and last name — what everyone reads you by on session rows, chips and your students' booking cards."
       control={
         <form action={action} className="flex flex-wrap items-end gap-2">
-          <Input
+          <NameInput
             id={id}
             name="name"
-            type="text"
             required
-            maxLength={80}
             value={name}
             onChange={(event) => setName(event.target.value)}
             className="min-w-56 flex-1"

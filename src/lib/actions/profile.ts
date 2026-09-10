@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
-import { parseTelegramField } from "@/lib/actions/shared";
+import { parseNameField, parseTelegramField } from "@/lib/actions/shared";
 import {
   canSwitchProfile,
   homeFor,
@@ -125,11 +125,9 @@ export async function updateOwnName(
     return { ok: false, error: "Sign in to do that." };
   }
 
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) return { ok: false, error: "Enter your full name." };
-  if (name.length > 80) {
-    return { ok: false, error: "That name is too long (80 characters max)." };
-  }
+  const parsed = parseNameField(formData.get("name"), "your");
+  if ("error" in parsed) return { ok: false, error: parsed.error };
+  const name = parsed.value;
   if (name === actor.name) return { ok: true, message: "No change to save." };
 
   await prisma.user.update({ where: { id: actor.id }, data: { name } });

@@ -3,6 +3,7 @@
 import { useState, type ComponentProps } from "react";
 
 import { cn } from "@/lib/cn";
+import { FULL_NAME_RE, NAME_MAX } from "@/lib/actions/shared";
 
 /** The one text-field look, shared by Input, Textarea and the native Select. */
 export const inputClasses =
@@ -10,6 +11,35 @@ export const inputClasses =
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(inputClasses, className)} {...props} />;
+}
+
+/**
+ * The one name input, everywhere a person's name is typed: your own, a
+ * mentor's, a student's.
+ *
+ * It carries the browser half of `parseNameField` — the same two-word rule, the
+ * same 80-character cap — so the box refuses in place instead of the server
+ * refusing after a round trip. `pattern` is fed the shared regex's own source
+ * rather than a second copy of it, which is what stops the two drifting; the
+ * server still checks, because a pattern is a courtesy and not a gate.
+ *
+ * `title` is what Chrome and Safari print under the field when the pattern
+ * fails, so it has to be the sentence, not a label.
+ */
+export function NameInput({ className, ...props }: ComponentProps<"input">) {
+  return (
+    <Input
+      type="text"
+      autoComplete="name"
+      maxLength={NAME_MAX}
+      // The anchors are implicit in `pattern`; keeping them in the source would
+      // make it `^^…$$` and match nothing.
+      pattern={FULL_NAME_RE.source.replace(/^\^|\$$/g, "")}
+      title="First and last name, please — not just one word."
+      className={className}
+      {...props}
+    />
+  );
 }
 
 export function Textarea({ className, ...props }: ComponentProps<"textarea">) {

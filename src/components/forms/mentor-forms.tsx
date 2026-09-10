@@ -1,7 +1,7 @@
 "use client";
 
 import { ProgramTargetsPicker } from "@/components/forms/program-targets-picker";
-import { Field, Input } from "@/components/ui/field";
+import { Field, Input, NameInput } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { createMentor, updateMentor } from "@/lib/actions/mentors";
@@ -51,7 +51,7 @@ export function RegisterMentorForm({ programs }: { programs: ProgramOption[] }) 
           />
         </Field>
         <Field label="Full name" required>
-          <Input name="name" type="text" required />
+          <NameInput name="name" required />
         </Field>
       </div>
       <ProgramTargetsPicker programs={programs} legend="Programs" />
@@ -110,9 +110,8 @@ export function EditMentorForm({
           required
           hint={canEditIdentity ? undefined : "A platform admin changes this."}
         >
-          <Input
+          <NameInput
             name="name"
-            type="text"
             required
             defaultValue={name}
             readOnly={!canEditIdentity}

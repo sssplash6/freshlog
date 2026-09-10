@@ -24,6 +24,7 @@ import {
   parseDateField,
   parseMinutesField,
   parseLinkField,
+  parseNameField,
   type ActionState,
   parseTelegramField,
 } from "@/lib/actions/shared";
@@ -116,10 +117,24 @@ export async function createStudents(
   const invalid = withFolders
     .filter((r) => !EMAIL_RE.test(r.email))
     .map((r) => `${r.email} (not a valid email)`);
-  const nameless = withFolders
-    .filter((r) => EMAIL_RE.test(r.email) && !r.name)
-    .map((r) => `${r.email} (no name)`);
-  const valid = withFolders.filter((r) => EMAIL_RE.test(r.email) && r.name);
+  // One rule for a name, the same one the person themselves is held to at
+  // first sign-in: a roster of first names is a roster nobody can act on.
+  const named = withFolders.map((r) => ({
+    ...r,
+    parsed: parseNameField(r.name, "their"),
+  }));
+  const nameless = named
+    .filter((r) => EMAIL_RE.test(r.email) && "error" in r.parsed)
+    .map((r) =>
+      r.name
+        ? `${r.email} (needs a first and last name)`
+        : `${r.email} (no name)`
+    );
+  const valid = named.flatMap((r) =>
+    EMAIL_RE.test(r.email) && "value" in r.parsed
+      ? [{ email: r.email, name: r.parsed.value, folderUrl: r.folderUrl }]
+      : []
+  );
 
   // An address already in the system is one of three things, and they are not
   // the same news. A student already in THIS program is a duplicate row. A
@@ -372,8 +387,9 @@ export async function completeStudentProfile(
     return { ok: false, error: "Complete your registration first." };
   }
 
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) return { ok: false, error: "Enter your full name." };
+  const parsed = parseNameField(formData.get("name"), "your");
+  if ("error" in parsed) return { ok: false, error: parsed.error };
+  const name = parsed.value;
 
   const telegram = parseTelegramField(formData.get("telegramUsername"));
   if ("error" in telegram) return { ok: false, error: telegram.error };
@@ -412,8 +428,9 @@ export async function completeOnboarding(
     return { ok: false, error: "Your registration is already submitted." };
   }
 
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) return { ok: false, error: "Enter your full name." };
+  const parsed = parseNameField(formData.get("name"), "your");
+  if ("error" in parsed) return { ok: false, error: parsed.error };
+  const name = parsed.value;
 
   const telegram = parseTelegramField(formData.get("telegramUsername"));
   if ("error" in telegram) return { ok: false, error: telegram.error };

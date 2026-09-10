@@ -3,10 +3,15 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Input, inputClasses } from "@/components/ui/field";
+import { Input, NameInput, inputClasses } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { createStudents } from "@/lib/actions/students";
-import { EMAIL_RE, normalizeEmail, type ActionState } from "@/lib/actions/shared";
+import {
+  EMAIL_RE,
+  FULL_NAME_RE,
+  normalizeEmail,
+  type ActionState,
+} from "@/lib/actions/shared";
 import { cn } from "@/lib/cn";
 import type { ProgramOption } from "@/lib/queries";
 
@@ -14,7 +19,7 @@ type Row = { id: number; email: string; name: string; folderUrl: string };
 
 /**
  * Staff registers students into ONE program by entering an email + full name
- * + optional student-folder link per student (a cohort is only asked for in
+ * (first and last) + optional student-folder link per student (a cohort is only asked for in
  * programs that have them). Extra rows are added on demand; each student still
  * confirms their name and Telegram username on first sign-in, so the name here
  * is a helpful default.
@@ -67,11 +72,13 @@ function StudentRows({
     setNextId((n) => n + 1);
   };
 
-  // A row is ready when it has both halves of an identity: the address they sign
-  // in with, and the name everyone will read them by. ANY name — a mononym is a
-  // name, and nothing here or on the server has ever counted words.
+  // A row is ready when it has both halves of an identity: the address they
+  // sign in with, and the FULL name everyone will read them by. First and
+  // last, the same rule `parseNameField` holds the server side to — a roster
+  // of first names is a roster on which nobody can tell two Malikas apart.
+  const fullName = (raw: string) => FULL_NAME_RE.test(raw.trim().replace(/\s+/g, " "));
   const ready = (r: Row) =>
-    EMAIL_RE.test(normalizeEmail(r.email)) && r.name.trim().length > 0;
+    EMAIL_RE.test(normalizeEmail(r.email)) && fullName(r.name);
   const validCount = rows.filter(ready).length;
 
   // Why nothing is ready, for the row somebody has started filling in.
@@ -81,7 +88,7 @@ function StudentRows({
       ? null
       : started.some((r) => !EMAIL_RE.test(normalizeEmail(r.email)))
         ? "Every row needs a valid email address."
-        : "Every row needs a name.";
+        : "Every row needs a first and last name.";
 
   const update = (
     id: number,
@@ -105,12 +112,11 @@ function StudentRows({
                 placeholder="student@example.com"
                 aria-label={`Student ${i + 1} email`}
               />
-              <Input
+              <NameInput
                 name="name"
-                type="text"
                 value={r.name}
                 onChange={(e) => update(r.id, "name", e.target.value)}
-                placeholder="Name"
+                placeholder="First and last name"
                 aria-label={`Student ${i + 1} name`}
               />
               {/* Not type="url": native validation would reject a pasted
