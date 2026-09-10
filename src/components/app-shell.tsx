@@ -19,7 +19,7 @@ import { adminScope, scopeIsEmpty } from "@/lib/authz";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { navFor, notificationsItem, type NavItem } from "@/lib/nav";
 import { prisma } from "@/lib/prisma";
-import { canSwitchProfile, homeFor, profileOf, type Profile } from "@/lib/profile";
+import { canSwitchProfile, profileOf, type Profile } from "@/lib/profile";
 import type { User } from "@/generated/prisma/client";
 
 async function signOutAction() {
@@ -28,6 +28,13 @@ async function signOutAction() {
 }
 
 /**
+ * The bell, and everything behind it.
+ *
+ * It used to point at the reader's own home plus `#notifications`, because the
+ * feed was rendered there. Both halves of it — what needs you, and what has
+ * happened — live at `/notifications` now and nowhere else, so the bell points
+ * at the page it is named after.
+ *
  * 44px, up from 40. The smallest reliable touch target, and this is the only
  * control in the phone chrome that was under it.
  *
@@ -37,10 +44,10 @@ async function signOutAction() {
  * the same number, and stating it twice on one screen is the "remaining is
  * never said twice" rule applied to the chrome.
  */
-function NotificationBell({ count, href }: { count: number; href: string }) {
+function NotificationBell({ count }: { count: number }) {
   return (
     <Link
-      href={href}
+      href="/notifications"
       aria-label={`Notifications (${count} unread)`}
       /* shrink-0 is load-bearing, and was measured: as a flex item beside the
          wordmark and the account button, the 44px box shrank to 27px wide at
@@ -192,14 +199,11 @@ function AccountMenu({
 function TopBar({
   account,
   unread,
-  notificationsHref,
   links,
   width,
 }: {
   account: React.ReactNode;
   unread: number;
-  /** Where the bell goes — the reader's home, where the feed now lives. */
-  notificationsHref: string;
   links?: React.ReactNode;
   width: string;
 }) {
@@ -214,7 +218,7 @@ function TopBar({
         </Link>
         {links}
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          <NotificationBell count={unread} href={notificationsHref} />
+          <NotificationBell count={unread} />
           {account}
         </div>
       </div>
@@ -232,7 +236,6 @@ function TopBar({
 function StaffShell({
   user,
   unread,
-  notificationsHref,
   items,
   lens,
   search,
@@ -240,7 +243,6 @@ function StaffShell({
 }: {
   user: User;
   unread: number;
-  notificationsHref: string;
   items: NavItem[];
   /** The lens, for the two people in one — null for everybody with one lens. */
   lens: Profile | null;
@@ -267,7 +269,7 @@ function StaffShell({
         // and this is the row a reader reaches for least often and needs to
         // recognise fastest.
         utility={[
-          notificationsItem(unread, notificationsHref),
+          notificationsItem(unread),
           { href: "/settings", label: "Settings" },
         ]}
         switcher={lens ? <ProfileSwitch active={lens} /> : undefined}
@@ -278,12 +280,7 @@ function StaffShell({
       <div className="lg:hidden">
         {/* The same measure as the page below it, so the wordmark lines up
             with the h1 rather than floating in from a narrower centre. */}
-        <TopBar
-          account={account}
-          unread={unread}
-          notificationsHref={notificationsHref}
-          width="max-w-6xl"
-        />
+        <TopBar account={account} unread={unread} width="max-w-6xl" />
       </div>
 
       {/* pb-24 clears the bottom bar; nothing sits under it at lg, where the
@@ -309,13 +306,11 @@ function StaffShell({
 function StudentShell({
   user,
   unread,
-  notificationsHref,
   items,
   children,
 }: {
   user: User;
   unread: number;
-  notificationsHref: string;
   items: NavItem[];
   children: React.ReactNode;
 }) {
@@ -324,7 +319,6 @@ function StudentShell({
       <TopBar
         width="max-w-2xl"
         unread={unread}
-        notificationsHref={notificationsHref}
         links={
           <nav
             aria-label="Primary"
@@ -401,20 +395,10 @@ export async function AppShell({
     prisma.notification.count({ where: { userId: user.id, read: false } }),
   ]);
   const items = await navFor(user, profile);
-  // The bell goes to the reader's own home, where the feed now lives under
-  // "Notifications" — the same section that used to be called "Needs you". Two
-  // things named notifications, one of them a page nobody had a reason to
-  // visit, was the confusion the rename was asked for in the first place.
-  const notificationsHref = `${homeFor(user, profile)}#notifications`;
 
   if (user.role === ROLES.STUDENT) {
     return (
-      <StudentShell
-        user={user}
-        unread={unread}
-        notificationsHref={notificationsHref}
-        items={items}
-      >
+      <StudentShell user={user} unread={unread} items={items}>
         {children}
       </StudentShell>
     );
@@ -432,7 +416,6 @@ export async function AppShell({
     <StaffShell
       user={user}
       unread={unread}
-      notificationsHref={notificationsHref}
       items={items}
       lens={canSwitchProfile(user) ? profile : null}
       search={search}

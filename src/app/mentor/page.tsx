@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { AttentionList } from "@/components/attention-list";
 import { PersonCell } from "@/components/person-chip";
 import { ProgramChip } from "@/components/program-chip";
 import { LinkButton } from "@/components/ui/button";
@@ -15,29 +14,13 @@ import { cn } from "@/lib/cn";
 import { SESSION_STATUS, USER_STATUS } from "@/lib/constants";
 import { requireMentor } from "@/lib/dal";
 import { formatDate, formatDuration, formatRough } from "@/lib/format";
-import { soonestExpiry } from "@/lib/deadlines";
 import { prisma } from "@/lib/prisma";
 import { applySort, readSort } from "@/lib/sort";
-import {
-  mentorCaseload,
-  mentorMeetings,
-  recentNotifications,
-} from "@/lib/queries";
-import {
-  attentionList,
-  meetingStatus,
-  mentorStatuses,
-  studentStatuses,
-  type Status,
-  type ViewerContext,
-  dismissalKey,
-  notDismissed,
-} from "@/lib/status";
+import { mentorCaseload } from "@/lib/queries";
+import { type ViewerContext } from "@/lib/status";
 
 /** Students shown before the table offers to unfold the rest. */
 const CASELOAD_ROWS = 8;
-/** Attention rows shown before the section says how many it is holding back. */
-const NEEDS_YOU_ROWS = 10;
 
 /**
  * The caseload's columns.
@@ -99,14 +82,6 @@ export default async function MentorHomePage({
   // One instant for the whole page, so two sections cannot disagree about what
   // "today" is — and so nothing reads the clock during a render.
   const viewer: ViewerContext = { audience: "mentor", userId: user.id, now: new Date() };
-  const dismissed = new Set(
-    (
-      await prisma.statusDismissal.findMany({
-        where: { userId: user.id },
-        select: { type: true, subjectId: true },
-      })
-    ).map((d) => dismissalKey(d.type, d.subjectId))
-  );
   const { program = "", students: studentRows, sort, dir } = await searchParams;
   // "Show me the rest of them", in the URL, so it survives a reload and can be
   // linked. The whole caseload on the page it is already on beats a second
@@ -116,23 +91,14 @@ export default async function MentorHomePage({
   const caseload = await mentorCaseload(user.id);
   const { students, assignments } = caseload;
 
-  const [diary, lastSessions, ratings, feed] = await Promise.all([
-    mentorMeetings(user.id),
-    // The date of this mentor's most recent session with each student. A
-    // caseload row without it cannot answer "who have I not seen in a while",
-    // which is the whole reason to look at the list.
-    prisma.session.groupBy({
-      by: ["studentId"],
-      where: { mentorId: user.id, status: SESSION_STATUS.ACTIVE },
-      _max: { date: true },
-    }),
-    prisma.mentorFeedback.aggregate({
-      where: { mentorId: user.id },
-      _avg: { rating: true },
-      _count: true,
-    }),
-    recentNotifications(user.id),
-  ]);
+  // The date of this mentor's most recent session with each student. A
+  // caseload row without it cannot answer "who have I not seen in a while",
+  // which is the whole reason to look at the list.
+  const lastSessions = await prisma.session.groupBy({
+    by: ["studentId"],
+    where: { mentorId: user.id, status: SESSION_STATUS.ACTIVE },
+    _max: { date: true },
+  });
   const lastSeen = new Map(lastSessions.map((s) => [s.studentId, s._max.date]));
 
   const programs = new Map<string, string>();
@@ -144,89 +110,6 @@ export default async function MentorHomePage({
   // is a question about the row rather than about the person: a student in two
   // of this mentor's programs contributes one row to each.
   const inView = selected ? students.filter((s) => s.program.id === selected) : students;
-
-  // ---------------------------------------------------------------- Needs you
-  //
-  // Everything the model says about this mentor and their students, in this
-  // mentor's own words. The page chooses no wording and no colour; it only
-  // decides which subjects to ask about, and re-points two links at the
-  // destination that acts rather than the one that describes.
-  const rows: Status[] = [
-    ...mentorStatuses(
-      {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        accountStatus: user.status,
-        programCount: programs.size,
-        pairingsMissingLink: assignments.filter((a) => !a.calendlyUrl).length,
-        averageRating: ratings._avg.rating,
-        ratingCount: ratings._count,
-      },
-      viewer
-    ).map((s) =>
-      // A mentor fixes their own booking link where the form is, which is now
-      // /settings — not on the page other people read about them.
-      s.type === "BOOKING_LINK_MISSING" ? { ...s, href: "/settings" } : s
-    ),
-    ...inView.flatMap((s) =>
-      studentStatuses(
-        {
-          id: s.profile.id,
-          name: s.profile.user.name,
-          email: s.profile.user.email,
-          accountStatus: s.profile.user.status,
-          telegramUsername: s.profile.telegramUsername,
-          // Deliberately this mentor's own numbers, not the student's total: a
-          // mentor is told about the hours THEY hold, because those are the
-          // ones they can spend. Someone else's expiring allocation is an
-          // admin's row.
-          allottedMinutes: s.allocated,
-          remainingMinutes: s.remaining,
-          forfeitedMinutes: s.expired ? Math.max(0, s.allocated - s.completed - s.missed) : 0,
-          poolMinutes: s.pool ?? 0,
-          // Already one grant, so the pair is this row's own remaining and
-          // its own date — the aggregate confusion cannot arise here.
-          expiring: soonestExpiry([s], viewer.now),
-          mentorCount: 1,
-          program: { id: s.program.id, name: s.program.name },
-        },
-        viewer
-      ).map((row) => ({ ...row, href: `/mentor/students/${s.profile.id}` }))
-    ),
-    ...diary.flatMap((m) => {
-      const state = meetingStatus(
-        {
-          id: m.id,
-          status: m.status,
-          scheduledAt: m.scheduledAt,
-          sessionId: m.sessionId,
-          student: {
-            id: m.student.id,
-            name: m.student.user.name ?? m.student.user.email,
-          },
-        },
-        viewer
-      );
-            // Informational rows are kept. §6.2 puts "awaiting the student's answer"
-      // in this list on purpose, and dropping it here meant a mentor who booked
-      // an interview for the 25th never learned the student had not replied —
-      // no diary reaches that far out, so the row existed nowhere. They
-      // do not count toward the badge; `attentionList` sorts them last.
-      if (!state) return [];
-      return [
-        state.type === "MEETING_UNLOGGED"
-          ? // The row's job is to discharge itself: the form arrives knowing
-            // the student and the day, so all that is left is a duration.
-            { ...state, href: `/sessions/new?meeting=${m.id}` }
-          : { ...state, href: `/mentor/students/${m.student.id}` },
-      ];
-    }),
-  ];
-  // Rows this reader has silenced come out before anything counts them.
-  const live = rows.filter(notDismissed(dismissed));
-  const attentionRows = attentionList(live, viewer).length;
-  const needsYou = attentionList(live, viewer, { limit: NEEDS_YOU_ROWS });
 
   // -------------------------------------------------------------- Title figure
   //
@@ -342,17 +225,6 @@ export default async function MentorHomePage({
           />
         </FigureRow>
       )}
-
-      <AttentionList
-        dismissible
-        statuses={needsYou}
-        feed={feed}
-        empty="Nothing needs you."
-        // A cap that discards row 11 in silence reads as a complete list.
-        {...(attentionRows > NEEDS_YOU_ROWS
-          ? { moreLabel: `${attentionRows - NEEDS_YOU_ROWS} more` }
-          : {})}
-      />
 
       <Section
         title="Your students"

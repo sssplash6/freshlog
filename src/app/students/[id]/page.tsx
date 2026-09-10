@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
 import { FolderIcon, SendIcon } from "@/components/icons";
-import { AttentionList } from "@/components/attention-list";
 import {
   AllocationsTable,
   toAllocationEntries,
@@ -65,7 +64,6 @@ import {
   taskOptionsForSessions,
   toProgramOptions,
 } from "@/lib/queries";
-import { studentStatuses } from "@/lib/status";
 
 /**
  * One student, at one address, for everyone entitled to open them.
@@ -187,27 +185,6 @@ export default async function StudentWorkspacePage({
     : !mine && !pool
       ? "No time is allocated for you with them."
       : undefined;
-
-  const statuses = studentStatuses(
-    {
-      id: profile.id,
-      name: profile.user.name,
-      email: profile.user.email,
-      accountStatus: profile.user.status,
-      telegramUsername: profile.telegramUsername,
-      allottedMinutes: hours.allotted,
-      remainingMinutes: hours.remaining,
-      forfeitedMinutes: hours.forfeited,
-      poolMinutes: pool?.remaining ?? 0,
-      // From the ledger, so the date and the minutes on it cannot disagree.
-      // This page used to pick the soonest DATE here and let `studentStatuses`
-      // pair it with the total remaining, which is how a student with 2h until
-      // the 20th and 43h 30m until 2027 was told "45h 30m expires September 20".
-      expiring: hours.expiring,
-      mentorCount: hours.perMentor.filter((m) => m.mentor).length,
-    },
-    viewer
-  );
 
   const openTasks = ledger.assignments.filter(
     (t) => t.progress !== ASSIGNMENT_PROGRESS.DONE
@@ -348,8 +325,6 @@ export default async function StudentWorkspacePage({
       {!canLog && reaches && logReason && (
         <p className="text-sm text-muted-fg">{logReason}</p>
       )}
-
-      <AttentionList statuses={statuses} title="Needs attention" empty={null} />
 
       {/* The tracking sheet's whole tab, side by side: what happened on the
           left, what was planned on the right, and the balance across the top.

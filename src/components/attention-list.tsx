@@ -1,10 +1,6 @@
 import Link from "next/link";
 
-import { ArrowRightIcon, BellIcon } from "@/components/icons";
-import {
-  NotificationRows,
-  type FeedNotification,
-} from "@/components/notification-list";
+import { ArrowRightIcon } from "@/components/icons";
 import { Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
@@ -12,15 +8,13 @@ import { DismissStatus } from "@/components/forms/dismiss-status";
 import { actionableCount, type Status } from "@/lib/status";
 
 /**
- * "Notifications" — the one section every home opens with.
+ * What needs the reader, as rows.
  *
- * It was called "Needs you", and the owner still had to ask what was in it. It
- * is the same rows, under the name the bell in the chrome already uses, with
- * that bell drawn beside the heading so the two read as one thing. The feed
- * comes with it: what needs you now, then a rule, then what has happened —
- * because a separate `/notifications` page was a second place to look for the
- * same idea, and nobody had a reason to go there. That page survives as the
- * archive, linked from the bottom of this section.
+ * It opened every home page in the app, three times over, under three names —
+ * "Notifications", "Needs you", "Needs attention" — and a reader still had to
+ * ask what was in it. It renders in exactly one place now: `/notifications`,
+ * behind the bell. A page about a student, a mentor or a program says what is
+ * true of that record in its own body; it does not carry a second inbox.
  *
  * It replaces nine things that each did a piece of this job in their own
  * shape and colour: the admin approvals `Callout`, the orange "N mentors
@@ -37,44 +31,25 @@ import { actionableCount, type Status } from "@/lib/status";
  * student's answer has something on screen but nothing to do, and a badge that
  * counts it reads as three jobs when there is one.
  */
-/**
- * The name the bell in the chrome uses. A section carrying it is the feed's
- * home, and gets the bell, the anchor and the "Earlier" rule; a subject page's
- * "Needs attention" is a list about that subject and gets none of them.
- */
-const FEED_TITLE = "Notifications";
-
 export function AttentionList({
   statuses,
-  title = FEED_TITLE,
-  /** Rendered when nothing needs the viewer. `ALL_CLEAR` covers most cases. */
+  title = "Needs you",
+  /** Rendered when nothing needs the viewer. */
   empty,
   /** A row's own action — Approve, an RSVP — keyed by status type. */
   renderAction,
   dismissible = false,
-  feed,
-  feedHref = "/notifications",
   moreHref,
   moreLabel,
   className,
 }: {
   statuses: Status[];
   title?: string;
-  /**
-   * What has already happened, under "Earlier". The homes pass their most
-   * recent rows; the full history stays at `feedHref`.
-   */
-  feed?: FeedNotification[];
-  feedHref?: string;
   empty?: React.ReactNode;
   renderAction?: (status: Status) => React.ReactNode;
   /**
-   * Offer "don't show me this again" per row.
-   *
-   * For the inboxes, where a row that cannot resolve itself otherwise sits
-   * there forever. Not for a single entity's page, where the list is short,
-   * scoped to what you are looking at, and hiding a row would hide it from the
-   * one screen that explains it.
+   * Offer "don't show me this again" per row, for the rows that cannot
+   * resolve themselves and would otherwise sit there forever.
    */
   dismissible?: boolean;
   moreHref?: string;
@@ -82,26 +57,13 @@ export function AttentionList({
   className?: string;
 }) {
   const count = actionableCount(statuses);
-  const isFeed = title === FEED_TITLE;
 
   return (
     <Section
-      // The bell in the chrome links here. `scroll-mt` keeps the heading clear
-      // of the sticky top bar when it does.
-      {...(isFeed ? { id: "notifications" } : {})}
-      title={
-        isFeed ? (
-          <span className="inline-flex items-center gap-2">
-            <BellIcon className="h-[18px] w-[18px] shrink-0 text-muted-fg" />
-            {title}
-          </span>
-        ) : (
-          title
-        )
-      }
+      title={title}
       count={count > 0 ? count : undefined}
-      className={cn(isFeed && "scroll-mt-20", className)}
-            action={
+      className={className}
+      action={
         moreHref ? (
           <Link
             href={moreHref}
@@ -112,14 +74,13 @@ export function AttentionList({
         ) : moreLabel ? (
           // A label with nowhere to go still has something to say: a capped
           // list that discards its eleventh row in silence reads as a complete
-          // list. `Timeline` already does this; this side did not, so a mentor
-          // with twelve things needing them saw ten and no hint of the rest.
+          // list.
           <span className="text-xs text-muted-fg">{moreLabel}</span>
         ) : undefined
       }
     >
       {statuses.length === 0 ? (
-        <p className="px-4 py-5 text-sm text-muted-fg sm:px-5">
+        <p className="px-4 py-3 text-sm text-muted-fg sm:px-5">
           {empty ?? "Nothing needs you."}
         </p>
       ) : (
@@ -133,28 +94,6 @@ export function AttentionList({
             />
           ))}
         </ul>
-      )}
-
-      {/* What has already happened. A rule and a word, not a second card:
-          "needs you" and "has happened" are two halves of one question, and
-          they were two addresses. */}
-      {feed && feed.length > 0 && (
-        <>
-          <div className="flex items-baseline justify-between gap-4 border-t border-line bg-canvas px-4 py-2 sm:px-5">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-fg">
-              Earlier
-            </span>
-            <Link
-              href={feedHref}
-              className="text-xs font-medium text-brand hover:underline"
-            >
-              All notifications
-            </Link>
-          </div>
-          <ul className="divide-y divide-line">
-            <NotificationRows notifications={feed} />
-          </ul>
-        </>
       )}
     </Section>
   );
@@ -225,17 +164,5 @@ function AttentionRow({
         </span>
       )}
     </li>
-  );
-}
-
-/** For a card that is not a whole section — a student's page, a program overview. */
-export function AttentionRows({ statuses }: { statuses: Status[] }) {
-  if (statuses.length === 0) return null;
-  return (
-    <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
-      {statuses.map((s, i) => (
-        <AttentionRow key={`${s.type}-${s.subject?.id ?? i}`} status={s} />
-      ))}
-    </ul>
   );
 }

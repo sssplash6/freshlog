@@ -5,13 +5,6 @@ import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { studentsWithHours, type StudentWithHours } from "@/lib/queries";
-import {
-  mentorStatuses,
-  programStatuses,
-  studentStatuses,
-  type Status,
-  type ViewerContext,
-} from "@/lib/status";
 
 /**
  * The reads every program page shares, each asked once per request.
@@ -24,10 +17,11 @@ import {
  * makes the layout's call and the page's call the same call, with the same
  * answer.
  *
- * The derivation at the bottom is shared for the same reason. `/programs` prints
- * a per-program attention COUNT and `/programs/[id]` prints the ROWS behind it;
- * two derivations would be two chances for the count to disagree with the list
- * it promises.
+ * `programFlags` used to live at the bottom, deriving what needed a person in
+ * one program — an Attention count on `/programs`, the rows behind it on
+ * `/programs/[id]`. Both are gone: every such row is behind the bell now, in
+ * `lib/attention.ts`, which asks about the reader's whole scope rather than one
+ * program at a time.
  */
 
 /**
@@ -134,117 +128,4 @@ export function studentsOf(
     const scoped = inProgram(r, programId);
     return scoped ? [scoped] : [];
   });
-}
-
-/** What `studentStatuses` needs, exactly as `studentsWithHours` returns it. */
-type StudentRow = {
-  id: string;
-  telegramUsername: string | null;
-  allottedMinutes: number;
-  remainingMinutes: number;
-  forfeitedMinutes: number;
-  expiring: { minutes: number; date: Date } | null;
-  user: { name: string | null; email: string; status: string };
-};
-
-/** What `mentorStatuses` needs, as a pairing carries it. */
-type PairingRow = {
-  mentorId: string;
-  calendlyUrl: string | null;
-  mentor: { id: string; name: string | null; email: string; status: string };
-};
-
-/**
- * Everything true and worth saying about one program's people.
- *
- * Two feeding strategies, one derivation: `/programs/[id]` hands it this
- * program's own cached reads, and `/programs` hands it slices of one bulk read
- * across the reader's whole scope — which is why it takes rows rather than an
- * id and touches the database not at all.
- *
- * It is NOT the inbox's "Needs you" narrowed to one program, and the two are
- * labelled differently — "Attention" here, "Needs you" there — so that nobody
- * reads them as the same number. The inbox asks about the whole school and
- * counts meetings and tasks; this asks about one program and counts its
- * pairings, which the inbox deliberately leaves untagged because a mentor works
- * across several.
- *
- * MENTOR ROWS ARE THIS PROGRAM'S PAIRINGS, and nothing wider. `programCount: 1`
- * is a fact, not a guess: they are paired here, so "not in any program" cannot
- * be true of them from where this page is standing. Ratings are deliberately
- * not fetched — an average is a fact about a mentor across every program they
- * teach in, so a program page claiming one would be a different number from the
- * one on their own page, computed from a subset.
- */
-export function programFlags(
-  program: { id: string; name: string },
-  students: readonly StudentRow[],
-  pairings: readonly PairingRow[],
-  viewer: ViewerContext
-): Status[] {
-  const out: Status[] = [];
-
-  for (const s of students) {
-    out.push(
-      ...studentStatuses(
-        {
-          id: s.id,
-          name: s.user.name,
-          email: s.user.email,
-          accountStatus: s.user.status,
-          telegramUsername: s.telegramUsername,
-          allottedMinutes: s.allottedMinutes,
-          remainingMinutes: s.remainingMinutes,
-          forfeitedMinutes: s.forfeitedMinutes,
-          expiring: s.expiring,
-          program,
-        },
-        viewer
-      )
-    );
-  }
-
-  // One row per MENTOR, not per pairing: a mentor paired with three cohorts of
-  // one program and missing every booking link is one person to go and ask.
-  const missingByMentor = new Map<string, number>();
-  const mentorById = new Map<string, PairingRow["mentor"]>();
-  for (const p of pairings) {
-    mentorById.set(p.mentorId, p.mentor);
-    if (!p.calendlyUrl) {
-      missingByMentor.set(p.mentorId, (missingByMentor.get(p.mentorId) ?? 0) + 1);
-    }
-  }
-  for (const [mentorId, mentor] of mentorById) {
-    out.push(
-      ...mentorStatuses(
-        {
-          id: mentorId,
-          name: mentor.name,
-          email: mentor.email,
-          accountStatus: mentor.status,
-          programCount: 1,
-          pairingsMissingLink: missingByMentor.get(mentorId) ?? 0,
-        },
-        viewer
-      ).map((s) => ({ ...s, program }))
-    );
-  }
-
-  // The program's own state. `status` is deliberately not passed: being
-  // archived is said once, by the chip in the header, and a second informational
-  // row underneath repeating it is the same fact charged twice. What is left is
-  // PROGRAM_NO_MENTORS, which nothing else on the page can say.
-  out.push(
-    ...programStatuses(
-      {
-        id: program.id,
-        name: program.name,
-        mentorCount: mentorById.size,
-        studentCount: students.length,
-      },
-      viewer
-    )
-  );
-
-  return out;
 }

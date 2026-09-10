@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { AttentionList } from "@/components/attention-list";
 import { ExpandableText } from "@/components/expandable-text";
-import { InterviewResponse } from "@/components/forms/interview-response";
 import { HoursBreakdown } from "@/components/hours-breakdown";
 import { HoursRing } from "@/components/hours-ring";
 import { PersonChip } from "@/components/person-chip";
@@ -15,34 +13,14 @@ import { Meter } from "@/components/ui/meter";
 import { PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
-import {
-  ASSIGNMENT_PROGRESS,
-  ROLES,
-  USER_STATUS,
-  interviewIsOpen,
-} from "@/lib/constants";
+import { ASSIGNMENT_PROGRESS, ROLES, USER_STATUS } from "@/lib/constants";
 import { requireRole } from "@/lib/dal";
 import { formatDate, formatMinutes } from "@/lib/format";
 import { enrollmentsLabel } from "@/lib/enrollments";
 import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
-import {
-  assignmentsForStudentWhere,
-  recentNotifications,
-  studentLedger,
-  studentMeetings,
-  type LedgerAssignment,
-} from "@/lib/queries";
-import {
-  attentionList,
-  meetingStatus,
-  sessionStatuses,
-  status,
-  studentStatuses,
-  taskStatuses,
-  type Status,
-  type ViewerContext,
-} from "@/lib/status";
+import { studentLedger, type LedgerAssignment } from "@/lib/queries";
+import { taskStatuses, type Status, type ViewerContext } from "@/lib/status";
 
 /**
  * One piece of planned work, in the student's words.
@@ -139,24 +117,6 @@ function FinishedTask({ task }: { task: LedgerAssignment }) {
 }
 
 /**
- * A row about the reader themself, addressed to the reader.
- *
- * `studentStatuses` names its subject and links it at `/students/<id>`, which
- * is right for the staff and mentor lists it also feeds and wrong twice over
- * here: the subject is the person holding the phone, and the link leads to a
- * page that redirects a student straight back to this one. The one destination
- * that helps is the page where the time can actually be spent, so an expiry
- * points there and everything else points nowhere.
- */
-function aboutMe(s: Status): Status {
-  return {
-    ...s,
-    subject: undefined,
-    href: s.type === "ALLOCATION_EXPIRING" ? "/student/book" : undefined,
-  };
-}
-
-/**
  * The student's home. Phone first, and that is the whole design.
  *
  * The question this page exists to answer — how much time have I left, what
@@ -200,81 +160,11 @@ export default async function StudentHomePage() {
     redirect("/onboarding");
   }
 
-  // Before the feed is read rather than after, so a deadline reminder this very
-  // request creates is the change the page reports.
-
-  const [hours, ledger, meetings, pairings, feed] = await Promise.all([
+  const [hours, ledger] = await Promise.all([
     allocationSummary(profile.id),
     studentLedger(profile.id),
-    studentMeetings(profile.id),
-    prisma.mentorAssignment.findMany({
-      where: assignmentsForStudentWhere(profile),
-      include: { mentor: true },
-    }),
-    recentNotifications(user.id),
   ]);
 
-  // Time granted before a mentor was chosen. An expired pool has nothing left
-  // to assign, and `allocationSummary` has already written it down to zero.
-  const pool = hours.perMentor
-    .filter((m) => !m.mentor)
-    .reduce((total, m) => total + Math.max(0, m.remaining), 0);
-  const mine = studentStatuses(
-    {
-      id: profile.id,
-      name: user.name,
-      email: user.email,
-      accountStatus: user.status,
-      telegramUsername: profile.telegramUsername,
-      allottedMinutes: hours.allotted,
-      remainingMinutes: hours.remaining,
-      forfeitedMinutes: hours.forfeited,
-      poolMinutes: pool,
-      expiring: hours.expiring,
-      // Paired mentors, not mentors who have logged something: a mentor with no
-      // grant of their own is not the pairing NO_MENTOR is asking an admin for.
-      mentorCount: hours.perMentor.filter((m) => m.mentor && m.allocated > 0).length,
-    },
-    viewer
-  ).map(aboutMe);
-
-  // A `Status` carries no id of its own, so the RSVP is looked up by the status
-  // object itself — the same object `AttentionList` hands back to
-  // `renderAction`. A rolled-up row is a new object and finds nothing here,
-  // which is the right answer: four proposed meetings cannot be settled with
-  // one pair of buttons.
-  const answerTo = new Map<Status, { id: string; status: string }>();
-  // One derivation per meeting, shared by the attention row and the timeline
-  // row below it, so the two can never describe the same meeting differently.
-  const open = meetings.filter(interviewIsOpen).map((m) => ({
-    meeting: m,
-    status: meetingStatus(
-      { id: m.id, status: m.status, scheduledAt: m.scheduledAt, sessionId: m.sessionId },
-      viewer
-    ),
-  }));
-  const meetingRows = open.flatMap(({ meeting: m, status: s }) => {
-    if (!s || s.type !== "MEETING_AWAITING_ANSWER") return [];
-    // Whose meeting it is: the status is voiced at the reader, so the only name
-    // worth carrying is the other person's.
-    const row: Status = {
-      ...s,
-      subject: {
-        kind: "mentor",
-        id: m.mentor.id,
-        name: m.mentor.name ?? m.mentor.email,
-      },
-    };
-    answerTo.set(row, { id: m.id, status: m.status });
-    return [row];
-  });
-
-  // Every state each task is in, derived once and read two ways: the row's
-  // chips want all of them, "Needs you" wants only the one a student can act
-  // on. That one is dormant — `TASK_OVERDUE` wants a real due date, and
-  // `Assignment.deadline` is still the free text the tracking sheet held
-  // ("March-May") — and wired anyway, so splitting that column into `dueOn`
-  // lights the row up instead of waiting for someone to remember this page.
   // Everything already delivered, newest first — the ledger's own order.
   const held = ledger.sessions;
 
@@ -293,76 +183,6 @@ export default async function StudentHomePage() {
       viewer
     ),
   }));
-  const overdueTasks = tasks.flatMap((t) =>
-    t.statuses.filter((s) => s.type === "TASK_OVERDUE")
-  );
-
-  // The product's worst dead end, from the student's side: they hold time with
-  // someone and have no way to book it. One row per mentor, so the row names
-  // who to chase; `rollUp` collapses them once there are more than three.
-  const holdsTime = new Set(
-    hours.perMentor.flatMap((m) => (m.mentor && m.remaining > 0 ? [m.mentor.id] : []))
-  );
-  // A mentor can be paired twice, once program-wide and once for the cohort, so
-  // what matters is whether they have a link anywhere — not whether the row
-  // this student's cohort matched happens to carry one.
-  const linked = new Set(pairings.flatMap((p) => (p.calendlyUrl ? [p.mentorId] : [])));
-  const paired = new Map(pairings.map((p) => [p.mentorId, p.mentor]));
-  const bookingRows = [...holdsTime].flatMap((id) => {
-    const mentor = paired.get(id);
-    if (!mentor || linked.has(id)) return [];
-    const s = status(
-      "BOOKING_LINK_MISSING",
-      viewer,
-      {},
-      {
-        subject: { kind: "mentor", id, name: mentor.name ?? mentor.email },
-        href: "/student/book",
-      }
-    );
-    return s ? [s] : [];
-  });
-
-  // Sessions their mentors logged that they have not spoken about yet. One
-  // row each, capped by `attentionList`'s own roll-up once there are more than
-  // three, and every one of them a link to the page that can answer it.
-  const unconfirmed = held.flatMap((s) => {
-    const row = sessionStatuses(
-      {
-        attended: s.attended,
-        late: s.late,
-        status: s.status,
-        withinPlan: s.withinPlan,
-        studentAnswer: s.studentAnswer,
-        date: s.date,
-      },
-      viewer
-    ).find((x) => x.type === "SESSION_UNCONFIRMED");
-    return row
-      ? [
-          {
-            ...row,
-            subject: {
-              kind: "mentor" as const,
-              id: s.mentor.id,
-              name: s.mentor.name ?? s.mentor.email,
-            },
-            href: "/student/meetings",
-            at: s.date,
-          },
-        ]
-      : [];
-  });
-
-  // `attentionList` adds an ALL_CLEAR row when nothing is actionable, which
-  // `AttentionList` already says in this page's own words — and with an
-  // informational row still on screen "Nothing needs you" would be contradicted
-  // by the line directly under it.
-  const needsYou = attentionList(
-    [...mine, ...meetingRows, ...overdueTasks, ...bookingRows, ...unconfirmed],
-    viewer
-  ).filter((s) => s.type !== "ALL_CLEAR");
-
   const finished = tasks.filter((t) => t.task.progress === ASSIGNMENT_PROGRESS.DONE);
   // In progress first, then not started: a plan reads forward.
   const live = [
@@ -397,21 +217,6 @@ export default async function StudentHomePage() {
             />
           </div>
         }
-      />
-
-      <AttentionList
-        statuses={needsYou}
-        feed={feed}
-        empty="Nothing to do right now."
-        renderAction={(s) => {
-          const meeting = answerTo.get(s);
-          // The only write on this page. A meeting is answered where it is
-          // read, because "say whether you can make it" and a trip to another
-          // page to say it are not the same request.
-          return meeting ? (
-            <InterviewResponse interviewId={meeting.id} status={meeting.status} />
-          ) : null;
-        }}
       />
 
       {(hours.allotted > 0 || hours.used > 0 || hours.extra > 0) && (

@@ -49,15 +49,15 @@ export type NavItem = {
   count?: number;
 };
 
-/** The one item that is not about a place in the app but about the reader. */
 /**
- * `href` is the reader's own home plus `#notifications`, not `/notifications`:
- * the feed is rendered on the home now, under the section that used to be
- * called "Needs you". The archive page still exists for the full history and
- * is linked from that section.
+ * The one item that is not about a place in the app but about the reader.
+ *
+ * One address, which it briefly was not: the feed spent a while rendered on
+ * each home under an anchor, with this row pointing at it, and the page it is
+ * named after sitting unlinked. Both halves are at `/notifications` now.
  */
-export function notificationsItem(unread: number, href: string): NavItem {
-  return { href, label: "Notifications", count: unread };
+export function notificationsItem(unread: number): NavItem {
+  return { href: "/notifications", label: "Notifications", count: unread };
 }
 
 const STUDENT_NAV: NavItem[] = [

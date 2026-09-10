@@ -15,9 +15,8 @@ import { formatMoney, formatRough } from "@/lib/format";
 import { programTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { studentsWithHours } from "@/lib/queries";
-import { actionableCount, type ViewerContext } from "@/lib/status";
 
-import { PROGRAM_STATUS, programFlags, requestNow, studentsOf } from "./reads";
+import { PROGRAM_STATUS, requestNow, studentsOf } from "./reads";
 
 /**
  * Every program this reader administers, and which of them is asking for
@@ -54,7 +53,6 @@ export default async function ProgramsPage({
   // new program.
   const inScope = programIds ? { in: [...programIds] } : undefined;
   const now = requestNow();
-  const viewer: ViewerContext = { audience: "staff", userId: user.id, now };
 
   const [programs, students, pairings] = await Promise.all([
     // Both statuses in one read: the Archived tab has to carry its count before
@@ -94,9 +92,6 @@ export default async function ProgramsPage({
       paid: totals.paid,
       mentors: new Set(theirs.map((p) => p.mentorId)).size,
       remaining: totals.remaining,
-      attention: actionableCount(
-        programFlags(program, enrolled, theirs, viewer)
-      ),
     };
   });
 
@@ -105,7 +100,6 @@ export default async function ProgramsPage({
     { label: "Students", align: "right" },
     { label: "Mentors", align: "right" },
     { label: "Remaining", align: "right" },
-    { label: "Attention", align: "right" },
     {},
   ];
 
@@ -181,15 +175,6 @@ export default async function ProgramsPage({
                   tone={p.remaining < 0 ? "danger" : "hours"}
                   className="sm:text-right"
                 />
-              </Td>
-              <Td label="Attention" align="right">
-                {p.attention > 0 ? (
-                  <span className="font-medium tabular-nums text-ink">
-                    {p.attention}
-                  </span>
-                ) : (
-                  <span className="text-muted-fg">—</span>
-                )}
               </Td>
               <Td align="right">
                 <ArrowLink href={`/programs/${p.id}`} className="text-[13px]">

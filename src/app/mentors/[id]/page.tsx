@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 
-import { AttentionList } from "@/components/attention-list";
 import { Avatar } from "@/components/avatar";
 import { BookingLinksForm } from "@/components/forms/booking-link-form";
 import { EditMentorForm } from "@/components/forms/mentor-forms";
@@ -34,7 +33,7 @@ import {
   programOptions,
   toProgramOptions,
 } from "@/lib/queries";
-import { mentorStatuses, type Status, type ViewerContext } from "@/lib/status";
+import { type ViewerContext } from "@/lib/status";
 import type { User } from "@/generated/prisma/client";
 
 /** Sessions shown under the record; the figures above them stay complete. */
@@ -213,29 +212,6 @@ async function MentorRecord({
   const rated = feedback._count > 0 && feedback._avg.rating != null;
   const base = `/mentors/${mentor.id}`;
 
-  /**
-   * What the model says about this mentor, with the link and the name off.
-   *
-   * Both are true of the page rather than of the row. Every status
-   * `mentorStatuses` produces points at `/mentors/<id>` — where the reader
-   * already is — and every one names this mentor, whose name is the h1 six
-   * lines above. What is left is the chip and what to do about it, which is
-   * all a row on a subject's own page has to carry.
-   */
-  const attention: Status[] = mentorStatuses(
-    {
-      id: mentor.id,
-      name: mentor.name,
-      email: mentor.email,
-      accountStatus: mentor.status,
-      programCount: new Set(pairings.map((a) => a.programId)).size,
-      pairingsMissingLink: pairings.filter((a) => !a.calendlyUrl).length,
-      averageRating: feedback._avg.rating,
-      ratingCount: feedback._count,
-    },
-    context
-  ).map((s) => ({ ...s, href: undefined, subject: undefined }));
-
   const studentColumns: Column[] = [
     { label: "Student" },
     { label: "Total", align: "right" },
@@ -362,14 +338,6 @@ async function MentorRecord({
           </Disclosure>
         )}
       </div>
-
-      {/* Only when it has something to say. On a home an empty "Needs you" is
-          the answer to the question the page exists for; here it is a heading,
-          a border and a sentence between the reader and the record — a
-          screenful on the phone the owner reads this on. */}
-      {attention.length > 0 && (
-        <AttentionList statuses={attention} title="Needs attention" />
-      )}
 
       <Section
         eyebrow="Time"

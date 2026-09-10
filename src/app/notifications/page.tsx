@@ -1,3 +1,6 @@
+import { AttentionList } from "@/components/attention-list";
+import { ApproveStudentButtons } from "@/components/forms/approve-student-buttons";
+import { InterviewResponse } from "@/components/forms/interview-response";
 import { NotificationList } from "@/components/notification-list";
 import { markAllNotificationsRead } from "@/lib/actions/notifications";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -11,8 +14,28 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle } from "@/components/ui/section";
 import { Section } from "@/components/ui/section";
 import { Pagination, parsePage } from "@/components/ui/pagination";
+import { attentionFor } from "@/lib/attention";
 import { requireUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
+import { profileOf } from "@/lib/profile";
+
+/**
+ * The bell, and the only place either half of it lives.
+ *
+ * It was two ideas at two addresses that nobody could tell apart. "Needs you"
+ * — what is waiting on the reader right now — opened all three home pages,
+ * derived three separate times; "Notifications" — what has already happened —
+ * was this page, which the bell did not even point at. The owner asked for one
+ * button: everything about the reader is behind it, and no page carries either
+ * list any more.
+ *
+ * So the order is the question and then the record. What needs you, then a
+ * rule, then what has happened, paged and filterable. `lib/attention.ts`
+ * derives the first half for whichever of the three readers is looking; this
+ * page renders it and asks nothing about who they are, except for the two
+ * controls a row can carry — approving a student, answering a meeting — which
+ * only ever appear for the one reader who can act on them.
+ */
 
 /** A page of the feed. Deliberately generous — it is read by scrolling. */
 const PER_PAGE = 50;
@@ -29,8 +52,7 @@ const CATEGORY_ORDER: NotificationCategory[] = [
 
 function isCategory(value: unknown): value is NotificationCategory {
   return (
-    typeof value === "string" &&
-    (CATEGORY_ORDER as string[]).includes(value)
+    typeof value === "string" && (CATEGORY_ORDER as string[]).includes(value)
   );
 }
 
@@ -65,78 +87,108 @@ export default async function NotificationsPage({
   // say so: older history simply did not exist as far as the page was
   // concerned. It is paged now, and the unread badge counts every unread one
   // rather than the unread ones that happened to be on screen.
-  const [notifications, total, unread, byCategory] = await Promise.all([
-    prisma.notification.findMany({
-      where,
-      include: {
-        actor: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            // Feeds the actor's PersonBadge; without it they'd show initials
-            // here while wearing their picture everywhere else.
-            avatarUpdatedAt: true,
+  const [attention, notifications, total, unread, byCategory] =
+    await Promise.all([
+      attentionFor(user, await profileOf(user)),
+      prisma.notification.findMany({
+        where,
+        include: {
+          actor: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              // Feeds the actor's PersonBadge; without it they'd show initials
+              // here while wearing their picture everywhere else.
+              avatarUpdatedAt: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * PER_PAGE,
-      take: PER_PAGE,
-    }),
-    prisma.notification.count({ where }),
-    prisma.notification.count({ where: { userId: user.id, read: false } }),
-    // Counted across the whole feed, not the filtered slice: a chip reading
-    // zero is what tells a reader the category exists and is empty.
-    prisma.notification.groupBy({
-      by: ["category"],
-      where: { userId: user.id },
-      _count: true,
-    }),
-  ]);
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * PER_PAGE,
+        take: PER_PAGE,
+      }),
+      prisma.notification.count({ where }),
+      prisma.notification.count({ where: { userId: user.id, read: false } }),
+      // Counted across the whole feed, not the filtered slice: a chip reading
+      // zero is what tells a reader the category exists and is empty.
+      prisma.notification.groupBy({
+        by: ["category"],
+        where: { userId: user.id },
+        _count: true,
+      }),
+    ]);
   const countOf = new Map(byCategory.map((c) => [c.category, c._count]));
   const present = CATEGORY_ORDER.filter((c) => countOf.has(c));
   const blurb = BLURB[user.role] ?? "Everything that changed for you.";
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-4">
       <PageTitle
         eyebrow={unread > 0 ? `${unread} unread` : "All caught up"}
         title="Notifications"
-        subtitle={blurb}
       />
 
-      <FilterBar
-        basePath="/notifications"
-        params={params}
-        // No "All" chip: a chip that is on clears itself when clicked, and the
-        // bar's own Reset is the way back from any of them. Categories a reader
-        // has nothing in are dropped rather than offered empty — and if that
-        // leaves ONE, the whole row goes: a filter that can only select
-        // everything is a button whose job nobody can guess.
-        presets={
-          present.length > 1
-            ? present.map((c) => ({
-                label: NOTIFICATION_CATEGORY_LABELS[c],
-                params: { category: c },
-              }))
-            : []
-        }
+      <AttentionList
+        statuses={attention.statuses}
+        title="Needs you"
+        empty={attention.empty}
+        dismissible={attention.dismissible}
+        renderAction={(s) => {
+          // The two rows that can discharge themselves where they are read.
+          // Both are the reader's own act — an admin approving a signup, a
+          // student saying whether they can make a meeting — and a trip to
+          // another page to say so is not the same request.
+          if (s.type === "STUDENT_PENDING_APPROVAL" && s.subject) {
+            return <ApproveStudentButtons studentProfileId={s.subject.id} />;
+          }
+          const meeting = attention.answers.get(s);
+          return meeting ? (
+            <InterviewResponse
+              interviewId={meeting.id}
+              status={meeting.status}
+            />
+          ) : null;
+        }}
+        {...(attention.spilled > 0
+          ? {
+              moreLabel: `${attention.spilled} more`,
+              ...(attention.moreHref ? { moreHref: attention.moreHref } : {}),
+            }
+          : {})}
       />
 
       <Section
-          eyebrow=""
-          title={unread > 0 ? "New for you" : "Recent activity"}
-          action={
-            unread > 0 ? (
-              <form action={markAllNotificationsRead}>
-                <Button type="submit" variant="secondary" size="sm">
-                  Mark all read
-                </Button>
-              </form>
-            ) : undefined
-          }
+        eyebrow=""
+        title={unread > 0 ? "New for you" : "Earlier"}
+        action={
+          unread > 0 ? (
+            <form action={markAllNotificationsRead}>
+              <Button type="submit" variant="secondary" size="sm">
+                Mark all read
+              </Button>
+            </form>
+          ) : undefined
+        }
       >
+        {/* Only when there is something to narrow. No "All" chip: a chip that
+            is on clears itself when clicked, and the bar's own Reset is the
+            way back from any of them. Categories a reader has nothing in are
+            dropped rather than offered empty — and if that leaves ONE, the
+            whole row goes: a filter that can only select everything is a
+            button whose job nobody can guess. */}
+        {present.length > 1 && (
+          <div className="border-b border-line px-4 py-2 sm:px-5">
+            <FilterBar
+              basePath="/notifications"
+              params={params}
+              presets={present.map((c) => ({
+                label: NOTIFICATION_CATEGORY_LABELS[c],
+                params: { category: c },
+              }))}
+            />
+          </div>
+        )}
 
         {notifications.length === 0 ? (
           <EmptyState framed={false} title="Nothing has happened yet">
@@ -152,12 +204,11 @@ export default async function NotificationsPage({
               pageSize={PER_PAGE}
               total={total}
               unit="notifications"
-              className="border-t border-line px-4 py-3 sm:px-5"
+              className="border-t border-line px-4 py-2 sm:px-5"
             />
           </>
         )}
       </Section>
-
     </div>
   );
 }

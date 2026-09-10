@@ -1,4 +1,3 @@
-import { AttentionList } from "@/components/attention-list";
 import { PersonChip } from "@/components/person-chip";
 import { programTone } from "@/lib/program-tone";
 import { ArrowLink } from "@/components/ui/link";
@@ -8,20 +7,11 @@ import { requireProgramScope } from "@/lib/dal";
 import { formatDate, formatDuration } from "@/lib/format";
 import { programTotals } from "@/lib/hours";
 import { recentMeetings } from "@/lib/queries";
-import { attentionList, type ViewerContext } from "@/lib/status";
 
-import {
-  programFlags,
-  programOf,
-  programPairings,
-  programStudents,
-  requestNow,
-} from "../reads";
+import { programOf, programPairings, programStudents } from "../reads";
 
 /** Past ten, a list of mentors is a page of its own. */
 const MENTORS_SHOWN = 10;
-/** More than three of one state collapse into a line (`rollUp`). */
-const ROLL_UP_AT = 3;
 
 /**
  * The program at a glance: what needs a person, who teaches here, and when it
@@ -39,9 +29,7 @@ export default async function ProgramOverviewPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const me = await requireProgramScope(id);
-  const now = requestNow();
-  const viewer: ViewerContext = { audience: "staff", userId: me.id, now };
+  await requireProgramScope(id);
 
   // The first three are the layout's reads, memoised: opening a program asks
   // for its row, its roster and its pairings once between the two files.
@@ -54,8 +42,6 @@ export default async function ProgramOverviewPage({
 
   // §8.6: the one helper, over the unsliced roster — never a second reducer.
   const totals = programTotals(students);
-  const flags = programFlags(program, students, pairings, viewer);
-  const needsYou = attentionList(flags, viewer, { threshold: ROLL_UP_AT });
 
   // One line per MENTOR: somebody paired with three cohorts of this program is
   // one person teaching here, not three rows.
@@ -79,12 +65,6 @@ export default async function ProgramOverviewPage({
 
   return (
     <div className="space-y-6">
-      <AttentionList
-        statuses={needsYou}
-        title="Needs attention"
-        empty="Nothing needs attention."
-      />
-
       <Section
         title="Mentors"
         count={mentorRows.length}

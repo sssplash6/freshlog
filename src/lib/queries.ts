@@ -37,33 +37,6 @@ import type { Prisma } from "@/generated/prisma/client";
  * that print a program's total and the pages that print a student's are the
  * same pages, and two queries would be two chances to disagree.
  */
-/**
- * The last few notifications for one reader, for the home's Notifications
- * section.
- *
- * Small on purpose: the home shows what has just happened, and the archive at
- * `/notifications` is where a full history with filters and paging lives. Read
- * or unread both — a home that showed only unread would empty itself the
- * moment somebody clicked through, which is the opposite of a feed.
- */
-export async function recentNotifications(userId: string, take = 5) {
-  return prisma.notification.findMany({
-    where: { userId },
-    include: {
-      actor: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          avatarUpdatedAt: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-    take,
-  });
-}
-
 export async function studentsWithHours(
   where: Prisma.StudentProfileWhereInput = {},
   {
