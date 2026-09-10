@@ -8,11 +8,12 @@ import {
   moveStudent,
   setStudentEmail,
   setStudentFolder,
+  setStudentName,
   setStudentTelegram,
   unenrollStudent,
 } from "@/lib/actions/students";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
-import { Field, Input } from "@/components/ui/field";
+import { Field, Input, NameInput } from "@/components/ui/field";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -31,6 +32,41 @@ import type { ProgramOption } from "@/lib/queries";
 
 const selectClass =
   "min-h-11 w-full rounded-lg border border-line bg-surface px-3.5 py-2 text-sm text-ink transition hover:border-brand/40 focus:border-brand focus:outline-none";
+
+/**
+ * The name everyone reads them by, correctable by the two people who ever
+ * find out it is wrong: an admin of one of their programs, and a mentor who
+ * works with them.
+ *
+ * It sits beside the h1 rather than in the Details panel below, and that is
+ * the point of it. Details is admin-only — it holds a sign-in address and a
+ * set of enrollments — and a mentor needs neither of those to fix a spelling.
+ * The name is the one fact on this page that both readers own, so the pencil
+ * lives on the fact itself.
+ */
+export function StudentNameChange({
+  studentProfileId,
+  currentName,
+}: {
+  studentProfileId: string;
+  currentName: string | null;
+}) {
+  const [, action, save] = useSaveState(setStudentName);
+  return (
+    <RowActionMenu trigger="pencil" label="Change their name" verb="Change">
+      <RowActionGroup label="Full name">
+        <form action={action} className="space-y-2">
+          <input type="hidden" name="studentProfileId" value={studentProfileId} />
+          <Field label="Name" hint="First and last name.">
+            <NameInput name="name" required defaultValue={currentName ?? ""} />
+          </Field>
+          <SubmitButton size="sm">Save name</SubmitButton>
+          <SaveState state={save} />
+        </form>
+      </RowActionGroup>
+    </RowActionMenu>
+  );
+}
 
 /**
  * The handle their mentors message them on.

@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { assertProgramScope, assertStudentScope } from "@/lib/authz";
+import {
+  assertProgramScope,
+  assertStudentReach,
+  assertStudentScope,
+} from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { notify, notificationHref, staffIdsFor } from "@/lib/notify";
@@ -322,6 +326,59 @@ export async function setStudentFolder(
       ? `Folder link saved for ${who} — their mentors can open it now.`
       : `Folder link removed for ${who}.`,
   };
+}
+
+/**
+ * Correct a student's name — the one fact about them a MENTOR may change too.
+ *
+ * It was nobody's to change. A student typed their own name once at first
+ * sign-in and staff typed it once on the roster form, and after that the app
+ * had no way to fix a typo, a transliteration or a married surname: not on
+ * the admin's Details panel, not anywhere. The name is on every chip, session
+ * row, ledger line and booking card in the product, so a wrong one is wrong
+ * in about forty places at once.
+ *
+ * `assertStudentReach` rather than `assertStudentScope`, because the mentor
+ * who sits with the person every week is the one who finds out — see the note
+ * on that gate for why a name is the only fact of a student's it opens.
+ *
+ * No notification. A spelling corrected is not news, and a mentor renaming a
+ * student is not an act anybody needs telling about; the `HourAllotmentChange`
+ * ledger exists for the writes that move time.
+ */
+export async function setStudentName(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+
+  const profileId = String(formData.get("studentProfileId") ?? "");
+  const profile = await prisma.studentProfile.findUnique({
+    where: { id: profileId },
+    include: { user: true, enrollments: { select: { programId: true } } },
+  });
+  // "Not yours" and "does not exist" answer identically, so the refusal cannot
+  // be used to find out which student ids are real.
+  if (!profile) return { ok: false, error: "You don't work with that student." };
+
+  const denied = await assertStudentReach(actor, profile);
+  if (denied) return denied;
+
+  const parsed = parseNameField(formData.get("name"), "their");
+  if ("error" in parsed) return { ok: false, error: parsed.error };
+  if (parsed.value === profile.user.name) {
+    return { ok: true, message: "No change: that's already their name." };
+  }
+
+  await prisma.user.update({
+    where: { id: profile.userId },
+    data: { name: parsed.value },
+  });
+
+  // Their name labels them in every table and chip in the app.
+  revalidatePath("/", "layout");
+  return { ok: true, message: `Name saved: ${parsed.value}.` };
 }
 
 /**

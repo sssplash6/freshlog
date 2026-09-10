@@ -240,6 +240,41 @@ export async function assertStudentScope(
 }
 
 /**
+ * May this actor correct a fact about the STUDENT themselves — their name?
+ *
+ * Two ways in, and they are the two people who ever find out a name is wrong.
+ * An admin of any program the student is in, which is `assertStudentScope`.
+ * And the mentor who reaches them: a mentor sits with the person every week
+ * and is the one who learns that the roster says "Malika" and she is Malika
+ * Karimova, or that the import transliterated her surname. Sending them to
+ * find an admin for a spelling is how a roster stays wrong.
+ *
+ * Deliberately NARROWER than the Details panel beside it. An email address is
+ * a sign-in — changing one hands somebody a working login as that person — and
+ * a folder link and an enrollment are the program's own records. A display
+ * name grants nothing and reveals nothing, so it is the one fact of a
+ * student's that a mentor may put right.
+ *
+ * Reach, not assignment, unlike `assertTaskScope`: a mentor who can log a
+ * session with somebody can read their name on every row they write, so they
+ * are already close enough to know it.
+ */
+export async function assertStudentReach(
+  actor: User | null,
+  profile: { id: string; enrollments: readonly { programId: string }[] }
+): Promise<Denied | null> {
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+  if (await canManageStudent(actor, profile)) return null;
+  if (canActAsMentor(actor) && (await mentorReaches(actor, profile))) {
+    return null;
+  }
+  return {
+    ok: false,
+    error: "You don't work with that student.",
+  };
+}
+
+/**
  * May this actor correct a TASK?
  *
  * Two ways in, and the second is new. An admin whose scope covers the task's

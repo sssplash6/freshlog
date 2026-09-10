@@ -15,6 +15,7 @@ import {
   RemoveStudentButton,
   StudentEmailChange,
   StudentFolderChange,
+  StudentNameChange,
   StudentPrograms,
   StudentTelegramChange,
 } from "@/components/forms/student-details-forms";
@@ -314,8 +315,16 @@ export default async function StudentWorkspacePage({
           />
         }
         title={
-          <span className="flex flex-wrap items-center gap-3">
+          <span className="flex flex-wrap items-center gap-2">
             {name}
+            {/* The pencil is on the fact, not in a panel below it. Both
+                readers of this page own this one — see `StudentNameChange`. */}
+            {(manages || reaches) && (
+              <StudentNameChange
+                studentProfileId={profile.id}
+                currentName={profile.user.name}
+              />
+            )}
             {isPending && (
               <StatusChip severity="attention">Pending approval</StatusChip>
             )}
