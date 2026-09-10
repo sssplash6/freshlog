@@ -5,7 +5,6 @@ import { PersonChip } from "@/components/person-chip";
 import { Rating } from "@/components/rating";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusChip } from "@/components/ui/status-chip";
-import { Table, Td, Tr, type Column } from "@/components/ui/table";
 import { SessionRowActions } from "@/components/forms/session-forms";
 import { ArrowLink } from "@/components/ui/link";
 import { Section } from "@/components/ui/section";
@@ -45,10 +44,19 @@ import { sessionStatuses, type ViewerContext } from "@/lib/status";
  * attended in-plan session gets NO chip, which is what finally removes the
  * green "Logged" badge that sat on every row of every log.
  *
- *   table     the ledger — /sessions, a student's page, a program's page
+ *   log       the ledger — /sessions. TWO LINES, at every width: who and how
+ *             long on the first, what it was about on the second.
  *   timeline  a student reading their own history: mentor leads, date is a
  *             marker down a rail (the one thing StudentJourney had right)
  *   line      one sentence, read-only: "Aug 30 · Malika logged 90 min…"
+ *
+ * `log` replaced a six-column `<table>`, and the reason is what that table did
+ * on a phone: `Table` stacks a row into one labelled line per column, so a
+ * single logged session was DATE / STUDENT · MENTOR / DURATION / TASK / NOTES
+ * — eight lines and about 500px, one session per screenful. On a laptop it was
+ * three lines, because the student sat above the mentor and a clamped note ran
+ * to two more. The facts are the same; they are laid out to be scanned now
+ * rather than tabulated.
  */
 
 type RowPerson = {
@@ -99,9 +107,9 @@ export type SessionEntry = {
 };
 
 /**
- * What a caller may ask for. `notes` carries the exception chips with it — they
- * are a property of what happened, not a seventh column, and giving them one
- * was how `/mentor/sessions` reached nine stacked lines on a phone.
+ * Which facts a row carries. `notes` brings the exception chips with it — they
+ * are a property of what happened, not a field of their own, and giving them
+ * one was how `/mentor/sessions` reached nine stacked lines on a phone.
  */
 export type SessionColumn =
   | "date"
@@ -110,7 +118,7 @@ export type SessionColumn =
   | "duration"
   | "task"
   | "notes"
-  /** The ⋮ menu. `SessionsTable` adds it when any row has one. */
+  /** The row's edit menu. `SessionsList` adds it when any row has one. */
   | "actions";
 
 const DEFAULT_COLUMNS: SessionColumn[] = [
@@ -122,55 +130,12 @@ const DEFAULT_COLUMNS: SessionColumn[] = [
   "notes",
 ];
 
-/**
- * The rendered slots, in the one order every session table uses.
- *
- * Six, because six is the cap: a phone stacks a row into one labelled line per
- * column, and nine of them is the specific defect this reorganisation removes.
- * `student` and `mentor` therefore share the `people` slot — they are the same
- * question ("who") and a pairing reads better as one cell than as two adjacent
- * name columns. Membership comes from `columns`, but never the order: one
- * renderer means Date is in the same place on every page.
- */
-const SLOTS = ["date", "people", "duration", "task", "notes", "actions"] as const;
-type Slot = (typeof SLOTS)[number];
-
-function slotsFor(columns: SessionColumn[]): Slot[] {
-  return SLOTS.filter((slot) =>
-    slot === "people"
-      ? columns.includes("student") || columns.includes("mentor")
-      : columns.includes(slot),
-  );
-}
-
-/** The people slot's heading, reused as the stacked row's label on a phone. */
-function peopleLabel(columns: SessionColumn[]): string {
-  const student = columns.includes("student");
-  const mentor = columns.includes("mentor");
-  return student && mentor ? "Student · Mentor" : student ? "Student" : "Mentor";
-}
-
-/** The header, from the same function the cells use, so the two cannot drift. */
-function headerFor(columns: SessionColumn[]): Column[] {
-  return slotsFor(columns).map((slot) => {
-    if (slot === "people") return { label: peopleLabel(columns) };
-    if (slot === "duration") return { label: "Duration", align: "right" as const };
-    if (slot === "actions") return { label: "", align: "right" as const };
-    return { label: slot === "date" ? "Date" : slot === "task" ? "Task" : "Notes" };
-  });
-}
-
 const nameOf = (person: RowPerson) => person.name ?? person.email;
-
-/** A value the row does not have. Never a blank cell — a blank reads as a bug. */
-function Dash() {
-  return <span className="text-muted-fg">—</span>;
-}
 
 export function SessionRow({
   session,
   viewer,
-  variant = "table",
+  variant = "log",
   columns = DEFAULT_COLUMNS,
   actions,
   index,
@@ -178,10 +143,10 @@ export function SessionRow({
   session: SessionEntry;
   /** Whose words the chips are in. Never who may act — that is `lib/authz.ts`. */
   viewer: ViewerContext;
-  variant?: "table" | "timeline" | "line";
-  /** `table` only. Ignored by the two list shapes, which show every fact. */
+  variant?: "log" | "timeline" | "line";
+  /** `log` only. Ignored by the two list shapes, which show every fact. */
   columns?: SessionColumn[];
-  /** Correct · Void · Delete · Rate — already resolved for this reader. */
+  /** Edit · Void · Delete · Rate — already resolved for this reader. */
   actions?: React.ReactNode;
   /** Position in the list, for the entrance stagger and nothing else. */
   index?: number;
@@ -350,97 +315,86 @@ export function SessionRow({
     );
   }
 
+  // ------------------------------------------------------------------ log
+  //
+  // Two lines, at every width, and the second one only when it has something
+  // on it. Line 1 is who and how long — the two facts you scan a ledger by.
+  // Line 2 is what it was about, one line of it, unfoldable in place.
   const showStudent = columns.includes("student") && Boolean(student);
   const showMentor = columns.includes("mentor");
-  // A standalone row is allowed to carry a menu without its caller having
-  // listed the column; inside a table the column is already listed for every
-  // row as soon as one row has a menu, so the header can never fall out of step.
-  const slots = slotsFor(
-    actions && !columns.includes("actions") ? [...columns, "actions"] : columns,
-  );
+  const showTask = columns.includes("task") && Boolean(task);
+  const showNote = columns.includes("notes") && Boolean(note);
+  const secondLine = showTask || showNote || chips || student?.program;
 
   return (
-    <Tr id={anchor} className={cn(index != null && "deal-in")} style={stagger}>
-      {slots.map((slot) => {
-        switch (slot) {
-          case "date":
-            return (
-              <Td
-                key={slot}
-                label="Date"
-                className={cn("whitespace-nowrap tabular-nums", textTone)}
-              >
-                {formatDate(date)}
-              </Td>
-            );
-          case "people":
-            return (
-              <Td key={slot} label={peopleLabel(columns)}>
-                {/* Both people in this cell are the same kind of value — who
-                    this session was between — so both are the same shape. The
-                    student used to be bare ink stacked on the mentor's pill,
-                    which read as two different kinds of thing and left students
-                    the only people in the ledger with no identity colour. */}
-                {showStudent && student && (
-                  <span className="block min-w-0">
-                    <PersonChip person={student} size="sm" href={student.href} />
-                    {student.program && (
-                      <span className="mt-0.5 block text-xs text-muted-fg">
-                        {student.program}
-                      </span>
-                    )}
-                  </span>
-                )}
-                {showMentor && (
-                  <PersonChip
-                    person={mentor}
-                    size="sm"
-                    href={mentor.href}
-                    className={showStudent ? "mt-1" : undefined}
-                  />
-                )}
-                {!showStudent && !showMentor && <Dash />}
-              </Td>
-            );
-          case "duration":
-            return (
-              <Td key={slot} label="Duration" align="right">
-                {duration}
-              </Td>
-            );
-          case "task":
-            return (
-              <Td key={slot} label="Task" className="sm:min-w-40 sm:max-w-56">
-                {task ? (
-                  <ExpandableText text={task.purpose} lines={2} className={textTone} />
-                ) : (
-                  <Dash />
-                )}
-              </Td>
-            );
-          case "notes":
-            return (
-              <Td key={slot} label="Notes" className="sm:max-w-md">
-                {note ? (
-                  <ExpandableText text={note} lines={2} className={textTone} />
-                ) : (
-                  !chips && <Dash />
-                )}
-                {chips && <div className={cn(note && "mt-1.5")}>{chips}</div>}
-              </Td>
-            );
-          case "actions":
-            // Full strength on a voided row: an admin may still delete a line
-            // that should never have been logged, and a 55%-opacity control is
-            // a control the reader has to squint at.
-            return (
-              <Td key={slot} align="right" className="align-top">
-                {actions}
-              </Td>
-            );
-        }
-      })}
-    </Tr>
+    <li
+      id={anchor}
+      className={cn(
+        "group/row px-3 py-1.5 transition-colors hover:bg-canvas sm:px-4",
+        index != null && "deal-in",
+      )}
+      style={stagger}
+    >
+      <div className="flex items-center gap-2">
+        {/* A fixed column from `sm` up, so a ledger of forty rows has its
+            names starting in one place; auto below it, where 96px of mostly
+            empty date would come out of the names themselves. */}
+        <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-fg sm:w-24">
+          {formatDate(date)}
+        </span>
+        {/* Both people on ONE line. The student led the mentor by a line break
+            in the table this replaces, which read as two facts and cost every
+            row its second line. `min-w-0` is what lets each chip truncate
+            instead of the pair wrapping. */}
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          {/* Half each when both are here, and the cap lives on a WRAPPER
+              rather than on the chip: `cn` joins classes without resolving
+              conflicts, so a `max-w` passed to `PersonChip` lands beside its
+              own `max-w-full` and loses. The cap matters because flexbox
+              shrinks BOTH pills when the pair overflows — at 390px "Sitora"
+              was being cut to "S…" to buy room for a mentor with a long name.
+              Capped, the pair can never overflow, so a short name is never
+              shortened at all, and the long one ellipses its own label. */}
+          {showStudent && student && (
+            <span className={cn("min-w-0", showMentor && "max-w-[50%]")}>
+              <PersonChip person={student} size="sm" href={student.href} />
+            </span>
+          )}
+          {showMentor && (
+            <span
+              className={cn("min-w-0", showStudent && student && "max-w-[50%]")}
+            >
+              <PersonChip person={mentor} size="sm" href={mentor.href} />
+            </span>
+          )}
+        </span>
+        <span className="shrink-0 text-[13px]">{duration}</span>
+        {actions && <span className="shrink-0">{actions}</span>}
+      </div>
+
+      {secondLine && (
+        <div className="mt-px flex min-w-0 items-baseline gap-1.5 text-[13px] leading-snug">
+          {showTask && task && (
+            <span className={cn("max-w-[45%] shrink-0 truncate font-medium", textTone)}>
+              {task.purpose}
+            </span>
+          )}
+          {showNote && note && (
+            <ExpandableText
+              text={note}
+              lines={1}
+              className={cn("min-w-0 flex-1", voided ? "text-muted-fg" : "text-muted-fg")}
+            />
+          )}
+          {student?.program && (
+            <span className="max-w-32 shrink-0 truncate text-xs text-muted-fg">
+              {student.program}
+            </span>
+          )}
+          {chips}
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -560,7 +514,17 @@ export function sessionsCaption(sessions: readonly SessionEntry[]): string {
   }`;
 }
 
-export function SessionsTable({
+/**
+ * The ledger: two-line rows, and nothing around them.
+ *
+ * It was `SessionsTable` and it rendered a `<table>`; see the note at the top
+ * of this file for what that cost on a phone. What survives the change is the
+ * part that was actually load-bearing — which facts a row carries is decided
+ * ONCE here, for the whole list, rather than per row: a mentor's own log does
+ * not repeat their name down the page, and a student's ledger does not carry a
+ * Student column of one value.
+ */
+export function SessionsList({
   sessions,
   viewer,
   columns = DEFAULT_COLUMNS,
@@ -596,11 +560,8 @@ export function SessionsTable({
   const rowActions = sessions.map((s) => renderActions?.(s));
   const withActions = rowActions.some(Boolean);
 
-  // Two columns earn their place only when the rows span more than one of the
-  // thing they name. A mentor's own log would otherwise repeat their name down
-  // the page, and a student's ledger has a Student column of one value — both
-  // of which `MeetingsLog` already dropped, and both of which are how a table
-  // reaches seven columns without carrying seven facts.
+  // A person earns their place on the row only when the rows span more than
+  // one of them.
   const spansMentors = new Set(sessions.map((s) => s.mentor.id)).size > 1;
   const hasStudent = columns.includes("student") && sessions.some((s) => s.student);
   const resolved: SessionColumn[] = columns.filter((c) => {
@@ -612,19 +573,24 @@ export function SessionsTable({
   if (withActions) resolved.push("actions");
 
   return (
-    <Table framed={framed} columns={headerFor(resolved)} className={className}>
+    <ul
+      className={cn(
+        "divide-y divide-line/60",
+        framed && "overflow-hidden rounded-xl border border-line bg-surface shadow-sm",
+        className,
+      )}
+    >
       {sessions.map((session, i) => (
         <SessionRow
           key={session.id}
           session={session}
           viewer={viewer}
-          variant="table"
           columns={resolved}
           actions={rowActions[i]}
           index={i}
         />
       ))}
-    </Table>
+    </ul>
   );
 }
 
@@ -703,7 +669,7 @@ export function SessionsLog({
       }
       caption={tally}
     >
-      <SessionsTable
+      <SessionsList
         sessions={sessions}
         viewer={viewer}
         framed={false}

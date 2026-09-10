@@ -20,7 +20,7 @@ export type ActionState =
 
 /** What a completed write produced, for a page that shows a receipt. */
 export type ActionReceipt = {
-  /** The row just written, so "Correct" can open it. */
+  /** The row just written, so "Edit it" can open it. */
   id: string;
   /** The short version: "Logged 90 min with Aziza." */
   headline: string;

@@ -504,7 +504,7 @@ const META: Record<StatusType, Meta> = {
       staff: {
         kind: "actionable",
         label: () => "Disputed",
-        explanation: () => "Correct or void the session, or ask them what happened.",
+        explanation: () => "Edit or void the session, or ask them what happened.",
       },
       mentor: {
         kind: "informational",

@@ -1,6 +1,6 @@
 import { SessionRowActions } from "@/components/forms/session-forms";
 import { MeetingRowActions } from "@/components/forms/meeting-forms";
-import { SessionsTable, toSessionEntries } from "@/components/session-row";
+import { SessionsList, toSessionEntries } from "@/components/session-row";
 import { Timeline, type TimelineEntry } from "@/components/timeline";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -283,7 +283,7 @@ export default async function SessionsPage({
         )
       ) : (
         <>
-          <SessionsTable
+          <SessionsList
             sessions={toSessionEntries(sessions, {
               mentorBase: "/mentors",
               studentBase: "/students",

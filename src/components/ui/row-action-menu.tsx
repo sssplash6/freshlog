@@ -50,9 +50,9 @@ export function RowActionMenu({
    * pencils reads as "these are editable" and a column of ⋮ does not.
    */
   trigger: "dots" | "pencil";
-  /** The trigger's accessible name, and the panel's: "Correct this session". */
+  /** The trigger's accessible name, and the panel's: "Edit this session". */
   label: string;
-  /** The word a pencil reveals on hover or focus — "Correct", "Change". */
+  /** The word a pencil reveals on hover or focus — "Edit", "Change". */
   verb?: string;
   children: React.ReactNode | ((api: { close: () => void }) => React.ReactNode);
   /** `"actions"` only when the panel holds no fields at all. See `Popover`. */

@@ -318,7 +318,7 @@ export function LogSessionForm({
       {noGoals && (
         <p className="mt-3 text-xs text-muted-fg">
           No tasks assigned to you for this student yet — log the session
-          anyway, and it can be attached to a task later with “Correct”.
+          anyway, and it can be attached to a task later with “Edit”.
         </p>
       )}
 

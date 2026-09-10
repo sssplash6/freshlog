@@ -15,8 +15,13 @@ import {
 } from "@/lib/actions/sessions";
 
 /**
- * Correct, void or remove one logged session. A mentor gets this on their own
+ * Edit, void or remove one logged session. A mentor gets this on their own
  * rows; an admin gets it on every row, plus Delete.
+ *
+ * The verb is "Edit". It was "Correct", which is what the act is called in the
+ * product's own vocabulary — a session is a ledger line and correcting one is
+ * a deliberate word — but the pencil beside a row is read in half a second,
+ * and the word everybody already knows for a pencil is Edit.
  *
  * Void and delete are different tools on purpose. Voiding keeps the row and
  * hands the hours back — the meeting is part of the history even though it
@@ -56,8 +61,8 @@ export function SessionRowActions({
   return (
     <RowActionMenu
       trigger="pencil"
-      label={canEdit ? "Correct this session" : "Manage this session"}
-      verb={canEdit ? "Correct" : "Manage"}
+      label={canEdit ? "Edit this session" : "Manage this session"}
+      verb={canEdit ? "Edit" : "Manage"}
       width="lg"
     >
       {!canEdit && (
@@ -80,7 +85,7 @@ export function SessionRowActions({
       )}
 
       {canEdit && (
-        <RowActionGroup label="Correct this session">
+        <RowActionGroup label="Edit this session">
           <form action={editAction} className="space-y-3">
             <input type="hidden" name="sessionId" value={session.id} />
 

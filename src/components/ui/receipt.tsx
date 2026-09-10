@@ -11,7 +11,7 @@ import type { ActionReceipt } from "@/lib/actions/shared";
  * states the outcome, its consequences, and the three things anyone wants next
  * — fix it, do it again, go look at it.
  *
- * "Correct" comes first on purpose. The moment a mentor reads "90 min" and
+ * "Edit it" comes first on purpose. The moment a mentor reads "90 min" and
  * meant 60 is the moment they can still fix it in one tap, and burying that
  * behind a trip to the student's page is how a wrong number becomes permanent.
  */
@@ -44,7 +44,7 @@ export function Receipt({
         </ul>
       )}
       <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-line pt-3">
-        {correctHref && <ArrowLink href={correctHref} className="text-sm">Correct it</ArrowLink>}
+        {correctHref && <ArrowLink href={correctHref} className="text-sm">Edit it</ArrowLink>}
         {onAgainHref && <ArrowLink href={onAgainHref} className="text-sm">{againLabel}</ArrowLink>}
         {subject && (
           <ArrowLink href={`/mentor/students/${subject.id}`} className="text-sm">

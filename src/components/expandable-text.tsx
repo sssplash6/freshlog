@@ -2,8 +2,11 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 
+import { cn } from "@/lib/cn";
+
 /** Only the clamps the callers use; Tailwind can't see a computed class name. */
 const CLAMP: Record<number, string> = {
+  1: "line-clamp-1",
   2: "line-clamp-2",
   3: "line-clamp-3",
 };
@@ -14,6 +17,10 @@ const CLAMP: Record<number, string> = {
  * row forty lines tall costs every other row its scanability. A "Show more"
  * toggle unfolds the full text in place, and only appears when the clamp
  * actually cut something off.
+ *
+ * At `lines={1}` the toggle goes INLINE, after the text rather than under it.
+ * A one-line clamp exists to keep a row one line tall, and a block-level
+ * "Show more" beneath it would spend the line it just saved.
  */
 export function ExpandableText({
   text,
@@ -22,7 +29,7 @@ export function ExpandableText({
 }: {
   text: string;
   /** How many lines survive the clamp — 2 in a narrow column, 3 in prose. */
-  lines?: 2 | 3;
+  lines?: 1 | 2 | 3;
   /** The tone the text carries in its own column. */
   className?: string;
 }) {
@@ -37,11 +44,18 @@ export function ExpandableText({
     }
   }, [open, text]);
 
+  const tight = lines === 1 && !open;
+
   return (
-    <div>
+    <div className={tight ? "flex min-w-0 items-baseline gap-1.5" : undefined}>
       <div
         ref={ref}
-        className={`whitespace-pre-line ${className} ${open ? "" : CLAMP[lines]}`}
+        className={cn(
+          "whitespace-pre-line",
+          className,
+          open ? "" : CLAMP[lines],
+          tight && "min-w-0 flex-1"
+        )}
       >
         {text}
       </div>
@@ -49,7 +63,10 @@ export function ExpandableText({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="mt-1 text-xs font-medium text-brand hover:underline"
+          className={cn(
+            "shrink-0 text-xs font-medium text-brand hover:underline",
+            tight ? "" : "mt-1"
+          )}
         >
           {open ? "Show less" : "Show more"}
         </button>
