@@ -1,6 +1,5 @@
 import { AttentionList } from "@/components/attention-list";
 import { ApproveStudentButtons } from "@/components/forms/approve-student-buttons";
-import { Timeline, type TimelineEntry } from "@/components/timeline";
 import { Figure } from "@/components/ui/figure";
 import { ArrowLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
@@ -77,8 +76,6 @@ const NEEDS_YOU = new Set<StatusType>([
 /** At most twenty rows, and more than three of one state collapse to a line. */
 const ROW_CAP = 20;
 const ROLL_UP_AT = 3;
-/** Up next is a week's diary, not a ledger. */
-const UP_NEXT_CAP = 10;
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -181,8 +178,7 @@ export default async function AdminInboxPage() {
       _sum: { minutes: true },
     }),
     // Still in the diary: not cancelled, not held, nothing logged against it.
-    // Both a passed meeting for Needs you and the week ahead for Up next come
-    // out of this one list.
+    // A meeting that has passed unlogged is the row worth finding here.
     prisma.interview.findMany({
       where: {
         sessionId: null,
@@ -215,7 +211,6 @@ export default async function AdminInboxPage() {
   ]);
 
   const programById = new Map(programs.map((p) => [p.id, p]));
-  const studentById = new Map(students.map((s) => [s.id, s]));
   // The soonest use-by date used to be a query of its own — `_min(deadline)`
   // per (student, program) — handed to `studentStatuses` beside a total
   // remaining that came from somewhere else. Two sources for the two halves of
@@ -340,9 +335,7 @@ export default async function AdminInboxPage() {
     );
   }
 
-  // A meeting is in exactly one state, and both sections below read it: Needs
-  // you keeps the ones that have passed unlogged, Up next carries the rest as a
-  // chip. Deciding it once is also what stops the two disagreeing.
+  // A meeting is in exactly one state, decided once.
   const meetingState = new Map(
     meetings.map((m) => [
       m.id,
@@ -386,49 +379,6 @@ export default async function AdminInboxPage() {
   );
   const shown = needsYou.slice(0, ROW_CAP);
   const spilled = needsYou.length - shown.length;
-
-  /**
-   * Up next is chronology, whatever the row is about: a use-by date three days
-   * out matters more than a meeting next month, and both belong to the same
-   * question. Task due dates join them once `Assignment.deadline` becomes a
-   * real date (M6) — today it holds free text like "March-May", which is why
-   * `TASK_OVERDUE` is dormant rather than guessed at.
-   */
-  const upNext: TimelineEntry[] = [];
-  for (const m of meetings) {
-    upNext.push({
-      id: m.id,
-      at: m.scheduledAt,
-      hasTime: m.hasTime,
-      // Staff are neither party, and the row has one slot for a person. The
-      // student gets the chip because the row is about them and links to them;
-      // the mentor is named in the title, because who is running the meeting is
-      // the one fact an admin cannot recover from anywhere else on this page.
-      title: `Meeting with ${m.mentor.name ?? m.mentor.email}`,
-      status: meetingState.get(m.id),
-      person: m.student.user,
-      href: `/students/${m.studentId}`,
-      joinUrl: m.link,
-      note: m.note,
-    });
-  }
-  for (const { status: s } of flags) {
-    if (s.type !== "ALLOCATION_EXPIRING" || !s.subject || !s.at) continue;
-    const student = studentById.get(s.subject.id);
-    upNext.push({
-      // The program is in the key: a student expiring in two programs is two
-      // rows, and keying on the student alone gave them the same React key.
-      id: `use-by-${s.subject.id}-${s.program?.id ?? ""}`,
-      at: s.at,
-      hasTime: false,
-      // The chip already says "4h 38m expires September 30", so the title names
-      // the kind of row rather than repeating the verb back.
-      title: "Use-by date",
-      status: s,
-      person: student?.user ?? null,
-      ...(s.href ? { href: s.href } : {}),
-    });
-  }
 
   const overall = programTotals(students);
   const rows = programs.map((p) => {
@@ -501,13 +451,6 @@ export default async function AdminInboxPage() {
         {...(spilled > 0
           ? { moreHref: "/students", moreLabel: `${spilled} more` }
           : {})}
-      />
-
-      <Timeline
-        entries={upNext}
-        now={now}
-        buckets={["today", "week"]}
-        limit={UP_NEXT_CAP}
       />
 
       {/* One program is the whole scope, and a table of one row that repeats

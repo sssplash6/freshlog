@@ -20,7 +20,15 @@ import {
 } from "@/lib/when";
 
 /**
- * "Up next" — everything with a date on it, in one list.
+ * Everything with a date on it, in one list.
+ *
+ * It was called "Up next" and it opened three pages — the admin inbox, a
+ * student's home and a program's overview — each with a week's diary above
+ * the thing the page was actually for. The owner asked for it gone, so the
+ * default title went with it: what survives is a diary a page asks for BY
+ * NAME, and there are two of those — "Coming up" on a student's meetings and
+ * "Scheduled" on the sessions log. `title` is required now, so nothing can
+ * quietly grow a fourth unnamed one.
  *
  * Three separate lists used to answer one question. Meetings were in
  * `ScheduledMeetings` with a 56px violet calendar leaf per row; use-by dates
@@ -88,7 +96,7 @@ const ORDER: Bucket[] = ["overdue", "today", "week", "later"];
 export function Timeline({
   entries,
   now,
-  title = "Up next",
+  title,
   /** Which buckets to render. `later` is usually a link, not a list. */
   buckets = ["overdue", "today", "week"],
   limit,
@@ -100,7 +108,8 @@ export function Timeline({
   entries: TimelineEntry[];
   /** One instant for the whole list, so two rows cannot disagree about today. */
   now: Date;
-  title?: string;
+  /** Required: see the note above about the section this used to default to. */
+  title: string;
   buckets?: Bucket[];
   limit?: number;
   moreHref?: string;

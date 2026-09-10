@@ -9,7 +9,6 @@ import {
 import { ApproveStudentButtons } from "@/components/forms/approve-student-buttons";
 import { AssignTaskForm } from "@/components/forms/assign-task-form";
 import { AllocationRowActions, TaskRowActions } from "@/components/forms/hours-forms";
-import { MeetingRowActions } from "@/components/forms/meeting-forms";
 import { ScheduleInterviewForm } from "@/components/forms/schedule-interview-form";
 import {
   RemoveStudentButton,
@@ -22,7 +21,6 @@ import {
 import { LedgerBoard } from "@/components/ledger-board";
 import { Avatar } from "@/components/avatar";
 import { PersonChip } from "@/components/person-chip";
-import { Timeline, type TimelineEntry } from "@/components/timeline";
 import { LinkButton } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -38,7 +36,6 @@ import {
   USER_STATUS,
   attendanceOf,
   canActAsMentor,
-  interviewIsOpen,
   timeKindOf,
 } from "@/lib/constants";
 import {
@@ -57,10 +54,8 @@ import {
   formatMinutes,
   formatMoney,
   toDateInputValue,
-  toTimeInputValue,
 } from "@/lib/format";
 import { allocationSummary } from "@/lib/hours";
-import { splitMeetings } from "@/lib/interviews";
 import { prisma } from "@/lib/prisma";
 import { profileOf } from "@/lib/profile";
 import {
@@ -70,7 +65,7 @@ import {
   taskOptionsForSessions,
   toProgramOptions,
 } from "@/lib/queries";
-import { meetingStatus, studentStatuses } from "@/lib/status";
+import { studentStatuses } from "@/lib/status";
 
 /**
  * One student, at one address, for everyone entitled to open them.
@@ -213,44 +208,6 @@ export default async function StudentWorkspacePage({
     },
     viewer
   );
-
-  const { upcoming } = splitMeetings(meetings, viewer.now);
-  const entries: TimelineEntry[] = upcoming
-    .filter(interviewIsOpen)
-    .map((m) => ({
-      id: m.id,
-      at: m.scheduledAt,
-      hasTime: m.hasTime,
-      timePending: !m.hasTime,
-      title: "Meeting",
-      status: meetingStatus(
-        {
-          id: m.id,
-          status: m.status,
-          scheduledAt: m.scheduledAt,
-          sessionId: m.sessionId,
-          student: { id: profile.id, name },
-        },
-        viewer
-      ),
-      person: { id: m.mentorId, name: m.mentor.name, email: m.mentor.email },
-      joinUrl: m.link,
-      note: m.note,
-      // Only the mentor who booked it may move it. An admin correcting
-      // somebody else's diary is not a thing this product does.
-      action:
-        m.mentorId === me.id ? (
-          <MeetingRowActions
-            meeting={{
-              id: m.id,
-              date: toDateInputValue(m.scheduledAt),
-              time: m.hasTime ? toTimeInputValue(m.scheduledAt) : "",
-              link: m.link,
-              note: m.note,
-            }}
-          />
-        ) : undefined,
-    }));
 
   const openTasks = ledger.assignments.filter(
     (t) => t.progress !== ASSIGNMENT_PROGRESS.DONE
@@ -475,12 +432,6 @@ export default async function StudentWorkspacePage({
           </div>
         </Section>
       )}
-
-      <Timeline
-        entries={entries}
-        now={viewer.now}
-        empty="Nothing scheduled with them."
-      />
 
       {/* The two halves of the tracking sheet, side by side at ≥lg and stacked
           below. That is how the deleted board earns its keep: holding both at

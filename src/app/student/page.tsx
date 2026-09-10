@@ -7,7 +7,6 @@ import { InterviewResponse } from "@/components/forms/interview-response";
 import { HoursBreakdown } from "@/components/hours-breakdown";
 import { HoursRing } from "@/components/hours-ring";
 import { PersonChip } from "@/components/person-chip";
-import { Timeline, type TimelineEntry } from "@/components/timeline";
 import { Disclosure } from "@/components/ui/disclosure";
 import { SessionRow, toSessionEntries } from "@/components/session-row";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -18,7 +17,6 @@ import { StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
 import {
   ASSIGNMENT_PROGRESS,
-  INTERVIEW_STATUS,
   ROLES,
   USER_STATUS,
   interviewIsOpen,
@@ -27,7 +25,6 @@ import { requireRole } from "@/lib/dal";
 import { formatDate, formatMinutes } from "@/lib/format";
 import { enrollmentsLabel } from "@/lib/enrollments";
 import { allocationSummary } from "@/lib/hours";
-import { bucketOf } from "@/lib/when";
 import { prisma } from "@/lib/prisma";
 import {
   assignmentsForStudentWhere,
@@ -366,48 +363,6 @@ export default async function StudentHomePage() {
     viewer
   ).filter((s) => s.type !== "ALL_CLEAR");
 
-    const upNext: TimelineEntry[] = open.map(({ meeting: m, status }) => ({
-    id: m.id,
-    at: m.scheduledAt,
-    hasTime: m.hasTime,
-    // A meeting with no time yet is waiting on the mentor, not an all-day
-    // event — the wording the section this replaced got right.
-    timePending: !m.hasTime,
-            // No title: the mentor's chip beside it in a section called "Up next" is
-    // already the whole sentence.
-    // The chip goes when the answer buttons are here: `InterviewResponse`
-    // renders the chosen answer as the quieter of its two buttons, so a
-    // "✓ You're confirmed" chip beside a "You're confirmed" button is the
-    // same fact twice — the redundancy the section this replaced also had.
-    // A meeting still awaiting an answer keeps its chip, because its buttons
-    // are up in Needs you and the row would otherwise say nothing.
-        status:
-      bucketOf(m.scheduledAt, now) === "overdue" ||
-      m.status === INTERVIEW_STATUS.PROPOSED
-        ? status
-        : undefined,
-    person: m.mentor,
-    joinUrl: m.link,
-    note: m.note,
-    // The answer lives with the meeting once it HAS an answer, because
-    // changing your mind is not something that "needs you" — it is something
-    // you go and do. `InterviewResponse` keeps both buttons live and quiets
-    // the one already chosen, so a student who confirmed on Monday can still
-    // say they cannot make Thursday. Putting the control only on the awaiting
-    // row in Needs you removed that, and silence is not an answer.
-    //
-    // Never both places at once: an unanswered meeting is answered up in Needs
-    // you, and this branch is the complement of that condition.
-        // No answer on a row that cannot be answered: a meeting still awaiting one
-    // is answered up in Needs you, and one whose day has gone is not a
-    // question any more.
-    action:
-      m.status === INTERVIEW_STATUS.PROPOSED ||
-      bucketOf(m.scheduledAt, now) === "overdue" ? undefined : (
-        <InterviewResponse interviewId={m.id} status={m.status} />
-      ),
-  }));
-
   const finished = tasks.filter((t) => t.task.progress === ASSIGNMENT_PROGRESS.DONE);
   // In progress first, then not started: a plan reads forward.
   const live = [
@@ -457,18 +412,6 @@ export default async function StudentHomePage() {
             <InterviewResponse interviewId={meeting.id} status={meeting.status} />
           ) : null;
         }}
-      />
-
-            {/* Overdue is included, and it has to be: a meeting that happened
-          yesterday and has not been written up yet was simply disappearing
-          from a student's week. They can do nothing about it, so the row is
-          informational and says whose move it is. */}
-      <Timeline
-        entries={upNext}
-        now={now}
-        buckets={["overdue", "today", "week"]}
-        moreHref="/student/meetings"
-        moreLabel="All meetings"
       />
 
       {(hours.allotted > 0 || hours.used > 0 || hours.extra > 0) && (

@@ -211,7 +211,7 @@ export default async function MentorHomePage({
             // Informational rows are kept. §6.2 puts "awaiting the student's answer"
       // in this list on purpose, and dropping it here meant a mentor who booked
       // an interview for the 25th never learned the student had not replied —
-      // Up next only reaches seven days out, so the row existed nowhere. They
+      // no diary reaches that far out, so the row existed nowhere. They
       // do not count toward the badge; `attentionList` sorts them last.
       if (!state) return [];
       return [
