@@ -11,9 +11,13 @@ import { cn } from "@/lib/cn";
  * stat cards meant holding four figures at once and subtracting; as segments
  * of one bar the proportions are the answer.
  *
- * Extra hours sit OUTSIDE the bar on purpose. They were completed but charged
- * to nobody, so putting them inside a total they were never part of would make
- * the bar lie about what was bought.
+ * Extra hours are DRAWN PAST THE END of the total, after a gap, and outlined
+ * rather than filled. They were delivered but charged to nobody, so folding
+ * them into the total would make the bar lie about what was bought — but
+ * leaving them off it entirely, which is what this did, left the one figure
+ * in the key with no mark of its own beside it and nothing on the bar to
+ * find. The gap is what says "past the end"; the outline is what says
+ * "delivered, but not out of this".
  */
 
 type Segment = {
@@ -31,7 +35,12 @@ type Segment = {
    * dot for completed, a striped square for charged-but-missed, a hollow ring
    * for what is still the student's.
    */
-  swatch?: "striped" | "ring";
+  swatch?: "striped" | "ring" | "outline";
+  /**
+   * Drawn after a gap, past the end of what was bought. Only `extra` is: it
+   * is the one quantity on this bar that the total never paid for.
+   */
+  detached?: boolean;
 };
 
 export function HoursBreakdown({
@@ -104,13 +113,29 @@ export function HoursBreakdown({
       ink: overdrawn ? "text-danger-ink" : "text-ink",
       swatch: overdrawn ? undefined : "ring",
     },
+    {
+      key: "extra",
+      label: "Extra, beyond plan",
+      minutes: extra,
+      // Delivered time, so the accent hue — hollow, because nothing paid for
+      // it. The same move the striped segment makes: one hue for time that
+      // was delivered, told apart by treatment rather than by a second warm
+      // colour nine degrees away.
+      fill: "border border-accent bg-surface",
+      ink: "text-ink",
+      swatch: "outline",
+      detached: true,
+    },
   ];
 
   // The bar is drawn over whichever is larger — the total, or what has
   // actually been drawn against it. Without that an overdrawn student's bar
   // would be a full accent block with the overdraw invisible past its end.
+  // Extra is added to the span rather than competing for it: every segment
+  // shares one denominator, or the widths do not add up to the bar.
   const drawn = completed + missed + forfeited;
-  const span = Math.max(allotted, drawn + (overdrawn ? -remaining : 0), 0.01);
+  const span =
+    Math.max(allotted, drawn + (overdrawn ? -remaining : 0), 0.01) + extra;
 
     const shown = segments.filter((s) => s.minutes > 0.001);
   // An overdraw is always named, whatever the caller said: it is not the
@@ -126,7 +151,10 @@ export function HoursBreakdown({
         {shown.map((s) => (
           <div
             key={s.key}
-            className={cn("h-full", s.fill)}
+            // `ml-0.5` is the gap, and it comes out of the track's own grey —
+            // a 2px break is what stops the outlined block reading as the
+            // next slice of the total.
+            className={cn("h-full", s.detached && "ml-0.5", s.fill)}
             style={{ width: `${(s.minutes / span) * 100}%`, ...s.style }}
           />
         ))}
@@ -155,7 +183,9 @@ export function HoursBreakdown({
                     ? "rounded-[2px]"
                     : s.swatch === "ring"
                       ? "rounded-full border border-muted-fg/50"
-                      : cn("rounded-full", s.fill)
+                      : s.swatch === "outline"
+                        ? "rounded-full border border-accent"
+                        : cn("rounded-full", s.fill)
                 )}
               />
               {s.label}
@@ -170,22 +200,12 @@ export function HoursBreakdown({
             </dd>
           </div>
         ))}
-        {extra > 0 && (
-          <div>
-            <dt className="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-fg">
-              Extra, beyond plan
-            </dt>
-            <dd className="mt-0.5 text-[15px] font-bold tabular-nums text-ink">
-              {formatDuration(extra)}
-            </dd>
-          </div>
-        )}
       </dl>
 
       {extra > 0 && (
-        <p className="mt-2.5 text-xs text-muted-fg">
+        <p className="mt-2 text-xs text-muted-fg">
           {formatDuration(extra)} was given on top of the total and drew none
-          of it down, so it sits outside the bar.
+          of it down, so it is drawn past the end of the bar.
         </p>
       )}
     </div>
