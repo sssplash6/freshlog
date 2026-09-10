@@ -51,7 +51,7 @@ export default async function SettingsPage() {
   const prefOf = new Map(prefs.map((p) => [p.category, p]));
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-4">
       <PageTitle title="Settings" />
 
       <Section eyebrow="How you appear" title="Profile">
@@ -93,7 +93,7 @@ export default async function SettingsPage() {
           title="Booking links"
           caption="Students book you through these."
         >
-          <div className="px-4 py-4 sm:px-5">
+          <div className="px-4 py-2 sm:px-5">
             <BookingLinksForm
               assignments={assignments.map((a) => ({
                 id: a.id,

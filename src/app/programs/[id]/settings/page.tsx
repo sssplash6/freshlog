@@ -88,7 +88,7 @@ export default async function ProgramSettingsPage({
         : undefined;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <Section
         eyebrow="People"
         title="Mentors"
@@ -129,7 +129,7 @@ export default async function ProgramSettingsPage({
           </div>
         )}
         {eligibleMentors.length > 0 && (
-          <div className="border-t border-line px-4 py-4 sm:px-5">
+          <div className="border-t border-line px-4 py-2 sm:px-5">
             <AssignMentorForm
               programId={program.id}
               mentors={eligibleMentors}
@@ -157,7 +157,7 @@ export default async function ProgramSettingsPage({
               return (
                 <li
                   key={c.id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
+                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-5"
                 >
                   <div>
                     <div className="font-medium text-ink">{c.name}</div>
@@ -180,7 +180,7 @@ export default async function ProgramSettingsPage({
             })}
           </ul>
         )}
-        <div className="border-t border-line px-4 py-4 sm:px-5">
+        <div className="border-t border-line px-4 py-2 sm:px-5">
           <CreateCohortForm programId={program.id} />
         </div>
       </Section>
@@ -204,7 +204,7 @@ export default async function ProgramSettingsPage({
             {grants.map((g) => (
               <li
                 key={g.id}
-                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-5"
               >
                 <PersonChip person={g.user} size="sm" />
                 <span className="text-xs text-muted-fg">
@@ -246,7 +246,7 @@ export default async function ProgramSettingsPage({
         title="Delete this program"
         caption="Only possible once nothing is left in it"
       >
-        <div className="px-4 py-4 sm:px-5">
+        <div className="px-4 py-2 sm:px-5">
           <DeleteProgramButton
             programId={program.id}
             programName={program.name}

@@ -41,7 +41,7 @@ export function FactList({
         // call site, never a reordered or filtered collection.
         <div
           key={i}
-          className="flex flex-col gap-x-6 gap-y-1 py-3 sm:flex-row sm:items-baseline"
+          className="flex flex-col gap-x-6 gap-y-1 py-2 sm:flex-row sm:items-baseline"
         >
           <dt className="text-xs font-semibold uppercase tracking-[0.07em] text-muted-fg sm:w-40 sm:shrink-0">
             {fact.label}

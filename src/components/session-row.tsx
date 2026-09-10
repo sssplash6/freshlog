@@ -239,7 +239,7 @@ export function SessionRow({
     return (
       <li
         id={anchor}
-        className={cn("group flex gap-4 pb-5 last:pb-0", index != null && "deal-in")}
+        className={cn("group flex gap-4 pb-3 last:pb-0", index != null && "deal-in")}
         style={stagger}
       >
         {/* The rail: a dot in the mentor's own hue, so a run of sessions with
@@ -261,6 +261,10 @@ export function SessionRow({
             <PersonChip person={mentor} size="sm" href={mentor.href} />
             <span className="tabular-nums text-muted-fg">{formatDate(date)}</span>
             {duration}
+            {/* On the header line, not under the row. A pencil on a line of
+                its own is a whole row of height per session, down a ledger
+                that is read by scrolling. */}
+            {actions && <span className="ml-auto shrink-0">{actions}</span>}
           </div>
           {task && (
             <div className="mt-1.5">
@@ -308,8 +312,7 @@ export function SessionRow({
               )}
             </div>
           )}
-          {chips && <div className="mt-2">{chips}</div>}
-          {actions && <div className="mt-1.5 flex flex-wrap items-center gap-2">{actions}</div>}
+          {chips && <div className="mt-1">{chips}</div>}
         </div>
       </li>
     );

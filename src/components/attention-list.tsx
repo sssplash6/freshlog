@@ -80,7 +80,7 @@ export function AttentionList({
       }
     >
       {statuses.length === 0 ? (
-        <p className="px-4 py-3 text-sm text-muted-fg sm:px-5">
+        <p className="px-4 py-2 text-sm text-muted-fg sm:px-5">
           {empty ?? "Nothing needs you."}
         </p>
       ) : (
@@ -137,7 +137,7 @@ function AttentionRow({
   );
 
   return (
-    <li className="group/row flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-5">
+    <li className="group/row flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 sm:px-5">
       {href && !action ? (
         // The row is the target. `min-w-0` so the subject's truncate works;
         // without it the name sets the width and pushes the arrow off.

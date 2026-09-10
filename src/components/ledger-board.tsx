@@ -198,7 +198,7 @@ export function LedgerBoard({
       >
 
       {/* The sheet's right-hand totals, given the width they deserve. */}
-      <div className="border-b border-line px-4 py-4 sm:px-5">
+      <div className="border-b border-line px-4 py-2 sm:px-5">
         <HoursBreakdown
           allotted={totals.allotted}
           completed={totals.completed}

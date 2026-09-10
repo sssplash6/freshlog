@@ -103,7 +103,7 @@ export default async function StudentMeetingsPage() {
     (now.getTime() - s.date.getTime()) / 86_400_000 <= CONFIRM_WINDOW_DAYS;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageTitle
         backHref="/student"
         backLabel="Home"
@@ -128,7 +128,7 @@ export default async function StudentMeetingsPage() {
             Your first one will be here once a mentor logs it.
           </EmptyState>
         ) : (
-          <ul className="px-4 py-4 sm:px-5">
+          <ul className="px-4 py-2 sm:px-5">
             {past.map((s, i) => (
               <SessionRow
                 key={s.id}

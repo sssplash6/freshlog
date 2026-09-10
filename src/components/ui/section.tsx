@@ -5,7 +5,23 @@ import { ArrowLeftIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 
 /**
- * Page and section chrome: one treatment each, no tones.
+ * Page and section chrome: one treatment each, no tones — and ONE SPACING
+ * SCALE, which is what this file is the source of.
+ *
+ * Three steps, and there is no fourth:
+ *
+ *   space-y-4   between top-level blocks of a page. It was 4, 5, 6 and 8
+ *               across seventeen pages, so no two pages had the same rhythm
+ *               and every one of them scrolled further than it needed to.
+ *   py-2.5      a section's HEADER band, and only that (`Section`, below)
+ *   py-2        everything INSIDE a section — a body, a list row, a table
+ *               cell. It was 2, 2.5, 3, 3.5, 4 and 5, chosen per call site.
+ *
+ * Horizontal is `px-4 sm:px-5` throughout and was already consistent.
+ *
+ * Nothing here is a matter of taste about air: the owner reads this product on
+ * a phone, and every step this file gives back is a row that fits on the
+ * screen instead of below it.
  *
  * What this replaces was a system where a region's colour said who owned its
  * data — amber for what mentors logged, violet for what admins planned, blue
@@ -65,7 +81,7 @@ export function PageTitle({
   className?: string;
 }) {
   return (
-    <div className={cn("space-y-2.5", className)}>
+    <div className={cn("space-y-2", className)}>
       {backHref && (
         <Link
           href={backHref}
@@ -75,7 +91,7 @@ export function PageTitle({
           {backLabel}
         </Link>
       )}
-      <div className="flex flex-wrap items-end justify-between gap-x-5 gap-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-x-5 gap-y-2">
         {/* The picture and the words it belongs to are ONE group, centred on
             each other. They used to be siblings of the whole row, which is
             end-aligned so the actions sit on the baseline — so a 64px avatar
@@ -85,10 +101,10 @@ export function PageTitle({
           {leading && <div className="shrink-0">{leading}</div>}
           <div className="min-w-0 flex-1">
             {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-            <h1 className="mt-1 text-[28px] font-bold leading-tight tracking-tight text-ink sm:text-[32px]">
+            <h1 className="mt-0.5 text-[28px] font-bold leading-tight tracking-tight text-ink sm:text-[32px]">
               {title}
             </h1>
-            {subtitle && <div className="mt-1.5 text-[15px] text-muted-fg">{subtitle}</div>}
+            {subtitle && <div className="mt-1 text-[15px] text-muted-fg">{subtitle}</div>}
           </div>
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -125,7 +141,7 @@ export function Section({
       className={cn("overflow-hidden rounded-2xl border border-line bg-surface shadow-sm", className)}
       {...props}
     >
-      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-line px-4 py-3.5 sm:px-5">
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1.5 border-b border-line px-4 py-2.5 sm:px-5">
         <div className="min-w-0">
           {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
           <h2 className="mt-0.5 flex items-baseline gap-1.5 text-[17px] font-bold tracking-tight text-ink">

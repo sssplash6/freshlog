@@ -73,7 +73,7 @@ export default async function LogSessionPage({
     : "/mentor";
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-4">
       <PageTitle backHref={back} backLabel="Back" title="Log a session" />
 
       {students.length === 0 ? (

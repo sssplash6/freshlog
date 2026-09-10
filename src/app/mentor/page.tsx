@@ -176,7 +176,7 @@ export default async function MentorHomePage({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageTitle
         eyebrow="Mentor"
         title="Inbox"

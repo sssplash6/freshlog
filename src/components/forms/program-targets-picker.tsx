@@ -206,7 +206,7 @@ export function ProgramTargetsPicker({
         )}
       >
         {visible.length === 0 && (
-          <li className="px-3 py-3 text-sm text-muted-fg">
+          <li className="px-3 py-2 text-sm text-muted-fg">
             No program matches “{query.trim()}”.
           </li>
         )}

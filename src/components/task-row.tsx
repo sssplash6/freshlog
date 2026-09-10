@@ -330,7 +330,7 @@ export function TaskRow({
     return (
       <li
         id={anchor}
-        className={cn("px-4 py-3 sm:px-5", index != null && "deal-in")}
+        className={cn("px-4 py-2 sm:px-5", index != null && "deal-in")}
         style={stagger}
       >
         {/* Two columns from sm up, because the one-column version left the
@@ -664,7 +664,7 @@ export function TasksPanel({
             framed={false}
           />
 
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-line bg-canvas px-4 py-3 text-xs sm:px-5">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-line bg-canvas px-4 py-2 text-xs sm:px-5">
             <span className="text-muted-fg">
               <span className="font-semibold tabular-nums text-ink">
                 {formatDuration(logged)}
@@ -690,7 +690,7 @@ export function TasksPanel({
       )}
 
       {children && (
-        <div className="border-t border-line px-4 py-4 sm:px-5">{children}</div>
+        <div className="border-t border-line px-4 py-2 sm:px-5">{children}</div>
       )}
     </Section>
   );

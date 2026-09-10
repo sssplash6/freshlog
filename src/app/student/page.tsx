@@ -36,7 +36,7 @@ function TaskRow({ task, statuses }: { task: LedgerAssignment; statuses: Status[
   const over = budget > 0 && task.loggedMinutes > budget;
 
   return (
-    <li className="border-b border-line bg-surface px-4 py-3.5 sm:px-5 sm:[&:nth-child(odd)]:border-r">
+    <li className="border-b border-line bg-surface px-4 py-2 sm:px-5 sm:[&:nth-child(odd)]:border-r">
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
         {/* A purpose is occasionally written as a paragraph rather than a name,
             and one such row must not cost every other row its scanability. */}
@@ -191,7 +191,7 @@ export default async function StudentHomePage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageTitle
         eyebrow={
           enrollmentsLabel(profile.enrollments)
@@ -221,7 +221,7 @@ export default async function StudentHomePage() {
 
       {(hours.allotted > 0 || hours.used > 0 || hours.extra > 0) && (
         <Section title="Your time">
-          <div className="px-4 py-4 sm:px-5">
+          <div className="px-4 py-2 sm:px-5">
             <HoursBreakdown
               allotted={hours.allotted}
               completed={hours.completed}

@@ -229,7 +229,7 @@ export default async function StudentWorkspacePage({
   const primaryIsLog = lens === "mentor";
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <PageTitle
         backHref="/students"
         backLabel="Students"
@@ -393,7 +393,7 @@ export default async function StudentWorkspacePage({
           title="Allocate time"
           caption="The hours go to the student; naming a mentor and a task can wait."
         >
-          <div className="px-4 py-4 sm:px-5">
+          <div className="px-4 py-2 sm:px-5">
             <AssignTaskForm
               studentProfileId={profile.id}
               programs={enrollments.map((e) => ({
@@ -418,7 +418,7 @@ export default async function StudentWorkspacePage({
         caption="What sessions draw down, and the date each pool expires"
       >
         {tracksPayment && manages && (
-          <div className="px-4 pt-4 sm:px-5">
+          <div className="px-4 pt-3 sm:px-5">
             <Figure label="Paid" value={formatMoney(hours.paid)} tone="muted" />
           </div>
         )}
@@ -466,7 +466,7 @@ export default async function StudentWorkspacePage({
         )}
 
         {manages && changes.length > 0 && (
-          <div className="border-t border-line px-4 py-3 sm:px-5">
+          <div className="border-t border-line px-4 py-2 sm:px-5">
             <Disclosure label="History" count={changes.length}>
               <ul className="divide-y divide-line/60 text-sm">
                 {changes.map((c) => (
@@ -555,7 +555,7 @@ export default async function StudentWorkspacePage({
               ]}
             />
           </div>
-          <div className="border-t border-line px-4 py-4 sm:px-5">
+          <div className="border-t border-line px-4 py-2 sm:px-5">
             <RemoveStudentButton
               studentProfileId={profile.id}
               name={name}

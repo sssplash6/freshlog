@@ -73,7 +73,7 @@ export default async function PlatformPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-4">
       <PageTitle
         title="Platform"
         subtitle="Who administers which program, and how this deployment is set up."

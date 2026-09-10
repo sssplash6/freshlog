@@ -103,7 +103,7 @@ export function FigureRow({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-end gap-x-12 gap-y-5 py-6",
+        "flex flex-wrap items-end gap-x-12 gap-y-3 py-2.5",
         framed && "border-y border-line px-1",
         className
       )}

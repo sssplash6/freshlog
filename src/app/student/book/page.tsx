@@ -166,7 +166,7 @@ export default async function StudentBookPage() {
       : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageTitle backHref="/student" backLabel="Home" title="Book a session" />
 
       {states.length > 0 && (
@@ -255,7 +255,7 @@ function MentorRow({
         : null;
 
   return (
-    <li className="border-b border-line bg-surface px-4 py-3.5 sm:px-5 sm:[&:nth-child(odd)]:border-r">
+    <li className="border-b border-line bg-surface px-4 py-2 sm:px-5 sm:[&:nth-child(odd)]:border-r">
       {/* Name and balance hold one line: the name truncates, the figure never
           does. As tinted pills the long names wrapped and pushed the balance
           onto a second row, so two cards side by side disagreed about where

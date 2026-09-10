@@ -227,7 +227,7 @@ async function MentorRecord({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="space-y-2">
         <PageTitle
           backHref={manages ? "/mentors" : undefined}
@@ -306,7 +306,7 @@ async function MentorRecord({
           >
             <div className="mt-2 space-y-4">
               <Section eyebrow="Yours" title="Picture and name">
-                <div className="space-y-5 p-4 sm:p-5">
+                <div className="space-y-4 p-4 sm:p-5">
                   <AvatarForm
                     person={{
                       id: mentor.id,
@@ -652,7 +652,7 @@ async function MentorCard({
   const first = mentor.name?.split(" ")[0] ?? name;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className="mx-auto max-w-2xl space-y-4">
       <PageTitle
         backHref={isStudent ? "/student/book" : undefined}
         backLabel={isStudent ? "Book" : undefined}
@@ -672,7 +672,7 @@ async function MentorCard({
         {visible.map((a) => (
           <li
             key={a.id}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface shadow-sm px-4 py-3"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface shadow-sm px-4 py-2"
           >
             {/* Named only when there is a choice to make. One pairing is
                 already named in the line under the h1, and a page of twenty

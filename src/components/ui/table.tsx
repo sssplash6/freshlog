@@ -56,7 +56,7 @@ export function Table({
               <th
                 key={i}
                 className={cn(
-                  "px-4 py-3 font-medium",
+                  "px-4 py-2 font-medium",
                   c.align === "right" && "text-right",
                 )}
               >
@@ -83,7 +83,7 @@ export function Tr({ className, ...props }: ComponentProps<"tr">) {
   return (
     <tr
       className={cn(
-        "block py-2 transition-colors hover:bg-canvas sm:table-row sm:py-0",
+        "block py-1.5 transition-colors hover:bg-canvas sm:table-row sm:py-0",
         className,
       )}
       {...props}
@@ -105,7 +105,7 @@ export function Td({
   return (
     <td
       className={cn(
-        "block px-4 py-1 sm:table-cell sm:py-3",
+        "block px-4 py-0.5 sm:table-cell sm:py-2",
         align === "right" && "sm:text-right",
         className,
       )}

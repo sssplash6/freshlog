@@ -58,7 +58,7 @@ export default async function ProgramLayout({
   const base = `/programs/${program.id}`;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageTitle
         backHref={toIndex ? "/programs" : "/admin"}
         backLabel={toIndex ? "Programs" : "Inbox"}

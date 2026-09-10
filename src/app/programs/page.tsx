@@ -104,7 +104,7 @@ export default async function ProgramsPage({
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageTitle
         title={
           <>

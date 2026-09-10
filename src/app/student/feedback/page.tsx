@@ -68,7 +68,7 @@ export default async function StudentFeedbackPage({
   const earlier = given.slice(RECENT);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageTitle backHref="/student" backLabel="Home" title="Rate a mentor" />
 
       {mentors.length > 0 ? (
@@ -114,7 +114,7 @@ type GivenFeedback = {
 
 function FeedbackRow({ feedback }: { feedback: GivenFeedback }) {
   return (
-    <li className="px-4 py-3.5 sm:px-5">
+    <li className="px-4 py-2 sm:px-5">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
         <PersonChip person={feedback.mentor} size="sm" />
         <Rating value={feedback.rating} />

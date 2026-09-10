@@ -195,7 +195,7 @@ async function OwnRatings({
   const avg = stats._avg.rating;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageTitle
         title="Feedback"
         subtitle={
@@ -214,7 +214,7 @@ async function OwnRatings({
           <Section title="Ratings" count={stats._count}>
             <ul className="divide-y divide-line">
               {rows.map((f) => (
-                <li key={f.id} className="px-4 py-3.5 sm:px-5">
+                <li key={f.id} className="px-4 py-2 sm:px-5">
                   <div className="flex items-center justify-between gap-3">
                     <Rating value={f.rating} />
                     <span className="text-xs text-muted-fg">
@@ -421,7 +421,7 @@ async function AllRatings({
   const rest = mentors.slice(WORST_SHOWN);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageTitle title="Feedback" subtitle={standing} />
 
       <FilterBar
@@ -512,7 +512,7 @@ async function AllRatings({
         ) : (
           <ul className="divide-y divide-line">
             {list.map((f) => (
-              <li key={f.id} className="px-4 py-3.5 sm:px-5">
+              <li key={f.id} className="px-4 py-2 sm:px-5">
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
                   <PersonChip
                     person={f.mentor}

@@ -160,7 +160,7 @@ export function Timeline({
       }
     >
       {total === 0 ? (
-        <p className="px-4 py-5 text-sm text-muted-fg sm:px-5">{empty}</p>
+        <p className="px-4 py-2 text-sm text-muted-fg sm:px-5">{empty}</p>
       ) : (
         shown.map((bucket) => {
           const group = grouped.get(bucket);

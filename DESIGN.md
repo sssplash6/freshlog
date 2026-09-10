@@ -145,6 +145,16 @@ that promise lives on the exact side of the line.
 A figure always carries its own unit, so no label or suffix repeats it. `Hrs`
 is a banned string (`scripts/check-copy.mjs`).
 
+Space is a scale of three steps and there is no fourth, enforced by
+`scripts/check-spacing.mjs`: `space-y-4` between top-level blocks of a page,
+`py-2.5` for a section's header band, `py-2` for everything inside a section —
+a body, a list row, a table cell. Horizontal is `px-4 sm:px-5` throughout. The
+scale is written down in `components/ui/section.tsx`, which owns two of the
+three. Before it, the page rhythm was 4, 5, 6 and 8 across seventeen pages and
+the padding inside a card was six different values chosen per call site;
+neither was a decision anybody made, and both cost rows off the bottom of the
+phone this product is read on.
+
 Push scale contrast: the `h1` and the one lead figure are unmistakably larger
 than everything around them — `lead` is 42px, `normal` 30px, `inline` 16px, and
 there is exactly one `lead` per page. Eyebrows are 11px small-caps, one size
@@ -167,7 +177,9 @@ APIs.
 four hand-written versions that disagreed about the same fact.
 
 - **`session-row`** — a logged session wherever one appears, in three shapes
-  (`table`, `timeline`, `line`). The four it replaces drew a voided session at
+  (`log`, `timeline`, `line`). `log` is TWO LINES at every width — who and how
+  long, then what it was about — and replaced a six-column table that a phone
+  stacked into eight labelled lines per session. The four it replaces drew a voided session at
   45%, 50% and 55% opacity, put 90 minutes in bold ink here and orange there,
   and each re-derived its own chips from a different source. No variant picks a
   word or a colour; `lib/status.ts` supplies both, already in the reader's

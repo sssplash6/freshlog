@@ -64,7 +64,7 @@ export default async function ProgramOverviewPage({
   const spilled = mentorRows.length - MENTORS_SHOWN;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Section
         title="Mentors"
         count={mentorRows.length}
@@ -77,7 +77,7 @@ export default async function ProgramOverviewPage({
         }
       >
         {mentorRows.length === 0 ? (
-          <p className="px-4 py-5 text-sm text-muted-fg sm:px-5">
+          <p className="px-4 py-2 text-sm text-muted-fg sm:px-5">
             Nobody teaches here yet. Settings pairs a mentor with the program.
           </p>
         ) : (
@@ -85,7 +85,7 @@ export default async function ProgramOverviewPage({
             {mentorRows.slice(0, MENTORS_SHOWN).map(({ mentor, cohorts, missingLink }) => (
               <li
                 key={mentor.id}
-                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-5"
+                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 sm:px-5"
               >
                 <span className="flex min-w-0 flex-wrap items-center gap-2">
                   {/* "Their mentors can have matching colours." This is the

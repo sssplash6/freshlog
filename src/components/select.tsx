@@ -519,7 +519,7 @@ export function Select({
               className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1"
             >
               {rows.length === 0 && (
-                <li className="px-2.5 py-3 text-sm text-muted-fg">
+                <li className="px-2.5 py-2 text-sm text-muted-fg">
                   Nothing matches “{query.trim()}”.
                 </li>
               )}
