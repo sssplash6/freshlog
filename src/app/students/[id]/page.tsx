@@ -170,20 +170,29 @@ export default async function StudentWorkspacePage({
   const isPending = profile.user.status === USER_STATUS.PENDING;
   const handle = profile.telegramUsername?.replace(/^@/, "");
 
-  // What this reader may log against: their own grant, or the unassigned pool
-  // while it is live. Stated once, and the button says the reason when it is
-  // false rather than vanishing — a control that disappears is a control the
-  // reader thinks is broken.
+  // May this reader log a session here?
+  //
+  // Reach and approval, and nothing else. It used to also require the reader
+  // to hold a grant or find a live unassigned pool — which disabled the button
+  // for every mentor working in the student's program who had simply not been
+  // granted hours yet, and for every mentor whose allocation had expired. The
+  // action never agreed: a mentor in the program may log without holding
+  // anything, an in-plan log against an empty balance overdraws rather than
+  // failing, and extra hours are loggable past a deadline. A button disabled
+  // where the action would have said yes is a permission invented by the page.
+  //
+  // What the reader holds is still worth saying, so it is said as a hint under
+  // the button rather than as a block on it.
   const mine = hours.perMentor.find((m) => m.mentor?.id === me.id);
   const pool = hours.perMentor.find(
     (m) => !m.mentor && m.remaining > 0 && !(m.deadline && deadlinePassed(m.deadline))
   );
   const active = profile.user.status === USER_STATUS.ACTIVE;
-  const canLog = reaches && active && Boolean(mine || pool);
+  const canLog = reaches && active;
   const logReason = !active
     ? "This student is not approved yet."
     : !mine && !pool
-      ? "No time is allocated for you with them."
+      ? "No time is allocated for you with them — a session you log here will be an overdraw, or extra hours."
       : undefined;
 
   const openTasks = ledger.assignments.filter(
@@ -322,9 +331,7 @@ export default async function StudentWorkspacePage({
         }
       />
 
-      {!canLog && reaches && logReason && (
-        <p className="text-sm text-muted-fg">{logReason}</p>
-      )}
+      {reaches && logReason && <p className="text-sm text-muted-fg">{logReason}</p>}
 
       {/* The tracking sheet's whole tab, side by side: what happened on the
           left, what was planned on the right, and the balance across the top.

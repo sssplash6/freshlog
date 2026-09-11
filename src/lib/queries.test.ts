@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { mentorCaseload } from "@/lib/queries";
-import { allocation, assignment, mentor, program, student } from "@/test/db";
+import { logSessionOptions, mentorCaseload } from "@/lib/queries";
+import {
+  allocation,
+  assignment,
+  cohort,
+  enroll,
+  mentor,
+  pairing,
+  program,
+  student,
+} from "@/test/db";
 
 /**
  * "Who are my students?" — the question `/mentor` opens with.
@@ -70,5 +79,117 @@ describe("mentorCaseload", () => {
 
     expect(students).toHaveLength(1);
     expect(students[0].reach).toBe("task");
+  });
+});
+
+/**
+ * Who the log picker offers — the mentor half of the permission model, read
+ * back out of the query that builds the form.
+ *
+ * The rule is one sentence: a mentor assigned to a program may log hours with
+ * anybody enrolled in that program. Every case below is a way the picker used
+ * to disagree with `logSession`, and a picker that hides somebody the action
+ * would have accepted is a permission the form invented.
+ */
+describe("who a mentor may log for", () => {
+  const optionFor = (
+    options: ReturnType<typeof logSessionOptions>,
+    profileId: string
+  ) => options.find((o) => o.profileId === profileId);
+
+  it("offers everyone in the mentor's program, granted or not", async () => {
+    const p = await program("Master's");
+    const m = await mentor();
+    await pairing({ mentorId: m.id, programId: p.id });
+    const s = await student({ programId: p.id, name: "Guzal" });
+
+    const caseload = await mentorCaseload(m.id);
+    const option = optionFor(logSessionOptions(caseload), s.id);
+
+    expect(caseload.students).toHaveLength(0);
+    expect(option?.programs).toEqual([
+      expect.objectContaining({ value: p.id, balance: "No time allocated to you" }),
+    ]);
+  });
+
+  it("ignores the cohort a pairing names", async () => {
+    const p = await program("Global Admissions");
+    const [autumn, spring] = await Promise.all([
+      cohort({ programId: p.id, name: "Autumn" }),
+      cohort({ programId: p.id, name: "Spring" }),
+    ]);
+    const m = await mentor();
+    await pairing({ mentorId: m.id, programId: p.id, cohortId: autumn.id });
+    const s = await student({ programId: p.id, cohortId: spring.id });
+
+    const options = logSessionOptions(await mentorCaseload(m.id));
+
+    expect(optionFor(options, s.id)).toBeDefined();
+  });
+
+  it("keeps a student whose hours expired, for the extra hours that still happen", async () => {
+    const p = await program("Master's");
+    const m = await mentor();
+    await pairing({ mentorId: m.id, programId: p.id });
+    const s = await student({ programId: p.id });
+    await allocation({
+      studentId: s.id,
+      mentorId: m.id,
+      minutes: 600,
+      deadlineInDays: -1,
+    });
+
+    const options = logSessionOptions(await mentorCaseload(m.id));
+
+    expect(optionFor(options, s.id)?.programs[0].balance).toContain("extra hours only");
+  });
+
+  it("offers only the programs of theirs the student is actually in", async () => {
+    const [mine, theirs] = await Promise.all([program("Mine"), program("Theirs")]);
+    const m = await mentor();
+    await pairing({ mentorId: m.id, programId: mine.id });
+    await pairing({ mentorId: m.id, programId: theirs.id });
+    const s = await student({ programId: mine.id });
+
+    const options = logSessionOptions(await mentorCaseload(m.id));
+
+    expect(optionFor(options, s.id)?.programs.map((x) => x.value)).toEqual([mine.id]);
+  });
+
+  it("offers both programs when the student is in two of theirs", async () => {
+    const [mine, also] = await Promise.all([program("Mine"), program("Also mine")]);
+    const m = await mentor();
+    await pairing({ mentorId: m.id, programId: mine.id });
+    await pairing({ mentorId: m.id, programId: also.id });
+    const s = await student({ programId: mine.id });
+    await enroll({ studentId: s.id, programId: also.id });
+
+    const options = logSessionOptions(await mentorCaseload(m.id));
+
+    expect(optionFor(options, s.id)?.programs.map((x) => x.value).sort()).toEqual(
+      [mine.id, also.id].sort()
+    );
+  });
+
+  it("offers nobody from a program the mentor is not assigned to", async () => {
+    const [mine, theirs] = await Promise.all([program("Mine"), program("Theirs")]);
+    const m = await mentor();
+    await pairing({ mentorId: m.id, programId: mine.id });
+    const outside = await student({ programId: theirs.id });
+
+    const options = logSessionOptions(await mentorCaseload(m.id));
+
+    expect(optionFor(options, outside.id)).toBeUndefined();
+  });
+
+  it("leaves out a student who has not been approved yet", async () => {
+    const p = await program("Master's");
+    const m = await mentor();
+    await pairing({ mentorId: m.id, programId: p.id });
+    const s = await student({ programId: p.id, status: "PENDING" });
+
+    const options = logSessionOptions(await mentorCaseload(m.id));
+
+    expect(optionFor(options, s.id)).toBeUndefined();
   });
 });

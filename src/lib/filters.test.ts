@@ -392,6 +392,35 @@ describe("scope, which a param may narrow and never widen", () => {
     });
   });
 
+  it("lets a mentor's roster reach their whole programs, not only their caseload", () => {
+    // The gate and `mentorReaches` have to give the same answer: a student the
+    // roster hid was still openable by URL and still loggable, which is how a
+    // mentor covering for a colleague ended up asking an admin for a grant.
+    const where = studentsWhere({}, { mentorId: "m1" }, NOW);
+    const reach = clauses<{ OR?: unknown[] }>(where).find((c) => "OR" in c);
+
+    expect(reach?.OR).toContainEqual({
+      enrollments: {
+        some: { program: { mentorAssignments: { some: { mentorId: "m1" } } } },
+      },
+    });
+  });
+
+  it("keeps the Mine chip narrower than the gate it sits inside", () => {
+    // `?mentor=` is a lens the reader chose, and it means the caseload — the
+    // people they hold time with — so it must NOT pick up the program leg.
+    const where = studentsWhere({ mentor: "me" }, { mentorId: "m1", userId: "m1" }, NOW);
+    const lenses = clauses<{ OR?: unknown[] }>(where).filter((c) => "OR" in c);
+    const programLeg = {
+      enrollments: {
+        some: { program: { mentorAssignments: { some: { mentorId: "m1" } } } },
+      },
+    };
+
+    expect(lenses).toHaveLength(2);
+    expect(lenses.filter((l) => l.OR?.some((leg) => JSON.stringify(leg) === JSON.stringify(programLeg)))).toHaveLength(1);
+  });
+
   it("keeps a mentor's lens on top of whatever they filter by", () => {
     const where = sessionsWhere({ mentor: "someone-else" }, { mentorId: "m1" }, NOW);
     expect(clauses(where)).toContainEqual({ mentorId: "m1" });

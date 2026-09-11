@@ -111,7 +111,13 @@ export async function cohort(opts: { programId: string; name?: string }) {
  * profile now asks it which programs it is in.
  */
 export async function student(
-  opts: { programId?: string; name?: string; cohortId?: string | null } = {}
+  opts: {
+    programId?: string;
+    name?: string;
+    cohortId?: string | null;
+    /** ACTIVE by default; PENDING is a self-signup nobody has approved. */
+    status?: string;
+  } = {}
 ) {
   const programId = opts.programId ?? (await program()).id;
   const [user, createdBy] = await Promise.all([
@@ -120,6 +126,7 @@ export async function student(
         email: nextEmail("student"),
         name: opts.name ?? "Test Student",
         role: ROLES.STUDENT,
+        ...(opts.status ? { status: opts.status } : {}),
       },
     }),
     admin("Creator"),

@@ -722,7 +722,7 @@ function readPerson(params: SearchParams, key: string, scope: FilterScope): stri
  * (`mentorReachWhere`, `queries.ts`) — so a filtered list holds exactly the
  * people the mentor's own caseload holds. It stops at the caseload: the fifth
  * leg, everyone else in their programs, is who they may LOG against, which is
- * not who this list is about.
+ * not what the `?mentor=` lens is asking.
  *
  * Programs arrive as ids without cohorts, which is what the lens offers, so a
  * pairing here is program-wide. A cohort-scoped pairing therefore reads one
@@ -736,6 +736,19 @@ function reachOf(
   return mentorReachWhere(mentorId, {
     pairings: programIds?.map((programId) => ({ programId, cohortId: null })),
   });
+}
+
+/**
+ * Everyone a mentor may work with — their caseload PLUS everyone else
+ * enrolled in a program they are assigned to.
+ *
+ * This is the gate, not a lens: it is what a mentor reading the roster may
+ * see at all, and it has to be the same answer `mentorReaches` gives, or the
+ * roster hides a student whose page opens and whose session logs. A mentor
+ * covering for a colleague clears the "Mine" chip and finds them here.
+ */
+function loggableBy(mentorId: string): Prisma.StudentProfileWhereInput {
+  return mentorReachWhere(mentorId, { includeProgram: true });
 }
 
 /**
@@ -767,7 +780,10 @@ export function studentsWhere(
     and.push({ enrollments: { some: { programId: { in: [...scope.programIds] } } } });
   }
   if (scope.studentId) and.push({ id: scope.studentId });
-  if (scope.mentorId) and.push(reachOf(scope.mentorId, scope.programIds));
+  // The reader's own gate: everyone they may work with, which for a mentor is
+  // their whole programs and not only their caseload. The `?mentor=` lens
+  // below is the narrower question, and it is a filter the reader chose.
+  if (scope.mentorId) and.push(loggableBy(scope.mentorId));
 
   const program = readParam(params, "program");
   // ANDed alongside the scope rather than checked against it: a program id from

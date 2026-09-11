@@ -30,10 +30,12 @@ import { studentsWithHours } from "@/lib/queries";
  * which rows the query may return, and which preset is on when you arrive.
  *
  * A mentor arrives with "Mine" applied. It is a preset and not a hard filter
- * on purpose: a mentor asked to cover for a colleague can clear it and find
- * the student, which is a thing that happens and which a hard filter turns
- * into asking an admin. What they may SEE is decided by reach, not by the
- * chip — `studentsWhere` ANDs the mentor's own reach in underneath.
+ * on purpose: a mentor asked to cover for a colleague clears it and finds the
+ * student, which is a thing that happens and which a hard filter turns into
+ * asking an admin. What they may SEE is decided by reach, not by the chip —
+ * `studentsWhere` ANDs the mentor's own reach in underneath, and that reach is
+ * everyone enrolled in a program they are assigned to, which is exactly who
+ * they may log hours with.
  *
  * Every narrowing is a `where`. The program filter used to be a JS `.filter()`
  * over every student in the school, so the cost of showing one program was the
@@ -47,9 +49,19 @@ export default async function StudentsPage({
   const user = await requireUser();
   const profile = await profileOf(user);
   const scope = await adminScope(user);
-  const programIds = scopeProgramFilter(scope);
   const isMentor = canActAsMentor(user);
   const administers = scope === "ALL" || scope.size > 0;
+  /**
+   * Which programs the FIGURES on this page are summed over. Undefined means
+   * all of the student's.
+   *
+   * Only an admin narrows: their grants say which of a two-program student's
+   * hours are theirs to read. A mentor's grant list is empty, and an empty
+   * list is not "no narrowing" — it reads as "no programs", which blanked
+   * every hour, every use-by date and every program chip on the mentor's own
+   * roster. Their narrowing is reach, and reach is the `where` below.
+   */
+  const programIds = administers ? scopeProgramFilter(scope) : undefined;
 
   // A student has no roster: their own page is their home. Anyone else who
   // neither administers a program nor mentors has nothing to list either.
@@ -92,7 +104,14 @@ export default async function StudentsPage({
 
   const [programs, students, total] = await Promise.all([
     prisma.program.findMany({
-      where: programIds ? { id: { in: [...programIds] } } : {},
+      // The programs this reader can meaningfully filter by: an admin's
+      // grants, or — for a mentor — the programs they are assigned to, which
+      // is exactly the set their roster can contain.
+      where: administers
+        ? programIds
+          ? { id: { in: [...programIds] } }
+          : {}
+        : { mentorAssignments: { some: { mentorId: user.id } } },
       orderBy: { name: "asc" },
     }),
     // `programIds` twice over on purpose: it narrows WHICH students the `where`
@@ -114,7 +133,7 @@ export default async function StudentsPage({
         subtitle={
           administers
             ? undefined
-            : "Everyone you hold time with, have met, or have work for."
+            : "Everyone in your programs. Mine is the ones you hold time with."
         }
       />
 

@@ -1,15 +1,25 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { allocation, assignment, mentor, program, student } from "@/test/db";
+import {
+  allocation,
+  assignment,
+  cohort,
+  mentor,
+  pairing,
+  program,
+  student,
+} from "@/test/db";
 
 /**
  * What authorizes a mentor to log time for a student.
  *
- * Three things do, and the third arrived with tasks that can be MOVED between
- * mentors: an admin can put a student's work on a mentor who holds no hours
- * there and was never in that program, and the log the task exists to produce
- * must not then be refused.
+ * Four things do. The plainest is the program: a mentor assigned to a program
+ * may log hours with anybody enrolled in it, holding nothing and having been
+ * granted nothing, because the meeting that a colleague's absence produced
+ * happens before any admin hears about it. The other three outlive the
+ * pairing — a grant, a session already logged, and a task, which can be MOVED
+ * onto a mentor who holds no hours there and was never in that program.
  */
 const actor = vi.hoisted(() => ({ value: null as { id: string } | null }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
@@ -46,6 +56,53 @@ describe("logSession authorization", () => {
     await expect(
       prisma.session.count({ where: { mentorId: m.id, studentId: s.id } })
     ).resolves.toBe(1);
+  });
+
+  it("accepts any mentor assigned to the program, holding nothing at all", async () => {
+    const p = await program("Master's");
+    const s = await student({ programId: p.id });
+    const m = await mentor();
+    await pairing({ mentorId: m.id, programId: p.id });
+    actor.value = m;
+
+    const state = await log(s.id);
+
+    expect(state).toMatchObject({ ok: true });
+    await expect(
+      prisma.session.count({ where: { mentorId: m.id, studentId: s.id, programId: p.id } })
+    ).resolves.toBe(1);
+  });
+
+  it("accepts a cohort-scoped mentor for a student in another cohort", async () => {
+    const p = await program("Global Admissions");
+    const [autumn, spring] = await Promise.all([
+      cohort({ programId: p.id, name: "Autumn" }),
+      cohort({ programId: p.id, name: "Spring" }),
+    ]);
+    const s = await student({ programId: p.id, cohortId: spring.id });
+    const m = await mentor();
+    await pairing({ mentorId: m.id, programId: p.id, cohortId: autumn.id });
+    actor.value = m;
+
+    expect(await log(s.id)).toMatchObject({ ok: true });
+  });
+
+  it("charges the program the meeting was in, not the other one the student is in", async () => {
+    const [mine, theirs] = await Promise.all([program("Mine"), program("Theirs")]);
+    const s = await student({ programId: mine.id });
+    const m = await mentor();
+    await pairing({ mentorId: m.id, programId: mine.id });
+    // Enrolled in a program this mentor does not work in: it must not be
+    // offered as the program the hours come out of.
+    await prisma.studentEnrollment.create({
+      data: { studentId: s.id, programId: theirs.id },
+    });
+    actor.value = m;
+
+    expect(await log(s.id)).toMatchObject({ ok: true });
+    await expect(
+      prisma.session.findFirst({ where: { mentorId: m.id }, select: { programId: true } })
+    ).resolves.toEqual({ programId: mine.id });
   });
 
   it("still refuses a mentor with no hours, no pairing and no task there", async () => {

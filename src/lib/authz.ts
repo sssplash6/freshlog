@@ -173,22 +173,25 @@ export async function canManageMentor(
  * The rule itself lives in `mentorReachWhere` beside the caseload it builds,
  * because "who are my students" and "is this one of mine" have to be the same
  * question or a mentor gets a student on their list they then cannot open. The
- * fifth leg — everyone else in a program they work in — is what makes a
- * meeting recordable before any grant exists, so it is included here and
+ * fifth leg — everyone else enrolled in a program they work in — is what makes
+ * a meeting recordable before any grant exists, so it is included here and
  * excluded from the caseload.
+ *
+ * That fifth leg is the whole of the mentor half of the model, stated once: a
+ * mentor assigned to a program may log hours with anybody in that program.
+ * Nothing further has to be granted for the meeting to be recordable, and
+ * every other gate in the app defers to this function rather than re-deriving
+ * it — which is what stops a picker offering somebody the form then refuses,
+ * or a page disabling a button the action would have accepted.
  */
 export async function mentorReaches(
   mentor: User,
   profile: { id: string }
 ): Promise<boolean> {
-  const pairings = await prisma.mentorAssignment.findMany({
-    where: { mentorId: mentor.id },
-    select: { programId: true, cohortId: true },
-  });
   const match = await prisma.studentProfile.findFirst({
     where: {
       id: profile.id,
-      ...mentorReachWhere(mentor.id, { pairings, includeProgram: true }),
+      ...mentorReachWhere(mentor.id, { includeProgram: true }),
     },
     select: { id: true },
   });

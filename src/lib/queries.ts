@@ -8,7 +8,7 @@ import {
   SESSION_STATUS,
   USER_STATUS,
 } from "@/lib/constants";
-import { formatDuration } from "@/lib/format";
+import { formatDate, formatDuration } from "@/lib/format";
 import { deadlinePassed } from "@/lib/deadlines";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -792,14 +792,16 @@ export function toProgramOptions(
  *                is a mentor's student by the only measure that matters to
  *                them, the work, and the missing hours are a row that SAYS so
  *                ("No time with you") rather than an absence.
- *   in program   everyone else in a program (and cohort) this mentor is
- *                assigned to. Not their student, and in no total: reachable
- *                only so a meeting that happened before any grant existed can
- *                still be recorded.
+ *   in program   everyone else enrolled in a program this mentor is assigned
+ *                to. Not their student, and in no total, but fully loggable:
+ *                a mentor who works in a program may log hours with anyone in
+ *                it, whether or not a grant was ever made for them.
  *
- * Today `/mentor` shows a mentor with no allocations zero students while the
- * log picker offers eleven. The first four groups are `students`, the fifth
- * is `loggable`, and both come back so a caller can decide which it needs.
+ * The first four groups are `students` — the caseload, the people a mentor
+ * holds a balance or a piece of work for. The fifth is `loggable`, which is
+ * everyone else in their programs. Both come back so a caller can decide which
+ * it needs: `/mentor` lists the caseload, and the log picker offers the union,
+ * because a mentor may log hours with anybody in a program they work in.
  */
 /** One of a mentor's pairings, as the students it lets them reach. */
 export type MentorPairing = { programId: string; cohortId: string | null };
@@ -809,11 +811,16 @@ export type MentorPairing = { programId: string; cohortId: string | null };
  * one of mine?" cannot drift apart. A list that offers a student and a page
  * that 404s on them is the same bug twice, and it was live for months.
  *
- * Pure and synchronous: the caller supplies the mentor's pairings, because the
- * two callers already hold them (the caseload has them for its own totals, the
- * students list has the program lens the reader chose). Pass none and the two
- * program-shaped legs are simply absent — which is right for "students of
- * mine", and wrong for "students I may log against", hence `includeProgram`.
+ * Pure and synchronous. The first four legs need nothing but the mentor's id.
+ * The fifth — everyone in their programs — is a relation the database can walk
+ * on its own, so it needs no pairings either: pass `includeProgram` and the
+ * `where` asks "is this student enrolled in a program this mentor is assigned
+ * to?" in the query rather than in a list somebody fetched first.
+ *
+ * `pairings` therefore only feeds the pool leg, and only for the caseload
+ * lists that build one from the program lens the reader chose. Pass none and
+ * that leg is absent — which is right for "students of mine", and wrong for
+ * "students I may log against", hence `includeProgram`.
  */
 export function mentorReachWhere(
   mentorId: string,
@@ -866,7 +873,28 @@ export function mentorReachWhere(
         },
       ],
     });
-    if (opts.includeProgram) reach.push(inPairings);
+  }
+
+  /**
+   * Everyone enrolled in a program this mentor is assigned to — the whole
+   * program, cohort and all.
+   *
+   * Asked of the ASSIGNMENT rather than of a pairing list the caller passed,
+   * for two reasons. It works without one, so every gate can ask it — the
+   * roster's `where`, the log action, a student's own page — and they cannot
+   * answer differently. And it is deliberately program-wide: a mentor who
+   * works in a program may log hours with any student in that program, so a
+   * pairing scoped to one cohort still reaches the program it is inside.
+   * Narrowing here was how a mentor covering for a colleague ended up asking
+   * an admin for a grant before they could record a meeting that had already
+   * happened.
+   */
+  if (opts.includeProgram) {
+    reach.push({
+      enrollments: {
+        some: { program: { mentorAssignments: { some: { mentorId } } } },
+      },
+    });
   }
 
   return { OR: reach };
@@ -877,7 +905,7 @@ export function mentorReachWhere(
  *
  * The same five legs as `mentorReachWhere`, asked for a program rather than a
  * yes/no: a grant here, a pool here they may claim, a meeting already logged
- * here, a task on their list here, or simply a pairing with a program the
+ * here, a task on their list here, or simply an assignment to a program the
  * student is enrolled in. `mentorReaches` says whether they may log at all;
  * this says where the hours would come from, and the two agree by construction
  * because they are the same five facts.
@@ -917,10 +945,12 @@ export async function reachablePrograms(
     }),
   ]);
 
-  const paired = (e: { programId: string; cohortId: string | null }) =>
-    pairings.some(
-      (p) => p.programId === e.programId && (!p.cohortId || p.cohortId === e.cohortId)
-    );
+  // Program-level, cohort and all — the same rule `mentorReachWhere`'s fifth
+  // leg states. A mentor assigned to a program may log with anybody enrolled
+  // in it, so the program is a place their hours can land whether or not the
+  // pairing that put them there named a cohort.
+  const paired = (e: { programId: string }) =>
+    pairings.some((p) => p.programId === e.programId);
   const granted = new Set(
     allocations.filter((a) => a.mentorId === mentorId).map((a) => a.programId)
   );
@@ -937,8 +967,7 @@ export async function reachablePrograms(
         met.has(e.programId) ||
         tasked.has(e.programId) ||
         // The pool leg and the plain in-program leg are the same condition
-        // here: both need a pairing that covers THIS enrollment, cohort and
-        // all — a Spring-25 mentor reaches Spring 25, not Global Admissions.
+        // here: both need an assignment to the program this enrollment is in.
         paired(e)
     )
     .map((e) => ({
@@ -1107,24 +1136,20 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
   });
 
   /**
-   * Does one of this mentor's pairings cover this student IN THIS PROGRAM?
+   * Is this mentor assigned to the program this pool of hours sits in, and is
+   * the student actually enrolled there?
    *
-   * The enrollment is what carries the cohort, so the question is asked of the
-   * student's row for that program rather than of the student: somebody in
-   * Global Admissions / Autumn 25 and in the Master's Program is reachable by a
-   * Spring-25-only mentor in neither.
+   * Program-level on both halves, matching `mentorReachWhere`'s fifth leg: the
+   * mentor may log with anybody in a program they work in, so the pool of a
+   * student in that program is theirs to claim regardless of which cohort
+   * either row names.
    */
   const inScope = (
-    student: { enrollments: readonly { programId: string; cohortId: string | null }[] },
+    student: { enrollments: readonly { programId: string }[] },
     programId: string
   ) =>
-    student.enrollments.some(
-      (e) =>
-        e.programId === programId &&
-        assignments.some(
-          (a) => a.programId === programId && (!a.cohortId || a.cohortId === e.cohortId)
-        )
-    );
+    student.enrollments.some((e) => e.programId === programId) &&
+    assignments.some((a) => a.programId === programId);
 
   // Skipped once the mentor holds their own grant IN THAT PROGRAM (that row
   // already exists, and their sessions draw their own hours), and once the pool
@@ -1244,21 +1269,21 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
     });
   }
 
-  // Everyone else in the mentor's programs. A student already listed for ONE
-  // program still belongs here for another they share — the row above is a
-  // balance in the Master's Program, and the Global Admissions meeting that
-  // has not happened yet still has to be loggable.
-  const inMyPairings = assignments.map((a) =>
-    a.cohortId
-      ? { programId: a.programId, cohortId: a.cohortId }
-      : { programId: a.programId }
-  );
-  const loggable = assignments.length
+  // Everyone else enrolled in the mentor's programs — the fifth leg, as a
+  // list. Program-wide and cohort-blind, because that is what a mentor may log
+  // against: being assigned to the program is the whole qualification.
+  //
+  // A student already listed for ONE program still belongs here for another
+  // they share — the row above is a balance in the Master's Program, and the
+  // Global Admissions meeting that has not happened yet still has to be
+  // loggable.
+  const myProgramIds = [...new Set(assignments.map((a) => a.programId))];
+  const loggable = myProgramIds.length
     ? (
         await prisma.studentProfile.findMany({
           where: {
             user: { status: USER_STATUS.ACTIVE },
-            enrollments: { some: { OR: inMyPairings } },
+            enrollments: { some: { programId: { in: myProgramIds } } },
           },
           include: {
             user: true,
@@ -1273,11 +1298,8 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
           programs: p.enrollments
             .filter(
               (e) =>
-                assignments.some(
-                  (a) =>
-                    a.programId === e.programId &&
-                    (!a.cohortId || a.cohortId === e.cohortId)
-                ) && !listed.has(`${p.id}:${e.programId}`)
+                myProgramIds.includes(e.programId) &&
+                !listed.has(`${p.id}:${e.programId}`)
             )
             .map((e) => ({ id: e.programId, name: e.program.name })),
         }))
@@ -1305,9 +1327,10 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
  * The log-a-session picker's options, in the order a mentor picks them.
  *
  * Students holding live time first, because that is who a mentor is logging
- * for on a normal Monday; everyone else in their programs last, because that
- * pick exists for the meeting that happened before any hours were granted.
- * Both lines are searchable, so an email is there to be typed at, not read.
+ * for on a normal Monday; everyone else in their programs next, because that
+ * pick exists for the meeting that happened before any hours were granted;
+ * and forfeited balances last, where only extra hours can still land. Both
+ * lines are searchable, so an email is there to be typed at, not read.
  *
  * ONE OPTION PER PERSON, carrying the programs a log could land in. The
  * caseload is per (student, program) — that is what a balance is — but a mentor
@@ -1339,7 +1362,13 @@ export function logSessionOptions(caseload: MentorCaseload) {
   };
 
   for (const s of students) {
-    if (!s.approved || s.expired) continue;
+    // Approval is the one thing that closes the picker, because it is the one
+    // thing `logSession` refuses outright. An EXPIRED balance does not: the
+    // hours are forfeited and in-plan logging is closed, but the meeting still
+    // happened and extra hours still record it — so the row stays, says so,
+    // and sorts last. Dropping it was how a mentor lost the student from the
+    // picker entirely the day their deadline passed.
+    if (!s.approved) continue;
     const row = at(
       s.profile.id,
       s.profile.user.name ?? s.profile.user.email,
@@ -1348,13 +1377,14 @@ export function logSessionOptions(caseload: MentorCaseload) {
     row.choices.push({
       id: s.program.id,
       name: s.program.name,
-      balance:
-        s.pool != null
+      balance: s.expired
+        ? `Hours expired${s.deadline ? ` ${formatDate(s.deadline)}` : ""} — extra hours only`
+        : s.pool != null
           ? `${formatDuration(s.pool)} unassigned — logging makes it yours`
           : s.allocated > 0
             ? `${formatDuration(s.remaining)} remaining with you`
             : "No time allocated to you",
-      rank: s.pool != null || s.allocated > 0 ? 0 : 1,
+      rank: s.expired ? 3 : s.pool != null || s.allocated > 0 ? 0 : 1,
       goals: goalsByStudent.get(`${s.profile.id}:${s.program.id}`) ?? [],
     });
   }

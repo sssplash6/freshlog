@@ -204,7 +204,11 @@ describe("mentorReaches", () => {
     expect(await mentorReaches(m, s)).toBe(false);
   });
 
-  it("keeps a cohort-scoped pairing inside its cohort", async () => {
+  it("reads a cohort-scoped pairing as the whole program it is inside", async () => {
+    // A cohort narrows a caseload, never reach: the rule is that a mentor
+    // assigned to a program may log hours with anybody enrolled in it, and a
+    // Spring-25 student who turns up to an Autumn-25 mentor's meeting is
+    // exactly the case the fifth leg exists for.
     const [prog, m] = await Promise.all([program(), mentor()]);
     const [mine, theirs] = await Promise.all([
       cohort({ programId: prog.id, name: "Autumn" }),
@@ -217,7 +221,23 @@ describe("mentorReaches", () => {
     ]);
 
     expect(await mentorReaches(m, inCohort)).toBe(true);
-    expect(await mentorReaches(m, outside)).toBe(false);
+    expect(await mentorReaches(m, outside)).toBe(true);
+  });
+
+  it("still stops at the edge of the programs they are assigned to", async () => {
+    const [mine, theirs, m] = await Promise.all([
+      program("Mine"),
+      program("Theirs"),
+      mentor(),
+    ]);
+    await pairing({ mentorId: m.id, programId: mine.id });
+    const [ours, others] = await Promise.all([
+      student({ programId: mine.id }),
+      student({ programId: theirs.id }),
+    ]);
+
+    expect(await mentorReaches(m, ours)).toBe(true);
+    expect(await mentorReaches(m, others)).toBe(false);
   });
 
   it("still reaches a student whose hours survived the pairing being removed", async () => {
