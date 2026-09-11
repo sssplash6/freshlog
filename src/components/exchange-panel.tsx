@@ -1,0 +1,135 @@
+import { PersonChip } from "@/components/person-chip";
+import { ProgramChip } from "@/components/program-chip";
+import { SessionsList, toSessionEntries } from "@/components/session-row";
+import { ReturnExchangeButton } from "@/components/forms/exchange-forms";
+import { Disclosure } from "@/components/ui/disclosure";
+import { StatusChip } from "@/components/ui/status-chip";
+import { EXCHANGE_STATUS } from "@/lib/constants";
+import type { ExchangeView } from "@/lib/exchanges";
+import { formatDate, formatDuration } from "@/lib/format";
+import type { ViewerContext } from "@/lib/status";
+
+/**
+ * One placement between two programs, read from either end.
+ *
+ * The same rows, the same arithmetic, to both — that is the whole promise of
+ * the feature, so it is one component rather than a sending view and a hosting
+ * view that could drift. What differs between the two readers is which program
+ * they recognise as their own, and the line says both names, so neither has to
+ * be told which side they are on.
+ *
+ * The log is folded. A host admin opens this page to allocate and a sending
+ * mentor opens it to see whether anything has happened yet; the sessions are
+ * the answer to a third question, asked less often, and eight rows of them
+ * above the figures would bury the two that are actually being looked for.
+ */
+export function ExchangeList({
+  exchanges,
+  viewer,
+  /** Who may call one off — the two programs' admins and whoever sent them. */
+  canReturn,
+  /**
+   * Name the student on each row. Off on a student's own page, where the whole
+   * page is about them; on wherever the list spans people — the same rule
+   * `SessionsList` follows for its Student column.
+   */
+  showStudent = false,
+}: {
+  exchanges: ExchangeView[];
+  viewer: ViewerContext;
+  canReturn: (exchange: ExchangeView) => boolean;
+  showStudent?: boolean;
+}) {
+  return (
+    <ul className="divide-y divide-line/60">
+      {exchanges.map((e) => {
+        const open = e.status === EXCHANGE_STATUS.OPEN;
+        const { cap, allocated, unallocated, used, remaining, extra } = e.figures;
+        const sessions = toSessionEntries(e.sessions, { mentorBase: "/mentors" });
+
+        return (
+          <li key={e.id} className="px-4 py-2 sm:px-5">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+              <span className="flex min-w-0 flex-wrap items-center gap-2">
+                {showStudent && (
+                  <PersonChip
+                    person={{
+                      id: e.studentId,
+                      name: e.student.user.name,
+                      email: e.student.user.email,
+                      avatarUpdatedAt: e.student.user.avatarUpdatedAt,
+                    }}
+                    size="sm"
+                    href={`/students/${e.studentId}`}
+                  />
+                )}
+                <ProgramChip program={e.fromProgram} />
+                <span aria-hidden className="text-muted-fg">
+                  &rarr;
+                </span>
+                <ProgramChip program={e.toProgram} />
+                {!open && <StatusChip severity="neutral">Called off</StatusChip>}
+                {open && unallocated > 0 && (
+                  <StatusChip severity="attention">
+                    {formatDuration(unallocated)} to allocate
+                  </StatusChip>
+                )}
+                {open && e.deadline < viewer.now && (
+                  <StatusChip severity="problem">Ran out</StatusChip>
+                )}
+              </span>
+              <span className="shrink-0 text-sm tabular-nums text-ink">
+                {formatDuration(cap)} · use by {formatDate(e.deadline)}
+              </span>
+            </div>
+
+            <p className="mt-0.5 text-xs text-muted-fg">
+              Sent by {e.sentBy.name ?? e.sentBy.email}
+              {e.note ? ` · “${e.note}”` : ""}
+              {!open && e.returnedBy
+                ? ` · called off by ${e.returnedBy.name ?? e.returnedBy.email}${
+                    e.returnNote ? ` · “${e.returnNote}”` : ""
+                  }`
+                : ""}
+            </p>
+
+            {open && (
+              <p className="mt-0.5 text-sm tabular-nums text-muted-fg">
+                {allocated > 0
+                  ? `${formatDuration(allocated)} on ${e.mentors
+                      .map((m) => m.mentor?.name ?? m.mentor?.email ?? "nobody yet")
+                      .join(", ")}`
+                  : "Nobody here holds it yet"}
+                {` · ${formatDuration(used)} completed · ${formatDuration(remaining)} remaining`}
+                {extra > 0 && ` · ${formatDuration(extra)} extra`}
+              </p>
+            )}
+
+            {sessions.length > 0 && (
+              <div className="mt-1">
+                <Disclosure label="Sessions" count={sessions.length}>
+                  <SessionsList
+                    sessions={sessions}
+                    viewer={viewer}
+                    columns={["date", "mentor", "duration", "task", "notes"]}
+                    framed={false}
+                  />
+                </Disclosure>
+              </div>
+            )}
+
+            {open && canReturn(e) && (
+              <div className="mt-1">
+                <ReturnExchangeButton
+                  exchangeId={e.id}
+                  hostProgram={e.toProgram.name}
+                  canReturn={e.sessions.length === 0}
+                />
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}

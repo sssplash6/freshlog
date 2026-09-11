@@ -124,6 +124,16 @@ export function StudentsTable({
                 href={`${href}/${s.id}`}
               >
                 {top && <StatusChip status={top} />}
+                {/* A visitor, where the Program column is not there to say so
+                    — a program's own roster, which drops that column, and the
+                    page where the distinction matters most: the hours beside
+                    this name are capped by another program, and the student
+                    goes home when they run out. */}
+                {!showProgram && s.enrollments.some((e) => e.exchangeId) && (
+                  <span className="shrink-0 text-xs font-normal text-muted-fg">
+                    on exchange
+                  </span>
+                )}
               </PersonCell>
             </Td>
 
@@ -138,11 +148,22 @@ export function StudentsTable({
                     the reader has to parse. */}
                 <span className="flex min-w-0 flex-col gap-0.5">
                   {s.enrollments.map((e) => (
-                    <ProgramChip
+                    <span
                       key={e.program.id}
-                      program={e.program}
-                      className="text-[13px]"
-                    />
+                      className="flex min-w-0 items-center gap-1.5"
+                    >
+                      <ProgramChip program={e.program} className="text-[13px]" />
+                      {/* A visitor another program lent us, not one of this
+                          program's students. Said on the row, because a roster
+                          that shows a visit as an enrollment is a roster that
+                          has quietly gained a student — and their hours are
+                          capped by somebody else. */}
+                      {e.exchangeId && (
+                        <span className="shrink-0 text-[11px] text-muted-fg">
+                          on exchange
+                        </span>
+                      )}
+                    </span>
                   ))}
                   {s.enrollments.length === 0 && (
                     <span className="text-muted-fg">—</span>

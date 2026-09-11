@@ -17,6 +17,8 @@ import {
   StudentPrograms,
   StudentTelegramChange,
 } from "@/components/forms/student-details-forms";
+import { ExchangeList } from "@/components/exchange-panel";
+import { SendOnExchangeForm } from "@/components/forms/exchange-forms";
 import { LedgerBoard } from "@/components/ledger-board";
 import { Avatar } from "@/components/avatar";
 import { PersonChip } from "@/components/person-chip";
@@ -41,10 +43,12 @@ import {
   adminScope,
   canManageStudent,
   mentorReaches,
+  scopeCovers,
   scopeProgramFilter,
   studentScope,
 } from "@/lib/authz";
-import { enrollmentLabel, enrollmentsLabel } from "@/lib/enrollments";
+import { enrollmentLabel, enrollmentsLabel, studiesIn } from "@/lib/enrollments";
+import { visibleExchanges } from "@/lib/exchanges";
 import { requireUser } from "@/lib/dal";
 import { deadlinePassed } from "@/lib/deadlines";
 import {
@@ -137,7 +141,17 @@ export default async function StudentWorkspacePage({
     : profile.enrollments;
   const ledgerWhere = visible ? { programId: { in: visible } } : {};
 
-  const [hours, ledger, meetings, changes, programs, mentors] = await Promise.all([
+  const [
+    hours,
+    ledger,
+    meetings,
+    changes,
+    programs,
+    mentors,
+    exchanges,
+    myPairings,
+    elsewhere,
+  ] = await Promise.all([
     allocationSummary(profile.id, visible),
     studentLedger(profile.id, visible),
     studentMeetings(profile.id),
@@ -164,6 +178,29 @@ export default async function StudentWorkspacePage({
           select: { id: true, name: true, email: true },
         })
       : Promise.resolve([]),
+    // Placements between two programs, in both directions — the one thing on
+    // this page a reader may see that belongs to a program they do not
+    // administer. `visibleExchanges` decides which, and it is narrower than
+    // this page's own gate: being able to open a student is not being party to
+    // an arrangement between two other programs.
+    visibleExchanges(me, profile),
+    canActAsMentor(me)
+      ? prisma.mentorAssignment.findMany({
+          where: { mentorId: me.id },
+          select: { programId: true },
+        })
+      : Promise.resolve([]),
+    // Where they could be sent: every active program they are not already in.
+    // Deliberately NOT scoped to the reader's grants — you lend a student to a
+    // program precisely because you have no standing in it.
+    prisma.program.findMany({
+      where: {
+        status: "ACTIVE",
+        id: { notIn: profile.enrollments.map((e) => e.programId) },
+      },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
 
   const name = profile.user.name ?? profile.user.email;
@@ -194,6 +231,25 @@ export default async function StudentWorkspacePage({
     : !mine && !pool
       ? "No time is allocated for you with them — a session you log here will be an overdraw, or extra hours."
       : undefined;
+
+  /**
+   * Which of the student's OWN programs this reader may lend them from.
+   *
+   * The same two people `assertExchangeSender` accepts — an admin of the
+   * program, or a mentor who works in it — asked here so the form offers
+   * exactly what the action will take. A visit is never in this list: a student
+   * somebody else lent us is not ours to lend onward.
+   */
+  const scope = await adminScope(me);
+  const pairedIn = new Set(myPairings.map((p) => p.programId));
+  const sendableFrom = studiesIn(profile.enrollments).filter(
+    (e) => scopeCovers(scope, e.programId) || pairedIn.has(e.programId)
+  );
+  // Either program's admins, or whoever sent them. The action asks the same.
+  const isParty = (e: { fromProgramId: string; toProgramId: string; sentById: string }) =>
+    e.sentById === me.id ||
+    scopeCovers(scope, e.fromProgramId) ||
+    scopeCovers(scope, e.toProgramId);
 
   const openTasks = ledger.assignments.filter(
     (t) => t.progress !== ASSIGNMENT_PROGRESS.DONE
@@ -393,6 +449,48 @@ export default async function StudentWorkspacePage({
           ) : null
         }
       />
+
+      {/* Placements between two programs, above the grant form on purpose: a
+          host admin about to allocate has to see the cap first, and a sending
+          mentor opens this page for nothing else. It is the one section whose
+          rows can belong to a program the reader does not administer — see
+          `visibleExchanges`, which decides exactly which. */}
+      {(exchanges.length > 0 || sendableFrom.length > 0) && (
+        <Section
+          eyebrow="Between programs"
+          title="Exchange"
+          count={exchanges.length || undefined}
+          caption="Hours one program promises, another delivers"
+        >
+          {exchanges.length > 0 ? (
+            <ExchangeList
+              exchanges={exchanges}
+              viewer={viewer}
+              canReturn={isParty}
+            />
+          ) : (
+            <p className="px-4 py-2 text-sm text-muted-fg sm:px-5">
+              Nobody has lent {name} to another program.
+            </p>
+          )}
+          {sendableFrom.length > 0 && (
+            <div className="border-t border-line px-4 py-2 sm:px-5">
+              <SendOnExchangeForm
+                studentProfileId={profile.id}
+                studentName={name}
+                fromPrograms={sendableFrom.map((e) => ({
+                  value: e.programId,
+                  label: enrollmentLabel(e),
+                }))}
+                toPrograms={elsewhere.map((p) => ({
+                  value: p.id,
+                  label: p.name,
+                }))}
+              />
+            </div>
+          )}
+        </Section>
+      )}
 
       {manages && mentorOptions.length > 0 && (
         <Section

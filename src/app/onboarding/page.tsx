@@ -8,7 +8,7 @@ import {
 import { PageTitle } from "@/components/ui/section";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
-import { enrollmentsLabel, primaryEnrollment } from "@/lib/enrollments";
+import { enrollmentsLabel, primaryEnrollment, studiesIn } from "@/lib/enrollments";
 import { homeFor, profileOf } from "@/lib/profile";
 import { prisma } from "@/lib/prisma";
 import { programOptions, toProgramOptions } from "@/lib/queries";
@@ -115,7 +115,11 @@ export default async function OnboardingPage() {
   }
 
   // The one to greet them by when the welcome has room for a single name.
-  const first = primaryEnrollment(profile.enrollments);
+  // Where they STUDY. A student another program has borrowed for a few hours is
+  // not being welcomed to that program, and a welcome that greets somebody into
+  // a visit is a welcome that has misread their record.
+  const studies = studiesIn(profile.enrollments);
+  const first = primaryEnrollment(studies);
 
   // Registered by staff, first sign-in. The program is already theirs, so the
   // only things missing are the name Google may not have supplied and the
@@ -127,7 +131,7 @@ export default async function OnboardingPage() {
     return (
       <Step
         eyebrow={first?.cohort?.name}
-        title={`Welcome to ${enrollmentsLabel(profile.enrollments, "the academy")}`}
+        title={`Welcome to ${enrollmentsLabel(studies, "the academy")}`}
         sentence="Confirm your name and how your mentors reach you."
         form={<DetailsStepForm defaultName={user.name ?? ""} />}
       />
@@ -137,7 +141,7 @@ export default async function OnboardingPage() {
   if (user.status === USER_STATUS.PENDING) {
     return (
       <Step
-        eyebrow={enrollmentsLabel(profile.enrollments, undefined)}
+        eyebrow={enrollmentsLabel(studies, undefined)}
         title="Registration received"
         sentence="An admin will approve you shortly."
       />

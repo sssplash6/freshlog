@@ -11,6 +11,7 @@ import {
   interviewIsOpen,
 } from "@/lib/constants";
 import { soonestExpiry } from "@/lib/deadlines";
+import { unallocatedExchanges } from "@/lib/exchanges";
 import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import type { Profile } from "@/lib/profile";
@@ -25,6 +26,7 @@ import {
 import {
   attentionList,
   dismissalKey,
+  exchangeStatuses,
   meetingStatus,
   mentorStatuses,
   notDismissed,
@@ -147,6 +149,10 @@ const STAFF_STATES = new Set<StatusType>([
   "TASK_NEEDS_MENTOR",
   "FEEDBACK_LOW",
   "STAFF_UNSCOPED",
+  // A student another program lent us and nobody here holds the hours for. It
+  // is the only row in this list about somebody who is not our own student,
+  // and it is the whole of what an exchange asks of a host admin.
+  "EXCHANGE_UNALLOCATED",
   // A program with students and nobody to teach them. It used to be the one
   // row on `/programs/[id]`'s list that nothing else in the app could say, so
   // it comes here rather than being deleted with that list.
@@ -200,6 +206,7 @@ async function staffAttention(user: User): Promise<Attention> {
     unassignedTasks,
     taskMinutes,
     meetings,
+    exchanges,
   ] = await Promise.all([
     prisma.program.findMany({
       where: inScope ? { id: inScope } : {},
@@ -262,6 +269,10 @@ async function staffAttention(user: User): Promise<Attention> {
       include: { mentor: true, student: { include: { user: true } } },
       orderBy: { scheduledAt: "asc" },
     }),
+    // Hosted by one of this reader's programs: an exchange is the sending
+    // program's arrangement and the HOST's job, and it is the host who is
+    // holding hours nobody is delivering.
+    unallocatedExchanges({ ...(programIds ? { hostedBy: programIds } : {}) }),
   ]);
 
   const programById = new Map(programs.map((p) => [p.id, p]));
@@ -310,6 +321,26 @@ async function staffAttention(user: User): Promise<Attention> {
       );
       first = false;
     }
+  }
+
+  for (const e of exchanges) {
+    keep(
+      e.toProgramId,
+      exchangeStatuses(
+        {
+          id: e.id,
+          student: {
+            id: e.studentId,
+            name: e.student.user.name ?? e.student.user.email,
+          },
+          toProgram: e.toProgram,
+          minutes: e.minutes,
+          allocatedMinutes: e.figures.allocated,
+          deadline: e.deadline,
+        },
+        viewer
+      )
+    );
   }
 
   for (const m of mentors) {
@@ -428,13 +459,17 @@ async function mentorAttention(user: User): Promise<Attention> {
   };
   const dismissed = await dismissedBy(user.id);
   const { students, assignments } = await mentorCaseload(user.id);
-  const [diary, ratings] = await Promise.all([
+  const [diary, ratings, sent] = await Promise.all([
     mentorMeetings(user.id),
     prisma.mentorFeedback.aggregate({
       where: { mentorId: user.id },
       _avg: { rating: true },
       _count: true,
     }),
+    // Students this mentor lent to another program, whose hours nobody there
+    // has taken on yet. Nothing for them to do about it — the host allocates —
+    // but they are the one who promised it, and the one the student will ask.
+    unallocatedExchanges({ sentBy: user.id }),
   ]);
   const programCount = new Set(assignments.map((a) => a.programId)).size;
 
@@ -510,6 +545,22 @@ async function mentorAttention(user: User): Promise<Attention> {
           : { ...state, href: `/students/${m.student.id}` },
       ];
     }),
+    ...sent.flatMap((e) =>
+      exchangeStatuses(
+        {
+          id: e.id,
+          student: {
+            id: e.studentId,
+            name: e.student.user.name ?? e.student.user.email,
+          },
+          toProgram: e.toProgram,
+          minutes: e.minutes,
+          allocatedMinutes: e.figures.allocated,
+          deadline: e.deadline,
+        },
+        viewer
+      )
+    ),
   ];
 
   const live = rows.filter(notDismissed(dismissed));

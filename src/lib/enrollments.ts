@@ -18,6 +18,13 @@ export type NamedEnrollment = {
   cohortId?: string | null;
   program: { name: string };
   cohort?: { name: string } | null;
+  /**
+   * Set when this membership is a VISIT: another program lent the student here
+   * for a capped number of hours (see `ProgramExchange`). A visit reads
+   * differently everywhere it is named, because a roster that shows it as an
+   * ordinary enrollment is a roster that has quietly gained a student.
+   */
+  exchangeId?: string | null;
 };
 
 /** Just the ids — what a scope check needs. */
@@ -40,10 +47,19 @@ export function enrolledIn(
 
 /**
  * One enrollment as a phrase: "Master's Program", or "Global Admissions /
- * Spring 25" where the program has cohorts.
+ * Spring 25" where the program has cohorts — and "Global Admissions (on
+ * exchange)" where the student is only visiting.
  */
 export function enrollmentLabel(e: NamedEnrollment): string {
-  return e.cohort ? `${e.program.name} / ${e.cohort.name}` : e.program.name;
+  const place = e.cohort ? `${e.program.name} / ${e.cohort.name}` : e.program.name;
+  return e.exchangeId ? `${place} (on exchange)` : place;
+}
+
+/** A student's OWN programs — everywhere a visit must not be counted as one. */
+export function studiesIn<T extends { exchangeId?: string | null }>(
+  enrollments: readonly T[]
+): T[] {
+  return enrollments.filter((e) => !e.exchangeId);
 }
 
 /**

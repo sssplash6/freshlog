@@ -1,9 +1,12 @@
+import { ExchangeList } from "@/components/exchange-panel";
 import { PersonChip } from "@/components/person-chip";
 import { programTone } from "@/lib/program-tone";
 import { ArrowLink } from "@/components/ui/link";
 import { Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { requireProgramScope } from "@/lib/dal";
+import type { ViewerContext } from "@/lib/status";
+import { programExchanges } from "@/lib/exchanges";
 import { formatDate, formatDuration } from "@/lib/format";
 import { programTotals } from "@/lib/hours";
 import { recentMeetings } from "@/lib/queries";
@@ -29,16 +32,21 @@ export default async function ProgramOverviewPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireProgramScope(id);
+  const me = await requireProgramScope(id);
 
   // The first three are the layout's reads, memoised: opening a program asks
   // for its row, its roster and its pairings once between the two files.
-  const [program, students, pairings, [lastSession]] = await Promise.all([
+  const [program, students, pairings, [lastSession], exchanges] = await Promise.all([
     programOf(id),
     programStudents(id),
     programPairings(id),
     recentMeetings({ programId: id, take: 1 }),
+    programExchanges(id),
   ]);
+  // One instant for the page, as everywhere: a use-by date must not be judged
+  // twice by two sections reading the clock separately.
+  const viewer: ViewerContext = { audience: "staff", userId: me.id, now: new Date() };
+  const lent = [...exchanges.hosted, ...exchanges.sent];
 
   // §8.6: the one helper, over the unsliced roster — never a second reducer.
   const totals = programTotals(students);
@@ -113,6 +121,27 @@ export default async function ProgramOverviewPage({
           </ul>
         )}
       </Section>
+
+      {/* Students this program took in, and students it lent out — both, in one
+          list, because an admin's question is the same either way: is somebody
+          delivering the hours that were promised? The rows are read-only here.
+          A placement is called off from the student's own page, where the
+          ledger it would take with it is on screen. */}
+      {lent.length > 0 && (
+        <Section
+          eyebrow="Between programs"
+          title="Exchange"
+          count={lent.length}
+          caption="Hours one program promises, another delivers"
+        >
+          <ExchangeList
+            exchanges={lent}
+            viewer={viewer}
+            showStudent
+            canReturn={() => false}
+          />
+        </Section>
+      )}
 
       {/* The delivery line, carrying the two figures the removed stat strip
           was the only place to read — logged and missed — and now linking to
