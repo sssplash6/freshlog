@@ -52,3 +52,34 @@ Three rules follow, and breaking any of them is silent:
 3. **Never key a total on `studentId:mentorId`.** Forfeiture, draw-down and the
    deadline reminders all key on `(student, program, mentor)`. A key without the
    program spends one program's hours out of another program's grant.
+
+## A visit is not an enrollment
+
+One program may lend a student to another for a capped number of minutes —
+Imkon sends somebody to Global Admissions for seven hours. `ProgramExchange`
+is the placement; the membership it creates in the host program carries
+`StudentEnrollment.exchangeId`, and that is the only thing that tells a visit
+from an enrollment.
+
+It adds no ledger. The allocations and sessions live in the HOST program, keyed
+the way the section above requires, and carry `exchangeId` so the SENDING
+program can read exactly those rows — the one place a program sees inside
+another's ledger, and the reason it is a column rather than a query about a
+student in a program you do not administer.
+
+Four rules, and breaking any of them is silent:
+
+1. **The cap is the sender's.** `setMentorAllocation` refuses a grant that
+   would take the total under an exchange past `minutes`, or date one past the
+   placement's own deadline — checked again inside the transaction, where a
+   second admin's concurrent grant is finally visible.
+2. **Hours are new, never moved.** The sending program's own figures do not
+   change when it lends somebody out. A figure that appeared in both programs'
+   totals would be the same hour counted twice.
+3. **Only their own programs lend.** A student already visiting cannot be lent
+   onward, cannot be moved, and cannot be unenrolled — `returnExchange` is the
+   way out, and it is refused once an hour has been logged.
+4. **Say it is a visit, wherever a membership is named.** `enrollmentLabel`
+   appends "(on exchange)", the rosters mark it, and `studiesIn()` is how you
+   ask for a student's own programs.
+
