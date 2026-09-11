@@ -25,14 +25,12 @@ import { studentsWithHours, type StudentWithHours } from "@/lib/queries";
  */
 
 /**
- * `Program.status`, spelled once. Two values only — see prisma/schema.prisma
- * and `programStatuses` (`lib/status.ts`), which reads the same two.
- *
- * It belongs beside `USER_STATUS` in `lib/constants.ts`; it is here because the
- * commit that added the column did not put it there, and a third spelling of
- * "ARCHIVED" is worse than a temporary home.
+ * `Program.status`, spelled once — now in `lib/constants.ts`, beside
+ * `USER_STATUS`, which is where this comment always said it belonged. Re-exported
+ * rather than moved out from under its readers: the program pages ask this file
+ * for everything else about a program.
  */
-export const PROGRAM_STATUS = { ACTIVE: "ACTIVE", ARCHIVED: "ARCHIVED" } as const;
+export { PROGRAM_STATUS } from "@/lib/constants";
 
 /**
  * One instant for the whole request.

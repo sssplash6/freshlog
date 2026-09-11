@@ -22,6 +22,19 @@ export const USER_STATUS = {
 export type UserStatus = (typeof USER_STATUS)[keyof typeof USER_STATUS];
 
 /**
+ * `Program.status`. Two values, and they are the whole lifecycle: a finished
+ * program stops appearing in the pickers without being deleted.
+ *
+ * It lived in `app/programs/reads.ts`, whose own comment said it belonged here
+ * — the commit that added the column put it beside its first reader. A server
+ * action needs it now, and an action importing a page module to find out what
+ * "ARCHIVED" is spelled like is how a third spelling gets invented.
+ */
+export const PROGRAM_STATUS = { ACTIVE: "ACTIVE", ARCHIVED: "ARCHIVED" } as const;
+
+export type ProgramStatus = (typeof PROGRAM_STATUS)[keyof typeof PROGRAM_STATUS];
+
+/**
  * The domain the sheet import gives a student whose real address the sheet
  * never had. RFC 2606 reserves `.invalid`, so mail to it can never be
  * delivered — which is the point: a placeholder must be undeliverable rather
@@ -40,6 +53,26 @@ export const SESSION_STATUS = {
 } as const;
 
 export type SessionStatus = (typeof SESSION_STATUS)[keyof typeof SESSION_STATUS];
+
+/**
+ * A student lent to another program, and how that placement ended.
+ *
+ *   OPEN      the hours are live: the host may allocate and log against them
+ *   RETURNED  the host sent them back before anything was logged
+ *
+ * There is no "finished" state, and deliberately: an exchange whose hours are
+ * spent is not over — the sessions are still the record both programs read,
+ * and the sender may send more. Whether anything is left is a sum over the
+ * allocations, which is a question the rows answer rather than a word somebody
+ * has to remember to write.
+ */
+export const EXCHANGE_STATUS = {
+  OPEN: "OPEN",
+  RETURNED: "RETURNED",
+} as const;
+
+export type ExchangeStatus =
+  (typeof EXCHANGE_STATUS)[keyof typeof EXCHANGE_STATUS];
 
 /**
  * What the student says about a session their mentor logged.
@@ -331,6 +364,9 @@ export const NOTIFICATION_TYPES = {
   INTERVIEW_ANSWERED: "INTERVIEW_ANSWERED", // to the mentor: the student confirmed, or can't make it
   SESSION_ANSWERED: "SESSION_ANSWERED", // to the mentor + admins: the student confirmed or disputed a logged session
   FEEDBACK_RECEIVED: "FEEDBACK_RECEIVED", // to admins: a student rated a mentor
+  EXCHANGE_SENT: "EXCHANGE_SENT", // to the host program's admins: a student was lent to you, with hours to allocate
+  EXCHANGE_ALLOCATED: "EXCHANGE_ALLOCATED", // back to the sender: the host put those hours on a mentor
+  EXCHANGE_RETURNED: "EXCHANGE_RETURNED", // to the other side: the placement is off
   WEEKLY_SUMMARY: "WEEKLY_SUMMARY", // to everyone who wants it: the Monday digest, in the feed too
 } as const;
 
@@ -397,6 +433,11 @@ export const CATEGORY_OF: Record<NotificationType, NotificationCategory> = {
   INTERVIEW_CANCELLED: "MEETINGS",
   INTERVIEW_ANSWERED: "MEETINGS",
   FEEDBACK_RECEIVED: "ACCOUNTS",
+  // Time, not an account: what the host admin does about it is allocate hours,
+  // and what the sender waits to hear is that somebody holds them.
+  EXCHANGE_SENT: "HOURS",
+  EXCHANGE_ALLOCATED: "HOURS",
+  EXCHANGE_RETURNED: "HOURS",
   WEEKLY_SUMMARY: "ACCOUNTS",
 };
 
@@ -431,6 +472,9 @@ export const NOTIFICATION_META: Record<
   INTERVIEW_CANCELLED: { label: "Meeting cancelled", tone: "warning" },
   INTERVIEW_ANSWERED: { label: "Meeting answer", tone: "success" },
   FEEDBACK_RECEIVED: { label: "Feedback", tone: "brand" },
+  EXCHANGE_SENT: { label: "Exchange", tone: "accent" },
+  EXCHANGE_ALLOCATED: { label: "Exchange", tone: "accent" },
+  EXCHANGE_RETURNED: { label: "Exchange", tone: "warning" },
   WEEKLY_SUMMARY: { label: "Weekly summary", tone: "plan" },
 };
 

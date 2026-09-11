@@ -319,6 +319,81 @@ export async function assertTaskScope(
 }
 
 /**
+ * May this actor lend this student to another program?
+ *
+ * The sending program decides, and two people speak for it: an admin of it, and
+ * a mentor who works in it. The mentor half is the point of the feature — the
+ * person who finds out that a student needs seven hours of another program's
+ * help is the mentor sitting with them, and making them find an admin first is
+ * how the arrangement goes on happening over Telegram instead.
+ *
+ * Assignment to the program, not reach of the student: `mentorReaches` includes
+ * a mentor who merely holds a task moved onto their list, and lending somebody
+ * out is an act on the PROGRAM's behalf — it commits that program's name to a
+ * placement and spends nothing of the mentor's own. So the mentor must actually
+ * work there, and the student must actually study there — the caller passes
+ * their own enrollments, never a visit they are already on.
+ *
+ * What it does NOT check is the destination. Sending is a decision about your
+ * own program; the host's admins decide what to do with it, up to and including
+ * handing them straight back (`returnExchange`).
+ */
+export async function assertExchangeSender(
+  actor: User | null,
+  profile: { enrollments: readonly { programId: string }[] },
+  fromProgramId: string
+): Promise<Denied | null> {
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+  if (!profile.enrollments.some((e) => e.programId === fromProgramId)) {
+    return { ok: false, error: "That student doesn't study in that program." };
+  }
+  const scope = await adminScope(actor);
+  if (scopeCovers(scope, fromProgramId)) return null;
+  if (canActAsMentor(actor) && actor.status === USER_STATUS.ACTIVE) {
+    const works = await prisma.mentorAssignment.findFirst({
+      where: { mentorId: actor.id, programId: fromProgramId },
+      select: { id: true },
+    });
+    if (works) return null;
+  }
+  return {
+    ok: false,
+    error: "You don't work in the program that would be sending them.",
+  };
+}
+
+/**
+ * May this actor call an exchange off?
+ *
+ * Either end may, and they mean different things by it: the host says "we
+ * cannot take this on", the sender says "never mind". Both are the same write
+ * and both are refused once anything has been logged — a delivered hour is
+ * history, not a placement anybody can undo.
+ *
+ * The mentor who sent them is included by name. They are usually not an admin
+ * of anything, and a person who can make an arrangement should be able to
+ * unmake it while it is still only an arrangement.
+ */
+export async function assertExchangeParty(
+  actor: User | null,
+  exchange: { fromProgramId: string; toProgramId: string; sentById: string }
+): Promise<Denied | null> {
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+  if (actor.id === exchange.sentById) return null;
+  const scope = await adminScope(actor);
+  if (
+    scopeCovers(scope, exchange.toProgramId) ||
+    scopeCovers(scope, exchange.fromProgramId)
+  ) {
+    return null;
+  }
+  return {
+    ok: false,
+    error: "That exchange is between two programs you don't administer.",
+  };
+}
+
+/**
  * Platform-only writes: creating a program, granting somebody access, and
  * changing a person's name or login email.
  *

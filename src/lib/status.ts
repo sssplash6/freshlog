@@ -92,6 +92,8 @@ export type StatusType =
   | "MENTOR_UNASSIGNED"
   | "MENTOR_NAME_MISSING"
   | "FEEDBACK_LOW"
+  // A student another program lent us, or we lent them
+  | "EXCHANGE_UNALLOCATED"
   // A program, and the reader themself
   | "PROGRAM_ARCHIVED"
   | "PROGRAM_NO_MENTORS"
@@ -669,6 +671,27 @@ const META: Record<StatusType, Meta> = {
     many: (n) => `${n} mentors are rated low`,
   },
 
+  EXCHANGE_UNALLOCATED: {
+    severity: "attention",
+    voices: {
+      staff: {
+        kind: "actionable",
+        label: (d) => `${dur(d)} to allocate`,
+        explanation: () =>
+          "Another program sent them for these hours. Put them on a mentor.",
+      },
+      // The sender, who is waiting to hear that somebody took it on. Nothing
+      // for them to do about it — the host program allocates — so it is news
+      // rather than a job, and it clears itself the moment the hours land.
+      mentor: {
+        kind: "informational",
+        label: (d) => `${dur(d)} not allocated yet`,
+        explanation: () => "The host program has not put these hours on a mentor.",
+      },
+    },
+    many: (n) => `${n} exchanges have hours to allocate`,
+  },
+
   PROGRAM_ARCHIVED: {
     severity: "neutral",
     voices: {
@@ -928,6 +951,48 @@ export function programStatuses(p: ProgramStatusInput, v: ViewerContext): Status
   }
 
   return out.filter((x): x is Status => x !== null);
+}
+
+/**
+ * A student one program lent another, read by either end.
+ *
+ * One state, and it is the only one an exchange can be in that anybody has to
+ * act on: hours were promised and nobody in the host program holds them yet.
+ * Everything else about an exchange — how much is left, when it expires, who is
+ * delivering it — is the ordinary ledger, which already has words of its own.
+ *
+ * The program tag is the HOST, whichever end is reading: that is where the
+ * hours are and where the row is settled.
+ */
+export type ExchangeStatusInput = {
+  id: string;
+  student: { id: string; name: string };
+  toProgram: { id: string; name: string };
+  /** The cap the sender promised. */
+  minutes: number;
+  /** What the host has put on its mentors so far. */
+  allocatedMinutes: number;
+  deadline: Date;
+};
+
+export function exchangeStatuses(
+  e: ExchangeStatusInput,
+  v: ViewerContext
+): Status[] {
+  const unallocated = e.minutes - e.allocatedMinutes;
+  if (unallocated <= 0) return [];
+  const row = status(
+    "EXCHANGE_UNALLOCATED",
+    v,
+    { minutes: unallocated, date: e.deadline, name: e.student.name },
+    {
+      subject: { kind: "student" as const, id: e.student.id, name: e.student.name },
+      program: e.toProgram,
+      href: `/students/${e.student.id}`,
+      at: e.deadline,
+    }
+  );
+  return row ? [row] : [];
 }
 
 export type TaskStatusInput = {

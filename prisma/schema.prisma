@@ -73,6 +73,8 @@ model User {
   avatarImage         AvatarImage?
   notificationPrefs   NotificationPreference[]
   dismissals          StatusDismissal[]
+  exchangesSent       ProgramExchange[]        @relation("ExchangeSentBy")
+  exchangesReturned   ProgramExchange[]        @relation("ExchangeReturnedBy")
 }
 
 // One profile picture, stored in the database rather than on disk so it travels
@@ -120,6 +122,10 @@ model Program {
   sessions          Session[]
   assignments       Assignment[]
   allotmentChanges  HourAllotmentChange[]
+  // Students this program lent out, and students it took in. Two relations
+  // because they are two questions an admin asks separately.
+  exchangesSent     ProgramExchange[]     @relation("ExchangeFrom")
+  exchangesHosted   ProgramExchange[]     @relation("ExchangeTo")
 }
 
 // One person may administer one program. This table IS the permission model
@@ -197,17 +203,17 @@ model MentorAssignment {
 // granted them. The enrollment is its own row now, and the ledger says which
 // program each grant, session and task belongs to.
 model StudentProfile {
-  id               String   @id @default(cuid())
-  userId           String   @unique
-  telegramUsername String? // collected during the student's first sign-in
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  telegramUsername   String? // collected during the student's first sign-in
   // When we last nudged them to supply one. Null means never asked. Kept so a
   // re-run of the reminder job is a no-op rather than a second email, the same
   // guard `User.digestSentAt` gives the weekly digest.
   telegramReminderAt DateTime?
-  folderUrl        String? // link to the student's folder (Drive/Docs/…), for mentors
-  createdById      String // staff user who created the student, or the student themself (self-signup)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  folderUrl          String? // link to the student's folder (Drive/Docs/…), for mentors
+  createdById        String // staff user who created the student, or the student themself (self-signup)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   user             User                  @relation("StudentUser", fields: [userId], references: [id])
   createdBy        User                  @relation("CreatedBy", fields: [createdById], references: [id])
@@ -218,6 +224,7 @@ model StudentProfile {
   allotmentChanges HourAllotmentChange[]
   mentorFeedback   MentorFeedback[]
   interviews       Interview[]
+  exchanges        ProgramExchange[]
 }
 
 // One student, in one program — the membership fact, and nothing else.
@@ -241,15 +248,87 @@ model StudentEnrollment {
   // single-program column, which nobody made — the same convention as
   // `ProgramStaff.createdById`.
   createdById String?
+  // Set when this membership is an EXCHANGE rather than an enrollment: a
+  // student another program sent here for a capped number of hours. It is the
+  // one place the difference is recorded, and everything that reads a roster
+  // reads it — a visitor is in the program for as long as the hours last, and
+  // is not the program's own student.
+  exchangeId  String?  @unique
   createdAt   DateTime @default(now())
 
-  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  program   Program        @relation(fields: [programId], references: [id])
-  cohort    Cohort?        @relation(fields: [cohortId], references: [id])
-  createdBy User?          @relation("EnrolledBy", fields: [createdById], references: [id])
+  student   StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  program   Program          @relation(fields: [programId], references: [id])
+  cohort    Cohort?          @relation(fields: [cohortId], references: [id])
+  createdBy User?            @relation("EnrolledBy", fields: [createdById], references: [id])
+  exchange  ProgramExchange? @relation(fields: [exchangeId], references: [id], onDelete: SetNull)
 
   @@unique([studentId, programId])
   @@index([programId])
+}
+
+// One student, lent by one program to another for a capped number of hours.
+//
+// The school runs three programs and its mentors do not stop at the edge of
+// theirs: a mentor in Imkon meets a student who needs seven hours of Global
+// Admissions' help, and nobody in Global has heard of them. Before this, the
+// only way to arrange that was to enroll the student in Global outright, which
+// says something quite different — that they study there — and hands Global's
+// admins the whole of a student they were asked to help with for an afternoon.
+//
+// So the placement is its own row, and it says three things a plain enrollment
+// cannot: who sent them, how much time was promised, and by when. The hours are
+// NEW time, not a transfer: the sending mentor is not spending their own
+// program's grant, they are saying "this student may take up to seven hours
+// here". The host program's admin then allocates those hours among its own
+// mentors, and may allocate no more than the cap.
+//
+// Both programs read the same rows afterwards. The allocations and sessions
+// live in the HOST program, where the work happens and where the ledger's rules
+// put them, and they carry `exchangeId` so the SENDING program can read exactly
+// them and nothing else of the host's. That column is the whole of the
+// both-ends view: without it the home program would have to ask about a student
+// in a program it does not administer, which is the question `studentScope`
+// exists to refuse.
+model ProgramExchange {
+  id            String    @id @default(cuid())
+  studentId     String
+  // Where they came from, and where they were sent. Both required: an exchange
+  // with one program named is an enrollment with extra words.
+  fromProgramId String
+  toProgramId   String
+  // The ceiling, in minutes. The host may allocate this much and no more; it
+  // rises only when the sender sends more.
+  minutes       Int
+  // Use-by for the whole placement. The host's own allocations carry their own
+  // deadlines, and none of them may outlive this one — time the sender did not
+  // promise is time the host cannot grant.
+  deadline      DateTime
+  // Why, in the sender's words. What the student is coming for.
+  note          String?
+  // OPEN | RETURNED. See EXCHANGE_STATUS in lib/constants.ts. A returned
+  // exchange kept its row: who was sent where, and that it came back, is the
+  // record both programs need. Returning is refused once anything was logged.
+  status        String    @default("OPEN")
+  sentById      String
+  returnedById  String?
+  returnedAt    DateTime?
+  returnNote    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  student     StudentProfile     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  fromProgram Program            @relation("ExchangeFrom", fields: [fromProgramId], references: [id])
+  toProgram   Program            @relation("ExchangeTo", fields: [toProgramId], references: [id])
+  sentBy      User               @relation("ExchangeSentBy", fields: [sentById], references: [id])
+  returnedBy  User?              @relation("ExchangeReturnedBy", fields: [returnedById], references: [id])
+  // The membership it created in the host program, while it is open.
+  enrollment  StudentEnrollment?
+  allocations HourAllocation[]
+  sessions    Session[]
+
+  @@index([studentId])
+  @@index([toProgramId, status])
+  @@index([fromProgramId, status])
 }
 
 // One planned piece of work for a student: what it is for, which mentor is
@@ -338,12 +417,18 @@ model HourAllocation {
   amountPaid    Float? // total the student paid for this time; collected only for Master's Program allocations (null elsewhere)
   deadline      DateTime // required date the time must be used by; shown to student and mentor. Once it passes, unused minutes are FORFEITED and no new sessions may be logged against the allocation.
   deadlineStage String? // reminder bookkeeping: null | UPCOMING_SENT | PASSED_SENT; reset when the deadline changes
+  // Set when this grant spends an exchange another program sent. The hours are
+  // this program's to allocate and this program's to deliver; the column is
+  // what keeps their total under the cap, and what lets the sending program
+  // read them without being given the student's whole record here.
+  exchangeId    String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  student StudentProfile @relation(fields: [studentId], references: [id])
-  program Program        @relation(fields: [programId], references: [id])
-  mentor  User?          @relation("AllocationMentor", fields: [mentorId], references: [id])
+  student  StudentProfile   @relation(fields: [studentId], references: [id])
+  program  Program          @relation(fields: [programId], references: [id])
+  mentor   User?            @relation("AllocationMentor", fields: [mentorId], references: [id])
+  exchange ProgramExchange? @relation(fields: [exchangeId], references: [id], onDelete: SetNull)
 
   // One grant per mentor per program per student. The program is part of the
   // key, not decoration: the same mentor may hold time with the same student in
@@ -351,6 +436,7 @@ model HourAllocation {
   // collide into one row.
   @@unique([studentId, programId, mentorId])
   @@index([programId])
+  @@index([exchangeId])
 }
 
 // A completed mentoring session logged by a mentor, in minutes. ACTIVE sessions
@@ -415,20 +501,29 @@ model Session {
   // Their words: what was wrong, or what was good. Optional either way.
   studentNote       String?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  // The exchange this meeting was delivered under, copied from the student's
+  // membership at the moment it was logged. Stored rather than derived so the
+  // log reads the same to both programs forever: the sending program asks for
+  // its own exchange's sessions, not for "this student, in that program",
+  // which would be a question about a program it does not administer.
+  exchangeId String?
 
-  student    StudentProfile @relation(fields: [studentId], references: [id])
-  program    Program        @relation(fields: [programId], references: [id])
-  mentor     User           @relation("SessionMentor", fields: [mentorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student    StudentProfile   @relation(fields: [studentId], references: [id])
+  program    Program          @relation(fields: [programId], references: [id])
+  mentor     User             @relation("SessionMentor", fields: [mentorId], references: [id])
+  exchange   ProgramExchange? @relation(fields: [exchangeId], references: [id], onDelete: SetNull)
   // SetNull, not Cascade: deleting a goal must never delete the time that was
   // already delivered against it. The session survives, minus its goal.
-  assignment Assignment?    @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  assignment Assignment?      @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
   // The scheduled meeting this session delivered, when it came from one.
   interview  Interview?
 
   @@index([assignmentId])
   @@index([programId])
+  @@index([exchangeId])
   @@index([studentId, programId, mentorId])
 }
 

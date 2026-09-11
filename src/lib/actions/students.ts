@@ -14,6 +14,7 @@ import { notify, notificationHref, staffIdsFor } from "@/lib/notify";
 import {
   ASSIGNMENT_PROGRESS,
   canActAsMentor,
+  EXCHANGE_STATUS,
   NOTIFICATION_TYPES,
   PLACEHOLDER_EMAIL_DOMAIN,
   ROLES,
@@ -35,6 +36,7 @@ import {
 import { emailConfigured } from "@/lib/email/send";
 import { sendWelcomeEmails, welcomeMail } from "@/lib/email/welcome";
 import { enrollmentsLabel } from "@/lib/enrollments";
+import { allocatedUnder, ExchangeCapExceeded } from "@/lib/exchanges";
 import type { Cohort, Program } from "@/generated/prisma/client";
 
 /** "Program" or "Program / Cohort" display label. */
@@ -665,6 +667,16 @@ export async function moveStudent(
     };
   }
 
+  // A visit is not an enrollment, and moving one would silently turn it into
+  // one: the cap, the sender and the use-by date all belong to the program the
+  // student came from, and none of them survive being pointed somewhere else.
+  if (from.exchangeId) {
+    return {
+      ok: false,
+      error: `Their place in ${from.program.name} is an exchange, not an enrollment. Call the exchange off, or enroll them somewhere properly.`,
+    };
+  }
+
   // A move writes to two programs, so BOTH are gated. Gating only the
   // destination would let an admin of one program pull a student out of a
   // program they have no part in; gating only the source would let them push a
@@ -807,7 +819,10 @@ export async function unenrollStudent(
       program: true,
       cohort: true,
       student: {
-        include: { user: true, enrollments: { select: { id: true } } },
+        include: {
+          user: true,
+          enrollments: { select: { id: true, exchangeId: true } },
+        },
       },
     },
   });
@@ -816,7 +831,21 @@ export async function unenrollStudent(
   const denied = await assertProgramScope(actor, enrollment.programId);
   if (denied) return denied;
 
-  if (enrollment.student.enrollments.length === 1) {
+  // An exchange comes off through the exchange, which tells the program that
+  // sent them. Deleting the membership from under it would leave a placement
+  // whose student is not there, and a sender who is never told.
+  if (enrollment.exchangeId) {
+    return {
+      ok: false,
+      error: `They are in ${enrollment.program.name} on an exchange. Return the exchange instead — the program that sent them is told either way.`,
+    };
+  }
+
+  // Their own programs, which a visit is not. A student left holding nothing
+  // but an exchange is a student who belongs nowhere the moment it ends — and
+  // the row that would say so is in a program that is about to hand them back.
+  const enrolled = enrollment.student.enrollments.filter((e) => !e.exchangeId);
+  if (enrolled.length === 1) {
     return {
       ok: false,
       error:
@@ -1206,6 +1235,39 @@ export async function setMentorAllocation(
     return { ok: true, message: "No change: allocation is already at that value." };
   }
 
+  /**
+   * A visitor's hours are capped by the program that lent them.
+   *
+   * The student is in this program on an exchange — another program promised
+   * them a number of hours here and this program allocates them among its own
+   * mentors. Two rules follow, and both are the sending program's to set: the
+   * grants under it may not add up to more than was promised, and none of them
+   * may outlive the placement's own use-by date. Time the sender did not
+   * promise is time this program cannot grant on their behalf.
+   *
+   * Checked here and re-checked inside the transaction, where two admins
+   * allocating at once cannot both pass a stale read.
+   */
+  const exchange = target.exchangeId
+    ? await prisma.programExchange.findUnique({ where: { id: target.exchangeId } })
+    : null;
+  if (exchange && exchange.status === EXCHANGE_STATUS.OPEN) {
+    const others = await allocatedUnder(prisma, exchange.id, existing?.id);
+    if (others + newMinutes > exchange.minutes) {
+      const spare = Math.max(0, exchange.minutes - others);
+      return {
+        ok: false,
+        error: `This student is here on exchange for ${formatDuration(exchange.minutes)}, and ${formatDuration(others)} of it is already allocated. You can grant ${formatDuration(spare)}. Ask the sending program for more.`,
+      };
+    }
+    if (deadline > exchange.deadline) {
+      return {
+        ok: false,
+        error: `The exchange runs out on ${formatDate(exchange.deadline)}, so these hours can't be dated past it.`,
+      };
+    }
+  }
+
   // A grant may say what the work is — and, if there is anything to say about
   // how to do it, what that is too. Hours with no task yet are fine: naming
   // the work can wait, just like naming the mentor.
@@ -1234,153 +1296,202 @@ export async function setMentorAllocation(
   const programNote =
     profile.enrollments.length > 1 ? ` in ${program.name}` : "";
 
-  const taskOutcome = await prisma.$transaction(async (tx) => {
-    // Bring the mentor into the program if they weren't already.
-    if (mentorId && !inProgram) {
-      await tx.mentorAssignment.create({
-        data: { mentorId, programId: program.id, cohortId: null },
-      });
-      await notify(tx, {
-        to: [mentorId],
-        type: NOTIFICATION_TYPES.MENTOR_ASSIGNED,
-        actorId: actor.id,
-        href: notificationHref.mentorHome(),
-        message: `You were assigned to ${program.name}. Set your booking link on your mentor page so students there can book you.`,
-      });
-    }
-    // Update-by-id rather than upsert: the pool row (mentor null) can't be
-    // addressed through the compound unique.
-    if (existing) {
-      await tx.hourAllocation.update({
-        where: { id: existing.id },
-        data: {
-          minutes: newMinutes,
-          deadline,
-          // A new deadline restarts the reminder cycle.
-          ...(sameDeadline ? {} : { deadlineStage: null }),
-          ...(tracksPayment ? { amountPaid: newPaid } : {}),
-        },
-      });
-    } else {
-      await tx.hourAllocation.create({
-        data: {
-          studentId: profile.id,
-          programId: program.id,
-          mentorId,
-          minutes: newMinutes,
-          deadline,
-          ...(tracksPayment ? { amountPaid: newPaid } : {}),
-        },
-      });
-    }
+  /**
+   * The write, with the one refusal that can only be discovered inside it.
+   *
+   * `ExchangeCapExceeded` is thrown by the re-check in the transaction below,
+   * where a second admin's concurrent grant is finally visible. Catching it
+   * here turns it back into the sentence the pre-check would have said, so the
+   * admin cannot tell which of the two checks caught them.
+   */
+  let taskOutcome: { task: string; budget: number; created: boolean } | null;
+  try {
+    taskOutcome = await prisma.$transaction(async (tx) => {
+      // Bring the mentor into the program if they weren't already.
+      if (mentorId && !inProgram) {
+        await tx.mentorAssignment.create({
+          data: { mentorId, programId: program.id, cohortId: null },
+        });
+        await notify(tx, {
+          to: [mentorId],
+          type: NOTIFICATION_TYPES.MENTOR_ASSIGNED,
+          actorId: actor.id,
+          href: notificationHref.mentorHome(),
+          message: `You were assigned to ${program.name}. Set your booking link on your mentor page so students there can book you.`,
+        });
+      }
+      // The cap again, from inside the transaction: the read above is stale the
+      // moment a second admin allocates against the same exchange, and both of
+      // them would otherwise pass a check neither of them was the last to make.
+      if (exchange && exchange.status === EXCHANGE_STATUS.OPEN) {
+        const others = await allocatedUnder(tx, exchange.id, existing?.id);
+        if (others + newMinutes > exchange.minutes) {
+          throw new ExchangeCapExceeded(
+            Math.max(0, exchange.minutes - others),
+            exchange.minutes
+          );
+        }
+      }
 
-    // The task these hours bought. Topping up an open one keeps the plan honest:
-    // a second "Supplemental Essays" row would split the same work in two.
-    let outcome: { task: string; budget: number; created: boolean } | null = null;
-    if (task) {
-      const open = await tx.assignment.findFirst({
-        where: {
-          studentId: profile.id,
-          programId: program.id,
-          mentorId,
-          purpose: task,
-          progress: { not: ASSIGNMENT_PROGRESS.DONE },
-        },
-        orderBy: { position: "asc" },
-      });
-      if (open) {
-        const budget = Number(((open.minuteLimit ?? 0) + granted).toFixed(2));
-        // A note written with a top-up is added to what the task already says,
-        // since the earlier instruction is usually still true.
-        const note =
-          taskNote && !(open.note ?? "").includes(taskNote)
-            ? [open.note, taskNote].filter(Boolean).join(" · ")
-            : open.note;
-        await tx.assignment.update({
-          where: { id: open.id },
-          data: { minuteLimit: budget, note },
+      // Update-by-id rather than upsert: the pool row (mentor null) can't be
+      // addressed through the compound unique.
+      if (existing) {
+        await tx.hourAllocation.update({
+          where: { id: existing.id },
+          data: {
+            minutes: newMinutes,
+            deadline,
+            // A new deadline restarts the reminder cycle.
+            ...(sameDeadline ? {} : { deadlineStage: null }),
+            ...(tracksPayment ? { amountPaid: newPaid } : {}),
+            // Late-stamped for a grant made before the exchange existed — the
+            // enrollment says which placement this program's time belongs to.
+            ...(exchange && !existing.exchangeId ? { exchangeId: exchange.id } : {}),
+          },
         });
-        // A raised budget can reopen work the old limit had finished.
-        await syncGoalProgress(tx, open.id);
-        outcome = { task, budget, created: false };
       } else {
-        const last = await tx.assignment.findFirst({
-          where: { studentId: profile.id },
-          orderBy: { position: "desc" },
-          select: { position: true },
-        });
-        await tx.assignment.create({
+        await tx.hourAllocation.create({
           data: {
             studentId: profile.id,
             programId: program.id,
             mentorId,
-            purpose: task,
-            minuteLimit: granted,
-            note: taskNote,
-            // The date THIS grant was aimed at, which the pooled use-by date
-            // can outlive once other hours are added to the same mentor. A
-            // real date, so the task can actually be overdue: this line used
-            // to write formatDate() text into a free-text column, which is
-            // how every task in the school arrived unreadable by a clock.
-            dueOn: enteredDeadline,
-            position: (last?.position ?? -1) + 1,
-            createdById: actor.id,
+            minutes: newMinutes,
+            deadline,
+            ...(tracksPayment ? { amountPaid: newPaid } : {}),
+            ...(exchange ? { exchangeId: exchange.id } : {}),
           },
         });
-        outcome = { task, budget: granted, created: true };
+      }
+
+      // The task these hours bought. Topping up an open one keeps the plan honest:
+      // a second "Supplemental Essays" row would split the same work in two.
+      let outcome: { task: string; budget: number; created: boolean } | null = null;
+      if (task) {
+        const open = await tx.assignment.findFirst({
+          where: {
+            studentId: profile.id,
+            programId: program.id,
+            mentorId,
+            purpose: task,
+            progress: { not: ASSIGNMENT_PROGRESS.DONE },
+          },
+          orderBy: { position: "asc" },
+        });
+        if (open) {
+          const budget = Number(((open.minuteLimit ?? 0) + granted).toFixed(2));
+          // A note written with a top-up is added to what the task already says,
+          // since the earlier instruction is usually still true.
+          const note =
+            taskNote && !(open.note ?? "").includes(taskNote)
+              ? [open.note, taskNote].filter(Boolean).join(" · ")
+              : open.note;
+          await tx.assignment.update({
+            where: { id: open.id },
+            data: { minuteLimit: budget, note },
+          });
+          // A raised budget can reopen work the old limit had finished.
+          await syncGoalProgress(tx, open.id);
+          outcome = { task, budget, created: false };
+        } else {
+          const last = await tx.assignment.findFirst({
+            where: { studentId: profile.id },
+            orderBy: { position: "desc" },
+            select: { position: true },
+          });
+          await tx.assignment.create({
+            data: {
+              studentId: profile.id,
+              programId: program.id,
+              mentorId,
+              purpose: task,
+              minuteLimit: granted,
+              note: taskNote,
+              // The date THIS grant was aimed at, which the pooled use-by date
+              // can outlive once other hours are added to the same mentor. A
+              // real date, so the task can actually be overdue: this line used
+              // to write formatDate() text into a free-text column, which is
+              // how every task in the school arrived unreadable by a clock.
+              dueOn: enteredDeadline,
+              position: (last?.position ?? -1) + 1,
+              createdById: actor.id,
+            },
+          });
+          outcome = { task, budget: granted, created: true };
+          if (mentorId) {
+            await notify(tx, {
+              to: [mentorId],
+              type: NOTIFICATION_TYPES.GOAL_ASSIGNED,
+              actorId: actor.id,
+              href: notificationHref.mentorStudent(profile.id),
+              message: `New task for ${studentName}: "${task}", budgeted ${formatDuration(granted)} to use by ${formatDate(enteredDeadline)}. Log your sessions against it.`,
+            });
+          }
+        }
+      }
+
+      if (newMinutes !== oldMinutes) {
+        const forTask = task ? ` for "${task}"` : "";
         if (mentorId) {
           await notify(tx, {
             to: [mentorId],
-            type: NOTIFICATION_TYPES.GOAL_ASSIGNED,
+            type: NOTIFICATION_TYPES.HOURS_GRANTED,
             actorId: actor.id,
             href: notificationHref.mentorStudent(profile.id),
-            message: `New task for ${studentName}: "${task}", budgeted ${formatDuration(granted)} to use by ${formatDate(enteredDeadline)}. Log your sessions against it.`,
+            message: `Your time with ${studentName} are now ${formatDuration(newMinutes)} (was ${formatDuration(oldMinutes)})${forTask}, to use by ${formatDate(deadline)}.`,
+          });
+        }
+        await tx.hourAllotmentChange.create({
+          data: {
+            studentId: profile.id,
+            programId: program.id,
+            mentorId,
+            changedById: actor.id,
+            oldMinutes,
+            newMinutes,
+          },
+        });
+        // The sender is waiting to hear that somebody here took it on. It is the
+        // one thing they cannot see coming: they promised the hours and have no
+        // say in who delivers them.
+        if (exchange) {
+          const held = (await allocatedUnder(tx, exchange.id)) + newMinutes - oldMinutes;
+          await notify(tx, {
+            to: [exchange.sentById],
+            type: NOTIFICATION_TYPES.EXCHANGE_ALLOCATED,
+            actorId: actor.id,
+            href: notificationHref.adminStudent(profile.id),
+            message: `${program.name} put ${formatDuration(newMinutes)} of ${studentName}'s exchange on ${mentorLabel ?? "nobody yet"} — ${formatDuration(held)} of ${formatDuration(exchange.minutes)} allocated.`,
           });
         }
       }
-    }
 
-    if (newMinutes !== oldMinutes) {
-      const forTask = task ? ` for "${task}"` : "";
-      if (mentorId) {
-        await notify(tx, {
-          to: [mentorId],
-          type: NOTIFICATION_TYPES.HOURS_GRANTED,
-          actorId: actor.id,
-          href: notificationHref.mentorStudent(profile.id),
-          message: `Your time with ${studentName} are now ${formatDuration(newMinutes)} (was ${formatDuration(oldMinutes)})${forTask}, to use by ${formatDate(deadline)}.`,
-        });
-      }
-      await tx.hourAllotmentChange.create({
-        data: {
-          studentId: profile.id,
-          programId: program.id,
-          mentorId,
-          changedById: actor.id,
-          oldMinutes,
-          newMinutes,
-        },
+      // "with Valera" when a mentor holds the hours; plain hours otherwise —
+      // the student shouldn't have to know the pool exists.
+      const withMentor = mentorLabel ? ` with ${mentorLabel}` : "";
+      await notify(tx, {
+        to: [profile.userId],
+        type: NOTIFICATION_TYPES.HOURS_GRANTED,
+        actorId: actor.id,
+        href: notificationHref.studentHome(),
+        message:
+          granted > 0
+            ? `You were granted ${formatDuration(granted)} more hours${programNote}${withMentor}${task ? ` for "${task}"` : ""} (now ${formatDuration(newMinutes)}${mentorLabel ? " with them" : ""}).${deadlineNote}`
+            : granted < 0
+              ? `Your time${programNote}${withMentor} was adjusted from ${formatDuration(oldMinutes)} to ${formatDuration(newMinutes)}.${deadlineNote}`
+              : `The deadline for your time${programNote}${withMentor} was updated to ${formatDate(deadline)}.`,
       });
-    }
 
-    // "with Valera" when a mentor holds the hours; plain hours otherwise —
-    // the student shouldn't have to know the pool exists.
-    const withMentor = mentorLabel ? ` with ${mentorLabel}` : "";
-    await notify(tx, {
-      to: [profile.userId],
-      type: NOTIFICATION_TYPES.HOURS_GRANTED,
-      actorId: actor.id,
-      href: notificationHref.studentHome(),
-      message:
-        granted > 0
-          ? `You were granted ${formatDuration(granted)} more hours${programNote}${withMentor}${task ? ` for "${task}"` : ""} (now ${formatDuration(newMinutes)}${mentorLabel ? " with them" : ""}).${deadlineNote}`
-          : granted < 0
-            ? `Your time${programNote}${withMentor} was adjusted from ${formatDuration(oldMinutes)} to ${formatDuration(newMinutes)}.${deadlineNote}`
-            : `The deadline for your time${programNote}${withMentor} was updated to ${formatDate(deadline)}.`,
+      return outcome;
     });
-
-    return outcome;
-  });
+  } catch (error) {
+    if (error instanceof ExchangeCapExceeded) {
+      return {
+        ok: false,
+        error: `This student is here on exchange, and the rest of their time was just allocated by somebody else. ${formatDuration(error.spare)} of the ${formatDuration(error.cap)} is left to give.`,
+      };
+    }
+    throw error;
+  }
 
   revalidatePath("/", "layout");
   const paidNote =

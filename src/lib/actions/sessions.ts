@@ -309,6 +309,13 @@ export async function logSession(
     );
   }
   const program = reachable.find((p) => p.id === programId)!;
+  // Is the student HERE on an exchange? Then the session belongs to it, and the
+  // row says so: the program that lent them reads its own exchange's sessions
+  // rather than asking about a student inside a program it does not administer.
+  // Copied at log time rather than derived later, so the log still reads the
+  // same to both ends if the placement is ever converted into an enrollment.
+  const exchangeId =
+    profile.enrollments.find((e) => e.programId === programId)?.exchangeId ?? null;
 
   // Sessions draw down hours an admin allocated to THIS mentor in THIS
   // program — or, when the mentor holds none, the student's unassigned pool
@@ -413,6 +420,7 @@ export async function logSession(
         minutes: minutesParsed.value,
         date: dateParsed.value,
         note,
+        exchangeId,
         ...fields,
         ...timeKindFields(kind),
       },
@@ -485,6 +493,10 @@ export async function logSession(
               mentorId: mentor.id,
               minutes: carved,
               deadline: freshPool.deadline,
+              // The pool's own exchange, not the enrollment's: hours carved out
+              // of an exchange pool are still that exchange's hours, and a new
+              // row without the link would put them outside its cap.
+              exchangeId: freshPool.exchangeId,
             },
           });
         }
