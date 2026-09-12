@@ -210,21 +210,26 @@ export function FilterBar({
                   the box is, and the label still names it to anyone listening.
                 */}
                 <span className="sr-only">{SEARCH_LABEL[q]}</span>
-                <span className="relative block">
-                  <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
-                  <Input
-                    type="search"
-                    name="q"
-                    defaultValue={readParam(params, "q")}
-                    placeholder={SEARCH_PLACEHOLDER[q]}
-                    className="pl-9"
-                  />
-                </span>
+                <Input
+                  type="search"
+                  name="q"
+                  defaultValue={readParam(params, "q")}
+                  placeholder={SEARCH_PLACEHOLDER[q]}
+                />
               </label>
-              {/* 44px, the same as every other primary action: this one is
-                  pressed on a phone more than anywhere else. */}
-              <Button type="submit" size="md" className="shrink-0">
-                Apply
+              {/* The magnifier IS the button, and it is the only one on the
+                  row: the glyph used to sit inside the box saying what the box
+                  was, next to a button spelling "Apply" — a word for a gesture
+                  every search field on earth draws as this icon. Square and
+                  44px, the same target the word had. */}
+              <Button
+                type="submit"
+                size="md"
+                title={SEARCH_LABEL[q]}
+                className="w-11 shrink-0 px-0"
+              >
+                <SearchIcon className="h-4 w-4" />
+                <span className="sr-only">{SEARCH_LABEL[q]}</span>
               </Button>
             </div>
           )}
