@@ -6,6 +6,7 @@ import { Select } from "@/components/select";
 import { Button } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { Input } from "@/components/ui/field";
+import { SearchField } from "@/components/ui/search-field";
 import { cn } from "@/lib/cn";
 import {
   PAGE_PARAMS,
@@ -144,15 +145,20 @@ export function FilterBar({
     (key) => !posted.has(key) && !PAGE_PARAMS.includes(key) && readParam(params, key)
   );
 
-  // What the controls are currently SHOWING, as a signature. They are
-  // uncontrolled — `defaultValue` — so React happily leaves a typed value in
-  // the box while the URL under it changes: pressing Reset cleared the query
-  // string, reloaded the unfiltered list, and left the word "samandar" sitting
-  // in the search field with nothing filtered by it. Keying the form on the
-  // values it was rendered from remounts every control the moment the URL
-  // disagrees with it — Reset, a preset chip, the back button — and never
-  // while somebody is typing, since typing changes no parameter.
-  const shown = [...posted].map((name) => `${name}=${readParam(params, name)}`).join("&");
+  // What the SELECTS and DATES are currently showing, as a signature. They are
+  // uncontrolled — `defaultValue` — so React happily leaves a chosen value in
+  // a control while the URL under it changes: pressing Reset cleared the query
+  // string, reloaded the unfiltered list, and left the old choice on screen
+  // with nothing filtered by it. Keying the form on the values it was rendered
+  // from remounts them the moment the URL disagrees.
+  //
+  // `q` is deliberately NOT in the signature: the search box writes the URL as
+  // it is typed and follows it back by itself (`SearchField`), and a remount
+  // per keystroke would take the cursor with it.
+  const shown = [...posted]
+    .filter((name) => name !== "q")
+    .map((name) => `${name}=${readParam(params, name)}`)
+    .join("&");
 
   const count = activeFilterCount(params);
   const showValues = Boolean(q || selects.length > 0 || dateRange);
@@ -212,22 +218,11 @@ export function FilterBar({
 
           {q && (
             <div className="flex items-center gap-2">
-              <label className="min-w-0 flex-1">
-                {/*
-                  The caption is for a screen reader only. "Find a student"
-                  above a box already placeholdered "Name or email" is the same
-                  sentence twice and a line of height on the one row that is
-                  never folded away; the magnifier and the placeholder say what
-                  the box is, and the label still names it to anyone listening.
-                */}
-                <span className="sr-only">{SEARCH_LABEL[q]}</span>
-                <Input
-                  type="search"
-                  name="q"
-                  defaultValue={readParam(params, "q")}
-                  placeholder={SEARCH_PLACEHOLDER[q]}
-                />
-              </label>
+              <SearchField
+                basePath={basePath}
+                label={SEARCH_LABEL[q]}
+                placeholder={SEARCH_PLACEHOLDER[q]}
+              />
               {/* The magnifier IS the button, and it is the only one on the
                   row: the glyph used to sit inside the box saying what the box
                   was, next to a button spelling "Apply" — a word for a gesture
