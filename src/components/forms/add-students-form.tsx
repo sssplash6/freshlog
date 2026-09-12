@@ -3,24 +3,37 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Input, NameInput, inputClasses } from "@/components/ui/field";
+import { Input, inputClasses } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { createStudents } from "@/lib/actions/students";
 import {
   EMAIL_RE,
   FULL_NAME_RE,
+  NAME_MAX,
   normalizeEmail,
   type ActionState,
 } from "@/lib/actions/shared";
 import { cn } from "@/lib/cn";
 import type { ProgramOption } from "@/lib/queries";
 
-type Row = { id: number; email: string; name: string; folderUrl: string };
+type Row = {
+  id: number;
+  email: string;
+  first: string;
+  last: string;
+  folderUrl: string;
+};
 
 /**
- * Staff registers students into ONE program: an email, a full name and an
- * optional folder link each, with a cohort asked for only in the programs that
- * have them.
+ * Staff registers students into ONE program: an email, a first name, a last
+ * name and an optional folder link each, with a cohort asked for only in the
+ * programs that have them.
+ *
+ * TWO NAME FIELDS, not one. A single box labelled "First and last name" is a
+ * box people put one word in, and the app then holds a roster on which two
+ * Malikas cannot be told apart. The two halves are joined server-side into the
+ * one string `User.name` holds, and a row with only one half is refused by the
+ * same rule the student meets at their own first sign-in.
  *
  * THE BUTTON IS THE FORM. It starts as one full-width "Add students" and
  * nothing else; each tap opens a row ABOVE it, so the list grows up out of the
@@ -75,21 +88,27 @@ function StudentRows({
   // Ids only advance in handlers, never during render.
   const [nextId, setNextId] = useState(0);
   const addRow = () => {
-    setRows((rs) => [...rs, { id: nextId, email: "", name: "", folderUrl: "" }]);
+    setRows((rs) => [
+      ...rs,
+      { id: nextId, email: "", first: "", last: "", folderUrl: "" },
+    ]);
     setNextId((n) => n + 1);
   };
 
   // A row is ready when it has both halves of an identity: the address they
-  // sign in with, and the FULL name everyone will read them by. First and
-  // last, the same rule `parseNameField` holds the server side to — a roster
-  // of first names is a roster on which nobody can tell two Malikas apart.
-  const fullName = (raw: string) => FULL_NAME_RE.test(raw.trim().replace(/\s+/g, " "));
+  // sign in with, and the FULL name everyone will read them by — the same rule
+  // `parseNameField` holds the server side to, applied to the two boxes joined
+  // exactly as the action will join them.
+  const fullName = (r: Row) =>
+    FULL_NAME_RE.test(`${r.first} ${r.last}`.trim().replace(/\s+/g, " "));
   const ready = (r: Row) =>
-    EMAIL_RE.test(normalizeEmail(r.email)) && fullName(r.name);
+    EMAIL_RE.test(normalizeEmail(r.email)) && fullName(r);
   const validCount = rows.filter(ready).length;
 
   // Why nothing is ready, for the row somebody has started filling in.
-  const started = rows.filter((r) => r.email.trim() || r.name.trim());
+  const started = rows.filter(
+    (r) => r.email.trim() || r.first.trim() || r.last.trim()
+  );
   const blocking =
     started.length === 0
       ? null
@@ -99,7 +118,7 @@ function StudentRows({
 
   const update = (
     id: number,
-    field: "email" | "name" | "folderUrl",
+    field: "email" | "first" | "last" | "folderUrl",
     value: string,
   ) =>
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
@@ -110,7 +129,7 @@ function StudentRows({
         <div className="space-y-2 rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5">
           {rows.map((r, i) => (
             <div key={r.id} className="flex items-start gap-2">
-              <div className="grid flex-1 gap-2 sm:grid-cols-3">
+              <div className="grid flex-1 gap-2 sm:grid-cols-4">
                 <Input
                   name="email"
                   type="email"
@@ -120,12 +139,25 @@ function StudentRows({
                   aria-label={`Student ${i + 1} email`}
                   autoFocus={i === rows.length - 1}
                 />
-                <NameInput
-                  name="name"
-                  value={r.name}
-                  onChange={(e) => update(r.id, "name", e.target.value)}
-                  placeholder="First and last name"
-                  aria-label={`Student ${i + 1} name`}
+                <Input
+                  name="firstName"
+                  type="text"
+                  autoComplete="off"
+                  maxLength={NAME_MAX}
+                  value={r.first}
+                  onChange={(e) => update(r.id, "first", e.target.value)}
+                  placeholder="First name"
+                  aria-label={`Student ${i + 1} first name`}
+                />
+                <Input
+                  name="lastName"
+                  type="text"
+                  autoComplete="off"
+                  maxLength={NAME_MAX}
+                  value={r.last}
+                  onChange={(e) => update(r.id, "last", e.target.value)}
+                  placeholder="Last name"
+                  aria-label={`Student ${i + 1} last name`}
                 />
                 {/* Not type="url": native validation would reject a pasted
                     `drive.google.com/…`, which the action accepts and https-fixes. */}

@@ -100,8 +100,21 @@ export async function createStudents(
   // emails. The name is required: every list, chip and log in the app reads
   // people by name, and a nameless row shows up as an email for as long as it
   // takes the student to sign in. The folder link stays optional.
+  //
+  // The form asks for the two halves separately — a box labelled "First and
+  // last name" is a box people put one word in — and they are joined here into
+  // the one string `User.name` holds and `parseNameField` judges. A row with
+  // only one half joins to one word and is refused by that same rule, which is
+  // the rule the student themselves meets at first sign-in.
   const emails = formData.getAll("email").map((e) => normalizeEmail(e));
-  const names = formData.getAll("name").map((n) => String(n ?? "").trim());
+  const firsts = formData.getAll("firstName");
+  const lasts = formData.getAll("lastName");
+  const names = emails.map((_, i) =>
+    [firsts[i], lasts[i]]
+      .map((part) => String(part ?? "").trim())
+      .filter(Boolean)
+      .join(" ")
+  );
   const folderUrls = formData.getAll("folderUrl");
   const seen = new Set<string>();
   const rows = emails
