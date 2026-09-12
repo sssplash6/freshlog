@@ -223,10 +223,12 @@ export default async function ProgramPage({
               {mentorRows
                 .slice(0, MENTORS_SHOWN)
                 .map(({ mentor, cohorts: paired, missingLink }) => (
-                  <li
-                    key={mentor.id}
-                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 px-4 py-2 sm:px-5"
-                  >
+                  // The flag sits UNDER the name, always — never beside it.
+                  // Justified to the row's far edge it landed on the name's
+                  // line for a short name and wrapped below for a long one, so
+                  // a column of eight mentors had the same chip in two places
+                  // depending on how their parents spelled them.
+                  <li key={mentor.id} className="px-4 py-2 sm:px-5">
                     <span className="flex min-w-0 flex-wrap items-center gap-2">
                       {/* "Their mentors can have matching colours." This is the
                           one page where that is unambiguous: every row belongs
@@ -246,9 +248,11 @@ export default async function ProgramPage({
                       )}
                     </span>
                     {missingLink && (
-                      <StatusChip severity="attention">
-                        No booking link
-                      </StatusChip>
+                      <span className="mt-1 flex">
+                        <StatusChip severity="attention">
+                          No booking link
+                        </StatusChip>
+                      </span>
                     )}
                   </li>
                 ))}
