@@ -6,16 +6,16 @@ import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/field";
 
 /** How long the typing has to stop before the list re-reads itself. */
-const SETTLE_MS = 250;
+const SETTLE_MS = 125;
 
 /**
  * The search box, filtering as it is typed.
  *
  * It used to take a word and wait: the list stayed wrong until somebody found
- * the button, and on a phone that button is behind the keyboard. Now every
- * pause of a quarter of a second writes `?q=` and the server re-renders the
- * list underneath — the same URL the button wrote, so a search is still a link
- * a person can send, the back button still steps through the searches, and
+ * the button, and on a phone that button is behind the keyboard. Now an eighth
+ * of a second's pause writes `?q=` and the server re-renders the list
+ * underneath — the same URL the button wrote, so a search is still a link a
+ * person can send, the back button still steps through the searches, and
  * nothing is filtered in the browser over rows it already has.
  *
  * THE BOX OWNS ITS TEXT, and that is the whole reason this is a client
