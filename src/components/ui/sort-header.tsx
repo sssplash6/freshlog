@@ -22,14 +22,22 @@ import { cn } from "@/lib/cn";
  * The arrow only appears on the column actually in force. A row of six arrows
  * says nothing about which one is doing the work; the ghost on hover is what
  * tells the other five they can be clicked.
+ *
+ * WHICH WAY A FIRST CLICK GOES IS THE COLUMN'S OWN. A name opens A to Z, and a
+ * quantity opens at the top: nobody clicks "Completed" to find the student who
+ * has had the least teaching, and making them click twice for the question
+ * they asked is the kind of default that gets blamed on the table.
  */
 export function SortHeader({
   sortKey,
   align,
+  defaultDir = "asc",
   children,
 }: {
   sortKey: string;
   align?: "right";
+  /** Where a first click lands. `desc` for a figure, `asc` for a name. */
+  defaultDir?: "asc" | "desc";
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -40,9 +48,12 @@ export function SortHeader({
 
   const next = new URLSearchParams(params);
   next.set("sort", sortKey);
-  // A first click sorts ascending — A to Z, soonest first, smallest first —
-  // and clicking the column already in force turns it round.
-  next.set("dir", active && !descending ? "desc" : "asc");
+  // A first click sorts the column's own way; clicking the column already in
+  // force turns it round.
+  next.set(
+    "dir",
+    active ? (descending ? "asc" : "desc") : defaultDir
+  );
   // A new order makes the old page number meaningless: row 21 of the old
   // ordering is not row 21 of this one.
   next.delete("page");

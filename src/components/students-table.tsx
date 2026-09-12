@@ -40,12 +40,19 @@ import type { StudentWithHours } from "@/lib/queries";
  * it is on the student's own page, beside the grant it belongs to, and the
  * bell is what says whose is running out.
  */
+/**
+ * What this table can be ordered by. The page says which of them it can
+ * honour; `lib/sort.ts` does the ordering.
+ */
+export const STUDENT_SORTS = ["student", "completed", "remaining"] as const;
+export type StudentSort = (typeof STUDENT_SORTS)[number];
+
 export function StudentsTable({
   students,
   viewer,
   showProgram = true,
   href = "/students",
-  sortable = false,
+  sorts = [],
   framed = true,
   empty,
 }: {
@@ -57,11 +64,18 @@ export function StudentsTable({
   /** Base path for a row's link. */
   href?: string;
   /**
-   * Offer the name as a sort. Only for a page that reads `?sort=`/`?dir=` back
-   * into its own query — a header that changes the URL and not the order is
-   * worse than a header that does nothing.
+   * Which headings this page can honour, from `STUDENT_SORTS`. Only a page
+   * that reads `?sort=`/`?dir=` back into its own order may name one — a
+   * header that changes the URL and not the order is worse than a header that
+   * does nothing.
+   *
+   * It is a list rather than a flag because the pages differ in what they can
+   * honestly offer: the two figures are computed per row AFTER the query, so a
+   * page that lets the database slice it into pages can only order by the name
+   * the database itself ordered by. A program's roster holds its whole filtered
+   * set in memory (`programs/[id]/page.tsx`) and can order by any of them.
    */
-  sortable?: boolean;
+  sorts?: readonly StudentSort[];
   framed?: boolean;
   /** Pass an `EmptyState variant="no-results"` when a filter did the emptying. */
   empty?: React.ReactNode;
@@ -77,17 +91,26 @@ export function StudentsTable({
     );
   }
 
+  const on = (key: StudentSort) => sorts.includes(key);
+
   const columns: Column[] = [
     // Only the name is offered, and only where the page can honour it. The
     // other four are computed per row after the query has already sliced the
     // roster into pages, so ordering by them here would order one page of
     // forty and call it the list.
-    { label: "Student", ...(sortable ? { sort: "student" } : {}) },
+    { label: "Student", ...(on("student") ? { sort: "student" } : {}) },
     ...(showProgram ? [{ label: "Program" } as Column] : []),
-    { label: "Completed", align: "right" },
+    {
+      label: "Completed",
+      align: "right",
+      // Down, on a first click: nobody opens this column looking for the
+      // student who has had the least teaching.
+      ...(on("completed") ? { sort: "completed", sortDir: "desc" as const } : {}),
+    },
     {
       label: viewer.audience === "mentor" ? "Remaining with you" : "Remaining",
       align: "right",
+      ...(on("remaining") ? { sort: "remaining", sortDir: "desc" as const } : {}),
     },
     { label: "Last session" },
     { label: "Contact" },

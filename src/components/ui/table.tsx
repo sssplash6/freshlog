@@ -13,6 +13,11 @@ export type Column = {
    * nobody would ever order by should look like.
    */
   sort?: string;
+  /**
+   * Which way a FIRST click on this heading orders it. A figure opens at the
+   * top — the biggest balance, the most hours taught — and a name opens A to Z.
+   */
+  sortDir?: "asc" | "desc";
 };
 
 /**
@@ -61,7 +66,11 @@ export function Table({
                 )}
               >
                 {c.sort && c.label ? (
-                  <SortHeader sortKey={c.sort} align={c.align}>
+                  <SortHeader
+                    sortKey={c.sort}
+                    align={c.align}
+                    defaultDir={c.sortDir}
+                  >
                     {c.label}
                   </SortHeader>
                 ) : (

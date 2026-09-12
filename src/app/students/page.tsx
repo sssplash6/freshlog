@@ -183,7 +183,7 @@ export default async function StudentsPage({
         )
       ) : (
         <>
-          <StudentsTable students={students} viewer={lens} sortable />
+          <StudentsTable students={students} viewer={lens} sorts={["student"]} />
           <Pagination
             basePath="/students"
             params={params}

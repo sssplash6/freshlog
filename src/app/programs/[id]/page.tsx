@@ -1,7 +1,7 @@
 import { ExchangeList } from "@/components/exchange-panel";
 import { AddStudentsForm } from "@/components/forms/add-students-form";
 import { PersonChip } from "@/components/person-chip";
-import { StudentsTable } from "@/components/students-table";
+import { STUDENT_SORTS, StudentsTable } from "@/components/students-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { ArrowLink } from "@/components/ui/link";
@@ -17,8 +17,8 @@ import {
   studentsWhere,
   type SearchParams,
 } from "@/lib/filters";
-import { prisma } from "@/lib/prisma";
 import { programTone } from "@/lib/program-tone";
+import { applySort, readSort } from "@/lib/sort";
 import { studentsWithHours } from "@/lib/queries";
 import type { ViewerContext } from "@/lib/status";
 
@@ -85,15 +85,34 @@ export default async function ProgramPage({
     { audience: "staff", userId: user.id, programIds: [id] },
     now
   );
-  const [students, total] = await Promise.all([
-    studentsWithHours(where, {
-      slice: { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE },
-      now,
-      // This page IS one program, so the hours on it are that program's.
-      programIds: [id],
-    }),
-    prisma.studentProfile.count({ where }),
-  ]);
+  // THE WHOLE FILTERED SET, then the order, then the page — in that sequence
+  // and not the database's. Completed and Remaining are computed per row from
+  // the grants and the sessions behind them (`studentsWithHours`), so they do
+  // not exist until the rows are in memory: letting SQL take twenty-five rows
+  // first and ordering those would order one page of forty and call it the
+  // list. A program's roster is the size of a program, and the layout above
+  // already reads every row of it for the figures in the masthead.
+  const matching = await studentsWithHours(where, {
+    now,
+    // This page IS one program, so the hours on it are that program's.
+    programIds: [id],
+  });
+  const asked = readSort(
+    {
+      ...(readParam(query, "sort") ? { sort: readParam(query, "sort") } : {}),
+      ...(readParam(query, "dir") ? { dir: readParam(query, "dir") } : {}),
+    },
+    STUDENT_SORTS
+  );
+  const ordered = asked
+    ? applySort(matching, asked, {
+        student: (s) => s.user.name ?? s.user.email,
+        completed: (s) => s.completedMinutes,
+        remaining: (s) => s.remainingMinutes,
+      })
+    : matching;
+  const total = ordered.length;
+  const students = ordered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const lent = [...exchanges.hosted, ...exchanges.sent];
   const basePath = `/programs/${program.id}`;
@@ -166,6 +185,7 @@ export default async function ProgramPage({
                 students={students}
                 viewer={viewer}
                 showProgram={false}
+                sorts={STUDENT_SORTS}
               />
               <Pagination
                 basePath={basePath}
