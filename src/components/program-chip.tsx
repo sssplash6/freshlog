@@ -28,28 +28,41 @@ export function ProgramChip({
   href?: string;
   className?: string;
 }) {
-  const body = (
+  const body = (linked: boolean) => (
     <>
       <ProgramDot program={program} />
-      <span className="min-w-0 truncate">{program.name}</span>
+      {/* The underline is on the NAME, not the anchor: an anchor-wide rule
+          draws a line under the dot and the gap beside it, which reads as a
+          strikethrough on a 2px circle. Resting grey rather than hover-only —
+          this is the way into the program, and a link nobody can see until
+          they hover is a link a reader has to guess at. */}
+      <span
+        className={cn(
+          "min-w-0 truncate",
+          linked &&
+            "underline decoration-line decoration-1 underline-offset-4 transition-colors group-hover:decoration-brand"
+        )}
+      >
+        {program.name}
+      </span>
     </>
   );
   const classes = cn(
     "inline-flex max-w-full items-center gap-1.5 text-sm text-ink",
-    href && "transition-colors hover:text-brand",
+    href && "group transition-colors hover:text-brand",
     className
   );
 
   if (href) {
     return (
       <Link href={href} title={program.name} className={classes}>
-        {body}
+        {body(true)}
       </Link>
     );
   }
   return (
     <span title={program.name} className={classes}>
-      {body}
+      {body(false)}
     </span>
   );
 }

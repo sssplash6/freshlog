@@ -1,5 +1,5 @@
 import { Figure } from "@/components/ui/figure";
-import { ArrowLink } from "@/components/ui/link";
+import { ProgramChip } from "@/components/program-chip";
 import { PageTitle, Section } from "@/components/ui/section";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
 import { adminScope, scopeProgramFilter } from "@/lib/authz";
@@ -84,7 +84,6 @@ export default async function AdminInboxPage() {
     { label: "Students", align: "right" },
     { label: "Mentors", align: "right" },
     { label: "Remaining", align: "right" },
-    {},
   ];
 
   return (
@@ -122,7 +121,13 @@ export default async function AdminInboxPage() {
             {rows.map((p) => (
               <Tr key={p.id}>
                 <Td label="Program">
-                  <span className="font-medium text-ink">{p.name}</span>
+                  {/* The name is the way in — the same rule as `/programs`,
+                      which this table is the short version of. */}
+                  <ProgramChip
+                    program={p}
+                    href={`/programs/${p.id}`}
+                    className="min-h-11 font-medium sm:min-h-0"
+                  />
                 </Td>
                 <Td label="Students" align="right" className="tabular-nums">
                   {p.students}
@@ -137,11 +142,6 @@ export default async function AdminInboxPage() {
                     tone={p.remaining < 0 ? "danger" : "hours"}
                     className="sm:text-right"
                   />
-                </Td>
-                <Td align="right">
-                  <ArrowLink href={`/programs/${p.id}`} className="text-[13px]">
-                    Open
-                  </ArrowLink>
                 </Td>
               </Tr>
             ))}

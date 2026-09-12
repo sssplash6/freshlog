@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { CreateProgramForm } from "@/components/forms/program-forms";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Figure } from "@/components/ui/figure";
-import { ArrowLink } from "@/components/ui/link";
 import { ProgramChip } from "@/components/program-chip";
 import { PageTitle } from "@/components/ui/section";
 import { TabLinks } from "@/components/ui/segmented";
@@ -100,7 +99,6 @@ export default async function ProgramsPage({
     { label: "Students", align: "right" },
     { label: "Mentors", align: "right" },
     { label: "Remaining", align: "right" },
-    {},
   ];
 
   return (
@@ -152,9 +150,17 @@ export default async function ProgramsPage({
           {rows.map((p) => (
             <Tr key={p.id}>
               <Td label="Program">
+                {/* The NAME is the way in, the rule `PersonCell` already
+                    follows on every roster in the app: an "Open" link at the
+                    far right of the row made the reader cross four columns of
+                    figures to reach the thing they had already found, and left
+                    the program itself looking like inert text. `min-h-11` only
+                    while stacked — on a phone this anchor is the row's one
+                    target, and a table row does not need the height. */}
                 <ProgramChip
                   program={{ id: p.id, name: p.name }}
-                  className="font-medium"
+                  href={`/programs/${p.id}`}
+                  className="min-h-11 font-medium sm:min-h-0"
                 />
                 {p.tracksPayment && p.paid > 0 && (
                   <span className="block text-xs text-muted-fg">
@@ -175,11 +181,6 @@ export default async function ProgramsPage({
                   tone={p.remaining < 0 ? "danger" : "hours"}
                   className="sm:text-right"
                 />
-              </Td>
-              <Td align="right">
-                <ArrowLink href={`/programs/${p.id}`} className="text-[13px]">
-                  Open
-                </ArrowLink>
               </Td>
             </Tr>
           ))}
