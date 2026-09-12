@@ -2,7 +2,6 @@ import { ExchangeList } from "@/components/exchange-panel";
 import { AddStudentsForm } from "@/components/forms/add-students-form";
 import { PersonChip } from "@/components/person-chip";
 import { StudentsTable } from "@/components/students-table";
-import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { ArrowLink } from "@/components/ui/link";
@@ -132,23 +131,15 @@ export default async function ProgramPage({
       {/* ONE way in, the width of the page, directly under the tabs. Adding
           students was a link in the header AND a text fold above the table —
           the same action twice, in the two shapes least likely to be pressed
-          on a phone. The details are asked for only once it is tapped, and the
-          form's own "+ Add another student" is how a second one is added. */}
-      <Disclosure
-        variant="button"
-        label="Add students"
-        hint="Each confirms their own name and Telegram handle on first sign-in."
-      >
-        <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5">
-          <AddStudentsForm
-            program={{
-              id: program.id,
-              name: program.name,
-              cohorts: cohorts.map((c) => ({ id: c.id, name: c.name })),
-            }}
-          />
-        </div>
-      </Disclosure>
+          on a phone. The button IS the form now: each tap opens a row above
+          it (`add-students-form.tsx`). */}
+      <AddStudentsForm
+        program={{
+          id: program.id,
+          name: program.name,
+          cohorts: cohorts.map((c) => ({ id: c.id, name: c.name })),
+        }}
+      />
 
       {/* The roster, and the mentors beside it. Source order is the phone's
           order: the students first, the rail under them. */}
