@@ -9,7 +9,7 @@ import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 
 const inputClass =
-  "w-full rounded-lg border border-line px-3.5 py-2.5 text-[15px] focus:border-brand focus:outline-none";
+  "w-full rounded-lg border border-line px-3.5 py-2.5 text-[0.9375rem] focus:border-brand focus:outline-none";
 
 /** Native radio inputs retain expected keyboard behavior while labels render
  * as a large, tap-friendly star picker. */

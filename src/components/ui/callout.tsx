@@ -75,7 +75,7 @@ export function Callout({
     return (
       <div
         className={cn(
-          "flex flex-wrap items-center justify-between gap-3 rounded-lg border px-5 py-2.5 text-[15px]",
+          "flex flex-wrap items-center justify-between gap-3 rounded-lg border px-5 py-2.5 text-[0.9375rem]",
           SURFACE[tone],
           BODY[tone],
           className

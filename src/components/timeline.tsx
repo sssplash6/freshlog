@@ -231,7 +231,7 @@ export function TimelineItem({
   const clock = time?.split(" ")[0] ?? null;
 
       const when = (
-    <span className="w-[6.5rem] shrink-0 text-[13px] leading-tight sm:w-32">
+    <span className="w-[6.5rem] shrink-0 text-[0.8125rem] leading-tight sm:w-32">
             <span className="block font-semibold text-ink">
         {day}
         {clock && <> {clock}</>}
@@ -269,7 +269,7 @@ export function TimelineItem({
         )}
       </span>
       {note && (
-        <span className="mt-0.5 block text-[13px] leading-snug text-muted-fg">
+        <span className="mt-0.5 block text-[0.8125rem] leading-snug text-muted-fg">
           <ExpandableText text={note} lines={2} />
         </span>
       )}

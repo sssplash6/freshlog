@@ -158,7 +158,7 @@ export function ProfileSwitchMenu({ active }: { active: Profile }) {
       aria-keyshortcuts="Alt+M"
     >
       <input type="hidden" name="path" value={pathname} />
-      <p className="flex items-baseline justify-between gap-2 px-3 pb-0.5 pt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-fg">
+      <p className="flex items-baseline justify-between gap-2 px-3 pb-0.5 pt-1 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted-fg">
         Profile
         <span className="font-semibold normal-case tracking-normal">
           {shortcut}

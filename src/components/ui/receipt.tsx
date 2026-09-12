@@ -32,7 +32,7 @@ export function Receipt({
 
   return (
     <div className="rise-in rounded-2xl border border-line bg-surface shadow-sm p-5 sm:p-6">
-      <p className="flex items-baseline gap-2 text-[17px] font-semibold text-ink">
+      <p className="flex items-baseline gap-2 text-[1.0625rem] font-semibold text-ink">
         <CheckIcon className="h-4 w-4 shrink-0 translate-y-0.5" />
         {headline}
       </p>

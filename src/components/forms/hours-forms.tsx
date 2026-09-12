@@ -132,7 +132,7 @@ export function AllocationRowActions({
           {granting && (
             <div className="rise-in">
               <TaskPicker compact optional openTasks={openTasks} />
-              <p className="mt-1.5 text-[11px] text-muted-fg">
+              <p className="mt-1.5 text-[0.6875rem] text-muted-fg">
                 Name a task and these extra hours become its budget.
               </p>
             </div>

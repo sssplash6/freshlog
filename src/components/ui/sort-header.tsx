@@ -62,7 +62,7 @@ export function SortHeader({
       <span
         aria-hidden="true"
         className={cn(
-          "text-[9px] leading-none transition-opacity",
+          "text-[0.5625rem] leading-none transition-opacity",
           active ? "opacity-100" : "opacity-0 group-hover:opacity-40"
         )}
       >

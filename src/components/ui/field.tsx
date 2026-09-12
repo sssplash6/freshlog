@@ -7,7 +7,7 @@ import { FULL_NAME_RE, NAME_MAX } from "@/lib/actions/shared";
 
 /** The one text-field look, shared by Input, Textarea and the native Select. */
 export const inputClasses =
-  "min-h-11 w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-[15px] text-ink transition-colors placeholder:text-muted-fg hover:border-brand/40 focus:border-brand focus:outline-none";
+  "min-h-11 w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-[0.9375rem] text-ink transition-colors placeholder:text-muted-fg hover:border-brand/40 focus:border-brand focus:outline-none";
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(inputClasses, className)} {...props} />;

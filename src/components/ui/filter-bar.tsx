@@ -446,7 +446,7 @@ function Chip({
         // rounded-lg, not rounded-full. A pill reads as a status, and these are
         // controls: they sit beside a select and a button that are both 8px,
         // and a full radius next to those looks like a different design system.
-        "inline-flex min-h-11 items-center rounded-lg border px-3.5 text-[13px] font-medium transition-colors",
+        "inline-flex min-h-11 items-center rounded-lg border px-3.5 text-[0.8125rem] font-medium transition-colors",
         active
           ? "border-brand bg-brand-soft font-semibold text-brand"
           : "border-line bg-surface text-muted-fg hover:border-brand/40 hover:text-ink"

@@ -80,7 +80,7 @@ export function RowActionMenu({
           "data-[open]:bg-brand-soft data-[open]:text-brand data-[open]:ring-2 data-[open]:ring-brand/15",
           trigger === "dots"
             ? "w-11 sm:h-9 sm:w-9"
-            : "gap-1.5 whitespace-nowrap px-2.5 text-[13px] font-medium sm:h-9",
+            : "gap-1.5 whitespace-nowrap px-2.5 text-[0.8125rem] font-medium sm:h-9",
         )}
         trigger={
           trigger === "dots" ? (

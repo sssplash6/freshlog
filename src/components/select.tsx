@@ -446,7 +446,7 @@ export function Select({
           // 44px, not 40. §9 measured every control on a phone and this was
           // the one that appears most often — the log form and every filter
           // row carry one — so four pixels here is four pixels everywhere.
-          "flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border bg-surface pl-3.5 pr-2.5 text-[15px] transition-colors focus:outline-none",
+          "flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border bg-surface pl-3.5 pr-2.5 text-[0.9375rem] transition-colors focus:outline-none",
           invalid
             ? "border-danger"
             : open
@@ -528,7 +528,7 @@ export function Select({
                   <li
                     key={`h-${row.label}`}
                     role="presentation"
-                    className="px-2.5 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-fg"
+                    className="px-2.5 pb-1 pt-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted-fg"
                   >
                     {row.label}
                   </li>

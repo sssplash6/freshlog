@@ -69,7 +69,7 @@ function NotificationBell({ count }: { count: number }) {
         />
       </svg>
       {count > 0 && (
-        <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-on-brand">
+        <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[0.625rem] font-bold text-on-brand">
           {count > 99 ? "99+" : count}
         </span>
       )}
@@ -258,7 +258,7 @@ function StaffShell({
   );
 
   return (
-    <div className="flex min-h-full flex-1 flex-col lg:pl-[220px]">
+    <div className="flex min-h-full flex-1 flex-col lg:pl-[13.75rem]">
       {/* Once for the whole shell: the switch is in the DOM twice (one of them
           hidden by a breakpoint), so a listener on either would fire twice. */}
       {lens && <ProfileShortcut />}

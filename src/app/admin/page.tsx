@@ -107,7 +107,7 @@ export default async function AdminInboxPage() {
         // The render time, from the server clock. Freshness is chrome, and this
         // is the one page with the plumbing to claim it honestly.
         actions={
-          <span className="text-[13px] text-muted-fg">
+          <span className="text-[0.8125rem] text-muted-fg">
             Updated {formatTimeOfDay(programWallClock(now), true)}
           </span>
         }

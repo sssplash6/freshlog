@@ -56,7 +56,7 @@ export function EmptyState({
       {title && (
         <p
           className={cn(
-            "text-[15px] font-medium",
+            "text-[0.9375rem] font-medium",
             // A blocked empty state is the only one that is not fine. It still
             // does not get a red box: the words carry it, and a whole tinted
             // panel for "nothing here" is the noise this replaces.

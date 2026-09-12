@@ -340,7 +340,7 @@ export default async function MentorHomePage({
                 <Td align="right">
                   <ArrowLink
                     href={`/mentor/students/${s.profile.id}`}
-                    className="text-[13px]"
+                    className="text-[0.8125rem]"
                   >
                     Open
                   </ArrowLink>

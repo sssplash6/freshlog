@@ -41,14 +41,14 @@ export function SessionAnswerForm({
   if (mode === "ask") {
     return (
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="text-[13px] text-muted-fg">Did this happen?</span>
+        <span className="text-[0.8125rem] text-muted-fg">Did this happen?</span>
         <Button size="sm" onClick={() => setMode("confirm")}>
           Yes, it happened
         </Button>
         <button
           type="button"
           onClick={() => setMode("dispute")}
-          className="inline-flex min-h-10 items-center text-[13px] font-medium text-muted-fg transition-colors hover:text-danger-ink hover:underline"
+          className="inline-flex min-h-10 items-center text-[0.8125rem] font-medium text-muted-fg transition-colors hover:text-danger-ink hover:underline"
         >
           Something&apos;s wrong
         </button>
@@ -103,7 +103,7 @@ export function SessionAnswerForm({
         <button
           type="button"
           onClick={() => setMode("ask")}
-          className="inline-flex min-h-10 items-center text-[13px] font-medium text-muted-fg transition-colors hover:text-ink"
+          className="inline-flex min-h-10 items-center text-[0.8125rem] font-medium text-muted-fg transition-colors hover:text-ink"
         >
           Cancel
         </button>

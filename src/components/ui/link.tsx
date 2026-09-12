@@ -100,7 +100,7 @@ export function ExternalLink({
         variant === "inline" &&
           "inline-flex items-center gap-1 py-1 align-middle font-medium text-brand hover:underline",
         variant === "quiet" &&
-          "inline-flex min-h-11 items-center gap-1.5 text-[13px] font-medium text-brand hover:underline",
+          "inline-flex min-h-11 items-center gap-1.5 text-[0.8125rem] font-medium text-brand hover:underline",
         variant === "chip" &&
           "inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-brand transition-colors hover:border-brand hover:bg-brand-soft",
         variant === "action" && buttonClasses("primary", size),

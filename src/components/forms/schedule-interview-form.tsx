@@ -10,7 +10,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { toDateInputValue } from "@/lib/format";
 
 const inputClass =
-  "mt-0.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-[15px] focus:border-brand focus:outline-none";
+  "mt-0.5 w-full rounded-lg border border-line px-3.5 py-2.5 text-[0.9375rem] focus:border-brand focus:outline-none";
 
 /**
  * Put an interview in a student's diary. Only the date is required — a mentor

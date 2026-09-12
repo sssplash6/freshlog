@@ -41,7 +41,7 @@ const SEGMENT =
  * the target stays 44px.
  */
 const SEGMENT_DENSE =
-  "inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2 text-[13px] transition-colors";
+  "inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2 text-[0.8125rem] transition-colors";
 const ON = "bg-surface font-semibold text-ink shadow-sm";
 const OFF = "font-medium text-muted-fg hover:text-ink";
 

@@ -614,7 +614,7 @@ function AverageStars({ value }: { value: number }) {
   return (
     <span
       aria-hidden="true"
-      className="ml-1.5 align-middle text-[10px] tracking-tight text-ink"
+      className="ml-1.5 align-middle text-[0.625rem] tracking-tight text-ink"
     >
       {"★".repeat(filled)}
       <span className="text-line">{"★".repeat(5 - filled)}</span>

@@ -224,7 +224,7 @@ export function TaskRow({
       {progressManual && (
         <span
           title="Set by hand — logged time no longer moves this"
-          className="text-[11px] text-muted-fg"
+          className="text-[0.6875rem] text-muted-fg"
         >
           pinned
         </span>
@@ -341,7 +341,7 @@ export function TaskRow({
             the only shape that fits 390px. */}
         <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
           <div className="min-w-0 flex-1 basis-56">
-            <div className="text-[15px] leading-snug">{title}</div>
+            <div className="text-[0.9375rem] leading-snug">{title}</div>
 
             <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
               {mentor ? (

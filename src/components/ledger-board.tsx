@@ -49,10 +49,10 @@ function ColumnHead({
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-4 pb-2.5 pt-4 sm:px-5">
       <div>
-        <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-fg">
+        <div className="text-[0.625rem] font-bold uppercase tracking-[0.09em] text-muted-fg">
           {eyebrow}
         </div>
-        <h3 className="mt-0.5 text-[15px] font-bold tracking-tight text-ink">
+        <h3 className="mt-0.5 text-[0.9375rem] font-bold tracking-tight text-ink">
           {title}
         </h3>
       </div>
@@ -70,11 +70,11 @@ function GroupRule({ label, count }: { label: string; count: number }) {
   if (count === 0) return null;
   return (
     <div className="flex items-center gap-2.5 bg-canvas/60 px-4 py-1.5 sm:px-5">
-      <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-fg">
+      <span className="text-[0.625rem] font-bold uppercase tracking-[0.09em] text-muted-fg">
         {label}
       </span>
       <span className="h-px flex-1 bg-line" aria-hidden="true" />
-      <span className="text-[10px] font-semibold tabular-nums text-muted-fg">
+      <span className="text-[0.625rem] font-semibold tabular-nums text-muted-fg">
         {count}
       </span>
     </div>
@@ -107,7 +107,7 @@ function UpcomingMeetingRow({
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-[13px] font-semibold text-ink">
+          <span className="text-[0.8125rem] font-semibold text-ink">
             {formatMeetingWhen(meeting.scheduledAt, meeting.hasTime)}
           </span>
           <span className="text-xs text-muted-fg">
@@ -117,7 +117,7 @@ function UpcomingMeetingRow({
           {state && <StatusChip status={state} />}
         </div>
         {meeting.note && (
-          <div className="mt-0.5 text-[13px]">
+          <div className="mt-0.5 text-[0.8125rem]">
             <ExpandableText text={meeting.note} lines={2} />
           </div>
         )}

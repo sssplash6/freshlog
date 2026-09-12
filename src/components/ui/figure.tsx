@@ -28,7 +28,7 @@ const TONE = {
 } as const;
 
 const SIZE = {
-  lead: "text-[42px]",
+  lead: "text-[2.625rem]",
   normal: "text-3xl",
   /** Inside a table cell or a sentence, where a 30px figure would shout. */
   inline: "text-base",
@@ -76,7 +76,7 @@ export function Figure({
         )}
       </div>
       {label && (
-        <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-fg">
+        <div className="mt-2 text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-muted-fg">
           {label}
         </div>
       )}

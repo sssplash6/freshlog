@@ -583,7 +583,7 @@ async function MentorRecord({
               already answers with their ratings and nobody else's. */}
           <ArrowLink
             href={isSelf ? "/feedback" : `/feedback?mentor=${mentor.id}`}
-            className="text-[13px]"
+            className="text-[0.8125rem]"
           >
             Read them
           </ArrowLink>

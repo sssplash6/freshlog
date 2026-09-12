@@ -34,11 +34,11 @@ export function ErrorState({
 
   return (
     <div className="rise-in mx-auto max-w-lg py-10 text-center">
-      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-fg">
+      <p className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted-fg">
         Something broke
       </p>
       <h1 className="mt-1.5 text-2xl font-bold text-ink">{title}</h1>
-      <p className="mt-2 text-[15px] text-muted-fg">
+      <p className="mt-2 text-[0.9375rem] text-muted-fg">
         Nothing you did caused this, and nothing was lost. Most of the time it is
         a hiccup reading the data — try again first.
       </p>
@@ -54,7 +54,7 @@ export function ErrorState({
       {error.digest && (
         <p className="mt-5 text-xs text-muted-fg">
           If it keeps happening, quote this code:{" "}
-          <code className="rounded bg-canvas px-1.5 py-0.5 font-mono text-[11px] text-ink">
+          <code className="rounded bg-canvas px-1.5 py-0.5 font-mono text-[0.6875rem] text-ink">
             {error.digest}
           </code>
         </p>

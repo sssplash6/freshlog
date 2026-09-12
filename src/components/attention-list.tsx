@@ -128,7 +128,7 @@ function AttentionRow({
         
       </span>
       {explanation && (
-        <span className="mt-1 block text-[13px] text-muted-fg">{explanation}</span>
+        <span className="mt-1 block text-[0.8125rem] text-muted-fg">{explanation}</span>
       )}
       {program && (
         <span className="mt-0.5 block text-xs text-muted-fg">{program.name}</span>

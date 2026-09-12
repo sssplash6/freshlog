@@ -106,7 +106,7 @@ export function HoursRing({
         >
           {formatDuration(overdrawn ? -remaining : remaining)}
         </div>
-        <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-fg">
+        <div className="mt-1 text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-muted-fg">
           {overdrawn ? "over" : "remaining"}
         </div>
       </div>

@@ -35,7 +35,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
 const SIZES: Record<ButtonSize, string> = {
   // xs is for controls inside a popover menu, where sm is already too tall.
   xs: "h-7 gap-1 px-2.5 text-xs",
-  sm: "h-8 gap-1.5 px-3 text-[13px]",
+  sm: "h-8 gap-1.5 px-3 text-[0.8125rem]",
   // 44px, the smallest reliable touch target. Students and mentors use
   // this app on a phone, and md is the size every primary action gets.
   md: "h-11 gap-2 px-4 text-sm",

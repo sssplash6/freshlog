@@ -35,7 +35,7 @@ export function Sidebar({
   account: React.ReactNode;
 }) {
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[220px] flex-col border-r border-line bg-surface lg:flex">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[13.75rem] flex-col border-r border-line bg-surface lg:flex">
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-5">
         <div className="flex flex-col gap-3 px-1">
           <Link href="/" className="text-base font-bold tracking-tight text-brand">

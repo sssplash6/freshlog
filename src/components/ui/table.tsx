@@ -112,7 +112,7 @@ export function Td({
       {...props}
     >
       {label && (
-        <span className="mr-2 text-[10px] font-semibold uppercase tracking-wide text-muted-fg sm:hidden">
+        <span className="mr-2 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-fg sm:hidden">
           {label}
         </span>
       )}

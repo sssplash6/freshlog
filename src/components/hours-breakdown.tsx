@@ -164,23 +164,23 @@ export function HoursBreakdown({
           figure it stands for. */}
       <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2.5">
         <div>
-          <dt className="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-fg">
+          <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-muted-fg">
             Total
           </dt>
-          <dd className="mt-0.5 text-[15px] font-bold tabular-nums text-ink">
+          <dd className="mt-0.5 text-[0.9375rem] font-bold tabular-nums text-ink">
             {formatDuration(allotted)}
           </dd>
         </div>
                 {keyed.map((s) => (
           <div key={s.key}>
-            <dt className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-fg">
+            <dt className="flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-muted-fg">
               <span
                 aria-hidden="true"
                 style={s.style}
                 className={cn(
                   "h-2 w-2 shrink-0",
                   s.swatch === "striped"
-                    ? "rounded-[2px]"
+                    ? "rounded-[0.125rem]"
                     : s.swatch === "ring"
                       ? "rounded-full border border-muted-fg/50"
                       : s.swatch === "outline"
@@ -192,7 +192,7 @@ export function HoursBreakdown({
             </dt>
             <dd
               className={cn(
-                "mt-0.5 text-[15px] font-bold tabular-nums",
+                "mt-0.5 text-[0.9375rem] font-bold tabular-nums",
                 s.ink,
               )}
             >

@@ -87,7 +87,7 @@ export function PersonChip({
           `md` is the header/card size and has room for a face. */}
       <Avatar
         person={person}
-        className={sm ? "h-5 w-5 text-[9px]" : "h-8 w-8 text-[11px]"}
+        className={sm ? "h-5 w-5 text-[0.5625rem]" : "h-8 w-8 text-[0.6875rem]"}
       />
       <span className="min-w-0 truncate">{label}</span>
     </>
@@ -159,7 +159,7 @@ export function PersonCell({
 
   const body = (
     <>
-      <Avatar person={person} className="h-8 w-8 shrink-0 text-[11px]" />
+      <Avatar person={person} className="h-8 w-8 shrink-0 text-[0.6875rem]" />
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-medium text-ink group-hover:text-brand">
           <span className="min-w-0 truncate">{person.name ?? person.email}</span>
@@ -212,7 +212,7 @@ export function PersonBadge({
     <Avatar
       person={person}
       title={person.name ?? person.email}
-      className={cn("h-6 w-6 text-[10px] ring-2 ring-surface", className)}
+      className={cn("h-6 w-6 text-[0.625rem] ring-2 ring-surface", className)}
     />
   );
 }

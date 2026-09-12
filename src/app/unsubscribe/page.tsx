@@ -44,16 +44,16 @@ export default async function UnsubscribePage({
   return (
     <main className="flex min-h-full flex-1 items-center justify-center bg-canvas px-4 py-16">
       <div className="w-full max-w-md overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
-        <div className="h-[3px] w-full bg-accent" aria-hidden="true" />
+        <div className="h-[0.1875rem] w-full bg-accent" aria-hidden="true" />
         <div className="p-6 sm:p-7">
-          <div className="text-[15px] font-bold text-brand">freshlog</div>
+          <div className="text-[0.9375rem] font-bold text-brand">freshlog</div>
           <h1 className="mt-3 text-2xl font-bold tracking-tight text-ink">
             {body.title}
           </h1>
 
           {armed && !state ? (
             <>
-              <p className="mt-2.5 text-[15px] leading-relaxed text-muted-fg">
+              <p className="mt-2.5 text-[0.9375rem] leading-relaxed text-muted-fg">
                 You&apos;ll stop getting the Monday email about time you&apos;ve
                 used and time still to book. Deadline reminders inside the app
                 carry on.
@@ -77,7 +77,7 @@ export default async function UnsubscribePage({
             </>
           ) : (
             <>
-              <p className="mt-2.5 text-[15px] leading-relaxed text-muted-fg">
+              <p className="mt-2.5 text-[0.9375rem] leading-relaxed text-muted-fg">
                 {body.blurb}
               </p>
               <Link

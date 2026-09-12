@@ -164,14 +164,14 @@ export function StudentsTable({
                       key={e.program.id}
                       className="flex min-w-0 items-center gap-1.5"
                     >
-                      <ProgramChip program={e.program} className="text-[13px]" />
+                      <ProgramChip program={e.program} className="text-[0.8125rem]" />
                       {/* A visitor another program lent us, not one of this
                           program's students. Said on the row, because a roster
                           that shows a visit as an enrollment is a roster that
                           has quietly gained a student — and their hours are
                           capped by somebody else. */}
                       {e.exchangeId && (
-                        <span className="shrink-0 text-[11px] text-muted-fg">
+                        <span className="shrink-0 text-[0.6875rem] text-muted-fg">
                           on exchange
                         </span>
                       )}

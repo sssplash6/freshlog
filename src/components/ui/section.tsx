@@ -43,7 +43,7 @@ export function Eyebrow({ children, className }: { children: React.ReactNode; cl
     // letter-spacing is sub-readable on a phone, which is where students are.
     <div
       className={cn(
-        "text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-fg",
+        "text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-muted-fg",
         className
       )}
     >
@@ -101,10 +101,10 @@ export function PageTitle({
           {leading && <div className="shrink-0">{leading}</div>}
           <div className="min-w-0 flex-1">
             {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-            <h1 className="mt-0.5 text-[28px] font-bold leading-tight tracking-tight text-ink sm:text-[32px]">
+            <h1 className="mt-0.5 text-[1.75rem] font-bold leading-tight tracking-tight text-ink sm:text-[2rem]">
               {title}
             </h1>
-            {subtitle && <div className="mt-1 text-[15px] text-muted-fg">{subtitle}</div>}
+            {subtitle && <div className="mt-1 text-[0.9375rem] text-muted-fg">{subtitle}</div>}
           </div>
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -144,7 +144,7 @@ export function Section({
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1.5 border-b border-line px-4 py-2.5 sm:px-5">
         <div className="min-w-0">
           {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-          <h2 className="mt-0.5 flex items-baseline gap-1.5 text-[17px] font-bold tracking-tight text-ink">
+          <h2 className="mt-0.5 flex items-baseline gap-1.5 text-[1.0625rem] font-bold tracking-tight text-ink">
             {/* min-w-0 so the truncate actually truncates: on a flex child
                 without it the text sets the width and the row grows instead. */}
             <span className="min-w-0 truncate">{title}</span>

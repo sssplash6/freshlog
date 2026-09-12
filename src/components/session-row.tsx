@@ -210,7 +210,7 @@ export function SessionRow({
       <li
         id={anchor}
         className={cn(
-          "flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-4 py-2.5 text-[13px] text-muted-fg sm:px-5",
+          "flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-4 py-2.5 text-[0.8125rem] text-muted-fg sm:px-5",
           index != null && "deal-in",
         )}
         style={stagger}
@@ -257,7 +257,7 @@ export function SessionRow({
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px]">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.8125rem]">
             <PersonChip person={mentor} size="sm" href={mentor.href} />
             <span className="tabular-nums text-muted-fg">{formatDate(date)}</span>
             {duration}
@@ -271,7 +271,7 @@ export function SessionRow({
               <ExpandableText
                 text={task.purpose}
                 lines={2}
-                className={cn("text-[13px] font-medium", textTone)}
+                className={cn("text-[0.8125rem] font-medium", textTone)}
               />
             </div>
           )}
@@ -289,13 +289,13 @@ export function SessionRow({
               <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-xs text-muted-fg transition-colors hover:text-ink [&::-webkit-details-marker]:hidden">
                 <span
                   aria-hidden="true"
-                  className="text-[9px] transition-transform group-open/note:rotate-90"
+                  className="text-[0.5625rem] transition-transform group-open/note:rotate-90"
                 >
                   ▸
                 </span>
                 note
               </summary>
-              <p className={cn("mt-1 whitespace-pre-line text-[15px]", textTone)}>
+              <p className={cn("mt-1 whitespace-pre-line text-[0.9375rem]", textTone)}>
                 {note}
               </p>
             </details>
@@ -303,7 +303,7 @@ export function SessionRow({
           {/* What the student said back. It sits under the mentor's own note
               on purpose: the row reads as the record, then the answer to it. */}
           {session.studentAnswer && (session.studentRating || session.studentNote) && (
-            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[13px]">
+            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[0.8125rem]">
               {session.studentRating ? <Rating value={session.studentRating} /> : null}
               {session.studentNote && (
                 <span className="min-w-0 text-muted-fg">
@@ -371,12 +371,12 @@ export function SessionRow({
             </span>
           )}
         </span>
-        <span className="shrink-0 text-[13px]">{duration}</span>
+        <span className="shrink-0 text-[0.8125rem]">{duration}</span>
         {actions && <span className="shrink-0">{actions}</span>}
       </div>
 
       {secondLine && (
-        <div className="mt-px flex min-w-0 items-baseline gap-1.5 text-[13px] leading-snug">
+        <div className="mt-px flex min-w-0 items-baseline gap-1.5 text-[0.8125rem] leading-snug">
           {showTask && task && (
             <span className={cn("max-w-[45%] shrink-0 truncate font-medium", textTone)}>
               {task.purpose}

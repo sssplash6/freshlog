@@ -207,7 +207,7 @@ export default async function ProgramPage({
             spilled > 0 ? (
               <ArrowLink
                 href={`/mentors?program=${program.id}`}
-                className="text-[13px]"
+                className="text-[0.8125rem]"
               >
                 All mentors
               </ArrowLink>

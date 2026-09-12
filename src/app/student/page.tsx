@@ -40,7 +40,7 @@ function TaskRow({ task, statuses }: { task: LedgerAssignment; statuses: Status[
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
         {/* A purpose is occasionally written as a paragraph rather than a name,
             and one such row must not cost every other row its scanability. */}
-        <div className="min-w-0 flex-1 text-[15px] font-semibold leading-snug">
+        <div className="min-w-0 flex-1 text-[0.9375rem] font-semibold leading-snug">
           <ExpandableText text={task.purpose} lines={2} />
         </div>
         {/* Whichever half this task has. The note is free text — the tracking

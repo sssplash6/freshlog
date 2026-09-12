@@ -46,7 +46,7 @@ export function FactList({
           <dt className="text-xs font-semibold uppercase tracking-[0.07em] text-muted-fg sm:w-40 sm:shrink-0">
             {fact.label}
           </dt>
-          <dd className="min-w-0 flex-1 text-[15px] text-ink">{fact.value}</dd>
+          <dd className="min-w-0 flex-1 text-[0.9375rem] text-ink">{fact.value}</dd>
           {fact.change && (
             <dd className="shrink-0 text-sm sm:text-right">{fact.change}</dd>
           )}
