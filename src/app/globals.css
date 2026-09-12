@@ -227,36 +227,26 @@
 }
 
 /*
- * THE APP'S ZOOM, in one number per tier.
+ * THE WHOLE UI AT 94%, and it is one number because everything else is
+ * relative to it.
  *
  * Every size in this app is a rem — Tailwind's spacing, type and radii, and
  * the arbitrary values that used to be written in px (`text-[13px]` and its
- * family, all converted). So the root font size IS the zoom, and these are the
- * only places it is set.
+ * family, all converted). So the root font size IS the app's zoom, and this
+ * is the only place it is set.
  *
- * Three tiers, tightening as the screen grows, because the room a layout has
- * and the distance it is read from both change with it:
- *
- *   phone   100%  — 44px is the smallest reliable touch target, and the people
- *                   who read this product on a phone are the students and the
- *                   mentors. Their rows, chips and buttons keep full size.
- *   sm      94%   — a tablet, or a window shrunk beside something else.
- *   lg      89%   — the admin's laptop, where a roster, a rail and a masthead
- *                   have to share one screen. 39px targets, on a pointer.
+ * FROM `sm` UP ONLY. 44px is the smallest reliable touch target and 94% of it
+ * is 41px; the people who read this product on a phone are the students and
+ * the mentors, and their rows, chips and buttons keep their full size. The
+ * density is for the admin's laptop, where a roster, a rail and a masthead
+ * have to share one screen.
  *
  * Media queries are immune to this — a rem in a query is always 16px — so the
- * breakpoints themselves still fall at the real 640/1024px, the same widths
- * the layout's own `sm:` and `lg:` rules use.
+ * breakpoints themselves still fall at the real 640/1024px.
  */
 @media (min-width: 40rem) {
   :root {
     font-size: 94%;
-  }
-}
-
-@media (min-width: 64rem) {
-  :root {
-    font-size: 89%;
   }
 }
 
