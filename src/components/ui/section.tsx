@@ -101,10 +101,16 @@ export function PageTitle({
           {leading && <div className="shrink-0">{leading}</div>}
           <div className="min-w-0 flex-1">
             {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-            <h1 className="mt-0.5 text-[1.75rem] font-bold leading-tight tracking-tight text-ink sm:text-[2rem]">
+            {/* 24/26px, down from 28/32. The masthead is read once on arrival
+                and the table under it is read for the rest of the visit: at
+                twice the size of its own section headings it was the loudest
+                thing on a page it says the least on. It still leads — 26 over
+                the section's 17 and the row's 13 — by a step rather than by a
+                shout. */}
+            <h1 className="mt-0.5 text-[1.5rem] font-bold leading-tight tracking-tight text-ink sm:text-[1.625rem]">
               {title}
             </h1>
-            {subtitle && <div className="mt-1 text-[0.9375rem] text-muted-fg">{subtitle}</div>}
+            {subtitle && <div className="mt-1 text-sm text-muted-fg">{subtitle}</div>}
           </div>
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
