@@ -227,7 +227,7 @@
 }
 
 /*
- * THE WHOLE UI AT 75%, and it is one number because everything else is
+ * THE WHOLE UI AT 85%, and it is one number because everything else is
  * relative to it.
  *
  * Every size in this app is a rem — Tailwind's spacing, type and radii, and
@@ -235,18 +235,18 @@
  * and friends, all converted). So the root font size is the app's zoom, and
  * this line is the only place it is set.
  *
- * FROM `sm` UP ONLY. 44px is the smallest reliable touch target and three
- * quarters of it is 33px; the people who read this product on a phone are the
- * students and the mentors, and their rows, chips and buttons keep their full
- * size. The density is for the admin's laptop, which is where a roster, a rail
- * and a masthead have to share one screen.
+ * FROM `sm` UP ONLY. 44px is the smallest reliable touch target and 85% of it
+ * is 37px; the people who read this product on a phone are the students and
+ * the mentors, and their rows, chips and buttons keep their full size. The
+ * density is for the admin's laptop, which is where a roster, a rail and a
+ * masthead have to share one screen.
  *
  * Media queries are immune to this — a rem in a query is always 16px — so the
  * breakpoints themselves still fall at the real 640/1024px.
  */
 @media (min-width: 40rem) {
   :root {
-    font-size: 75%;
+    font-size: 85%;
   }
 }
 
