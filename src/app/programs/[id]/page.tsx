@@ -118,19 +118,17 @@ export default async function ProgramPage({
   const basePath = `/programs/${program.id}`;
 
   // One line per MENTOR: somebody paired with three cohorts of this program is
-  // one person teaching here, not three rows.
+  // one person teaching here, not three rows. The cohort names themselves are
+  // not on the line — programs are flat by default, so on a list of fourteen
+  // it was one bare date beside one name, reading as a mystery rather than a
+  // fact. Settings is where a pairing's cohort is set and shown.
   const mentors = new Map<
     string,
-    {
-      mentor: (typeof pairings)[number]["mentor"];
-      cohorts: string[];
-      missingLink: boolean;
-    }
+    { mentor: (typeof pairings)[number]["mentor"]; missingLink: boolean }
   >();
   for (const p of pairings) {
     const held = mentors.get(p.mentorId);
-    const row = held ?? { mentor: p.mentor, cohorts: [], missingLink: false };
-    if (p.cohort) row.cohorts.push(p.cohort.name);
+    const row = held ?? { mentor: p.mentor, missingLink: false };
     if (!p.calendlyUrl) row.missingLink = true;
     mentors.set(p.mentorId, row);
   }
@@ -242,7 +240,7 @@ export default async function ProgramPage({
             <ul className="divide-y divide-line/60 text-sm">
               {mentorRows
                 .slice(0, MENTORS_SHOWN)
-                .map(({ mentor, cohorts: paired, missingLink }) => (
+                .map(({ mentor, missingLink }) => (
                   // The flag follows the NAME, never the row's far edge.
                   // Justified to the edge it landed on the name's line for a
                   // short name and wrapped below for a long one — the same
@@ -264,11 +262,6 @@ export default async function ProgramPage({
                         href={`/mentors/${mentor.id}`}
                         tone={programTone(program.id)}
                       />
-                      {paired.length > 0 && (
-                        <span className="text-xs text-muted-fg">
-                          {paired.join(" · ")}
-                        </span>
-                      )}
                     </span>
                     {missingLink && (
                       <StatusChip severity="attention">
