@@ -144,6 +144,16 @@ export function FilterBar({
     (key) => !posted.has(key) && !PAGE_PARAMS.includes(key) && readParam(params, key)
   );
 
+  // What the controls are currently SHOWING, as a signature. They are
+  // uncontrolled — `defaultValue` — so React happily leaves a typed value in
+  // the box while the URL under it changes: pressing Reset cleared the query
+  // string, reloaded the unfiltered list, and left the word "samandar" sitting
+  // in the search field with nothing filtered by it. Keying the form on the
+  // values it was rendered from remounts every control the moment the URL
+  // disagrees with it — Reset, a preset chip, the back button — and never
+  // while somebody is typing, since typing changes no parameter.
+  const shown = [...posted].map((name) => `${name}=${readParam(params, name)}`).join("&");
+
   const count = activeFilterCount(params);
   const showValues = Boolean(q || selects.length > 0 || dateRange);
   const showFoot = Boolean(summary) || (reset && count > 0);
@@ -190,6 +200,7 @@ export function FilterBar({
     >
       {showValues && (
         <Form
+          key={shown}
           action={basePath}
           role={q ? "search" : undefined}
           aria-label="Filters"
