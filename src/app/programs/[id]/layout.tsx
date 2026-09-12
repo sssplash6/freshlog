@@ -66,7 +66,10 @@ export default async function ProgramLayout({
       <PageTitle
         backHref={toIndex ? "/programs" : "/admin"}
         backLabel={toIndex ? "Programs" : "Inbox"}
-        eyebrow="Program"
+        // No eyebrow. "PROGRAM" sat in grey capitals directly under a back
+        // link reading "Programs", above a title that is a program's name
+        // beside its own coloured dot — the same fact three times in forty
+        // pixels of vertical space.
         title={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {/* The mark, at the one place the program is the subject. Not a

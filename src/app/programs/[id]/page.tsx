@@ -17,18 +17,15 @@ import {
   studentsWhere,
   type SearchParams,
 } from "@/lib/filters";
-import { formatDate, formatDuration } from "@/lib/format";
-import { programTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { programTone } from "@/lib/program-tone";
-import { recentMeetings, studentsWithHours } from "@/lib/queries";
+import { studentsWithHours } from "@/lib/queries";
 import type { ViewerContext } from "@/lib/status";
 
 import {
   programCohorts,
   programOf,
   programPairings,
-  programStudents,
   requestNow,
 } from "../reads";
 
@@ -76,15 +73,12 @@ export default async function ProgramPage({
 
   // The first three are the layout's reads, memoised: opening a program asks
   // for its row, its roster and its pairings once between the two files.
-  const [program, roster, pairings, cohorts, exchanges, [lastSession]] =
-    await Promise.all([
-      programOf(id),
-      programStudents(id),
-      programPairings(id),
-      programCohorts(id),
-      programExchanges(id),
-      recentMeetings({ programId: id, take: 1 }),
-    ]);
+  const [program, pairings, cohorts, exchanges] = await Promise.all([
+    programOf(id),
+    programPairings(id),
+    programCohorts(id),
+    programExchanges(id),
+  ]);
 
   const where = studentsWhere(
     query,
@@ -101,8 +95,6 @@ export default async function ProgramPage({
     prisma.studentProfile.count({ where }),
   ]);
 
-  // §8.6: the one helper, over the unsliced roster — never a second reducer.
-  const totals = programTotals(roster);
   const lent = [...exchanges.hosted, ...exchanges.sent];
   const basePath = `/programs/${program.id}`;
 
@@ -165,8 +157,7 @@ export default async function ProgramPage({
               </EmptyState>
             ) : (
               <EmptyState title="Nobody enrolled">
-                Add them with the button above; each confirms their name on
-                first sign-in.
+                Add them with the button above.
               </EmptyState>
             )
           ) : (
@@ -207,26 +198,6 @@ export default async function ProgramPage({
             </Section>
           )}
 
-          {/* The delivery line, carrying the two figures the removed stat strip
-              was the only place to read — logged and missed — and now linking
-              to the ledger they came from. */}
-          <p className="text-sm text-muted-fg">
-            {lastSession
-              ? `Last session ${formatDate(lastSession.date)} by ${lastSession.mentor.name ?? lastSession.mentor.email}`
-              : "No sessions have been logged in this program"}
-            {` · ${formatDuration(totals.completed)} completed`}
-            {totals.missed > 0 && ` · ${formatDuration(totals.missed)} missed`}
-            {" · "}
-            {/* The figures above are lifetime. This is how somebody asks the
-                same question of a week: the ledger, already filtered to this
-                program, with the date chips on it. */}
-            <ArrowLink
-              href={`/sessions?program=${program.id}`}
-              className="text-[13px]"
-            >
-              All sessions
-            </ArrowLink>
-          </p>
         </div>
 
         <Section
