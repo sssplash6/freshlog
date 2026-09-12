@@ -135,7 +135,7 @@ export default async function ProgramPage({
 
       {/* The roster, and the mentors beside it. Source order is the phone's
           order: the students first, the rail under them. */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
         <div className="min-w-0 space-y-4">
           <FilterBar
             basePath={basePath}
@@ -223,12 +223,15 @@ export default async function ProgramPage({
               {mentorRows
                 .slice(0, MENTORS_SHOWN)
                 .map(({ mentor, cohorts: paired, missingLink }) => (
-                  // The flag sits UNDER the name, always — never beside it.
-                  // Justified to the row's far edge it landed on the name's
-                  // line for a short name and wrapped below for a long one, so
-                  // a column of eight mentors had the same chip in two places
-                  // depending on how their parents spelled them.
-                  <li key={mentor.id} className="px-4 py-2 sm:px-5">
+                  // The flag follows the NAME, never the row's far edge.
+                  // Justified to the edge it landed on the name's line for a
+                  // short name and wrapped below for a long one — the same
+                  // chip in two places down one column. Directly after the
+                  // name it costs a line only when the name leaves no room.
+                  <li
+                    key={mentor.id}
+                    className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2 sm:px-5"
+                  >
                     <span className="flex min-w-0 flex-wrap items-center gap-2">
                       {/* "Their mentors can have matching colours." This is the
                           one page where that is unambiguous: every row belongs
@@ -248,11 +251,9 @@ export default async function ProgramPage({
                       )}
                     </span>
                     {missingLink && (
-                      <span className="mt-1 flex">
-                        <StatusChip severity="attention">
-                          No booking link
-                        </StatusChip>
-                      </span>
+                      <StatusChip severity="attention">
+                        No booking link
+                      </StatusChip>
                     )}
                   </li>
                 ))}
