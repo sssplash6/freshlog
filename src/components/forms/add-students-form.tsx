@@ -100,7 +100,8 @@ function StudentRows({
   return (
     <>
       <div className="space-y-2">
-        <div className="text-sm font-medium text-ink">Add students</div>
+        {/* No heading: the control that opened this form is the words "Add
+            students", one line above. */}
         {rows.map((r, i) => (
           <div key={r.id} className="flex items-start gap-2">
             <div className="grid flex-1 gap-2 sm:grid-cols-3">

@@ -1,4 +1,3 @@
-import { LinkButton } from "@/components/ui/button";
 import { Figure } from "@/components/ui/figure";
 import { PageTitle } from "@/components/ui/section";
 import { TabLinks } from "@/components/ui/segmented";
@@ -17,9 +16,9 @@ import {
 } from "../reads";
 
 /**
- * The shell all three program tabs share: who this program is, one line of what
- * it holds, and the split into what it looks like (Overview), who is in it
- * (Students) and how it is set up (Settings).
+ * The shell both program tabs share: who this program is, one line of what it
+ * holds, and the split into who is in it (Students) and how it is set up
+ * (Settings).
  *
  * A layout rather than a header each page renders, so switching tabs leaves the
  * title and the tab strip exactly where they are. It re-runs when an action
@@ -33,6 +32,11 @@ import {
  * for both; they would have sat one row apart, both reading "⚙ Settings" and
  * both going to the same page. The word is with the gear, which is the part the
  * owner asked for.
+ *
+ * NOTHING ELSE IS IN THE ACTIONS CLUSTER EITHER. "Add students" was a button
+ * up here and a fold on the page below it — one action drawn twice, a header
+ * apart. It is the full-width button under the tabs now, on the page it acts
+ * on, and Overview is gone: the roster IS the program (`page.tsx`).
  */
 export default async function ProgramLayout({
   children,
@@ -94,18 +98,12 @@ export default async function ProgramLayout({
             )}
           </span>
         }
-        actions={
-          <LinkButton href={`${base}/students`} variant="secondary">
-            Add students
-          </LinkButton>
-        }
       />
 
       <TabLinks
         label="Program sections"
         items={[
-          { href: base, label: "Overview" },
-          { href: `${base}/students`, label: "Students", count: totals.students },
+          { href: base, label: "Students", count: totals.students },
           { href: `${base}/settings`, label: "⚙ Settings" },
         ]}
       />

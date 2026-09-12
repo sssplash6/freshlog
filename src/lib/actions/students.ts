@@ -963,7 +963,7 @@ export async function deleteStudent(
 
   const back = profile.enrollments[0]?.programId;
   revalidatePath("/", "layout");
-  redirect(back ? `/programs/${back}/students` : "/students");
+  redirect(back ? `/programs/${back}` : "/students");
 }
 
 /**
