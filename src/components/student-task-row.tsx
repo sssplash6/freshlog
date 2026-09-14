@@ -1,6 +1,4 @@
-import { ExpandableText } from "@/components/expandable-text";
 import { PersonChip } from "@/components/person-chip";
-import { Meter } from "@/components/ui/meter";
 import { StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
 import {
@@ -134,70 +132,88 @@ export function StudentTaskRow({
           : { animationDelay: `${Math.min(index, 14) * 24}ms` }
       }
     >
-      <div className="flex items-start gap-x-3">
-        <div className="min-w-0 flex-1">
-          <div className="text-[0.9375rem] leading-snug">
-            <ExpandableText text={task.title} lines={2} className="font-medium text-ink" />
-          </div>
+      {/* Deadline · Mentor · Title · Progress, in that order and on one line.
+          Wrapping rather than truncating below `sm`: a title is a sentence
+          somebody wrote — "Rewrite the second paragraph of the personal
+          statement" — and a row that cuts it off on a phone is a row a phone
+          reader cannot act on. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        {/* WHEN. First, because a to-do list is read by what is next, and the
+            overdue chip replaces the plain date rather than sitting beside a
+            second copy of it — its own label already carries the day. */}
+        {overdue ? (
+          <StatusChip status={overdue} />
+        ) : (
+          <span className="shrink-0 text-xs font-medium tabular-nums text-ink">
+            {formatDate(task.dueOn)}
+          </span>
+        )}
 
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-            {/* Overdue replaces the plain date rather than sitting beside a
-                second copy of it — its own label already carries the day. */}
-            {overdue ? (
-              <StatusChip status={overdue} />
-            ) : (
-              <span className="text-xs text-muted-fg">
-                {done ? "Was due " : "Due "}
-                <span className="font-medium text-ink">{formatDate(task.dueOn)}</span>
-              </span>
-            )}
-            {progressStatus && (
+        {/* WHO set it. */}
+        <PersonChip person={task.mentor} size="sm" href={task.mentor.href} />
+        {task.program && (
+          <span className="shrink-0 text-xs text-muted-fg">{task.program.name}</span>
+        )}
+
+        {/* WHAT. The flexible middle, so progress lands against the right edge
+            however short the title is. */}
+        <span className="min-w-0 flex-1 basis-40 text-[0.9375rem] font-medium leading-snug text-ink">
+          {task.title}
+        </span>
+
+        {/* HOW FAR. A figure, not a word: "50%" is what the student actually
+            said, and the three state words are already implied by it at both
+            ends. Done keeps its chip, because finishing is the one state that
+            is an act rather than a number.
+
+            No meter on the row. A bar and a number are one fact twice, and in
+            a half-width column the 48px it wanted came straight out of the
+            title beside it — which is the one thing on the line that cannot
+            be read in less space than it takes. */}
+        <span className="ml-auto flex shrink-0 items-center gap-1.5">
+          {done ? (
+            progressStatus && (
               <StatusChip
                 status={progressStatus}
                 glyph={ASSIGNMENT_PROGRESS_GLYPH[progress]}
               />
-            )}
-            <PersonChip person={task.mentor} size="sm" href={task.mentor.href} />
-            {task.program && (
-              <span className="text-xs text-muted-fg">{task.program.name}</span>
-            )}
-          </div>
-
-          {task.note && (
-            <div className="mt-1.5">
-              <ExpandableText
-                text={task.note}
-                lines={2}
-                className="text-xs text-muted-fg"
-              />
-            </div>
+            )
+          ) : (
+            <span
+              className="text-xs font-semibold tabular-nums text-ink"
+              aria-label={`${task.percent}% of the way through`}
+            >
+              {task.percent}%
+            </span>
           )}
-
-          {/* The bar carries the figure, so the two can never disagree. Hidden
-              at 0% and after it is done: an empty bar says "nothing yet" less
-              clearly than the "Not started" chip above it already does, and a
-              full one under a ✓ is the same fact twice. */}
-          {!done && task.percent > 0 && (
-            <div className="mt-2 flex items-center gap-2">
-              <Meter
-                className="max-w-40"
-                size="sm"
-                pct={task.percent}
-                ariaValueNow={task.percent}
-                ariaValueMax={100}
-                ariaLabel={`How far along ${task.title} is`}
-              />
-              <span className="text-xs font-semibold tabular-nums text-ink">
-                {task.percent}%
-              </span>
-            </div>
-          )}
-
-          {footer && <div className="mt-2">{footer}</div>}
-        </div>
-
-        {trailing && <span className="shrink-0">{trailing}</span>}
+          {trailing}
+        </span>
       </div>
+
+      {/* The description, under the line and clamped to one of its own. The
+          text IS the control: clicking it opens, clicking it again closes.
+          Native `<details>`, like the session row's note — keyboard and
+          screen-reader behaviour arrive free, it works before hydration, and
+          find-in-page opens it. The summary is the whole description rather
+          than the word "note" over a hidden copy of it, so nothing is
+          duplicated and the first line is always readable. */}
+      {task.note && (
+        <details className="group/desc mt-1">
+          <summary className="flex cursor-pointer list-none items-start gap-1.5 text-xs text-muted-fg transition-colors hover:text-ink [&::-webkit-details-marker]:hidden">
+            <span
+              aria-hidden="true"
+              className="mt-0.5 shrink-0 text-[0.5625rem] transition-transform group-open/desc:rotate-90"
+            >
+              ▸
+            </span>
+            <span className="line-clamp-1 min-w-0 whitespace-pre-line group-open/desc:line-clamp-none">
+              {task.note}
+            </span>
+          </summary>
+        </details>
+      )}
+
+      {footer && <div className="mt-2">{footer}</div>}
     </li>
   );
 }
