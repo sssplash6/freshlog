@@ -80,7 +80,7 @@ export default async function PlatformPage() {
       />
 
       <Section
-        eyebrow={`${withAccess.length} of ${rows.length} have access`}
+        eyebrow={`${withAccess.length}/${rows.length} have access`}
         title="Program access"
         caption="Program admins manage that program's students, mentors and time."
       >

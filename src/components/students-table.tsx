@@ -229,7 +229,7 @@ export function StudentsTable({
               </span>
               {s.allottedMinutes > 0 && (
                 <span className="block text-xs text-muted-fg">
-                  of {formatDuration(s.allottedMinutes)}
+                  /{formatDuration(s.allottedMinutes)}
                 </span>
               )}
             </Td>

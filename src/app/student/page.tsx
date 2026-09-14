@@ -91,8 +91,8 @@ function AgendaRow({ task, statuses }: { task: LedgerAssignment; statuses: Statu
               )}
             >
               {formatMinutes(task.loggedMinutes)}
-            </span>{" "}
-            of {formatMinutes(budget)}
+            </span>
+            /{formatMinutes(budget)}
           </p>
         </>
       ) : (

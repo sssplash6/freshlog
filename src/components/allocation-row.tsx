@@ -177,7 +177,7 @@ export function AllocationMeter({
       />
       <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs text-muted-fg">
         <span className="tabular-nums">
-          {formatDuration(entry.completed)} of {formatDuration(entry.allocated)}{" "}
+          {formatDuration(entry.completed)}/{formatDuration(entry.allocated)}{" "}
           completed
           {entry.missed > 0 ? ` · ${formatDuration(entry.missed)} missed` : ""}
         </span>

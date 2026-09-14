@@ -287,7 +287,7 @@ export default async function StudentWorkspacePage({
       purpose: task.purpose,
       hint:
         task.minuteLimit != null
-          ? `${formatMinutes(task.loggedMinutes)} of ${formatMinutes(task.minuteLimit)}`
+          ? `${formatMinutes(task.loggedMinutes)}/${formatMinutes(task.minuteLimit)}`
           : "no budget yet",
     });
   }
@@ -319,7 +319,10 @@ export default async function StudentWorkspacePage({
       <PageTitle
         backHref="/students"
         backLabel="Students"
-        eyebrow={`Student · ${enrollmentsLabel(enrollments)}`}
+        // The programs, and nothing else. "Student ·" in front of them said
+        // what the back-link two lines above already says, on a page whose
+        // subject is a person with their face beside their name.
+        eyebrow={enrollmentsLabel(enrollments)}
         // The mentor's page opens with their face; the student's opened with
         // nothing, on the same data model. A person's own page is the one place
         // identity is unambiguously the subject.

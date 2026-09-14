@@ -232,7 +232,7 @@ export function ProgramTargetsPicker({
                         {wide
                           ? "Every cohort, including ones added later"
                           : chosenCohorts.length > 0
-                            ? `${chosenCohorts.length} of ${p.cohorts.length} cohorts`
+                            ? `${chosenCohorts.length}/${p.cohorts.length} cohorts`
                             : "Entire program"}
                       </span>
                     )}

@@ -77,26 +77,21 @@ import { StatusChip } from "@/components/ui/status-chip";
  */
 const PANE = "max-h-[60svh] overflow-y-auto";
 
-/** A column heading inside the board — smaller than a panel's, same grammar. */
-function ColumnHead({
-  eyebrow,
-  title,
-  caption,
-}: {
-  eyebrow: string;
-  title: string;
-  caption: string;
-}) {
+/**
+ * A column heading inside the board — smaller than a panel's, same grammar.
+ *
+ * No eyebrow. "Logged by mentors", "Set by a mentor" and "Planned by an admin"
+ * named WHO WRITES each list, which is a fact about permissions rather than
+ * about the work — and the ⋮ menu on a row is already there or not there
+ * depending on the answer. Three of them down one card also meant the eye met
+ * a line of small caps before every heading it actually wanted.
+ */
+function ColumnHead({ title, caption }: { title: string; caption: string }) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-4 pb-2.5 pt-4 sm:px-5">
-      <div>
-        <div className="text-[0.625rem] font-bold uppercase tracking-[0.09em] text-muted-fg">
-          {eyebrow}
-        </div>
-        <h3 className="mt-0.5 text-[0.9375rem] font-bold tracking-tight text-ink">
-          {title}
-        </h3>
-      </div>
+      <h3 className="text-[0.9375rem] font-bold tracking-tight text-ink">
+        {title}
+      </h3>
       <span className="text-xs tabular-nums text-muted-fg">{caption}</span>
     </div>
   );
@@ -270,7 +265,7 @@ export function LedgerBoard({
       // counted DONE, like everything else in this card: the whole row reads
       // forward, so a "2 open" among figures that all count what is finished
       // was the one that had to be inverted in the reader's head.
-      caption={`${activeCount} logged · ${doneTasks.length} of ${tasks.length} tasks done`}
+      caption={`${activeCount} logged · ${doneTasks.length}/${tasks.length} tasks done`}
     >
       {/* The sheet's right-hand totals, given the width they deserve. */}
       <div className="border-b border-line px-4 py-2 sm:px-5">
@@ -288,7 +283,6 @@ export function LedgerBoard({
         {/* LEFT — what happened, and what is about to */}
         <div className="min-w-0 border-b border-line lg:border-b-0">
           <ColumnHead
-            eyebrow="Logged by mentors"
             title="Meetings"
             caption={
               activeCount === 0 && ahead.length === 0
@@ -329,7 +323,6 @@ export function LedgerBoard({
             `relative` so the "+" can pin itself to this column's own corner. */}
         <div className="relative min-w-0">
           <ColumnHead
-            eyebrow="Set by a mentor"
             title="Tasks"
             // The whole log's shape, not just what is left: a mentor opening
             // somebody they have not seen in a month wants to know what was
@@ -392,7 +385,6 @@ export function LedgerBoard({
       {/* BELOW, FULL WIDTH — what the hours were bought for */}
       <div className="min-w-0">
         <ColumnHead
-          eyebrow="Planned by an admin"
           title="Agenda"
           caption={
             assignments.length === 0
