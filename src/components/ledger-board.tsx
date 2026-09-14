@@ -67,8 +67,15 @@ import { StatusChip } from "@/components/ui/status-chip";
  * One pane's scrolling body. A column heading and the form under it stay put;
  * only the rows move, or a reader scrolling a long log loses the heading that
  * says which log it is.
+ *
+ * No `overscroll-contain`, deliberately. Containing the scroll traps the reader:
+ * a wheel or a thumb that reaches the end of a pane stops dead, and the page
+ * behind it does not move until they find somewhere else to put the cursor.
+ * Chaining to the page is what every scrollable region on the web does, so it is
+ * what a hand already expects — and this pane is a viewport onto a list, not a
+ * modal that has to hold the reader inside it.
  */
-const PANE = "max-h-[60svh] overflow-y-auto overscroll-contain";
+const PANE = "max-h-[60svh] overflow-y-auto";
 
 /** A column heading inside the board — smaller than a panel's, same grammar. */
 function ColumnHead({
