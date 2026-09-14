@@ -303,7 +303,19 @@ export function LedgerBoard({
                 ))}
               </ul>
               <GroupRule label="Completed" count={logged.length} />
-              <ul className="divide-y divide-line/50">
+              {/* The inset goes on the ROWS, not on this list: `divide-y` draws
+                  its hairline on the child's border box, so padding the list
+                  would pull every rule 20px short of the edges while the
+                  Tasks column's run full width.
+
+                  It has to be here at all because `SessionRow`'s timeline
+                  shape carries no horizontal padding of its own — it is
+                  normally dropped inside something that already has some, as
+                  it is on the student's home. In this pane there is nothing
+                  between it and the edge, so a hovered row's pencil widened
+                  into the column divider and every other row in the card
+                  started 20px further in than these did. */}
+              <ul className="divide-y divide-line/50 [&>li]:px-4 sm:[&>li]:px-5">
                 {toSessionEntries(logged, { mentorBase }).map((s, i) => (
                   <SessionRow
                     key={s.id}
