@@ -291,7 +291,7 @@ const MENTOR_SEARCH: SearchField<Prisma.UserWhereInput>[] = [
  */
 const SESSION_SEARCH: SearchField<Prisma.SessionWhereInput>[] = [
   { label: "note", where: (q) => ({ note: { contains: q } }) },
-  { label: "task", where: (q) => ({ assignment: { purpose: { contains: q } } }) },
+  { label: "agenda", where: (q) => ({ assignment: { purpose: { contains: q } } }) },
   { label: "student", where: (q) => ({ student: { user: { name: { contains: q } } } }) },
   { label: "mentor", where: (q) => ({ mentor: { name: { contains: q } } }) },
 ];
@@ -305,7 +305,7 @@ const NOTIFICATION_SEARCH: SearchField<Prisma.NotificationWhereInput>[] = [
   { label: "message", where: (q) => ({ message: { contains: q } }) },
 ];
 
-/** "note, task, student or mentor" — the fields, in the order they are tried. */
+/** "note, agenda, student or mentor" — the fields, in the order they are tried. */
 function fieldList<W>(fields: SearchField<W>[]): string {
   const labels = fields.map((f) => f.label);
   const joined =
@@ -685,11 +685,18 @@ export const NOTIFICATION_CATEGORIES: readonly {
   },
   {
     value: "tasks",
-    label: "Tasks",
+    label: "Tasks and agenda",
+    // Both halves of the plan, because both are one category in the database
+    // (`CATEGORY_OF`) and one subscription in the email preferences. A filter
+    // that named the category and then matched half of it would hide a
+    // student's own tasks behind a chip that says it shows them.
     types: [
       NOTIFICATION_TYPES.GOAL_ASSIGNED,
       NOTIFICATION_TYPES.GOAL_CHANGED,
       NOTIFICATION_TYPES.GOAL_DONE,
+      NOTIFICATION_TYPES.TASK_SET,
+      NOTIFICATION_TYPES.TASK_CHANGED,
+      NOTIFICATION_TYPES.TASK_MOVED,
     ],
   },
   {

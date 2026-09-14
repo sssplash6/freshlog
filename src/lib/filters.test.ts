@@ -251,7 +251,7 @@ describe("what the search box looks in", () => {
     // A box that says "Name or email" and searches only names is the defect
     // being removed, and it was invisible because the two lived apart.
     expect(SEARCH_PLACEHOLDER.students).toBe("Name or email");
-    expect(SEARCH_PLACEHOLDER.sessions).toBe("Note, task, student or mentor");
+    expect(SEARCH_PLACEHOLDER.sessions).toBe("Note, agenda, student or mentor");
     expect(SEARCH_PLACEHOLDER.feedback).toBe("Comment or mentor");
     expect(SEARCH_PLACEHOLDER.notifications).toBe("Message");
   });

@@ -65,8 +65,8 @@ export function AssignTaskForm({
       <h3 className="text-sm font-semibold text-ink">Allocate time</h3>
       <p className="mt-1 text-xs text-muted-fg">
         The hours go to the student. Name a mentor to put them on their
-        ledger, and a task to make these hours its budget — or leave either for
-        later and the hours wait, unassigned.
+        ledger, and an agenda item to make these hours its budget — or leave
+        either for later and the hours wait, unassigned.
       </p>
       <input type="hidden" name="studentProfileId" value={studentProfileId} />
       <input type="hidden" name="mode" value="add" />
@@ -115,7 +115,7 @@ export function AssignTaskForm({
           openTasks={openTasks}
           hint={
             openTasks.length > 0
-              ? "Picking a task they already have open adds this time to its budget."
+              ? "Picking one they already have open adds this time to its budget."
               : undefined
           }
         />

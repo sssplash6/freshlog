@@ -64,6 +64,7 @@ model User {
   hourAllocations     HourAllocation[]         @relation("AllocationMentor")
   assignments         Assignment[]             @relation("AssignmentMentor")
   createdAssignments  Assignment[]             @relation("AssignmentCreatedBy")
+  tasksSet            StudentTask[]            @relation("StudentTaskMentor")
   allotmentChanges    HourAllotmentChange[]    @relation("ChangedBy")
   allotmentMentions   HourAllotmentChange[]    @relation("ChangeMentor")
   notifications       Notification[]
@@ -121,6 +122,7 @@ model Program {
   hourAllocations   HourAllocation[]
   sessions          Session[]
   assignments       Assignment[]
+  studentTasks      StudentTask[]
   allotmentChanges  HourAllotmentChange[]
   // Students this program lent out, and students it took in. Two relations
   // because they are two questions an admin asks separately.
@@ -221,6 +223,7 @@ model StudentProfile {
   sessions         Session[]
   hourAllocations  HourAllocation[]
   assignments      Assignment[]
+  tasks            StudentTask[]
   allotmentChanges HourAllotmentChange[]
   mentorFeedback   MentorFeedback[]
   interviews       Interview[]
@@ -393,6 +396,61 @@ model Assignment {
 
   @@index([studentId, position])
   @@index([programId])
+}
+
+// Work the student goes away and DOES — set by the mentor they sit with, and
+// moved along by the student themselves.
+//
+// Deliberately not an `Assignment`, which the two were nearly merged into. An
+// Assignment is the *agenda*: the piece of work an admin budgets hours for, so
+// a session can be logged against it and the plan read against the ledger. It
+// is measured in minutes somebody else delivers, and nobody but staff ever
+// touches it.
+//
+// This is the other half of the same week and shares none of that shape. It
+// carries no minutes and no budget, no session may be logged against it, and
+// the only person who can say how far along it is is the student — which is the
+// whole point of it. Putting a student-writable `percent` on `Assignment` would
+// have put a student's hand on the row an admin's hour budget hangs off.
+//
+// The deadline is required, unlike the agenda's two optional halves. A task is
+// given at a meeting to be done before the next one; "sometime" is not a task,
+// it is a suggestion, and the student's home has no way to sort one.
+model StudentTask {
+  id          String    @id @default(cuid())
+  studentId   String
+  // Whose work this is, per the rule the rest of the ledger follows: ask the
+  // row, not the student. A student in two programs gets tasks from both, and
+  // an admin of one of them must not read the other's.
+  programId   String
+  // The mentor who set it. Required, and never null — a task nobody set is a
+  // task nobody can be asked about, which is exactly what `Assignment.mentorId`
+  // is nullable FOR (an admin budgets work before choosing who does it).
+  mentorId    String
+  title       String
+  note        String?
+  dueOn       DateTime
+  // How far along the STUDENT says they are, 0-100. Whole percent, in steps the
+  // control offers; the column takes any integer in range so the steps can be
+  // re-cut without a migration.
+  percent     Int       @default(0)
+  // When the student called it finished. Null is "not finished" — the flag and
+  // the date are one column, because two would let them disagree.
+  //
+  // Separate from `percent` reaching 100 even so: finishing is a thing a person
+  // did at a moment, and it is what the mentor is told about.
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  program Program        @relation(fields: [programId], references: [id])
+  mentor  User           @relation("StudentTaskMentor", fields: [mentorId], references: [id])
+
+  // The student's own list, in the order their home reads it.
+  @@index([studentId, dueOn])
+  @@index([programId])
+  @@index([mentorId])
 }
 
 // Mentoring time an admin granted a student FROM a specific mentor, in minutes

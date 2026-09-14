@@ -31,12 +31,15 @@ import {
  * for.
  *
  * They share a file because they share a subject and a page. An allocation
- * grants a mentor a pool of the student's time; a task carves a budget out of
- * that pool and is what a session is logged against. The link is literal —
- * raising an allocation opens the same `TaskPicker` the task menu edits, so the
- * arriving hours name the work they are for — and removing an allocation
- * deletes that mentor's tasks with the student along with it. Splitting them
+ * grants a mentor a pool of the student's time; an AGENDA item carves a budget
+ * out of that pool and is what a session is logged against. The link is literal
+ * — raising an allocation opens the same `TaskPicker` the agenda menu edits, so
+ * the arriving hours name the work they are for — and removing an allocation
+ * deletes that mentor's agenda with the student along with it. Splitting them
  * would put two ends of one write in two files.
+ *
+ * Nothing here touches a `StudentTask`, which is the other thing the team calls
+ * a task and has no hours at all — see `lib/student-tasks.ts`.
  */
 
 /**
@@ -133,7 +136,7 @@ export function AllocationRowActions({
             <div className="rise-in">
               <TaskPicker compact optional openTasks={openTasks} />
               <p className="mt-1.5 text-[0.6875rem] text-muted-fg">
-                Name a task and these extra hours become its budget.
+                Name the work and these extra hours become its budget.
               </p>
             </div>
           )}
@@ -159,7 +162,7 @@ export function AllocationRowActions({
           // know from here.
           question={
             mentorId
-              ? "Their hours and their open tasks with this student go."
+              ? "Their hours and their open agenda with this student go."
               : "The unallocated hours go. Nothing is logged against them."
           }
           confirmLabel="Yes, remove"
@@ -192,8 +195,8 @@ type TaskFields = {
 };
 
 /**
- * Per-row task controls behind a ⋮ menu: move it through its progress states in
- * one click, edit any field, or remove the row. Progress leads because it is
+ * Per-row agenda controls behind a ⋮ menu: move it through its progress states
+ * in one click, edit any field, or remove the row. Progress leads because it is
  * the thing that actually changes week to week — opening a whole form to tick
  * something off would be the wrong shape for it.
  */
@@ -248,12 +251,12 @@ function TaskPanel({
 
   if (editing) {
     return (
-      <RowActionGroup label="Edit this task">
+      <RowActionGroup label="Edit this agenda item">
         <form action={editAction} className="space-y-3">
           <input type="hidden" name="assignmentId" value={task.id} />
           <input type="hidden" name="progress" value={task.progress} />
 
-          <Field label="Task">
+          <Field label="Agenda item">
             <GrowingField
               name="purpose"
               required
@@ -396,7 +399,7 @@ function TaskPanel({
           onClick={() => setEditing(true)}
           className="inline-flex min-h-10 items-center text-xs font-medium text-brand transition-colors hover:underline"
         >
-          Edit this task
+          Edit this agenda item
         </button>
         {canDelete && (
         <ConfirmInline
@@ -404,7 +407,7 @@ function TaskPanel({
           action={delAction}
           values={{ assignmentId: task.id }}
           pending={delSave.kind === "saving"}
-          label="Remove this task"
+          label="Remove this agenda item"
           // The old confirm asked nothing — it went from "Remove" straight to
           // "Yes, remove", which is a two-step confirm with the informative
           // step left out. This is the fact a reader needs: the hours logged

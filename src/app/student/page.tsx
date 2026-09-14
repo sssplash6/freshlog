@@ -5,6 +5,11 @@ import { ExpandableText } from "@/components/expandable-text";
 import { HoursBreakdown } from "@/components/hours-breakdown";
 import { HoursRing } from "@/components/hours-ring";
 import { PersonChip } from "@/components/person-chip";
+import {
+  StudentTaskRow,
+  toStudentTaskEntries,
+} from "@/components/student-task-row";
+import { TaskProgressControl } from "@/components/forms/student-task-forms";
 import { Disclosure } from "@/components/ui/disclosure";
 import { SessionRow, toSessionEntries } from "@/components/session-row";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -20,18 +25,24 @@ import { enrollmentsLabel } from "@/lib/enrollments";
 import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { studentLedger, type LedgerAssignment } from "@/lib/queries";
+import { taskIsOpen } from "@/lib/student-tasks";
 import { taskStatuses, type Status, type ViewerContext } from "@/lib/status";
 
 /**
- * One piece of planned work, in the student's words.
+ * One line of the AGENDA — a piece of work the student's hours were budgeted
+ * for — in the student's own words.
  *
- * Private to this page rather than shared: the same task is a table row with a
- * ⋮ menu on a staff workspace (§6.7) and a read-only card here, and the two
- * have nothing in common but the noun. What they DO share — which states are
- * true of a task, and what each is called — comes from `taskStatuses`, so the
+ * Not a task. A task is what a mentor sets them to go away and do, it is drawn
+ * by `StudentTaskRow` above this on the page, and it is the only one of the two
+ * the student can move. See `lib/student-tasks.ts` for why they are two things.
+ *
+ * Private to this page rather than shared: the same agenda item is a table row
+ * with a ⋮ menu on a staff workspace (§6.7) and a read-only card here, and the
+ * two have nothing in common but the noun. What they DO share — which states
+ * are true of it, and what each is called — comes from `taskStatuses`, so the
  * two renderings can never disagree about what "in progress" means.
  */
-function TaskRow({ task, statuses }: { task: LedgerAssignment; statuses: Status[] }) {
+function AgendaRow({ task, statuses }: { task: LedgerAssignment; statuses: Status[] }) {
   const budget = task.minuteLimit ?? 0;
   const over = budget > 0 && task.loggedMinutes > budget;
 
@@ -102,7 +113,7 @@ function TaskRow({ task, statuses }: { task: LedgerAssignment; statuses: Status[
  * Finished work, one line each behind a fold: reassuring to have, but it has
  * stopped asking anything, so it may not compete with what is still live.
  */
-function FinishedTask({ task }: { task: LedgerAssignment }) {
+function FinishedAgendaItem({ task }: { task: LedgerAssignment }) {
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
       <span className="min-w-0 flex-1 truncate text-sm text-muted-fg">
@@ -190,6 +201,14 @@ export default async function StudentHomePage() {
     ...tasks.filter((t) => t.task.progress === ASSIGNMENT_PROGRESS.NOT_STARTED),
   ];
 
+  // What their mentors set them to go away and do — already soonest-deadline
+  // first from the query, because that is the order a to-do list is read in.
+  const myTasks = toStudentTaskEntries(ledger.tasks, {
+    showProgram: profile.enrollments.length > 1,
+  });
+  const openTasks = myTasks.filter(taskIsOpen);
+  const doneTasks = myTasks.filter((t) => !taskIsOpen(t));
+
   return (
     <div className="space-y-4">
       <PageTitle
@@ -239,21 +258,92 @@ export default async function StudentHomePage() {
         </Section>
       )}
 
-      <Section title="Working on">
+      {/* The one section on this page that ASKS the student for something, so
+          it leads everything except their balance. Each row carries its own
+          control: a task is moved where it is read, never on a second screen
+          behind an Edit. */}
+      <Section
+        eyebrow="Set by your mentor"
+        title="Tasks"
+        count={openTasks.length || undefined}
+        // Only once there is something to count: "0 done" on a fresh list is a
+        // figure that says nothing the empty list does not already say.
+        caption={doneTasks.length > 0 ? `${doneTasks.length} done` : undefined}
+      >
+        {myTasks.length === 0 ? (
+          <EmptyState framed={false} title="No tasks set">
+            Your mentor gives you work to do between meetings.
+          </EmptyState>
+        ) : (
+          <>
+            <ul className="divide-y divide-line/60">
+              {openTasks.map((task, i) => (
+                <StudentTaskRow
+                  key={task.id}
+                  task={task}
+                  viewer={viewer}
+                  index={i}
+                  footer={
+                    <TaskProgressControl
+                      taskId={task.id}
+                      percent={task.percent}
+                      done={false}
+                    />
+                  }
+                />
+              ))}
+            </ul>
+            {doneTasks.length > 0 && (
+              <div
+                className={cn(
+                  "px-4 py-2 sm:px-5",
+                  openTasks.length > 0 && "border-t border-line"
+                )}
+              >
+                {/* Finished, folded: it has stopped asking anything, and the
+                    way back out of a mistake is inside the fold with it. */}
+                <Disclosure label="Finished" count={doneTasks.length}>
+                  <ul className="divide-y divide-line/60">
+                    {doneTasks.map((task) => (
+                      <StudentTaskRow
+                        key={task.id}
+                        task={task}
+                        viewer={viewer}
+                        footer={
+                          <TaskProgressControl
+                            taskId={task.id}
+                            percent={task.percent}
+                            done
+                          />
+                        }
+                      />
+                    ))}
+                  </ul>
+                </Disclosure>
+              </div>
+            )}
+          </>
+        )}
+      </Section>
+
+      {/* What the mentoring HOURS are for, which is a different list from the
+          one above and was called "Tasks" until both existed. Read-only: an
+          admin plans it and the hours a mentor logs move it. */}
+      <Section eyebrow="What your time is for" title="Agenda">
         {live.length === 0 && finished.length === 0 ? (
-          <EmptyState framed={false} title="No tasks planned">
-            Your team adds them with a time budget for each.
+          <EmptyState framed={false} title="No agenda planned">
+            Your team adds it with a time budget for each piece of work.
           </EmptyState>
         ) : (
           <>
             {live.length > 0 && (
-              // Two up. A task card is a title, a chip or two and a bar — it
+              // Two up. An agenda card is a title, a chip or two and a bar — it
               // never fills a phone-width row, so one per line spent the whole
               // right-hand side on nothing and pushed the finished fold below
               // the fold of the screen.
               <ul className="grid sm:grid-cols-2">
                 {live.map(({ task, statuses }) => (
-                  <TaskRow key={task.id} task={task} statuses={statuses} />
+                  <AgendaRow key={task.id} task={task} statuses={statuses} />
                 ))}
               </ul>
             )}
@@ -267,7 +357,7 @@ export default async function StudentHomePage() {
                 <Disclosure label="Finished" count={finished.length}>
                   <ul className="divide-y divide-line/60">
                     {finished.map(({ task }) => (
-                      <FinishedTask key={task.id} task={task} />
+                      <FinishedAgendaItem key={task.id} task={task} />
                     ))}
                   </ul>
                 </Disclosure>

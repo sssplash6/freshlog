@@ -59,13 +59,13 @@ function isCategory(value: unknown): value is NotificationCategory {
 /** What this feed is for, in the words of the person reading it. */
 const BLURB: Record<string, string> = {
   ADMIN:
-    "Sessions your mentors log, tasks they finish, signups waiting on approval, and every change to a student's time.",
+    "Sessions your mentors log, work they finish, signups waiting on approval, and every change to a student's time.",
   DEPT_LEADER: "Changes to students and across your program.",
   SALES: "Changes to students and across your program.",
   MENTOR:
-    "Tasks an admin assigns you, time granted for your students, and deadlines coming up.",
+    "Agenda an admin plans for you, tasks your students move along, time granted for them, and deadlines coming up.",
   STUDENT:
-    "Every session your mentors log, every change to your time, and deadlines before they pass.",
+    "Tasks your mentors set you, every session they log, every change to your time, and deadlines before they pass.",
 };
 
 export default async function NotificationsPage({

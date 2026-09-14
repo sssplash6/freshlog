@@ -1,17 +1,20 @@
 import { TASK_PRESETS } from "../../config/app-config";
 
 /**
- * The task vocabulary, shared by the client pickers and the server actions.
+ * The AGENDA vocabulary, shared by the client pickers and the server actions.
  *
- * A task is what hours are FOR. An admin names one whenever they grant hours
- * (config/app-config.ts holds the preset list, and anything can be typed in its
- * place), which creates the student's piece of work with that grant as its hour
- * budget. The mentor then logs every session against one of the open tasks they
- * hold for that student, so planned hours and delivered hours line up without
- * anyone reconciling two lists by hand.
+ * An agenda item is what hours are FOR. An admin names one whenever they grant
+ * hours (config/app-config.ts holds the preset list, and anything can be typed
+ * in its place), which creates the student's piece of work with that grant as
+ * its hour budget. The mentor then logs every session against one of the open
+ * items they hold for that student, so planned hours and delivered hours line
+ * up without anyone reconciling two lists by hand.
  *
- * The model calls these `Assignment` rows — see prisma/schema.prisma. "Task" is
- * the word the team uses, so it is the word the UI uses.
+ * The model calls these `Assignment` rows — see prisma/schema.prisma. The UI
+ * called them "tasks" until 14 September 2026, when mentors got the ability to
+ * set students actual tasks (`StudentTask`); two things called a task on one
+ * screen is one too many, so the hour plan took the name it always was. The
+ * identifiers keep their history. `lib/student-tasks.ts` holds the other half.
  */
 
 export { TASK_PRESETS };
@@ -34,7 +37,7 @@ export function parseTaskField(
   if (!parsed.value) {
     return {
       error:
-        "Say which task these hours are for — pick one from the list or type your own.",
+        "Say what these hours are for — pick one from the list or type your own.",
     };
   }
   return { value: parsed.value };
@@ -42,7 +45,7 @@ export function parseTaskField(
 
 /**
  * Same field, but a blank one is fine: hours can be allocated before the work
- * they're for has a name. Null means no task was named.
+ * they're for has a name. Null means nothing was named.
  */
 export function parseOptionalTaskField(
   raw: FormDataEntryValue | null,
@@ -53,7 +56,7 @@ export function parseOptionalTaskField(
   const value = !picked || picked === TASK_OTHER ? typed : picked;
 
   if (value.length > MAX_TASK_LENGTH) {
-    return { error: `Keep the task under ${MAX_TASK_LENGTH} characters.` };
+    return { error: `Keep it under ${MAX_TASK_LENGTH} characters.` };
   }
   return { value: value || null };
 }

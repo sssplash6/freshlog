@@ -90,7 +90,7 @@ export function SessionRowActions({
             <input type="hidden" name="sessionId" value={session.id} />
 
             {goals.length > 0 && (
-              <Field label="Task">
+              <Field label="Agenda item">
                 <select
                   name="assignmentId"
                   defaultValue={session.assignmentId ?? ""}

@@ -15,7 +15,10 @@ import { formatDate, formatDuration, formatMinutes } from "@/lib/format";
 import { taskStatuses, type Status, type ViewerContext } from "@/lib/status";
 
 /**
- * One piece of planned work, wherever it appears.
+ * One line of the AGENDA — a piece of work an admin budgeted hours for —
+ * wherever it appears. Not a `StudentTask`, which is what a mentor sets a
+ * student to go away and do and which `student-task-row.tsx` draws; see
+ * `lib/student-tasks.ts` for the split.
  *
  * Four renderers drew this row, and the two on the student's own page drew it
  * twice on one screen: `AssignmentsPanel`'s seven-column table and
@@ -129,7 +132,7 @@ function peopleLabel(columns: TaskColumn[]): string {
 }
 
 const SLOT_LABEL: Record<Exclude<Slot, "people" | "actions">, string> = {
-  task: "Task",
+  task: "Agenda item",
   hours: "Logged · Budget",
   due: "Due",
   progress: "Progress",
@@ -397,7 +400,7 @@ export function TaskRow({
         switch (slot) {
           case "task":
             return (
-              <Td key={slot} label="Task" className="sm:max-w-xs">
+              <Td key={slot} label="Agenda item" className="sm:max-w-xs">
                 {title}
                 {/* What somebody said about this task that its state cannot
                     carry — a missed week, an open question. Clamped: it was
@@ -487,8 +490,8 @@ export function TaskTable({
   if (tasks.length === 0) {
     return (
       empty ?? (
-        <EmptyState framed={framed} title="No tasks">
-          Tasks arrive with the time an admin allocates for them.
+        <EmptyState framed={framed} title="No agenda">
+          It arrives with the time an admin allocates for each piece of work.
         </EmptyState>
       )
     );
@@ -641,17 +644,17 @@ export function TasksPanel({
   return (
     <Section
       eyebrow="What the time is for"
-      title="Tasks"
+      title="Agenda"
       caption={
         tasks.length === 0
-          ? "Nothing assigned yet"
+          ? "Nothing planned yet"
           : `${done} of ${tasks.length} done · ${formatDuration(planned)} budgeted`
       }
     >
       {tasks.length === 0 ? (
         (empty ?? (
-          <EmptyState framed={false} title="No tasks yet">
-            An admin sets out the work planned for this student here.
+          <EmptyState framed={false} title="No agenda yet">
+            An admin sets out the work planned for this student.
           </EmptyState>
         ))
       ) : (

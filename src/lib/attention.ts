@@ -15,6 +15,7 @@ import { unallocatedExchanges } from "@/lib/exchanges";
 import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import type { Profile } from "@/lib/profile";
+import { studentTaskStatuses } from "@/lib/student-tasks";
 import {
   assignmentsForStudentWhere,
   mentorCaseload,
@@ -669,11 +670,11 @@ async function studentAttention(user: User): Promise<Attention> {
     return [row];
   });
 
-  // Every state each task is in. `TASK_OVERDUE` is the only one a student can
+  // Every state the AGENDA is in. `TASK_OVERDUE` is the only one a student can
   // act on, and it is dormant until `Assignment.dueOn` is a real date on every
   // row — it is wired anyway, so filling that column lights the row up instead
   // of waiting for somebody to remember this file.
-  const overdueTasks = ledger.assignments.flatMap((task) =>
+  const overdueAgenda = ledger.assignments.flatMap((task) =>
     taskStatuses(
       {
         id: task.id,
@@ -683,6 +684,24 @@ async function studentAttention(user: User): Promise<Attention> {
         minuteLimit: task.minuteLimit,
         loggedMinutes: task.loggedMinutes,
         dueOn: task.dueOn,
+      },
+      viewer
+    ).filter((s) => s.type === "TASK_OVERDUE")
+  );
+
+  // And the tasks their mentors set them, where the same state is never
+  // dormant: a task's deadline is required, so every one of these rows can
+  // actually fire. They are the student's own work, so their row says so
+  // rather than naming a person to chase.
+  const overdueTasks = ledger.tasks.flatMap((task) =>
+    studentTaskStatuses(
+      {
+        id: task.id,
+        title: task.title,
+        percent: task.percent,
+        completedAt: task.completedAt,
+        dueOn: task.dueOn,
+        mentorId: task.mentorId,
       },
       viewer
     ).filter((s) => s.type === "TASK_OVERDUE")
@@ -752,7 +771,14 @@ async function studentAttention(user: User): Promise<Attention> {
   // still on screen, "Nothing to do right now" would be contradicted by the
   // line directly under it.
   const list = attentionList(
-    [...mine, ...meetingRows, ...overdueTasks, ...bookingRows, ...unconfirmed],
+    [
+      ...mine,
+      ...meetingRows,
+      ...overdueTasks,
+      ...overdueAgenda,
+      ...bookingRows,
+      ...unconfirmed,
+    ],
     viewer
   ).filter((s) => s.type !== "ALL_CLEAR");
 

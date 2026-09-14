@@ -23,23 +23,28 @@ import {
 } from "@/lib/actions/shared";
 
 /**
- * The plan half of a student's ledger: which mentor is doing what task, with
+ * The AGENDA half of a student's ledger: which mentor is doing what work, with
  * what hour budget, by when, and how far along it is. Only admins write here
  * (mentors and students read it), matching how the tracking spreadsheet was
- * run: the mentor fills the meetings log by logging sessions, the admin
- * assigns the work.
+ * run: the mentor fills the meetings log by logging sessions, the admin plans
+ * the work.
  *
- * A task is BORN in setMentorAllocation, not here — assigning work and granting
- * the hours for it are one act, so there is one form for both and the task's
- * budget is the hours it was given. What lives here is everything that happens
- * to a task afterwards: editing it, stating its progress, removing it.
+ * `Assignment` is the model and "agenda" is the word the UI now uses for it, to
+ * tell it from a `StudentTask` — the other thing the team calls a task, which a
+ * mentor sets, carries no hours, and only the student can move. The split is
+ * written out in `lib/student-tasks.ts`.
  *
- * Every write here is gated on the task's OWN program. It had none until 6
- * September 2026 and borrowed the student's, which stopped meaning anything the
- * moment a student could be in two: the program that budgeted the work is the
- * one an admin either holds a grant for or does not. A task outside that grant
- * answers "no longer exists" — the same sentence a deleted one gets, so the
- * refusal can't be used to confirm the task is there.
+ * An agenda item is BORN in setMentorAllocation, not here — planning work and
+ * granting the hours for it are one act, so there is one form for both and the
+ * item's budget is the hours it was given. What lives here is everything that
+ * happens to it afterwards: editing it, stating its progress, removing it.
+ *
+ * Every write here is gated on its OWN program. It had none until 6 September
+ * 2026 and borrowed the student's, which stopped meaning anything the moment a
+ * student could be in two: the program that budgeted the work is the one an
+ * admin either holds a grant for or does not. Anything outside that grant
+ * answers "no longer exists" — the same sentence a deleted row gets, so the
+ * refusal can't be used to confirm it is there.
  */
 
 const PROGRESS_VALUES: string[] = Object.values(ASSIGNMENT_PROGRESS);
@@ -132,7 +137,7 @@ export async function updateAssignment(
   // "Not yours" and "does not exist" answer identically, so the refusal
   // cannot be used to find out which tasks exist.
   if (!existing || (await assertTaskScope(actor, existing))) {
-    return { ok: false, error: "That task no longer exists." };
+    return { ok: false, error: "That agenda item no longer exists." };
   }
 
   // Empty = no mentor (yet): a task can be planned before anyone owns it,
@@ -259,7 +264,7 @@ export async function updateAssignment(
         type: NOTIFICATION_TYPES.GOAL_CHANGED,
         actorId: actor.id,
         href: notificationHref.mentorStudent(existing.studentId),
-        message: `Your task "${fields.purpose}" for ${studentName}: ${news.join(", ")}.`,
+        message: `Your agenda item "${fields.purpose}" for ${studentName}: ${news.join(", ")}.`,
       });
     }
   });
@@ -292,12 +297,12 @@ export async function setAssignmentProgress(
   // "Not yours" and "does not exist" answer identically, so the refusal
   // cannot be used to find out which tasks exist.
   if (!existing || (await assertTaskScope(actor, existing))) {
-    return { ok: false, error: "That task no longer exists." };
+    return { ok: false, error: "That agenda item no longer exists." };
   }
 
   if (progress === ASSIGNMENT_PROGRESS_AUTO) {
     if (!existing.progressManual) {
-      return { ok: true, message: "This task already follows its hours." };
+      return { ok: true, message: "This already follows its hours." };
     }
     const synced = await prisma.$transaction(async (tx) => {
       await tx.assignment.update({
@@ -332,7 +337,7 @@ export async function setAssignmentProgress(
       type: NOTIFICATION_TYPES.GOAL_CHANGED,
       actorId: actor.id,
       href: notificationHref.mentorStudent(existing.studentId),
-      message: `An admin marked your task "${existing.purpose}" as ${ASSIGNMENT_PROGRESS_LABELS[progress].toLowerCase()}.`,
+      message: `An admin marked your agenda item "${existing.purpose}" as ${ASSIGNMENT_PROGRESS_LABELS[progress].toLowerCase()}.`,
     });
   });
 
@@ -364,7 +369,7 @@ export async function deleteAssignment(
   // mentor deleting work an admin planned, and the hours budgeted against it,
   // is a decision about the plan. Voiding a session is the same distinction.
   if (!existing || (await assertProgramScope(actor, existing.programId))) {
-    return { ok: false, error: "That task no longer exists." };
+    return { ok: false, error: "That agenda item no longer exists." };
   }
 
   await prisma.$transaction(async (tx) => {
@@ -374,7 +379,7 @@ export async function deleteAssignment(
       type: NOTIFICATION_TYPES.GOAL_CHANGED,
       actorId: actor.id,
       href: notificationHref.mentorStudent(existing.studentId),
-      message: `The task "${existing.purpose}" was removed from the plan. Sessions you already logged against it are kept.`,
+      message: `The agenda item "${existing.purpose}" was removed from the plan. Sessions you already logged against it are kept.`,
     });
   });
 

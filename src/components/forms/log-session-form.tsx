@@ -26,14 +26,14 @@ export type LogSessionStudent = {
   hint: string;
   /** The one line worth repeating under the closed select. */
   balance?: string;
-  /** The mentor's own open tasks for this student, in the admin's order. */
+  /** The mentor's own open agenda for this student, in the admin's order. */
   goals: { value: string; label: string }[];
   /**
    * The programs of theirs this mentor could be logging into, best first.
    *
    * Almost always one, and then the form never mentions it — it posts the id
    * and asks nothing. A student in two of the mentor's programs gets a select,
-   * because the hours, the deadline and the task list are all different on the
+   * because the hours, the deadline and the agenda are all different on the
    * other side of that choice.
    */
   programs: {
@@ -57,7 +57,7 @@ export type LogSessionDraft = {
 };
 
 /**
- * Log a completed session. Naming the task it went toward is what lets planned
+ * Log a completed session. Naming the agenda item it went toward is what lets planned
  * hours be read against delivered ones, but it is optional: a meeting that fits
  * none of the tasks still happened, and waiting on an admin to invent one would
  * mean the hours go unlogged. Tasks belong to a student, so the list is
@@ -249,14 +249,14 @@ export function LogSessionForm({
           </div>
         )}
         <div className="block min-w-0 text-sm">
-          <span className="text-muted-fg">Task worked on</span>
+          <span className="text-muted-fg">Agenda item worked on</span>
           <div className="mt-0.5">
             <Select
               // Remount per student so the previous student's goal is never
               // left selected behind the new student's list.
               key={`${studentId}:${chosen?.value ?? ""}`}
               name="assignmentId"
-              ariaLabel="Task worked on"
+              ariaLabel="Agenda item worked on"
               defaultValue={opening.assignmentId}
               options={goals}
               required={false}
@@ -264,8 +264,8 @@ export function LogSessionForm({
                 !student
                   ? "Pick a student first…"
                   : noGoals
-                    ? "No tasks assigned yet"
-                    : "Optional — choose a task…"
+                    ? "Nothing planned yet"
+                    : "Optional — choose one…"
               }
             />
           </div>
@@ -317,8 +317,8 @@ export function LogSessionForm({
 
       {noGoals && (
         <p className="mt-3 text-xs text-muted-fg">
-          No tasks assigned to you for this student yet — log the session
-          anyway, and it can be attached to a task later with “Edit”.
+          No agenda planned for you with this student yet — log the session
+          anyway, and it can be attached to one later with “Edit”.
         </p>
       )}
 

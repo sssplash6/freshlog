@@ -7,14 +7,16 @@ import { Input } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
 import { MAX_TASK_LENGTH, TASK_OTHER, TASK_PRESETS } from "@/lib/tasks";
 
-/** An open task this pairing already has, offered so it can be topped up. */
+/** An open agenda item this pairing already has, offered so it can be topped up. */
 export type OpenTask = { purpose: string; hint?: string };
 
 /**
- * Names the piece of work hours are for: one of the presets, one of the tasks
- * this mentor already has open with the student (which tops its budget up
- * instead of creating a near-duplicate), or anything typed into the box that
- * "Something else…" reveals.
+ * Names the piece of work hours are for — a line of the student's AGENDA, not
+ * one of the tasks a mentor sets them (`lib/student-tasks.ts` says which is
+ * which). One of the presets, one of the items this mentor already has open
+ * with the student (which tops its budget up instead of creating a
+ * near-duplicate), or anything typed into the box that "Something else…"
+ * reveals.
  *
  * Two fields ride out to the action — the picked value and the typed one — and
  * lib/tasks.ts#parseTaskField resolves them the same way on every form.
@@ -68,12 +70,12 @@ export function TaskPicker({
             : "text-xs font-semibold uppercase tracking-[0.06em] text-muted-fg",
         )}
       >
-        Task{!optional && <span className="text-accent-ink"> *</span>}
+        Agenda{!optional && <span className="text-accent-ink"> *</span>}
       </span>
       <div className="mt-1">
         <Select
           name={name}
-          ariaLabel="Task this time is for"
+          ariaLabel="Agenda item this time is for"
           options={options}
           placeholder={
             optional ? "Nothing named yet — decide later" : "What is this time for?"
@@ -89,7 +91,7 @@ export function TaskPicker({
           required
           autoFocus
           maxLength={MAX_TASK_LENGTH}
-          placeholder="Name the task"
+          placeholder="Name the work"
           className="rise-in mt-2"
         />
       )}

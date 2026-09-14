@@ -213,7 +213,7 @@ export const TIME_KIND_META: Record<
   },
   EXTRA: {
     label: "Extra, beyond their time",
-    hint: "Work on top of the plan. It shows in the log and against the task, but charges nothing to their balance.",
+    hint: "Work on top of the plan. It shows in the log and against the agenda, but charges nothing to their balance.",
     chip: "Extra, no time charged",
     status: "SESSION_EXTRA",
   },
@@ -355,9 +355,12 @@ export const NOTIFICATION_TYPES = {
   MENTOR_ASSIGNED: "MENTOR_ASSIGNED", // to the mentor: assigned to a program, set your booking link
   HOURS_DEADLINE: "HOURS_DEADLINE", // to student + mentor: allocation deadline approaching or passed
   ENROLLMENT_MOVED: "ENROLLMENT_MOVED", // to the student: admin corrected their program/cohort
-  GOAL_ASSIGNED: "GOAL_ASSIGNED", // to the mentor: an admin gave them a task (usually with the hours for it)
-  GOAL_CHANGED: "GOAL_CHANGED", // to the mentor: their task was edited, re-staged or removed
+  GOAL_ASSIGNED: "GOAL_ASSIGNED", // to the mentor: an admin gave them an agenda item (usually with the hours for it)
+  GOAL_CHANGED: "GOAL_CHANGED", // to the mentor: their agenda item was edited, re-staged or removed
   GOAL_DONE: "GOAL_DONE", // to admins: work an admin planned is finished
+  TASK_SET: "TASK_SET", // to the student: a mentor gave them something to go away and do
+  TASK_CHANGED: "TASK_CHANGED", // to the student: that task was reworded, re-dated or withdrawn
+  TASK_MOVED: "TASK_MOVED", // to the mentor: the student moved their task along, or finished it
   INTERVIEW_SCHEDULED: "INTERVIEW_SCHEDULED", // to the student: a mentor put a meeting in the diary, please confirm
   INTERVIEW_MOVED: "INTERVIEW_MOVED", // to the student: that meeting changed time, please confirm again
   INTERVIEW_CANCELLED: "INTERVIEW_CANCELLED", // to the other side: it's off
@@ -403,7 +406,7 @@ export const NOTIFICATION_CATEGORY_LABELS: Record<NotificationCategory, string> 
   HOURS: "Time",
   SESSIONS: "Sessions",
   MEETINGS: "Meetings",
-  TASKS: "Tasks",
+  TASKS: "Tasks and agenda",
   DEADLINES: "Deadlines",
   ACCOUNTS: "Accounts",
 };
@@ -428,6 +431,9 @@ export const CATEGORY_OF: Record<NotificationType, NotificationCategory> = {
   GOAL_ASSIGNED: "TASKS",
   GOAL_CHANGED: "TASKS",
   GOAL_DONE: "TASKS",
+  TASK_SET: "TASKS",
+  TASK_CHANGED: "TASKS",
+  TASK_MOVED: "TASKS",
   INTERVIEW_SCHEDULED: "MEETINGS",
   INTERVIEW_MOVED: "MEETINGS",
   INTERVIEW_CANCELLED: "MEETINGS",
@@ -464,9 +470,16 @@ export const NOTIFICATION_META: Record<
   MENTOR_ASSIGNED: { label: "Assigned", tone: "brand" },
   HOURS_DEADLINE: { label: "Deadline", tone: "warning" },
   ENROLLMENT_MOVED: { label: "Enrollment", tone: "brand" },
-  GOAL_ASSIGNED: { label: "New task", tone: "plan" },
-  GOAL_CHANGED: { label: "Task changed", tone: "plan" },
-  GOAL_DONE: { label: "Task done", tone: "success" },
+  // The plan's own vocabulary, which is "agenda" everywhere a reader can see
+  // both halves at once. A mentor's feed carries these beside the TASK_* rows
+  // below, and two things called "task" in one list is the confusion the
+  // rename exists to remove — see `lib/tasks.ts` for which is which.
+  GOAL_ASSIGNED: { label: "New agenda item", tone: "plan" },
+  GOAL_CHANGED: { label: "Agenda changed", tone: "plan" },
+  GOAL_DONE: { label: "Agenda item done", tone: "success" },
+  TASK_SET: { label: "New task", tone: "plan" },
+  TASK_CHANGED: { label: "Task changed", tone: "plan" },
+  TASK_MOVED: { label: "Task progress", tone: "success" },
   INTERVIEW_SCHEDULED: { label: "Meeting scheduled", tone: "plan" },
   INTERVIEW_MOVED: { label: "Meeting moved", tone: "plan" },
   INTERVIEW_CANCELLED: { label: "Meeting cancelled", tone: "warning" },

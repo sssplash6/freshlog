@@ -609,7 +609,7 @@ const META: Record<StatusType, Meta> = {
       mentor: { kind: "informational", label: () => "Needs a mentor" },
       student: { kind: "informational", label: () => "Mentor to be confirmed" },
     },
-    many: (n) => `${n} tasks need a mentor`,
+    many: (n) => `${n} agenda items need a mentor`,
   },
 
   BOOKING_LINK_MISSING: {

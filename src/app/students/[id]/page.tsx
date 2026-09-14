@@ -20,6 +20,11 @@ import {
 import { ExchangeList } from "@/components/exchange-panel";
 import { SendOnExchangeForm } from "@/components/forms/exchange-forms";
 import { LedgerBoard } from "@/components/ledger-board";
+import { toStudentTaskEntries } from "@/components/student-task-row";
+import {
+  SetStudentTaskForm,
+  StudentTaskRowActions,
+} from "@/components/forms/student-task-forms";
 import { Avatar } from "@/components/avatar";
 import { PersonChip } from "@/components/person-chip";
 import { LinkButton } from "@/components/ui/button";
@@ -251,6 +256,22 @@ export default async function StudentWorkspacePage({
     scopeCovers(scope, e.fromProgramId) ||
     scopeCovers(scope, e.toProgramId);
 
+  /**
+   * Which programs this reader may set this student a TASK in.
+   *
+   * The same two people `assertTaskAssigner` accepts — a mentor who works in
+   * the program, or an admin of it — asked here so the form offers exactly what
+   * the action will take. Unlike `sendableFrom` a VISIT counts: the placement
+   * made them a member of the host program for as long as the hours last, and
+   * the work of that visit is the host's to set, exactly as its sessions are.
+   */
+  const assignableIn = enrollments.filter(
+    (e) => scopeCovers(scope, e.programId) || pairedIn.has(e.programId)
+  );
+  /** A task's menu belongs to the mentor who set it, and to its program's admins. */
+  const ownsTask = (task: { programId: string; mentorId: string }) =>
+    task.mentorId === me.id || scopeCovers(scope, task.programId);
+
   const openTasks = ledger.assignments.filter(
     (t) => t.progress !== ASSIGNMENT_PROGRESS.DONE
   );
@@ -389,15 +410,23 @@ export default async function StudentWorkspacePage({
 
       {reaches && logReason && <p className="text-sm text-muted-fg">{logReason}</p>}
 
-      {/* The tracking sheet's whole tab, side by side: what happened on the
-          left, what was planned on the right, and the balance across the top.
-          It leads the page because it is what the page is opened for — and it
-          is the ONLY place a session or a task renders, so nothing below
+      {/* The tracking sheet's whole tab: what happened on the left, what the
+          student is doing about it on the right, the agenda the hours were
+          bought for underneath, and the balance across the top. It leads the
+          page because it is what the page is opened for — and it is the ONLY
+          place a session, a task or an agenda item renders, so nothing below
           repeats a row. */}
       <LedgerBoard
         viewer={viewer}
         sessions={ledger.sessions}
         meetings={meetings}
+        tasks={toStudentTaskEntries(ledger.tasks, {
+          mentorBase: "/mentors",
+          // Named only when the reader can see more than one of the student's
+          // programs, for the same reason the agenda names one: otherwise every
+          // row repeats a fact the page's own eyebrow already carries.
+          showProgram: enrollments.length > 1,
+        })}
         assignments={ledger.assignments}
         totals={hours}
         mentorBase="/mentors"
@@ -429,7 +458,7 @@ export default async function StudentWorkspacePage({
             />
           ) : null
         }
-        renderTaskActions={(task) =>
+        renderAgendaActions={(task) =>
           manages || task.mentorId === me.id ? (
             <TaskRowActions
               task={{
@@ -445,6 +474,34 @@ export default async function StudentWorkspacePage({
               }}
               mentors={mentorOptions}
               canDelete={manages}
+            />
+          ) : null
+        }
+        // A task is the mentor's own word to the student, so the menu goes to
+        // the person who gave it — and to the admins of the program it was
+        // given in, who are who is left holding it when that mentor moves on.
+        // `assertTaskScope` enforces exactly this pair server-side.
+        renderTaskActions={(task) =>
+          ownsTask({ programId: task.programId, mentorId: task.mentor.id }) ? (
+            <StudentTaskRowActions
+              task={{
+                id: task.id,
+                title: task.title,
+                note: task.note,
+                dueOn: task.dueOn,
+              }}
+            />
+          ) : null
+        }
+        taskForm={
+          assignableIn.length > 0 ? (
+            <SetStudentTaskForm
+              studentProfileId={profile.id}
+              studentName={name}
+              programs={assignableIn.map((e) => ({
+                value: e.programId,
+                label: enrollmentLabel(e),
+              }))}
             />
           ) : null
         }
@@ -496,7 +553,7 @@ export default async function StudentWorkspacePage({
         <Section
           eyebrow="Adds to a mentor's ledger"
           title="Allocate time"
-          caption="The hours go to the student; naming a mentor and a task can wait."
+          caption="The hours go to the student; naming a mentor and the work can wait."
         >
           <div className="px-4 py-2 sm:px-5">
             <AssignTaskForm

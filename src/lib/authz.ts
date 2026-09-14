@@ -319,6 +319,52 @@ export async function assertTaskScope(
 }
 
 /**
+ * May this actor set this student a TASK — work to go away and do — inside this
+ * program?
+ *
+ * Two people, and they are the two who sit close enough to the work to know
+ * what it should be. A mentor who works in the program: this is the feature's
+ * whole point, because the person who finds out that a draft needs rewriting
+ * before Thursday is the one who just read it. And an admin of the program,
+ * because they administer the plan the task hangs off and are the person a
+ * mentor's departure leaves it with.
+ *
+ * Narrower than `assertStudentReach`, which a mentor passes by merely holding a
+ * task somebody moved onto their list. Setting work in a program's name is an
+ * act on that PROGRAM's behalf — the same reasoning as `assertExchangeSender` —
+ * so the mentor must actually work there and the student must actually be
+ * there. A student visiting on an exchange counts: the placement made them a
+ * member of the host program for as long as the hours last, and the tasks of
+ * that visit are the host's to set, exactly as the sessions are.
+ *
+ * The refusals deliberately say the same thing about a program that does not
+ * exist and one the actor has nothing to do with.
+ */
+export async function assertTaskAssigner(
+  actor: User | null,
+  profile: { enrollments: readonly { programId: string }[] },
+  programId: string
+): Promise<Denied | null> {
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+  const enrolled = profile.enrollments.some((e) => e.programId === programId);
+  if (enrolled) {
+    const scope = await adminScope(actor);
+    if (scopeCovers(scope, programId)) return null;
+    if (canActAsMentor(actor) && actor.status === USER_STATUS.ACTIVE) {
+      const works = await prisma.mentorAssignment.findFirst({
+        where: { mentorId: actor.id, programId },
+        select: { id: true },
+      });
+      if (works) return null;
+    }
+  }
+  return {
+    ok: false,
+    error: "You don't work with that student in that program.",
+  };
+}
+
+/**
  * May this actor lend this student to another program?
  *
  * The sending program decides, and two people speak for it: an admin of it, and

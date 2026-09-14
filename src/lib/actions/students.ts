@@ -890,11 +890,16 @@ export async function unenrollStudent(
   const label = enrollmentLabel(enrollment.program.name, enrollment.cohort?.name);
   await prisma.$transaction(async (tx) => {
     // Nothing was logged and nothing was granted (both checked above), so the
-    // only rows that can point at this program are tasks that were planned and
-    // never started.
-    await tx.assignment.deleteMany({
-      where: { studentId: enrollment.studentId, programId: enrollment.programId },
-    });
+    // only rows that can point at this program are agenda items that were
+    // planned and never started, and the tasks a mentor set them there. Both
+    // go: a task in a program the student has left is work nobody can ask them
+    // about, on a home page that no longer has the program on it.
+    const scoped = {
+      studentId: enrollment.studentId,
+      programId: enrollment.programId,
+    };
+    await tx.assignment.deleteMany({ where: scoped });
+    await tx.studentTask.deleteMany({ where: scoped });
     await tx.studentEnrollment.delete({ where: { id: enrollment.id } });
     await notify(tx, {
       to: [enrollment.student.userId],

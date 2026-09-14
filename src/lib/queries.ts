@@ -246,11 +246,19 @@ export type StudentWithHours = Awaited<
 >[number];
 
 /**
- * The two halves of one student's ledger: the meetings log (every mentor's
- * sessions, newest first) and the assignment plan (in its own order). Everyone
- * who can see the student sees the whole log, not just their own slice — the
- * spreadsheet this replaces was shared, and a mentor picking up an essay needs
- * to know what the last three meetings covered.
+ * One student's week, in the three lists every page about them reads: the
+ * meetings log (every mentor's sessions, newest first), the AGENDA the hours
+ * were budgeted against (`Assignment`, in its own order), and the TASKS a
+ * mentor set them to go away and do (`StudentTask`, soonest deadline first).
+ *
+ * Everyone who can see the student sees the whole log, not just their own slice
+ * — the spreadsheet this replaces was shared, and a mentor picking up an essay
+ * needs to know what the last three meetings covered.
+ *
+ * Three queries rather than two so that the board, the student's home and the
+ * bell all ask once: every one of them needs all three lists, and a separate
+ * `studentTasks()` would have been a fourth round trip on the same page for a
+ * list keyed on the same id and scoped by the same programs.
  */
 export async function studentLedger(
   studentProfileId: string,
@@ -258,7 +266,7 @@ export async function studentLedger(
   programIds?: readonly string[]
 ) {
   const inScope = programIds ? { programId: { in: [...programIds] } } : {};
-  const [sessions, assignments] = await Promise.all([
+  const [sessions, assignments, tasks] = await Promise.all([
     prisma.session.findMany({
       where: { studentId: studentProfileId, ...inScope },
       include: {
@@ -272,6 +280,15 @@ export async function studentLedger(
       where: { studentId: studentProfileId, ...inScope },
       include: { mentor: true, program: true },
       orderBy: { position: "asc" },
+    }),
+    // Soonest deadline first, and never by creation: a task list is read to
+    // find out what is due next, and a task set this morning for December
+    // must not lead one set last week for tomorrow. `createdAt` breaks the tie
+    // so two tasks due the same day keep a stable order.
+    prisma.studentTask.findMany({
+      where: { studentId: studentProfileId, ...inScope },
+      include: { mentor: true, program: true },
+      orderBy: [{ dueOn: "asc" }, { createdAt: "asc" }],
     }),
   ]);
 
@@ -294,12 +311,18 @@ export async function studentLedger(
       ...a,
       loggedMinutes: loggedByGoal.get(a.id) ?? 0,
     })),
+    tasks,
   };
 }
 
 export type LedgerSession = Awaited<
   ReturnType<typeof studentLedger>
 >["sessions"][number];
+
+/** One piece of work a mentor set the student, with the mentor on it. */
+export type LedgerStudentTask = Awaited<
+  ReturnType<typeof studentLedger>
+>["tasks"][number];
 
 /**
  * One student's scheduled meetings, whoever booked them, newest date first.
