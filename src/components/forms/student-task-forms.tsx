@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { PlusIcon } from "@/components/icons";
 import { Select, type SelectOption } from "@/components/select";
 import { Button } from "@/components/ui/button";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
@@ -33,9 +34,16 @@ import { MAX_TASK_NOTE, MAX_TASK_TITLE, PERCENT_STEPS } from "@/lib/student-task
  */
 
 /**
- * Set a student a task. Expands in place above the list it adds to, like
- * `ScheduleInterviewForm`: what it does is visible without being explained, and
- * the list stays readable while it is filled in.
+ * Set a student a task.
+ *
+ * Closed, it is a `+` pinned to the bottom-right corner of the Tasks pane — the
+ * one place on the board where "add one of these" is unambiguous, and the one
+ * shape that does not spend a row of the list saying so. A labelled button sat
+ * directly under the last task and read as a fourth row.
+ *
+ * Open, it expands in place at the foot of the same column rather than in a
+ * dialog: what it does is visible without being explained, and the list it adds
+ * to stays readable while it is filled in.
  */
 export function SetStudentTaskForm({
   studentProfileId,
@@ -68,19 +76,35 @@ export function SetStudentTaskForm({
 
   if (!open) {
     return (
-      <div>
-        <Button size="sm" onClick={() => setOpen(true)}>
-          Set a task
-        </Button>
+      // Bottom-right of the COLUMN, which the board makes `relative` for it —
+      // so on a screen where the meetings list is twice as long, the + still
+      // sits in the corner of the pane it belongs to rather than floating half
+      // way up it. Right-anchored and bottom-anchored, so the confirmation
+      // above it grows away from both edges instead of off them.
+      <div className="absolute bottom-3 right-4 flex flex-col items-end sm:right-5">
         {/* The last result survives the form closing, so a mentor who submits
             and collapses it still sees that it worked. */}
-        <SaveState state={save} />
+        <SaveState state={save} className="mb-1 text-right" />
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Set a task"
+          title="Set a task"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-brand text-on-brand shadow-sm transition hover:bg-brand-dark"
+        >
+          <PlusIcon className="h-5 w-5" />
+        </button>
       </div>
     );
   }
 
   return (
-    <form action={action} className="rise-in space-y-3">
+    // Its own band, because the closed state has no band at all — a `+` in a
+    // bordered strip would be a strip drawn around a button.
+    <form
+      action={action}
+      className="rise-in space-y-3 border-t border-line px-4 py-2 sm:px-5"
+    >
       <input type="hidden" name="studentProfileId" value={studentProfileId} />
       {programs.length === 1 && (
         <input type="hidden" name="programId" value={programs[0].value} />

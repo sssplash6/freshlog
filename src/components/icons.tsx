@@ -206,6 +206,16 @@ export function LinkIcon({ className }: { className?: string }) {
   );
 }
 
+/** Add one of whatever the surface is a list of. */
+export function PlusIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </Svg>
+  );
+}
+
 /** Dismiss. Never "delete" — the only thing it removes is a row from a list. */
 export function XIcon({ className }: { className?: string }) {
   return (

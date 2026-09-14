@@ -301,8 +301,9 @@ export function LedgerBoard({
           )}
         </div>
 
-        {/* RIGHT — what the student is doing between meetings */}
-        <div className="min-w-0">
+        {/* RIGHT — what the student is doing between meetings.
+            `relative` so the "+" can pin itself to this column's own corner. */}
+        <div className="relative min-w-0">
           <ColumnHead
             eyebrow="Set by a mentor"
             title="Tasks"
@@ -323,7 +324,10 @@ export function LedgerBoard({
               meetings.
             </p>
           ) : (
-            <div className={PANE}>
+            // The one pane with a gutter at the end of it: when this column is
+            // the taller of the two, the "+" sits over the bottom of this list,
+            // and a row has to be able to scroll clear of it.
+            <div className={`${PANE} pb-14`}>
               <GroupRule label="To do" count={openTasks.length} />
               <ul className="divide-y divide-line/50">
                 {openTasks.map((t, i) => (
@@ -349,13 +353,9 @@ export function LedgerBoard({
               </ul>
             </div>
           )}
-          {/* Directly under the list it adds to, so what it does needs no
-              explaining. */}
-          {taskForm && (
-            <div className="border-t border-line px-4 py-2 sm:px-5">
-              {taskForm}
-            </div>
-          )}
+          {/* Owns its own chrome: a "+" in the corner when closed, a banded
+              form at the foot of the column when open. */}
+          {taskForm}
         </div>
       </div>
 
