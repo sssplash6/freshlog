@@ -47,11 +47,9 @@ import { MAX_TASK_NOTE, MAX_TASK_TITLE, PERCENT_STEPS } from "@/lib/student-task
  */
 export function SetStudentTaskForm({
   studentProfileId,
-  studentName,
   programs,
 }: {
   studentProfileId: string;
-  studentName: string;
   /**
    * The programs this reader may set work in — the student's enrollments
    * narrowed to the ones the reader works in or administers. Asked when there
@@ -143,18 +141,13 @@ export function SetStudentTaskForm({
         )}
       </div>
 
-      <Field label="Notes" hint="Optional. What good looks like, or where to start.">
+      <Field label="Notes">
         <GrowingField
           name="note"
           maxLength={MAX_TASK_NOTE}
           placeholder="Keep it under 300 words, and lead with the moment rather than the lesson."
         />
       </Field>
-
-      <p className="text-xs text-muted-fg">
-        {studentName} sees this on their home page and says how far along they
-        are. No hours are charged — a task is work they do on their own.
-      </p>
 
       <div className="flex flex-wrap items-center gap-2">
         <SubmitButton pendingText="Setting…">Set the task</SubmitButton>
@@ -306,11 +299,11 @@ export function TaskProgressControl({
   }
 
   return (
-    <form action={action} aria-busy={pending}>
+    // The question is on the form rather than above it: five buttons reading
+    // 0% 25% 50% 75% Done do not need a sentence saying they are a percentage,
+    // and a screen reader still hears one.
+    <form action={action} aria-busy={pending} aria-label="How far along you are">
       <input type="hidden" name="taskId" value={taskId} />
-      <span className="mb-1.5 block text-xs text-muted-fg">
-        How far along are you?
-      </span>
       <div className="flex flex-wrap gap-1.5">
         {PERCENT_STEPS.map((step) => {
           const current = step === percent;

@@ -111,12 +111,6 @@ export function SendOnExchangeForm({
         </div>
       </div>
 
-      <p className="mt-2.5 text-xs text-muted-fg">
-        That program&apos;s admins are asked to put the time on one of their
-        mentors, and may allocate no more than this. Every session they log
-        shows here too.
-      </p>
-
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <SubmitButton pendingText="Sending…">Send them</SubmitButton>
         <Button variant="ghost" onClick={() => setOpen(false)}>

@@ -103,9 +103,15 @@ function ColumnHead({
 }
 
 /**
- * The rule between "still ahead" and "already behind". A label rather than a
- * plain divider: without it the two groups are just rows that happen to be in a
- * different order, which is exactly the confusion the sheet had.
+ * The rule between what is still ahead and what is behind. A label rather than
+ * a plain divider: without it the two groups are just rows that happen to be in
+ * a different order, which is exactly the confusion the sheet had.
+ *
+ * The words are the ledger's own wherever the ledger has one — a held meeting
+ * is "Completed", the same word the balance above it uses for those minutes,
+ * and work underway is "In progress", the same word its own status chips wear.
+ * "Already held" and "In flight" were a second vocabulary for two states the
+ * app had already named.
  *
  * Sticky inside its pane, and opaque rather than the 60% tint it was: now that
  * each list scrolls on its own, a reader forty rows into "Already held" would
@@ -257,7 +263,14 @@ export function LedgerBoard({
     // find out; the three column heads below say which three lists answer it.
     <Section
       title="Progress"
-      caption={`${activeCount} logged · ${ahead.length} scheduled · ${openTasks.length} of ${tasks.length} tasks open`}
+      // Two figures, not three. What is SCHEDULED is a fact about the diary
+      // rather than about progress, and the Meetings column below counts it
+      // on its own rule — a caption restating a number that is already on
+      // screen twelve pixels lower is a caption nobody reads. And tasks are
+      // counted DONE, like everything else in this card: the whole row reads
+      // forward, so a "2 open" among figures that all count what is finished
+      // was the one that had to be inverted in the reader's head.
+      caption={`${activeCount} logged · ${doneTasks.length} of ${tasks.length} tasks done`}
     >
       {/* The sheet's right-hand totals, given the width they deserve. */}
       <div className="border-b border-line px-4 py-2 sm:px-5">
@@ -295,7 +308,7 @@ export function LedgerBoard({
                   <UpcomingMeetingRow key={m.id} meeting={m} viewer={viewer} />
                 ))}
               </ul>
-              <GroupRule label="Already held" count={logged.length} />
+              <GroupRule label="Completed" count={logged.length} />
               <ul className="divide-y divide-line/50">
                 {toSessionEntries(logged, { mentorBase }).map((s, i) => (
                   <SessionRow
@@ -331,8 +344,7 @@ export function LedgerBoard({
           />
           {tasks.length === 0 ? (
             <p className="px-4 pb-2 text-sm text-muted-fg sm:px-5">
-              No tasks set — a mentor gives the student work to do between
-              meetings.
+              No tasks set.
             </p>
           ) : (
             // The one pane with a gutter at the end of it: when this column is
@@ -370,8 +382,15 @@ export function LedgerBoard({
         </div>
       </div>
 
+      {/* The break between the week and the term. A hairline is what divides
+          the two columns FROM EACH OTHER, and the same hairline underneath
+          them said the agenda was a third column that happened to be wider.
+          A band of the page's own ground, hairlined top and bottom, says what
+          is true instead: two panels, not one card with a line across it. */}
+      <div className="h-2 border-y border-line bg-canvas" aria-hidden="true" />
+
       {/* BELOW, FULL WIDTH — what the hours were bought for */}
-      <div className="min-w-0 border-t border-line">
+      <div className="min-w-0">
         <ColumnHead
           eyebrow="Planned by an admin"
           title="Agenda"
@@ -383,11 +402,11 @@ export function LedgerBoard({
         />
         {assignments.length === 0 ? (
           <p className="px-4 pb-5 text-sm text-muted-fg sm:px-5">
-            No agenda yet — it arrives with the time an admin allocates.
+            No agenda yet.
           </p>
         ) : (
           <div className={PANE}>
-            <GroupRule label="In flight" count={planned.length} />
+            <GroupRule label="In progress" count={planned.length} />
             <ul className="divide-y divide-line/50">
               {toTaskEntries(planned, { mentorBase }).map((t, i) => (
                 <TaskRow

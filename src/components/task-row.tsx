@@ -66,8 +66,6 @@ export type TaskEntry = {
   purpose: string;
   /** `ASSIGNMENT_PROGRESS`. */
   progress: string;
-  /** True when an admin stated the progress, so logged hours stop moving it. */
-  progressManual?: boolean;
   minuteLimit: number | null;
   loggedMinutes: number;
   /**
@@ -180,7 +178,6 @@ export function TaskRow({
     id,
     purpose,
     progress,
-    progressManual,
     minuteLimit,
     loggedMinutes,
     due,
@@ -219,20 +216,13 @@ export function TaskRow({
   const stagger =
     index == null ? undefined : { animationDelay: `${Math.min(index, 14) * 24}ms` };
 
+  // No "pinned" marker. Whether the state was typed by a person or derived
+  // from the hours is bookkeeping about HOW the row got its word, not a fact
+  // about the work — and it rode beside every finished row, where it is never
+  // the answer to anything. The ⋮ menu still says it, next to the control that
+  // sets it, which is where somebody asking the question already is.
   const progressChip = progressStatus && (
-    <span className="inline-flex items-center gap-1.5">
-      <StatusChip status={progressStatus} glyph={ASSIGNMENT_PROGRESS_GLYPH[progress]} />
-      {/* Why the hours stopped moving this row. A word, not an icon: it is the
-          answer to "I logged three sessions and it still says Not started". */}
-      {progressManual && (
-        <span
-          title="Set by hand — logged time no longer moves this"
-          className="text-[0.6875rem] text-muted-fg"
-        >
-          pinned
-        </span>
-      )}
-    </span>
+    <StatusChip status={progressStatus} glyph={ASSIGNMENT_PROGRESS_GLYPH[progress]} />
   );
 
   // Always clamped, and deliberately not a link: a task has no page of its own,
@@ -545,7 +535,6 @@ export type PlannedTask = {
   id: string;
   purpose: string;
   progress: string;
-  progressManual?: boolean;
   minuteLimit: number | null;
   loggedMinutes: number;
   dueNote: string | null;
@@ -576,7 +565,6 @@ export function toTaskEntries(
     id: t.id,
     purpose: t.purpose,
     progress: t.progress,
-    progressManual: t.progressManual,
     minuteLimit: t.minuteLimit,
     loggedMinutes: t.loggedMinutes,
     due: t.dueNote,

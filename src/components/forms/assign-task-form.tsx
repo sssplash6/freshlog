@@ -61,20 +61,17 @@ export function AssignTaskForm({
   const openTasks = openTasksByMentor[`${programId}:${mentorId}`] ?? [];
 
   return (
+    // No standfirst and no heading of its own: the section this sits in is
+    // already titled "Allocate time", and the paragraph under it explained
+    // three optional fields that say "decide later" in their own placeholders.
     <form action={action}>
-      <h3 className="text-sm font-semibold text-ink">Allocate time</h3>
-      <p className="mt-1 text-xs text-muted-fg">
-        The hours go to the student. Name a mentor to put them on their
-        ledger, and an agenda item to make these hours its budget — or leave
-        either for later and the hours wait, unassigned.
-      </p>
       <input type="hidden" name="studentProfileId" value={studentProfileId} />
       <input type="hidden" name="mode" value="add" />
       {programs.length === 1 && (
         <input type="hidden" name="programId" value={programs[0].value} />
       )}
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {programs.length > 1 && (
           <div className="min-w-0">
             <span className={labelClass}>
@@ -113,11 +110,6 @@ export function AssignTaskForm({
           className="lg:col-span-2"
           optional
           openTasks={openTasks}
-          hint={
-            openTasks.length > 0
-              ? "Picking one they already have open adds this time to its budget."
-              : undefined
-          }
         />
 
         <label className="min-w-0">

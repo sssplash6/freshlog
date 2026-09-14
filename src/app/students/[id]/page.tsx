@@ -497,7 +497,6 @@ export default async function StudentWorkspacePage({
           assignableIn.length > 0 ? (
             <SetStudentTaskForm
               studentProfileId={profile.id}
-              studentName={name}
               programs={assignableIn.map((e) => ({
                 value: e.programId,
                 label: enrollmentLabel(e),
@@ -514,10 +513,8 @@ export default async function StudentWorkspacePage({
           `visibleExchanges`, which decides exactly which. */}
       {(exchanges.length > 0 || sendableFrom.length > 0) && (
         <Section
-          eyebrow="Between programs"
           title="Exchange"
           count={exchanges.length || undefined}
-          caption="Hours one program promises, another delivers"
         >
           {exchanges.length > 0 ? (
             <ExchangeList
@@ -550,11 +547,10 @@ export default async function StudentWorkspacePage({
       )}
 
       {manages && mentorOptions.length > 0 && (
-        <Section
-          eyebrow="Adds to a mentor's ledger"
-          title="Allocate time"
-          caption="The hours go to the student; naming a mentor and the work can wait."
-        >
+        // No eyebrow — see "Time by mentor" above. "Adds to a mentor's ledger"
+        // was the consequence of the form, and the form's own first sentence
+        // says it better than a three-word label above the title.
+        <Section title="Allocate time">
           <div className="px-4 py-2 sm:px-5">
             <AssignTaskForm
               studentProfileId={profile.id}
@@ -574,11 +570,11 @@ export default async function StudentWorkspacePage({
           below. That is how the deleted board earns its keep: holding both at
           once was what it was prized for, and a grid keeps that reading while
           every session and task renders exactly once. */}
-      <Section
-        eyebrow="Granted by an admin"
-        title="Time by mentor"
-        caption="What each mentor holds, and what sessions have drawn down"
-      >
+      {/* No eyebrow. "Granted by an admin" said who WRITES the rows, which is
+          a fact about permissions rather than about the time — and the ⋮ menu
+          is already there or not there depending on the answer. The title
+          names the subject and the caption says what the figures are. */}
+      <Section title="Time by mentor">
         {tracksPayment && manages && (
           <div className="px-4 pt-3 sm:px-5">
             <Figure label="Paid" value={formatMoney(hours.paid)} tone="muted" />

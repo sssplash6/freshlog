@@ -306,7 +306,7 @@ function TaskPanel({
           {/* And the half a person writes. The sheet this came from holds
               "March-May" as often as "August 7", and a note that cannot be
               parsed is still the truest thing anybody knows about the date. */}
-          <Field label="Due, in words" hint="Optional. Shown as you type it.">
+          <Field label="Due, in words">
             <Input
               name="dueNote"
               type="text"
