@@ -17,7 +17,6 @@ import { Figure, FigureRow } from "@/components/ui/figure";
 import { ArrowLink, ExternalLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
 import { TabLinks } from "@/components/ui/segmented";
-import { DeadlineText } from "@/components/ui/status-chip";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
 import { adminScope, canManageMentor, scopeProgramFilter } from "@/lib/authz";
 import { cn } from "@/lib/cn";
@@ -212,13 +211,14 @@ async function MentorRecord({
   const rated = feedback._count > 0 && feedback._avg.rating != null;
   const base = `/mentors/${mentor.id}`;
 
+  // `AllocationRow`'s columns, in its order — see the comment on the table
+  // below. Delivered, wasted, left, and the size of the grant last.
   const studentColumns: Column[] = [
     { label: "Student" },
-    { label: "Total", align: "right" },
     { label: "Completed", align: "right" },
     { label: "Missed", align: "right" },
     { label: "Remaining", align: "right" },
-    { label: "Use by" },
+    { label: "Assigned", align: "right" },
   ];
 
   // Soonest use-by first: the row at the top is the time about to be lost.
@@ -500,9 +500,6 @@ async function MentorRecord({
                     )}
                   </PersonCell>
                 </Td>
-                <Td label="Total" align="right" className="tabular-nums">
-                  {formatDuration(s.allocated)}
-                </Td>
                 <Td label="Completed" align="right" className="tabular-nums">
                   {formatDuration(s.completed)}
                 </Td>
@@ -526,8 +523,12 @@ async function MentorRecord({
                 >
                   {formatDuration(s.remaining)}
                 </Td>
-                <Td label="Use by" className="whitespace-nowrap">
-                  <DeadlineText deadline={s.deadline} now={now} />
+                <Td
+                  label="Assigned"
+                  align="right"
+                  className="tabular-nums text-muted-fg"
+                >
+                  {formatDuration(s.allocated)}
                 </Td>
               </Tr>
             ))}

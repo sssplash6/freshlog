@@ -577,7 +577,7 @@ export default async function StudentWorkspacePage({
       <Section
         eyebrow="Granted by an admin"
         title="Time by mentor"
-        caption="What sessions draw down, and the date each pool expires"
+        caption="What each mentor holds, and what sessions have drawn down"
       >
         {tracksPayment && manages && (
           <div className="px-4 pt-3 sm:px-5">
@@ -594,7 +594,6 @@ export default async function StudentWorkspacePage({
             entries={toAllocationEntries(hours.perMentor, {
               mentorBase: "/mentors",
             })}
-            viewer={viewer}
             framed={false}
             showAmountPaid={tracksPayment && manages}
             renderActions={

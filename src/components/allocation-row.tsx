@@ -21,8 +21,22 @@ import { EXPIRY_WINDOW_DAYS, type ViewerContext } from "@/lib/status";
  *
  * Two shapes, one set of facts:
  *
- *   table  the staff ledger — every column, a use-by date, a ⋮ menu
+ *   table  the staff ledger — four figures and a ⋮ menu
  *   card   the student's own, and the mentor's: a balance, a bar, a date
+ *
+ * THE FIGURES READ IN THE ORDER THE QUESTION IS ASKED: what was delivered,
+ * what was wasted, what is left, and only then how big the grant was. The size
+ * of the grant is context for the other three rather than the thing anybody
+ * opens the table for, so it goes last — it led the table until 14 September
+ * 2026, which put the one figure nobody acts on in the first column.
+ *
+ * NO USE-BY COLUMN. It is the date that FORFEITS the balance beside it, so
+ * dropping it from the staff table is a real loss and worth saying out loud:
+ * the date now lives in the row's ⋮ menu, where it is also edited, and an
+ * expiry that matters reaches the reader through `ALLOCATION_EXPIRING` /
+ * `ALLOCATION_EXPIRED` in their bell rather than by being spotted in a column.
+ * The card shape below keeps the date, because a student booking a session has
+ * no bell to fall back on.
  */
 
 /** A person on a row, with the page this reader may open for them. */
@@ -203,14 +217,12 @@ function Dash() {
 
 export function AllocationRow({
   entry,
-  viewer,
   showProgram = false,
   showAmountPaid = false,
   actions,
   index,
 }: {
   entry: AllocationEntry;
-  viewer: ViewerContext;
   /** Set by the table when its rows span more than one program. */
   showProgram?: boolean;
   showAmountPaid?: boolean;
@@ -234,9 +246,6 @@ export function AllocationRow({
           <ProgramChip program={entry.program} />
         </Td>
       )}
-      <Td label="Total" align="right" className="tabular-nums">
-        {formatDuration(entry.allocated)}
-      </Td>
       <Td label="Completed" align="right" className="tabular-nums">
         {formatDuration(entry.completed)}
       </Td>
@@ -260,8 +269,10 @@ export function AllocationRow({
       >
         {formatDuration(entry.remaining)}
       </Td>
-      <Td label="Use by">
-        <DeadlineText deadline={entry.deadline} now={viewer.now} />
+      {/* Last, and muted: how big the grant was is the context for the three
+          figures before it, not a number anybody acts on. */}
+      <Td label="Assigned" align="right" className="tabular-nums text-muted-fg">
+        {formatDuration(entry.allocated)}
       </Td>
       {showAmountPaid && (
         <Td label="Paid" align="right" className="tabular-nums">
@@ -275,14 +286,12 @@ export function AllocationRow({
 
 export function AllocationsTable({
   entries,
-  viewer,
   showAmountPaid = false,
   renderActions,
   framed = true,
   className,
 }: {
   entries: AllocationEntry[];
-  viewer: ViewerContext;
   showAmountPaid?: boolean;
   renderActions?: (entry: AllocationEntry) => React.ReactNode;
   framed?: boolean;
@@ -297,11 +306,10 @@ export function AllocationsTable({
   const columns: Column[] = [
     { label: "Mentor" },
     ...(showProgram ? [{ label: "Program" } as Column] : []),
-    { label: "Total", align: "right" },
     { label: "Completed", align: "right" },
     { label: "Missed", align: "right" },
     { label: "Remaining", align: "right" },
-    { label: "Use by" },
+    { label: "Assigned", align: "right" },
     ...(showAmountPaid ? [{ label: "Paid", align: "right" } as Column] : []),
     ...(withActions ? [{ label: "", align: "right" } as Column] : []),
   ];
@@ -312,7 +320,6 @@ export function AllocationsTable({
         <AllocationRow
           key={`${entry.program.id}:${entry.mentor?.id ?? "unassigned"}`}
           entry={entry}
-          viewer={viewer}
           showProgram={showProgram}
           showAmountPaid={showAmountPaid}
           actions={withActions ? rowActions[i] : undefined}
