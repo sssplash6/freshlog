@@ -26,9 +26,9 @@ import { ExternalLink } from "@/components/ui/link";
 import { StatusChip } from "@/components/ui/status-chip";
 
 /**
- * The tracking spreadsheet's whole tab on one screen, in the shape the week
- * actually has: what happened, what the student is doing about it, and what the
- * hours were budgeted for.
+ * How far this student has got — the tracking spreadsheet's whole tab on one
+ * screen, in the shape the week actually has: what happened, what the student
+ * is doing about it, and what the hours were budgeted for.
  *
  *   Meetings   left, top     what mentors logged, and what is in the diary
  *   Tasks      right, top    what a mentor set the student to go away and DO
@@ -250,9 +250,13 @@ export function LedgerBoard({
   );
 
   return (
+    // No eyebrow. "At a glance" described the card's SHAPE rather than its
+    // subject, which is the one thing a heading may not spend itself on — and
+    // this is the first card on the page, so there is nothing above it for an
+    // eyebrow to distinguish it from. "Progress" is what the reader came to
+    // find out; the three column heads below say which three lists answer it.
     <Section
-      eyebrow="At a glance"
-      title="Meetings, tasks and agenda"
+      title="Progress"
       caption={`${activeCount} logged · ${ahead.length} scheduled · ${openTasks.length} of ${tasks.length} tasks open`}
     >
       {/* The sheet's right-hand totals, given the width they deserve. */}
