@@ -268,18 +268,32 @@ export function SessionRow({
               and the mentor rather than pushing the figure onto a line by
               itself. */}
           <div className="flex items-start gap-x-2">
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.8125rem]">
+            {/* NO WRAPPING. It was `flex-wrap` with the agenda item on a
+                160px basis, so whether the item sat on the line or dropped to
+                one of its own came down to how long that row's mentor happened
+                to be called — five entries, and three different shapes. The
+                row has three columns on one line, always.
+
+                The agenda item is `flex-1` on a zero basis, so the leftover
+                width is its and the MENTOR is what gives way: a long name
+                truncates inside its own chip (capped at 11rem) rather than
+                pushing the work this row is about onto another line. */}
+            <div className="flex min-w-0 flex-1 items-start gap-x-2.5 text-[0.8125rem]">
               {/* A FIXED column, not a value that pushes what follows it.
                   "July 3" and "September 30" are eight pixels apart, so the
                   mentor chip started somewhere new on every row and the eye
                   had to find it again each time. `w-20` fits the longest date
-                  this formatter produces. */}
-              <span className="w-20 shrink-0 tabular-nums text-muted-fg">
+                  this formatter produces in the current year; a date from
+                  another year carries ", 2027" and is allowed to push its own
+                  row out rather than wrap onto two lines. */}
+              <span className="min-w-24 shrink-0 whitespace-nowrap py-0.5 tabular-nums text-muted-fg">
                 {formatDate(date)}
               </span>
-              <PersonChip person={mentor} size="sm" href={mentor.href} />
+              <span className="flex min-w-0 max-w-44">
+                <PersonChip person={mentor} size="sm" href={mentor.href} />
+              </span>
               {task && (
-                <span className={cn("min-w-0 flex-1 basis-40 font-medium leading-snug", textTone)}>
+                <span className={cn("min-w-0 flex-1 py-0.5 font-medium leading-snug", textTone)}>
                   {task.purpose}
                 </span>
               )}
@@ -287,7 +301,7 @@ export function SessionRow({
             {/* Right-aligned in a fixed column, so 22, 60 and 180 stack into
                 one edge instead of three. It is the only figure on the row and
                 a ledger is read by scanning figures. */}
-            <span className="flex shrink-0 items-center gap-2 text-[0.8125rem]">
+            <span className="flex shrink-0 items-start gap-2 py-0.5 text-[0.8125rem]">
               <span className="w-16 text-right">{duration}</span>
               {/* On the header line, not under the row. A pencil on a line of
                   its own is a whole row of height per session, down a ledger
