@@ -1,13 +1,10 @@
 import { SessionRowActions } from "@/components/forms/session-forms";
-import { MeetingRowActions } from "@/components/forms/meeting-forms";
 import { SessionsList, toSessionEntries } from "@/components/session-row";
-import { Timeline, type TimelineEntry } from "@/components/timeline";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
 import { PageTitle } from "@/components/ui/section";
-import { TabLinks } from "@/components/ui/segmented";
 import { adminScope, scopeProgramFilter } from "@/lib/authz";
 import {
   ATTENDANCE_OPTIONS,
@@ -17,7 +14,6 @@ import {
   MINE_PRESET,
   activeFilterCount,
   filterSummary,
-  meetingsWhere,
   readDateWindow,
   readParam,
   sessionsWhere,
@@ -27,27 +23,24 @@ import {
   SESSION_STATUS,
   attendanceOf,
   canActAsMentor,
-  interviewIsOpen,
   timeKindOf,
 } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
-import { formatDuration, toDateInputValue, toTimeInputValue } from "@/lib/format";
+import { formatDuration, toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { profileOf } from "@/lib/profile";
-import { meetingStatus } from "@/lib/status";
 import { taskOptionsForSessions } from "@/lib/queries";
 
 /**
- * The ledger: what has been delivered, and what is still in the diary.
+ * The ledger: what has been delivered.
  *
- * Two tabs rather than two tints. A logged session is a row in a table and a
- * scheduled meeting is a point on a calendar, and the old design tried to hold
- * both shapes in one list by tinting them — which is why staff had no meetings
- * destination at all and a mentor's log lived under `/mentor/sessions`, an
- * address that says "one mentor" about a page the whole school reads.
+ * It had a second tab for what was still in the diary. Scheduling is gone from
+ * the product entirely, so there is one list again — and it lives here rather
+ * than under `/mentor/sessions`, an address that said "one mentor" about a page
+ * the whole school reads.
  *
- * Which rows exist is the reader's grants and reach, never the tab. The lens
- * only decides whether "Mine" is on when you arrive.
+ * Which rows exist is the reader's grants and reach. The lens only decides
+ * whether "Mine" is on when you arrive.
  */
 export default async function SessionsPage({
   searchParams,
@@ -64,8 +57,6 @@ export default async function SessionsPage({
   const params = await searchParams;
   const page = parsePage(readParam(params, "page"));
   const now = new Date();
-  const scheduled = readParam(params, "view") === "scheduled";
-
   // Somebody who only mentors sees their own rows and no others, whatever the
   // URL says; an admin sees the programs they were granted. The tab and the
   // "Mine" chip narrow inside that and can never widen it.
@@ -73,11 +64,6 @@ export default async function SessionsPage({
     ? { audience: "staff" as const, userId: user.id, programIds }
     : { audience: "mentor" as const, userId: user.id, mentorId: user.id };
   const viewer = { audience: reach.audience, userId: user.id, now };
-
-  const tabs = [
-    { href: "/sessions", label: "Logged" },
-    { href: "/sessions?view=scheduled", label: "Scheduled" },
-  ];
 
   // The programs this reader may filter by. One is not a choice — the whole
   // list is already that program — so the select only appears for somebody who
@@ -103,14 +89,12 @@ export default async function SessionsPage({
 
   const filters = (
     <FilterBar
-      basePath={scheduled ? "/sessions?view=scheduled" : "/sessions"}
+      basePath="/sessions"
       params={params}
       q="sessions"
       dateRange={readDateWindow(params, now)}
       selects={
-        scheduled
-          ? programSelect
-          : [
+        [
               ...programSelect,
               {
                 name: "attendance",
@@ -135,87 +119,6 @@ export default async function SessionsPage({
       summary={undefined}
     />
   );
-
-  if (scheduled) {
-    const where = meetingsWhere(params, reach, now);
-    const meetings = await prisma.interview.findMany({
-      where,
-      include: { mentor: true, student: { include: { user: true } } },
-      orderBy: { scheduledAt: "asc" },
-      take: 100,
-    });
-
-    const entries: TimelineEntry[] = meetings
-      .filter(interviewIsOpen)
-      .map((m) => ({
-        id: m.id,
-        at: m.scheduledAt,
-        hasTime: m.hasTime,
-        timePending: !m.hasTime,
-        title: "Meeting",
-        status: meetingStatus(
-          {
-            id: m.id,
-            status: m.status,
-            scheduledAt: m.scheduledAt,
-            sessionId: m.sessionId,
-            student: {
-              id: m.student.id,
-              name: m.student.user.name ?? m.student.user.email,
-            },
-          },
-          viewer
-        ),
-        // Staff watch meetings they are not in, so both sides are named: a row
-        // with one chip leaves the reader to guess which side it is.
-        person: {
-          id: m.student.id,
-          name: m.student.user.name,
-          email: m.student.user.email,
-        },
-        counterpart: {
-          id: m.mentorId,
-          name: m.mentor.name,
-          email: m.mentor.email,
-        },
-        href: `/students/${m.student.id}`,
-        joinUrl: m.link,
-        note: m.note,
-        // Only the mentor who booked it may move it: an admin correcting
-        // somebody else's diary is not a thing this product does.
-        action:
-          m.mentorId === user.id ? (
-            <MeetingRowActions
-              meeting={{
-                id: m.id,
-                date: toDateInputValue(m.scheduledAt),
-                time: m.hasTime ? toTimeInputValue(m.scheduledAt) : "",
-                link: m.link,
-                note: m.note,
-              }}
-            />
-          ) : undefined,
-      }));
-
-    return (
-      <div className="space-y-4">
-        <Header lens={lens} />
-        <TabLinks label="Sessions" items={tabs} />
-        {filters}
-        <Timeline
-          entries={entries}
-          now={now}
-          title="Scheduled"
-          buckets={["overdue", "today", "week", "later"]}
-          empty={
-            activeFilterCount(params) > 0
-              ? "No meetings match. Reset the filters to see the rest."
-              : "Nothing in the diary. Meetings are scheduled from a student's page."
-          }
-        />
-      </div>
-    );
-  }
 
   const where = sessionsWhere(params, reach, now);
   const [sessions, total, sums] = await Promise.all([
@@ -257,7 +160,6 @@ export default async function SessionsPage({
   return (
     <div className="space-y-4">
       <Header lens={lens} />
-      <TabLinks label="Sessions" items={tabs} />
       {filters}
 
       <p className="text-sm text-muted-fg">

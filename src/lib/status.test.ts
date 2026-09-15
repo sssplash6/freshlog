@@ -4,7 +4,6 @@ import { formatDate } from "@/lib/format";
 
 import {
   ASSIGNMENT_PROGRESS,
-  INTERVIEW_STATUS,
   SESSION_STATUS,
   USER_STATUS,
 } from "@/lib/constants";
@@ -13,7 +12,6 @@ import {
   attentionList,
   EXPIRY_WINDOW_DAYS,
   GLYPH,
-  meetingStatus,
   mentorStatuses,
   programStatuses,
   rollUp,
@@ -148,49 +146,6 @@ describe("the status table", () => {
 });
 
 describe("per-audience wording", () => {
-  it("tells a student about themself in the second person", () => {
-    const meeting = {
-      id: "i-1",
-      status: INTERVIEW_STATUS.DECLINED,
-      scheduledAt: inDays(4),
-      sessionId: null,
-      student: { id: "sp-1", name: "Aziza Yusupova" },
-    };
-    // The bug this replaces: INTERVIEW_STATUS_META was viewer-agnostic, so a
-    // student who declined read a red chip "Student can't make it" about herself.
-    expect(meetingStatus(meeting, view("student"))?.label).toBe("You can't make it");
-    expect(meetingStatus(meeting, view("mentor"))?.label).toBe("Aziza can't make it");
-    expect(meetingStatus(meeting, view("staff"))?.label).toBe("Aziza can't make it");
-  });
-
-  it("asks the student for an answer and tells the mentor to wait", () => {
-    const meeting = {
-      id: "i-2",
-      status: INTERVIEW_STATUS.PROPOSED,
-      scheduledAt: inDays(5),
-      sessionId: null,
-      student: { id: "sp-1", name: "Aziza Yusupova" },
-    };
-    const forStudent = meetingStatus(meeting, view("student"));
-    expect(forStudent?.label).toBe("Needs your answer");
-    expect(forStudent?.kind).toBe("actionable");
-
-    const forMentor = meetingStatus(meeting, view("mentor"));
-    expect(forMentor?.label).toBe("Awaiting Aziza's answer");
-    expect(forMentor?.kind).toBe("informational");
-  });
-
-  it("does not invent a possessive when it has no name to own it", () => {
-    // On one student's own page the subject is the page, so the detail carries
-    // no name — "Awaiting the student's answer" reads worse than not naming.
-    expect(status("MEETING_AWAITING_ANSWER", view("staff"), {})?.label).toBe(
-      "Awaiting an answer"
-    );
-    expect(status("MEETING_DECLINED", view("mentor"), {})?.label).toBe("Declined");
-    expect(
-      status("MEETING_AWAITING_ANSWER", view("staff"), { name: "Aziza Yusupova" })?.label
-    ).toBe("Awaiting Aziza's answer");
-  });
 
     it("hides staff-only states from the people they are not about", () => {
     expect(status("FEEDBACK_LOW", view("mentor"))).toBeNull();
@@ -198,16 +153,6 @@ describe("per-audience wording", () => {
     expect(status("STAFF_UNSCOPED", view("student"))).toBeNull();
   });
 
-  it("tells a student their passed meeting is waiting on their mentor", () => {
-    // This was student-invisible, and the student page could then only solve
-    // an overdue meeting by not showing it — so a meeting that happened
-    // yesterday disappeared without a word, which the page it replaced did
-    // not do. Invisible is a fine answer for a state a reader has no business
-    // knowing; it is the wrong answer for one about their own week.
-    const row = status("MEETING_UNLOGGED", view("student"));
-    expect(row?.label).toBe("Waiting on your mentor");
-    expect(row?.kind).toBe("informational");
-  });
 });
 
 describe("studentStatuses", () => {
@@ -535,56 +480,6 @@ describe("sessionStatuses", () => {
   });
 });
 
-describe("meetingStatus", () => {
-  const meeting = (over = {}) => ({
-    id: "i-1",
-    status: INTERVIEW_STATUS.CONFIRMED,
-    scheduledAt: inDays(3),
-    sessionId: null,
-    student: { id: "sp-1", name: "Aziza Yusupova" },
-    ...over,
-  });
-
-  it("treats a meeting later today as still ahead", () => {
-    // A whole-day meeting carries no time to compare against, and one at 09:00
-    // must not read as overdue over lunch.
-    const today = meeting({ scheduledAt: new Date("2026-09-03T09:00:00.000Z") });
-    expect(meetingStatus(today, view("mentor"))?.type).toBe("MEETING_CONFIRMED");
-  });
-
-  it("calls yesterday's unlogged meeting overdue, ahead of any answer", () => {
-    const stale = meeting({ status: INTERVIEW_STATUS.PROPOSED, scheduledAt: inDays(-1) });
-    // Once the day is gone, whether they had confirmed stopped being the question.
-    expect(meetingStatus(stale, view("mentor"))).toMatchObject({
-      type: "MEETING_UNLOGGED",
-      kind: "actionable",
-    });
-  });
-
-  it("stops chasing a past meeting once its session is logged", () => {
-    const logged = meeting({ scheduledAt: inDays(-1), sessionId: "s-1" });
-    expect(meetingStatus(logged, view("mentor"))?.type).toBe("MEETING_CONFIRMED");
-  });
-
-  it("distinguishes held from cancelled", () => {
-    expect(
-      meetingStatus(meeting({ status: INTERVIEW_STATUS.HELD }), view("staff"))?.label
-    ).toBe("Held");
-    expect(
-      meetingStatus(
-        meeting({ status: INTERVIEW_STATUS.CANCELLED, scheduledAt: inDays(-9) }),
-        view("staff")
-      )?.label
-    ).toBe("Cancelled");
-  });
-
-  it("gives a meeting exactly one status", () => {
-    const s = meetingStatus(meeting({ status: INTERVIEW_STATUS.PROPOSED }), view("student"));
-    expect(s).not.toBeNull();
-    expect(s?.at).toEqual(inDays(3));
-  });
-});
-
 describe("programStatuses", () => {
   it("does not call an empty new program broken", () => {
     const fresh = { id: "p-1", name: "Flexible Program", mentorCount: 0, studentCount: 0 };
@@ -598,20 +493,6 @@ describe("programStatuses", () => {
 });
 
 describe("sortStatuses", () => {
-  it("puts problems first and ok last", () => {
-    const list = [
-      status("MEETING_CONFIRMED", view("staff"))!,
-      status("STUDENT_NOT_SIGNED_IN", view("staff"))!,
-      status("BALANCE_OVERDRAWN", view("staff"), { minutes: 60 })!,
-      status("BALANCE_NONE", view("staff"))!,
-    ];
-    expect(sortStatuses(list).map((s) => s.severity)).toEqual([
-      "problem",
-      "attention",
-      "neutral",
-      "ok",
-    ]);
-  });
 
   it("puts the soonest first inside a band", () => {
     const late = status("TASK_OVERDUE", view("staff"), { date: inDays(-1) }, { at: inDays(-1) })!;
@@ -729,22 +610,11 @@ describe("attentionList", () => {
     expect(attentionList([], v)).toEqual([]);
   });
 
-  it("keeps informational rows and puts them under the actionable ones", () => {
-    // A mentor whose Monday holds one thing to do and one thing to wait for.
-    const list = [
-      status("MEETING_AWAITING_ANSWER", v, undefined, { at: new Date("2026-03-02T10:00:00Z") })!,
-      status("MEETING_UNLOGGED", v, undefined, { at: new Date("2026-02-26T10:00:00Z") })!,
-    ];
-    const rows = attentionList(list, v);
-    expect(rows.map((r) => r.type)).toEqual(["MEETING_UNLOGGED", "MEETING_AWAITING_ANSWER"]);
-    expect(rows.some((r) => r.type === "ALL_CLEAR")).toBe(false);
-  });
-
     it("counts nothing when every row is informational", () => {
     // The honest case: things on screen, none of them yours to do. Both rows
-    // stay — a mentor waiting on an answer wants to see that — and the badge
-    // reads zero.
-    const list = [status("MEETING_AWAITING_ANSWER", v)!, status("MEETING_CONFIRMED", v)!];
+    // stay — a mentor wants to see an unanswered session — and the badge reads
+    // zero.
+    const list = [status("SESSION_UNCONFIRMED", v)!, status("TASK_IN_PROGRESS", v)!];
     const rows = attentionList(list, v);
     expect(rows).toHaveLength(2);
     expect(actionableCount(rows)).toBe(0);
@@ -760,84 +630,8 @@ describe("attentionList", () => {
     expect(actionableCount(rows)).toBe(0);
   });
 
-  it("counts only actionable rows toward the section's badge", () => {
-    const list = [
-      status("MEETING_UNLOGGED", v)!,
-      status("MEETING_AWAITING_ANSWER", v)!,
-      status("STUDENT_PENDING_APPROVAL", v)!,
-    ];
-    expect(actionableCount(attentionList(list, v))).toBe(1);
-  });
-
-  it("rolls up actionable and informational rows apart", () => {
-    // Four of each: the roll-up must not merge two different kinds into one row.
-    const list = [
-      ...Array.from({ length: 4 }, (_, i) => status("MEETING_UNLOGGED", v, undefined, {
-        subject: { kind: "student" as const, id: `s${i}`, name: `Student ${i}` },
-      })!),
-      ...Array.from({ length: 4 }, (_, i) => status("MEETING_AWAITING_ANSWER", v, undefined, {
-        subject: { kind: "student" as const, id: `t${i}`, name: `Other ${i}` },
-      })!),
-    ];
-    const rows = attentionList(list, v);
-    expect(rows).toHaveLength(2);
-    expect(rows[0].count).toBe(4);
-    expect(rows[1].count).toBe(4);
-    expect(rows[0].kind).toBe("actionable");
-    expect(rows[1].kind).toBe("informational");
-  });
-
-  it("caps the list without hiding a problem behind an informational row", () => {
-    const list = [
-      status("MEETING_AWAITING_ANSWER", v)!,
-      status("MEETING_AWAITING_ANSWER", v)!,
-      status("MEETING_UNLOGGED", v)!,
-    ];
-    const rows = attentionList(list, v, { limit: 1 });
-    expect(rows).toHaveLength(1);
-    expect(rows[0].type).toBe("MEETING_UNLOGGED");
-  });
 });
 
-describe("meetingStatus and the program's clock", () => {
-  const meeting = {
-    id: "i1",
-    status: "CONFIRMED",
-    scheduledAt: new Date("2026-09-04T10:00:00Z"), // 10:00 Tashkent, Sep 4
-    sessionId: null,
-  };
-
-  it("does not call this morning's meeting unlogged at 02:00 Tashkent", () => {
-    // 02:00 Tashkent on Sep 4 is 21:00 UTC on Sep 3 — a different UTC date, so
-    // a raw comparison put the meeting a day ahead and, once UTC rolled over
-    // and Tashkent had not, a day behind.
-    const v: ViewerContext = {
-      audience: "mentor",
-      userId: "m1",
-      now: new Date("2026-09-03T21:00:00Z"),
-    };
-    expect(meetingStatus(meeting, v)?.type).toBe("MEETING_CONFIRMED");
-  });
-
-  it("still calls yesterday's unlogged meeting unlogged", () => {
-    const v: ViewerContext = {
-      audience: "mentor",
-      userId: "m1",
-      now: new Date("2026-09-05T09:00:00Z"),
-    };
-    expect(meetingStatus(meeting, v)?.type).toBe("MEETING_UNLOGGED");
-  });
-
-  it("leaves a meeting from earlier today alone", () => {
-    // Whether it needs logging is a question for the end of the day, not lunch.
-    const v: ViewerContext = {
-      audience: "mentor",
-      userId: "m1",
-      now: new Date("2026-09-04T14:00:00Z"),
-    };
-    expect(meetingStatus(meeting, v)?.type).toBe("MEETING_CONFIRMED");
-  });
-});
 
 describe("rollUp", () => {
   const v: ViewerContext = { audience: "staff", userId: "a1", now: new Date("2026-03-01T09:00:00Z") };
@@ -870,20 +664,6 @@ describe("rollUp", () => {
     const rolled = rollUp(many(9), v);
     expect(rolled[0].subject).toBeUndefined();
     expect(rolled[0].href).toBe("/students?time=none");
-  });
-
-  it("has no link for a type whose group is not a filter", () => {
-    // A link that lands on a nearly-right list is worse than none: the reader
-    // cannot tell which rows are the ones they tapped.
-    const meetings = Array.from(
-      { length: 9 },
-      (_, i) =>
-        status("MEETING_AWAITING_ANSWER", v, undefined, {
-          subject: { kind: "student" as const, id: `s${i}`, name: `Student ${i}` },
-          href: `/students/s${i}`,
-        })!
-    );
-    expect(rollUp(meetings, v)[0].href).toBeUndefined();
   });
 
   it("keeps the count honest when the group is exactly at the threshold", () => {

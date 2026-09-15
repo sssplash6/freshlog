@@ -5,8 +5,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle } from "@/components/ui/section";
 import { USER_STATUS } from "@/lib/constants";
 import { requireMentor } from "@/lib/dal";
-import { toDateInputValue } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
 import { logSessionOptions, mentorCaseload } from "@/lib/queries";
 
 /**
@@ -19,10 +17,8 @@ import { logSessionOptions, mentorCaseload } from "@/lib/queries";
  * can fill with one thumb and one you cannot, which is the whole reason this
  * route exists.
  *
- * Three query parameters, all optional:
+ * Two query parameters, both optional:
  *   ?student=   preselect, from a student's page or an attention row
- *   ?meeting=   preselect and prefill from a scheduled meeting, which is how a
- *               MEETING_UNLOGGED row is discharged
  *   the draft   whatever the form last wrote to the URL, so a phone
  *               interruption does not lose a half-written session
  */
@@ -46,23 +42,12 @@ export default async function LogSessionPage({
   const caseload = await mentorCaseload(user.id);
   const students = logSessionOptions(caseload);
 
-  // A meeting fills in the student and the date it was scheduled for, so
-  // discharging an unlogged meeting is a duration and a note, not a re-entry
-  // of everything the meeting already knows.
-  const meetingId = one("meeting");
-  const meeting = meetingId
-    ? await prisma.interview.findFirst({
-        where: { id: meetingId, mentorId: user.id },
-        select: { id: true, studentId: true, scheduledAt: true },
-      })
-    : null;
-
   const draft: LogSessionDraft = {
-    studentProfileId: meeting?.studentId ?? one("student") ?? one("studentProfileId"),
+    studentProfileId: one("student") ?? one("studentProfileId"),
     programId: one("programId") ?? one("program"),
     assignmentId: one("assignmentId"),
     minutes: one("minutes"),
-    date: meeting ? toDateInputValue(meeting.scheduledAt) : one("date"),
+    date: one("date"),
         note: one("note"),
     attendance: one("attendance"),
     timeKind: one("timeKind"),

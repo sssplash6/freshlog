@@ -3,12 +3,10 @@ import "server-only";
 import { adminScope, scopeProgramFilter } from "@/lib/authz";
 import {
   ASSIGNMENT_PROGRESS,
-  INTERVIEW_STATUS,
   ROLES,
   SESSION_STATUS,
   USER_STATUS,
   canActAsMentor,
-  interviewIsOpen,
 } from "@/lib/constants";
 import { soonestExpiry } from "@/lib/deadlines";
 import { unallocatedExchanges } from "@/lib/exchanges";
@@ -19,16 +17,13 @@ import { studentTaskStatuses } from "@/lib/student-tasks";
 import {
   assignmentsForStudentWhere,
   mentorCaseload,
-  mentorMeetings,
   studentLedger,
-  studentMeetings,
   studentsWithHours,
 } from "@/lib/queries";
 import {
   attentionList,
   dismissalKey,
   exchangeStatuses,
-  meetingStatus,
   mentorStatuses,
   notDismissed,
   programStatuses,
@@ -71,7 +66,6 @@ const ROLL_UP_AT = 3;
 /** A mentor's list is capped shorter: it is a caseload, not a school. */
 const MENTOR_ROWS = 10;
 
-const DAY = 24 * 60 * 60 * 1000;
 
 export type Attention = {
   /** The rows to render, already rolled up, sorted and capped. */
@@ -82,15 +76,6 @@ export type Attention = {
   moreHref?: string;
   /** May a row be silenced? Not on a student's, whose rows are all their own. */
   dismissible: boolean;
-  /**
-   * The meeting each RSVP row is about, keyed by the row OBJECT.
-   *
-   * A `Status` carries no id, so the buttons are looked up by identity — the
-   * same object the renderer hands back. A rolled-up row is a new object and
-   * finds nothing here, which is the right answer: four proposed meetings
-   * cannot be settled with one pair of buttons.
-   */
-  answers: Map<Status, { id: string; status: string }>;
   /** What to say when there is nothing, in this reader's words. */
   empty: string;
 };
@@ -99,7 +84,6 @@ const NOTHING: Attention = {
   statuses: [],
   spilled: 0,
   dismissible: false,
-  answers: new Map(),
   empty: "Nothing needs you.",
 };
 
@@ -143,7 +127,6 @@ const STAFF_STATES = new Set<StatusType>([
   "BALANCE_NONE",
   "ALLOCATION_EXPIRING",
   "ALLOCATION_EXPIRED",
-  "MEETING_UNLOGGED",
   "MENTOR_UNASSIGNED",
   "BOOKING_LINK_MISSING",
   "TASK_OVERDUE",
@@ -193,11 +176,6 @@ async function staffAttention(user: User): Promise<Attention> {
   // what today is or what has expired.
   const now = new Date();
   const viewer: ViewerContext = { audience: "staff", userId: user.id, now };
-  // A meeting time is the program's wall clock kept in a UTC field, which runs
-  // five hours ahead of this instant. A day of slack on the bound costs one
-  // extra row to discard and saves doing calendar arithmetic twice.
-  const horizon = new Date(now.getTime() + 8 * DAY);
-
   const [
     programs,
     students,
@@ -206,7 +184,6 @@ async function staffAttention(user: User): Promise<Attention> {
     ratings,
     unassignedTasks,
     taskMinutes,
-    meetings,
     exchanges,
   ] = await Promise.all([
     prisma.program.findMany({
@@ -252,23 +229,6 @@ async function staffAttention(user: User): Promise<Attention> {
         assignment: { mentorId: null, ...ofMine },
       },
       _sum: { minutes: true },
-    }),
-    // Still in the diary: not cancelled, not held, nothing logged against it.
-    prisma.interview.findMany({
-      where: {
-        sessionId: null,
-        status: {
-          in: [
-            INTERVIEW_STATUS.PROPOSED,
-            INTERVIEW_STATUS.CONFIRMED,
-            INTERVIEW_STATUS.DECLINED,
-          ],
-        },
-        scheduledAt: { lte: horizon },
-        ...ofMyStudents,
-      },
-      include: { mentor: true, student: { include: { user: true } } },
-      orderBy: { scheduledAt: "asc" },
     }),
     // Hosted by one of this reader's programs: an exchange is the sending
     // program's arrangement and the HOST's job, and it is the host who is
@@ -389,23 +349,6 @@ async function staffAttention(user: User): Promise<Attention> {
     );
   }
 
-  for (const m of meetings) {
-    const state = meetingStatus(
-      {
-        id: m.id,
-        status: m.status,
-        scheduledAt: m.scheduledAt,
-        sessionId: m.sessionId,
-        student: {
-          id: m.studentId,
-          name: m.student.user.name ?? m.student.user.email,
-        },
-      },
-      viewer
-    );
-    if (state) keep(null, [state]);
-  }
-
   for (const p of programs) {
     keep(p.id, [
       ...programStatuses(
@@ -443,8 +386,7 @@ async function staffAttention(user: User): Promise<Attention> {
     spilled: Math.max(0, list.length - ROW_CAP),
     moreHref: "/students",
     dismissible: true,
-    answers: new Map(),
-    empty: "Nothing needs you.",
+      empty: "Nothing needs you.",
   };
 }
 
@@ -460,8 +402,7 @@ async function mentorAttention(user: User): Promise<Attention> {
   };
   const dismissed = await dismissedBy(user.id);
   const { students, assignments } = await mentorCaseload(user.id);
-  const [diary, ratings, sent] = await Promise.all([
-    mentorMeetings(user.id),
+  const [ratings, sent] = await Promise.all([
     prisma.mentorFeedback.aggregate({
       where: { mentorId: user.id },
       _avg: { rating: true },
@@ -519,33 +460,6 @@ async function mentorAttention(user: User): Promise<Attention> {
         viewer
       ).map((row) => ({ ...row, href: `/students/${s.profile.id}` }))
     ),
-    ...diary.flatMap((m) => {
-      const state = meetingStatus(
-        {
-          id: m.id,
-          status: m.status,
-          scheduledAt: m.scheduledAt,
-          sessionId: m.sessionId,
-          student: {
-            id: m.student.id,
-            name: m.student.user.name ?? m.student.user.email,
-          },
-        },
-        viewer
-      );
-      // Informational rows are kept. §6.2 puts "awaiting the student's answer"
-      // in this list on purpose, and dropping it meant a mentor who booked an
-      // interview for the 25th never learned the student had not replied. They
-      // do not count toward the badge; `attentionList` sorts them last.
-      if (!state) return [];
-      return [
-        state.type === "MEETING_UNLOGGED"
-          ? // The row's job is to discharge itself: the form arrives knowing
-            // the student and the day, so all that is left is a duration.
-            { ...state, href: `/sessions/new?meeting=${m.id}` }
-          : { ...state, href: `/students/${m.student.id}` },
-      ];
-    }),
     ...sent.flatMap((e) =>
       exchangeStatuses(
         {
@@ -570,8 +484,7 @@ async function mentorAttention(user: User): Promise<Attention> {
     statuses: all.slice(0, MENTOR_ROWS),
     spilled: Math.max(0, all.length - MENTOR_ROWS),
     dismissible: true,
-    answers: new Map(),
-    empty: "Nothing needs you.",
+      empty: "Nothing needs you.",
   };
 }
 
@@ -609,10 +522,9 @@ async function studentAttention(user: User): Promise<Attention> {
   // the shell sends them there; there is nothing to tell them here meanwhile.
   if (!profile || user.status === USER_STATUS.PENDING) return NOTHING;
 
-  const [hours, ledger, meetings, pairings] = await Promise.all([
+  const [hours, ledger, pairings] = await Promise.all([
     allocationSummary(profile.id),
     studentLedger(profile.id),
-    studentMeetings(profile.id),
     prisma.mentorAssignment.findMany({
       where: assignmentsForStudentWhere(profile),
       include: { mentor: true },
@@ -643,32 +555,6 @@ async function studentAttention(user: User): Promise<Attention> {
     },
     viewer
   ).map(aboutMe);
-
-  const answers = new Map<Status, { id: string; status: string }>();
-  const meetingRows = meetings.filter(interviewIsOpen).flatMap((m) => {
-    const s = meetingStatus(
-      {
-        id: m.id,
-        status: m.status,
-        scheduledAt: m.scheduledAt,
-        sessionId: m.sessionId,
-      },
-      viewer
-    );
-    if (!s || s.type !== "MEETING_AWAITING_ANSWER") return [];
-    // Whose meeting it is: the status is voiced at the reader, so the only
-    // name worth carrying is the other person's.
-    const row: Status = {
-      ...s,
-      subject: {
-        kind: "mentor",
-        id: m.mentor.id,
-        name: m.mentor.name ?? m.mentor.email,
-      },
-    };
-    answers.set(row, { id: m.id, status: m.status });
-    return [row];
-  });
 
   // Every state the AGENDA is in. `TASK_OVERDUE` is the only one a student can
   // act on, and it is dormant until `Assignment.dueOn` is a real date on every
@@ -773,7 +659,6 @@ async function studentAttention(user: User): Promise<Attention> {
   const list = attentionList(
     [
       ...mine,
-      ...meetingRows,
       ...overdueTasks,
       ...overdueAgenda,
       ...bookingRows,
@@ -788,7 +673,6 @@ async function studentAttention(user: User): Promise<Attention> {
     // A student's rows are all about their own time. There is nothing here
     // they should be able to make go away without doing something about it.
     dismissible: false,
-    answers,
     empty: "Nothing to do right now.",
   };
 }

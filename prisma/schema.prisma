@@ -70,7 +70,6 @@ model User {
   notifications       Notification[]
   causedNotifications Notification[]           @relation("NotificationActor")
   mentorFeedback      MentorFeedback[]         @relation("FeedbackMentor")
-  interviews          Interview[]              @relation("InterviewMentor")
   avatarImage         AvatarImage?
   notificationPrefs   NotificationPreference[]
   dismissals          StatusDismissal[]
@@ -226,7 +225,6 @@ model StudentProfile {
   tasks            StudentTask[]
   allotmentChanges HourAllotmentChange[]
   mentorFeedback   MentorFeedback[]
-  interviews       Interview[]
   exchanges        ProgramExchange[]
 }
 
@@ -576,54 +574,11 @@ model Session {
   // SetNull, not Cascade: deleting a goal must never delete the time that was
   // already delivered against it. The session survives, minus its goal.
   assignment Assignment?      @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
-  // The scheduled meeting this session delivered, when it came from one.
-  interview  Interview?
 
   @@index([assignmentId])
   @@index([programId])
   @@index([exchangeId])
   @@index([studentId, programId, mentorId])
-}
-
-// A meeting a mentor put in the diary — an interview, a mock, a review — before
-// it happens. Deliberately NOT a Session with a future date: a Session is a
-// record of hours DELIVERED, and every hours query in the app sums them. A plan
-// to meet on Friday charges nothing and may never happen, so it is its own row
-// with its own lifecycle, and only becomes hours when the mentor logs it.
-//
-// The student answers it: PROPOSED until they say whether they'll be there,
-// which is the whole point of scheduling it here rather than over Telegram.
-model Interview {
-  id          String    @id @default(cuid())
-  studentId   String
-  mentorId    String
-  // When it happens. Stored as the mentor typed it — a wall-clock instant on
-  // the UTC calendar, never converted — so the time the student reads back is
-  // the time the mentor wrote. `hasTime` says whether a time was given at all;
-  // without it, "no time yet" and "midnight" would be the same row.
-  scheduledAt DateTime
-  hasTime     Boolean   @default(false)
-  link        String? // where it happens: Meet, Zoom, a room
-  note        String? // what it's about, in the mentor's words
-  // PROPOSED | CONFIRMED | DECLINED | CANCELLED | HELD. See INTERVIEW_STATUS in
-  // lib/constants.ts. Rescheduling returns a row to PROPOSED: a new time is a
-  // new question, and an old "I'll be there" is not an answer to it.
-  status      String    @default("PROPOSED")
-  respondedAt DateTime? // when the student confirmed or declined
-  // Set when the meeting turned into logged time, which is what retires it
-  // from the upcoming list. Unique: one session per scheduled meeting.
-  sessionId   String?   @unique
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  student StudentProfile @relation(fields: [studentId], references: [id])
-  mentor  User           @relation("InterviewMentor", fields: [mentorId], references: [id])
-  // SetNull: deleting a logged session must not delete the record that the
-  // meeting was scheduled — it returns to the diary instead.
-  session Session?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-
-  @@index([studentId, scheduledAt])
-  @@index([mentorId, scheduledAt])
 }
 
 // Audit log of admin changes to a student's per-mentor allocation, in minutes.

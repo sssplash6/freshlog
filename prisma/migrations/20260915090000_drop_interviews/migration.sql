@@ -1,0 +1,26 @@
+-- Scheduling a meeting leaves the product.
+--
+-- `Interview` was a meeting a mentor put in the diary before it happened — a
+-- plan to meet on Friday, which charges nothing and may never occur, so it was
+-- its own row rather than a `Session` with a future date. The student answered
+-- it, the mentor could move or cancel it, and logging the hours retired it.
+--
+-- The owner has decided that is not what this product does: hours are recorded
+-- after the fact, and the arranging happens where it always happened. Every
+-- surface went with it in the same commit — the form, the student's Meetings
+-- page, the Scheduled tab on /sessions, the "Still to come" group on a
+-- student's board, the confirm/decline buttons, the reschedule and cancel
+-- menus, the MEETING_* states and the INTERVIEW_* notifications.
+--
+-- DESTRUCTIVE, and deliberately so rather than left as an unread table: a
+-- schema that still holds a feature nobody can reach is a schema that lies
+-- about what the product is. Notifications already written about meetings are
+-- NOT deleted — they are a record of what was said at the time, they carry
+-- their own text, and `/n/[id]` sends a reader to a student page that still
+-- exists.
+--
+-- Sessions are untouched. `Interview.sessionId` was the only link between the
+-- two and it pointed this way, so dropping this table takes no logged hour
+-- with it.
+
+DROP TABLE "Interview";

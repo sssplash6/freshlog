@@ -133,42 +133,5 @@ export function formatDateTime(d: Date): string {
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${hh}:${mm} UTC`;
 }
 
-/**
- * When a scheduled meeting happens, in the words a person would use: "August
- * 30" on its own, or "August 30 at 14:00" once a time was given.
- *
- * Read in UTC on purpose. A meeting time is stored exactly as the mentor typed
- * it (see the Interview model), so reading it back in UTC hands the student the
- * same wall-clock time rather than shifting it by the reader's own offset.
- */
-export function formatMeetingWhen(d: Date, hasTime: boolean): string {
-  if (!hasTime) return formatDate(d);
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  const mm = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${formatDate(d)} at ${hh}:${mm}`;
-}
 
-/** The machine form of a meeting's time, for `<input type="time">`. */
-export function toTimeInputValue(d: Date): string {
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  const mm = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
-}
 
-/**
- * How far off a scheduled meeting is: "today", "tomorrow", "in 3 days". Coarse
- * on purpose — the exact time is already spelled out beside it, and what the
- * reader wants from this is whether it needs their attention now.
- */
-export function formatUntil(d: Date, now: Date = new Date()): string {
-  const startOf = (x: Date) =>
-    Date.UTC(x.getUTCFullYear(), x.getUTCMonth(), x.getUTCDate());
-  const days = Math.round((startOf(d) - startOf(now)) / 86_400_000);
-  if (days < -1) return `${-days} days ago`;
-  if (days === -1) return "yesterday";
-  if (days === 0) return "today";
-  if (days === 1) return "tomorrow";
-  if (days < 7) return `in ${days} days`;
-  if (days < 14) return "next week";
-  return `in ${Math.round(days / 7)} weeks`;
-}

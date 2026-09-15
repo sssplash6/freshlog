@@ -67,7 +67,6 @@ import { profileOf } from "@/lib/profile";
 import {
   programOptions,
   studentLedger,
-  studentMeetings,
   taskOptionsForSessions,
   toProgramOptions,
 } from "@/lib/queries";
@@ -147,7 +146,6 @@ export default async function StudentWorkspacePage({
   const [
     hours,
     ledger,
-    meetings,
     changes,
     programs,
     mentors,
@@ -157,7 +155,6 @@ export default async function StudentWorkspacePage({
   ] = await Promise.all([
     allocationSummary(profile.id, visible),
     studentLedger(profile.id, visible),
-    studentMeetings(profile.id),
     manages
       ? prisma.hourAllotmentChange.findMany({
           where: { studentId: profile.id, ...ledgerWhere },
@@ -434,7 +431,6 @@ export default async function StudentWorkspacePage({
       <LedgerBoard
         viewer={viewer}
         sessions={ledger.sessions}
-        meetings={meetings}
         tasks={toStudentTaskEntries(ledger.tasks, {
           mentorBase: "/mentors",
           // Named only when the reader can see more than one of the student's

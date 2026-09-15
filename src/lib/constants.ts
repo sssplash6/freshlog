@@ -256,50 +256,6 @@ export const CHARGED_SESSION = {
   withinPlan: true,
 } as const;
 
-/**
- * A scheduled meeting's life. It starts PROPOSED because the student has not
- * answered yet; only they move it to CONFIRMED or DECLINED, only the mentor
- * CANCELLED, and logging the hours makes it HELD.
- */
-export const INTERVIEW_STATUS = {
-  PROPOSED: "PROPOSED",
-  CONFIRMED: "CONFIRMED",
-  DECLINED: "DECLINED",
-  CANCELLED: "CANCELLED",
-  HELD: "HELD",
-} as const;
-
-export type InterviewStatus =
-  (typeof INTERVIEW_STATUS)[keyof typeof INTERVIEW_STATUS];
-
-/**
- * A meeting's state, as a `lib/status.ts` type.
- *
- * `label` is the STAFF wording and is on its way out: it is viewer-agnostic, so
- * a student who declined read a red chip saying "Student can't make it" about
- * herself. `ScheduledMeetings` already reads its wording from the model per
- * reader; the last consumers lose this field as their pages are reshaped.
- */
-export const INTERVIEW_STATUS_META: Record<
-  string,
-  { label: string; status: StatusType }
-> = {
-  PROPOSED: { label: "Awaiting confirmation", status: "MEETING_AWAITING_ANSWER" },
-  CONFIRMED: { label: "Confirmed", status: "MEETING_CONFIRMED" },
-  DECLINED: { label: "Student can't make it", status: "MEETING_DECLINED" },
-  CANCELLED: { label: "Cancelled", status: "MEETING_CLOSED" },
-  HELD: { label: "Held", status: "MEETING_CLOSED" },
-};
-
-/** Still in the diary: on the calendar, not cancelled, not yet logged. */
-export function interviewIsOpen(interview: { status: string }): boolean {
-  return (
-    interview.status === INTERVIEW_STATUS.PROPOSED ||
-    interview.status === INTERVIEW_STATUS.CONFIRMED ||
-    interview.status === INTERVIEW_STATUS.DECLINED
-  );
-}
-
 /** How far along one planned piece of work is. Admin-set, never derived. */
 export const ASSIGNMENT_PROGRESS = {
   NOT_STARTED: "NOT_STARTED",
@@ -361,10 +317,6 @@ export const NOTIFICATION_TYPES = {
   TASK_SET: "TASK_SET", // to the student: a mentor gave them something to go away and do
   TASK_CHANGED: "TASK_CHANGED", // to the student: that task was reworded, re-dated or withdrawn
   TASK_MOVED: "TASK_MOVED", // to the mentor: the student moved their task along, or finished it
-  INTERVIEW_SCHEDULED: "INTERVIEW_SCHEDULED", // to the student: a mentor put a meeting in the diary, please confirm
-  INTERVIEW_MOVED: "INTERVIEW_MOVED", // to the student: that meeting changed time, please confirm again
-  INTERVIEW_CANCELLED: "INTERVIEW_CANCELLED", // to the other side: it's off
-  INTERVIEW_ANSWERED: "INTERVIEW_ANSWERED", // to the mentor: the student confirmed, or can't make it
   SESSION_ANSWERED: "SESSION_ANSWERED", // to the mentor + admins: the student confirmed or disputed a logged session
   FEEDBACK_RECEIVED: "FEEDBACK_RECEIVED", // to admins: a student rated a mentor
   EXCHANGE_SENT: "EXCHANGE_SENT", // to the host program's admins: a student was lent to you, with hours to allocate
@@ -384,7 +336,6 @@ export const NOTIFICATION_TYPES = {
 export const NOTIFICATION_CATEGORY = {
   HOURS: "HOURS",
   SESSIONS: "SESSIONS",
-  MEETINGS: "MEETINGS",
   TASKS: "TASKS",
   DEADLINES: "DEADLINES",
   ACCOUNTS: "ACCOUNTS",
@@ -405,7 +356,6 @@ export type NotificationCategory =
 export const NOTIFICATION_CATEGORY_LABELS: Record<NotificationCategory, string> = {
   HOURS: "Time",
   SESSIONS: "Sessions",
-  MEETINGS: "Meetings",
   TASKS: "Tasks and agenda",
   DEADLINES: "Deadlines",
   ACCOUNTS: "Accounts",
@@ -434,10 +384,6 @@ export const CATEGORY_OF: Record<NotificationType, NotificationCategory> = {
   TASK_SET: "TASKS",
   TASK_CHANGED: "TASKS",
   TASK_MOVED: "TASKS",
-  INTERVIEW_SCHEDULED: "MEETINGS",
-  INTERVIEW_MOVED: "MEETINGS",
-  INTERVIEW_CANCELLED: "MEETINGS",
-  INTERVIEW_ANSWERED: "MEETINGS",
   FEEDBACK_RECEIVED: "ACCOUNTS",
   // Time, not an account: what the host admin does about it is allocate hours,
   // and what the sender waits to hear is that somebody holds them.
@@ -480,10 +426,6 @@ export const NOTIFICATION_META: Record<
   TASK_SET: { label: "New task", tone: "plan" },
   TASK_CHANGED: { label: "Task changed", tone: "plan" },
   TASK_MOVED: { label: "Task progress", tone: "success" },
-  INTERVIEW_SCHEDULED: { label: "Meeting scheduled", tone: "plan" },
-  INTERVIEW_MOVED: { label: "Meeting moved", tone: "plan" },
-  INTERVIEW_CANCELLED: { label: "Meeting cancelled", tone: "warning" },
-  INTERVIEW_ANSWERED: { label: "Meeting answer", tone: "success" },
   FEEDBACK_RECEIVED: { label: "Feedback", tone: "brand" },
   EXCHANGE_SENT: { label: "Exchange", tone: "accent" },
   EXCHANGE_ALLOCATED: { label: "Exchange", tone: "accent" },

@@ -27,7 +27,6 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   // Delete children before parents so the RESTRICT foreign keys stay happy.
   await prisma.notification.deleteMany();
-  await prisma.interview.deleteMany();
   await prisma.session.deleteMany();
   await prisma.hourAllotmentChange.deleteMany();
   await prisma.hourAllocation.deleteMany();

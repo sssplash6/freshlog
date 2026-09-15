@@ -1,7 +1,4 @@
-import { ExpandableText } from "@/components/expandable-text";
 import { HoursBreakdown } from "@/components/hours-breakdown";
-import { CalendarIcon, LinkIcon } from "@/components/icons";
-import { PersonChip } from "@/components/person-chip";
 import { SessionRow, toSessionEntries } from "@/components/session-row";
 import {
   StudentTaskRow,
@@ -10,17 +7,10 @@ import {
 import { TaskRow, toTaskEntries } from "@/components/task-row";
 import { Section } from "@/components/ui/section";
 import { ASSIGNMENT_PROGRESS } from "@/lib/constants";
-import {
-  formatDuration,
-  formatMeetingWhen,
-  formatUntil,
-} from "@/lib/format";
-import { splitMeetings, type ScheduledMeeting } from "@/lib/interviews";
+import { formatDuration } from "@/lib/format";
 import type { LedgerAssignment, LedgerSession } from "@/lib/queries";
 import { taskIsOpen } from "@/lib/student-tasks";
-import { meetingStatus, type ViewerContext } from "@/lib/status";
-import { ExternalLink } from "@/components/ui/link";
-import { StatusChip } from "@/components/ui/status-chip";
+import type { ViewerContext } from "@/lib/status";
 
 /**
  * How far this student has got — the tracking spreadsheet's whole tab on one
@@ -104,28 +94,24 @@ function ColumnHead({ title, caption }: { title: string; caption?: string }) {
 }
 
 /**
- * The rule between what is still ahead and what is behind. A label rather than
- * a plain divider: without it the two groups are just rows that happen to be in
- * a different order, which is exactly the confusion the sheet had.
+ * The strip between one group of rows and the next.
  *
- * The words are the ledger's own wherever the ledger has one — a held meeting
- * is "Completed", the same word the balance above it uses for those minutes,
- * and work underway is "In progress", the same word its own status chips wear.
- * "Already held" and "In flight" were a second vocabulary for two states the
- * app had already named.
+ * NO LABEL. It said "Completed", "To do", "In progress", "Finished" — four
+ * small-caps words down one card, over lists whose rows already wear the state
+ * as a chip. What the strip is FOR is the break: a reader scrolling a pane
+ * needs to see that one group has ended and another begun, and a band of the
+ * page's own ground says that without a word.
  *
- * Sticky inside its pane, and opaque rather than the 60% tint it was: now that
- * each list scrolls on its own, a reader forty rows into "Already held" would
- * otherwise have nothing on screen saying which group they are in — and a
- * translucent bar with rows sliding under it says it illegibly.
+ * The count stays, because it is the one thing the rows cannot say about
+ * themselves — how many of them there are before the next break.
+ *
+ * Sticky inside its pane: a reader forty rows into a group would otherwise have
+ * nothing on screen holding the break they crossed.
  */
-function GroupRule({ label, count }: { label: string; count: number }) {
+function GroupRule({ count }: { count: number }) {
   if (count === 0) return null;
   return (
     <div className="sticky top-0 z-10 flex items-center gap-2.5 bg-canvas px-4 py-1.5 sm:px-5">
-      <span className="text-[0.625rem] font-bold uppercase tracking-[0.09em] text-muted-fg">
-        {label}
-      </span>
       <span className="h-px flex-1 bg-line" aria-hidden="true" />
       <span className="text-[0.625rem] font-semibold tabular-nums text-muted-fg">
         {count}
@@ -134,63 +120,8 @@ function GroupRule({ label, count }: { label: string; count: number }) {
   );
 }
 
-function UpcomingMeetingRow({
-  meeting,
-  viewer,
-}: {
-  meeting: ScheduledMeeting;
-  viewer: ViewerContext;
-}) {
-  const state = meetingStatus(
-    {
-      id: meeting.id,
-      status: meeting.status,
-      scheduledAt: meeting.scheduledAt,
-      sessionId: meeting.sessionId,
-    },
-    viewer
-  );
-  return (
-    <li className="flex gap-3 px-4 py-2.5 sm:px-5">
-      <span
-        aria-hidden="true"
-        className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line bg-canvas text-muted-fg"
-      >
-        <CalendarIcon className="h-4 w-4" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-[0.8125rem] font-semibold text-ink">
-            {formatMeetingWhen(meeting.scheduledAt, meeting.hasTime)}
-          </span>
-          <span className="text-xs text-muted-fg">
-            {formatUntil(meeting.scheduledAt)}
-          </span>
-          <PersonChip person={meeting.mentor} size="sm" />
-          {state && <StatusChip status={state} />}
-        </div>
-        {meeting.note && (
-          <div className="mt-0.5 text-[0.8125rem]">
-            <ExpandableText text={meeting.note} lines={2} />
-          </div>
-        )}
-        {meeting.link && (
-          <ExternalLink
-            href={meeting.link}
-            icon={<LinkIcon className="h-3 w-3" />}
-            className="mt-0.5 text-xs"
-          >
-            Meeting link
-          </ExternalLink>
-        )}
-      </div>
-    </li>
-  );
-}
-
 export function LedgerBoard({
   sessions,
-  meetings,
   tasks,
   assignments,
   totals,
@@ -202,7 +133,6 @@ export function LedgerBoard({
   viewer,
 }: {
   sessions: LedgerSession[];
-  meetings: ScheduledMeeting[];
   /** Work a mentor set the student — the top-right column. */
   tasks: StudentTaskEntry[];
   /** The hour plan an admin budgeted — the full-width block below. */
@@ -239,8 +169,6 @@ export function LedgerBoard({
   /** One instant for the whole board, so its columns cannot disagree. */
   viewer: ViewerContext;
 }) {
-  const { upcoming, overdue } = splitMeetings(meetings, viewer.now);
-  const ahead = [...upcoming, ...overdue];
   const logged = sessions;
 
   const openTasks = tasks.filter(taskIsOpen);
@@ -281,19 +209,13 @@ export function LedgerBoard({
               sums. And a count of logged meetings is already in the card's
               caption above and on the group rule below. */}
           <ColumnHead title="Meetings" />
-          {ahead.length === 0 && logged.length === 0 ? (
+          {logged.length === 0 ? (
             <p className="px-4 pb-5 text-sm text-muted-fg sm:px-5">
-              No meetings yet, scheduled or held.
+              No meetings logged yet.
             </p>
           ) : (
             <div className={PANE}>
-              <GroupRule label="Still to come" count={ahead.length} />
-              <ul className="divide-y divide-line">
-                {ahead.map((m) => (
-                  <UpcomingMeetingRow key={m.id} meeting={m} viewer={viewer} />
-                ))}
-              </ul>
-              <GroupRule label="Completed" count={logged.length} />
+              <GroupRule count={logged.length} />
               {/* The inset goes on the ROWS, not on this list: `divide-y` draws
                   its hairline on the child's border box, so padding the list
                   would pull every rule 20px short of the edges while the
@@ -351,7 +273,7 @@ export function LedgerBoard({
             // the taller of the two, the "+" sits over the bottom of this list,
             // and a row has to be able to scroll clear of it.
             <div className={`${PANE} pb-14`}>
-              <GroupRule label="To do" count={openTasks.length} />
+              <GroupRule count={openTasks.length} />
               <ul className="divide-y divide-line">
                 {openTasks.map((t, i) => (
                   <StudentTaskRow
@@ -363,7 +285,7 @@ export function LedgerBoard({
                   />
                 ))}
               </ul>
-              <GroupRule label="Finished" count={doneTasks.length} />
+              <GroupRule count={doneTasks.length} />
               <ul className="divide-y divide-line">
                 {doneTasks.map((t) => (
                   <StudentTaskRow
@@ -411,7 +333,7 @@ export function LedgerBoard({
           </p>
         ) : (
           <div className={PANE}>
-            <GroupRule label="In progress" count={planned.length} />
+            <GroupRule count={planned.length} />
             <ul className="divide-y divide-line">
               {toTaskEntries(planned, { mentorBase }).map((t, i) => (
                 <TaskRow
@@ -424,7 +346,7 @@ export function LedgerBoard({
                 />
               ))}
             </ul>
-            <GroupRule label="Finished" count={finished.length} />
+            <GroupRule count={finished.length} />
             {/* Finished work is one line each: it is here to be counted and
                 to be findable, not to be read again. */}
             <ul className="divide-y divide-line">

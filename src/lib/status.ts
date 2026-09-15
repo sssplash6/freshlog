@@ -1,14 +1,12 @@
 import {
   ASSIGNMENT_PROGRESS,
   CONFIRM_WINDOW_DAYS,
-  INTERVIEW_STATUS,
   PLACEHOLDER_EMAIL_DOMAIN,
   SESSION_ANSWER,
   SESSION_STATUS,
   USER_STATUS,
 } from "@/lib/constants";
 import { formatDate, formatDuration } from "@/lib/format";
-import { programWallClock } from "@/lib/when";
 
 /**
  * Every state the product can be in, in one file.
@@ -65,12 +63,6 @@ export type StatusType =
   | "NO_MENTOR"
   | "ALLOCATION_EXPIRING"
   | "ALLOCATION_EXPIRED"
-  // A meeting in the diary
-  | "MEETING_AWAITING_ANSWER"
-  | "MEETING_CONFIRMED"
-  | "MEETING_DECLINED"
-  | "MEETING_UNLOGGED"
-  | "MEETING_CLOSED"
   // A session already logged
   | "SESSION_NO_SHOW"
   | "SESSION_LATE"
@@ -176,14 +168,6 @@ type Detail = {
 
 const dur = (d: Detail) => formatDuration(Math.abs(d.minutes ?? 0));
 const when = (d: Detail) => (d.date ? formatDate(d.date) : "soon");
-const who = (d: Detail) => d.name?.split(" ")[0] ?? "the student";
-/**
- * A possessive needs a name to own it. Where the subject is already the page —
- * one student's workspace — there is no name in the detail, and "Awaiting the
- * student's answer" reads worse than simply not naming them.
- */
-const awaitingAnswerLabel = (d: Detail) =>
-  d.name ? `Awaiting ${who(d)}'s answer` : "Awaiting an answer";
 
 type Voice = {
   kind: Kind;
@@ -378,82 +362,6 @@ const META: Record<StatusType, Meta> = {
       },
     },
     many: (n) => `${n} students lost time to an expiry`,
-  },
-
-  MEETING_AWAITING_ANSWER: {
-    severity: "attention",
-    voices: {
-      staff: { kind: "informational", label: (d) => awaitingAnswerLabel(d) },
-      mentor: {
-        kind: "informational",
-        label: (d) => awaitingAnswerLabel(d),
-        explanation: () => "They have not said whether they will be there.",
-      },
-      student: {
-        kind: "actionable",
-        label: () => "Needs your answer",
-        explanation: () => "Say whether you can make it.",
-      },
-    },
-    many: (n) => `${n} meetings await an answer`,
-  },
-
-  MEETING_CONFIRMED: {
-    severity: "ok",
-    voices: {
-      staff: { kind: "informational", label: () => "Confirmed" },
-      mentor: { kind: "informational", label: () => "Confirmed" },
-      student: { kind: "informational", label: () => "You're confirmed" },
-    },
-  },
-
-  MEETING_DECLINED: {
-    severity: "problem",
-    voices: {
-      staff: {
-        kind: "informational",
-        label: (d) => (d.name ? `${who(d)} can't make it` : "Declined"),
-      },
-      mentor: {
-        kind: "actionable",
-        label: (d) => (d.name ? `${who(d)} can't make it` : "Declined"),
-        explanation: () => "Move it to another time, or cancel it.",
-      },
-      student: { kind: "informational", label: () => "You can't make it" },
-    },
-    many: (n) => `${n} meetings were declined`,
-  },
-
-    MEETING_UNLOGGED: {
-    severity: "attention",
-    voices: {
-      staff: { kind: "informational", label: () => "Nothing logged" },
-      mentor: {
-        kind: "actionable",
-        label: () => "Nothing logged",
-        explanation: () => "It has passed. Log what happened, or cancel it.",
-      },
-      // A student had no voice here, so their page could only solve it by
-      // hiding the meeting — and a meeting that happened yesterday vanishing
-      // without a word is worse than an unresolved row. It is not theirs to
-      // do anything about, so it is informational, and the explanation is the
-      // reassurance the page this replaced actually gave them.
-      student: {
-        kind: "informational",
-        label: () => "Waiting on your mentor",
-        explanation: () => "It has passed. Your mentor will log the time.",
-      },
-    },
-    many: (n) => `${n} past meetings have nothing logged`,
-  },
-
-  MEETING_CLOSED: {
-    severity: "neutral",
-    voices: {
-      staff: { kind: "informational", label: (d) => (d.closedAs === "cancelled" ? "Cancelled" : "Held") },
-      mentor: { kind: "informational", label: (d) => (d.closedAs === "cancelled" ? "Cancelled" : "Held") },
-      student: { kind: "informational", label: (d) => (d.closedAs === "cancelled" ? "Cancelled" : "Held") },
-    },
   },
 
   SESSION_NO_SHOW: {
@@ -1106,72 +1014,6 @@ export function sessionStatuses(s: SessionStatusInput, v: ViewerContext): Status
 
   return out.filter((x): x is Status => x !== null);
 }
-
-export type MeetingStatusInput = {
-  id: string;
-  /** `INTERVIEW_STATUS`. */
-  status: string;
-    scheduledAt: Date;
-  sessionId: string | null;
-  student?: { id: string; name: string };
-  program?: { id: string; name: string };
-};
-
-/**
- * One status per meeting: a meeting is in exactly one state, and a row that
- * carried two chips would be describing two different meetings.
- *
- * "Passed with nothing logged" outranks the answer it was waiting for: once the
- * day is gone, whether the student had confirmed stopped being the open
- * question.
- */
-export function meetingStatus(i: MeetingStatusInput, v: ViewerContext): Status | null {
-    const extra = {
-    at: i.scheduledAt,
-    ...(i.student
-      ? {
-          subject: { kind: "student" as const, id: i.student.id, name: i.student.name },
-          href: `/students/${i.student.id}`,
-        }
-      : {}),
-    ...(i.program ? { program: i.program } : {}),
-  };
-  const detail = { name: i.student?.name ?? null };
-
-  if (i.status === INTERVIEW_STATUS.HELD || i.status === INTERVIEW_STATUS.CANCELLED) {
-    return status(
-      "MEETING_CLOSED",
-      v,
-      { closedAs: i.status === INTERVIEW_STATUS.CANCELLED ? "cancelled" : "held" },
-      extra
-    );
-  }
-
-  // Same day counts as still ahead: a whole-day meeting has no time to compare
-  // against, and one at 09:00 should not read as overdue over lunch.
-    const overdue = startOfDay(i.scheduledAt) < startOfToday(v.now) && !i.sessionId;
-  if (overdue) return status("MEETING_UNLOGGED", v, detail, extra);
-
-  if (i.status === INTERVIEW_STATUS.DECLINED) {
-    return status("MEETING_DECLINED", v, detail, extra);
-  }
-  if (i.status === INTERVIEW_STATUS.PROPOSED) {
-    return status("MEETING_AWAITING_ANSWER", v, detail, extra);
-  }
-  return status("MEETING_CONFIRMED", v, detail, extra);
-}
-
-/**
- * Midnight of a date, matching how meeting times are stored and read.
- *
- * Only correct for a stored `scheduledAt`, which is the program's wall clock
- * kept in a UTC field. A real instant — `viewer.now` — has to go through
- * `programWallClock` first, or the two sit on different calendar days for the
- * five hours after midnight in Tashkent and a meeting later that morning reads
- * as already overdue.
- */
-const startOfDay = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-const startOfToday = (now: Date) => startOfDay(programWallClock(now));
 
 // ---------------------------------------------------------------------------
 // Presentation of a whole list

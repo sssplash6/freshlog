@@ -65,33 +65,6 @@ export function parseDateField(
 }
 
 /**
- * Parse an OPTIONAL wall-clock time ("14:30") onto a UTC-midnight date. Blank
- * means "no time given", which is a real answer — a mentor may know the day
- * before they know the hour — so it yields the date untouched.
- *
- * Deliberately NOT timezone-converted: the hour is stored exactly as typed so
- * that the student reads back the hour the mentor meant (see the Interview
- * model).
- */
-export function parseTimeOnto(
-  date: Date,
-  raw: FormDataEntryValue | null
-): { value: Date; hasTime: boolean } | { error: string } {
-  const s = String(raw ?? "").trim();
-  if (!s) return { value: date, hasTime: false };
-  const match = /^(\d{2}):(\d{2})$/.exec(s);
-  if (!match) return { error: "Pick a valid time, or leave it blank." };
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  if (hours > 23 || minutes > 59) {
-    return { error: "Pick a valid time, or leave it blank." };
-  }
-  const withTime = new Date(date.getTime());
-  withTime.setUTCHours(hours, minutes, 0, 0);
-  return { value: withTime, hasTime: true };
-}
-
-/**
  * Parse an OPTIONAL link field (e.g. a student's file on Google Drive). Blank
  * means "no link" and yields null. A bare host like `drive.google.com/…` is
  * accepted and https-prefixed, since that's how links get pasted; anything

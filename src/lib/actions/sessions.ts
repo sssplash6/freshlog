@@ -23,7 +23,6 @@ import {
   TIME_KIND_META,
   timeKindFields,
   timeKindOf,
-  INTERVIEW_STATUS,
   NOTIFICATION_TYPES,
   SESSION_ANSWER,
   SESSION_STATUS,
@@ -32,7 +31,6 @@ import {
 import {
   formatDate,
   formatDuration,
-  formatMeetingWhen,
   formatMinutes,
 } from "@/lib/format";
 import { syncGoalProgress } from "@/lib/goal-progress";
@@ -65,59 +63,7 @@ function readHoursKind(raw: FormDataEntryValue | null): string {
   return value in TIME_KIND_META ? value : TIME_KIND.PLAN;
 }
 
-/** Midnight UTC on the day of `d`. */
-function dayStart(d: Date): Date {
-  return new Date(
-    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
-  );
-}
 
-/**
- * Retire the diary entry this session delivered, if there was one: a meeting
- * the same mentor had scheduled with the same student on the same day, still
- * open, not already tied to a session. Matching on the DAY rather than asking
- * the mentor to pick one keeps logging a single form — they already told us who
- * and when — and the worst a wrong match can do is close a meeting that did in
- * fact happen that day.
- *
- * Skipped for a rescheduled session: nothing was delivered, so the meeting is
- * still owed an outcome.
- */
-async function closeScheduledMeeting(
-  tx: Prisma.TransactionClient,
-  {
-    studentId,
-    mentorId,
-    date,
-    sessionId,
-  }: { studentId: string; mentorId: string; date: Date; sessionId: string }
-) {
-  const from = dayStart(date);
-  const to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
-  const meeting = await tx.interview.findFirst({
-    where: {
-      studentId,
-      mentorId,
-      sessionId: null,
-      status: {
-        in: [
-          INTERVIEW_STATUS.PROPOSED,
-          INTERVIEW_STATUS.CONFIRMED,
-          INTERVIEW_STATUS.DECLINED,
-        ],
-      },
-      scheduledAt: { gte: from, lt: to },
-    },
-    orderBy: { scheduledAt: "asc" },
-  });
-  if (!meeting) return null;
-
-  await tx.interview.update({
-    where: { id: meeting.id },
-    data: { status: INTERVIEW_STATUS.HELD, sessionId },
-  });
-  return meeting;
-}
 
 async function requireActiveMentor() {
   const actor = await getCurrentUser();
@@ -410,7 +356,7 @@ export async function logSession(
   // program back to somebody who was never asked about it is noise.
   const inProgram = reachable.length > 1 ? ` in ${program.name}` : "";
 
-  const { sessionId, sync, carved, poolAfter, meeting } = await prisma.$transaction(async (tx) => {
+  const { sessionId, sync, carved, poolAfter } = await prisma.$transaction(async (tx) => {
     const session = await tx.session.create({
       data: {
         studentId: profile.id,
@@ -425,18 +371,6 @@ export async function logSession(
         ...timeKindFields(kind),
       },
     });
-
-    // A meeting that was in the diary for that day has now happened, whoever
-    // paid for it: it leaves the upcoming list and points at the hours it
-    // became. A rescheduled session delivered nothing, so it retires nothing.
-    const meeting = rescheduled
-      ? null
-      : await closeScheduledMeeting(tx, {
-          studentId: profile.id,
-          mentorId: mentor.id,
-          date: dateParsed.value,
-          sessionId: session.id,
-        });
 
     // The carve, when logging from the pool: what the session charges becomes
     // this mentor's own allocation, and the pool shrinks by the same amount. A
@@ -583,7 +517,7 @@ export async function logSession(
         message: `"${synced.purpose}" for ${studentName} is complete: ${formatMinutes(synced.loggedMinutes)} of ${formatMinutes(synced.minuteLimit ?? 0)} planned hours logged.`,
       });
     }
-    return { sessionId: session.id, sync: synced, carved, poolAfter, meeting };
+    return { sessionId: session.id, sync: synced, carved, poolAfter };
   });
 
   revalidatePath("/", "layout");
@@ -605,14 +539,6 @@ export async function logSession(
   } else if (sync?.changed) {
     notes.push(`"${sync.purpose}" is now in progress.`);
   }
-  // The diary entry this closed, so an automatic tidy-up is never something the
-  // mentor discovers later by finding it gone.
-  if (meeting) {
-    notes.push(
-      `Your scheduled meeting on ${formatMeetingWhen(meeting.scheduledAt, meeting.hasTime)} is marked as held.`
-    );
-  }
-
   // Out-of-plan first: none of the balance arithmetic below applies to hours
   // that were never going to move a balance.
   let headline: string;

@@ -1,6 +1,5 @@
 import { AttentionList } from "@/components/attention-list";
 import { ApproveStudentButtons } from "@/components/forms/approve-student-buttons";
-import { InterviewResponse } from "@/components/forms/interview-response";
 import { NotificationList } from "@/components/notification-list";
 import { markAllNotificationsRead } from "@/lib/actions/notifications";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -43,7 +42,6 @@ const PER_PAGE = 50;
 /** The order the chips read in: what changes most often, first. */
 const CATEGORY_ORDER: NotificationCategory[] = [
   NOTIFICATION_CATEGORY.SESSIONS,
-  NOTIFICATION_CATEGORY.MEETINGS,
   NOTIFICATION_CATEGORY.HOURS,
   NOTIFICATION_CATEGORY.TASKS,
   NOTIFICATION_CATEGORY.DEADLINES,
@@ -135,20 +133,13 @@ export default async function NotificationsPage({
         empty={attention.empty}
         dismissible={attention.dismissible}
         renderAction={(s) => {
-          // The two rows that can discharge themselves where they are read.
-          // Both are the reader's own act — an admin approving a signup, a
-          // student saying whether they can make a meeting — and a trip to
-          // another page to say so is not the same request.
+          // The one row that can discharge itself where it is read: an admin
+          // approving a signup. It is the reader's own act, and a trip to
+          // another page to perform it is not the same request.
           if (s.type === "STUDENT_PENDING_APPROVAL" && s.subject) {
             return <ApproveStudentButtons studentProfileId={s.subject.id} />;
           }
-          const meeting = attention.answers.get(s);
-          return meeting ? (
-            <InterviewResponse
-              interviewId={meeting.id}
-              status={meeting.status}
-            />
-          ) : null;
+          return null;
         }}
         {...(attention.spilled > 0
           ? {

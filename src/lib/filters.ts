@@ -1,5 +1,5 @@
 import {
-  INTERVIEW_STATUS,
+
   NOTIFICATION_TYPES,
   ROLES,
   SESSION_STATUS,
@@ -627,23 +627,6 @@ export const KIND_OPTIONS: readonly FilterOption[] = [
   { value: "extra", label: "Extra, beyond their time" },
 ];
 
-/** A meeting's state, for the scheduled list. */
-const MEETING_STATUS_VALUES = {
-  proposed: INTERVIEW_STATUS.PROPOSED,
-  confirmed: INTERVIEW_STATUS.CONFIRMED,
-  declined: INTERVIEW_STATUS.DECLINED,
-  cancelled: INTERVIEW_STATUS.CANCELLED,
-  held: INTERVIEW_STATUS.HELD,
-} as const;
-
-export const MEETING_STATUS_OPTIONS: readonly FilterOption[] = [
-  { value: "proposed", label: "Awaiting an answer" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "declined", label: "Declined" },
-  { value: "cancelled", label: "Cancelled" },
-  { value: "held", label: "Held" },
-];
-
 /**
  * The notification categories, each as the types it covers.
  *
@@ -671,16 +654,6 @@ export const NOTIFICATION_CATEGORIES: readonly {
       NOTIFICATION_TYPES.SESSION_EDITED,
       NOTIFICATION_TYPES.SESSION_VOIDED,
       NOTIFICATION_TYPES.SESSION_DELETED,
-    ],
-  },
-  {
-    value: "meetings",
-    label: "Meetings",
-    types: [
-      NOTIFICATION_TYPES.INTERVIEW_SCHEDULED,
-      NOTIFICATION_TYPES.INTERVIEW_MOVED,
-      NOTIFICATION_TYPES.INTERVIEW_CANCELLED,
-      NOTIFICATION_TYPES.INTERVIEW_ANSWERED,
     ],
   },
   {
@@ -918,47 +891,6 @@ export function sessionsWhere(
 
   const search = searchWhere(SESSION_SEARCH, readParam(params, "q"));
   if (search) and.push(search);
-
-  return and.length > 0 ? { AND: and } : {};
-}
-
-/** Scheduled meetings, filtered — the other half of `/sessions`. */
-export function meetingsWhere(
-  params: SearchParams,
-  scope: FilterScope,
-  now: Date
-): Prisma.InterviewWhereInput {
-  const and: Prisma.InterviewWhereInput[] = [];
-
-  // A scheduled meeting names no program — it charges nothing, and which
-  // program it turns out to have been for is decided when it is logged — so it
-  // is reached through its student's enrollments. A student in two programs
-  // therefore has their meetings on both programs' lists, which is the honest
-  // answer for a diary entry that has not chosen yet.
-  if (scope.programIds) {
-    and.push({
-      student: {
-        enrollments: { some: { programId: { in: [...scope.programIds] } } },
-      },
-    });
-  }
-  if (scope.mentorId) and.push({ mentorId: scope.mentorId });
-  if (scope.studentId) and.push({ studentId: scope.studentId });
-
-  const student = readParam(params, "student");
-  if (student) and.push({ studentId: student });
-  const mentor = readPerson(params, "mentor", scope);
-  if (mentor) and.push({ mentorId: mentor });
-  const program = readParam(params, "program");
-  if (program) {
-    and.push({ student: { enrollments: { some: { programId: program } } } });
-  }
-
-  const date = dateWhere(readDateWindow(params, now));
-  if (date) and.push({ scheduledAt: date });
-
-  const status = readChoice(params, "status", MEETING_STATUS_VALUES);
-  if (status) and.push({ status });
 
   return and.length > 0 ? { AND: and } : {};
 }

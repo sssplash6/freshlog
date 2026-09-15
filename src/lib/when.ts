@@ -51,47 +51,8 @@ export function daysAway(at: Date, now: Date): number {
 
 export type Bucket = "overdue" | "today" | "week" | "later";
 
-export const BUCKET_LABEL: Record<Bucket, string> = {
-  overdue: "Overdue",
-  today: "Today",
-  week: "Next 7 days",
-  later: "Later",
-};
 
-/**
- * Which group a dated thing belongs in.
- *
- * Buckets are by DAY, not by the hour: a meeting at 09:00 is still "today" at
- * 17:00, because the row a reader is looking for after a missed morning call is
- * under Today, not silently moved to Overdue. Overdue means the day has
- * passed. What is unlogged from earlier today is the attention list's job.
- */
-export function bucketOf(at: Date, now: Date): Bucket {
-  const days = daysAway(at, now);
-  if (days < 0) return "overdue";
-  if (days === 0) return "today";
-  if (days <= 7) return "week";
-  return "later";
-}
 
-/**
- * The day, in the words a person scanning a list would use: "Today",
- * "Tomorrow", "Thu", then a date once the weekday stops being enough.
- */
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
-export function formatDay(at: Date, now: Date): string {
-  const days = daysAway(at, now);
-  if (days === 0) return "Today";
-  if (days === 1) return "Tomorrow";
-  if (days === -1) return "Yesterday";
-  if (days > 1 && days <= 7) return WEEKDAYS[at.getUTCDay()];
-  return `${MONTHS[at.getUTCMonth()]} ${at.getUTCDate()}`;
-}
 
 /**
  * A meeting's time, labelled with the zone it means.

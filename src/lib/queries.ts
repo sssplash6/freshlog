@@ -325,42 +325,6 @@ export type LedgerStudentTask = Awaited<
 >["tasks"][number];
 
 /**
- * One student's scheduled meetings, whoever booked them, newest date first.
- * Everyone who can see the student sees all of them — the same reasoning as the
- * meetings log: a mentor picking up an essay should know the student already
- * has a mock interview on Thursday with someone else.
- *
- * Callers bucket these with `splitMeetings` (lib/interviews.ts) rather than
- * filtering by date here, so "upcoming" means the same thing on every page.
- */
-export async function studentMeetings(studentProfileId: string) {
-  return prisma.interview.findMany({
-    where: { studentId: studentProfileId },
-    include: { mentor: true },
-    orderBy: { scheduledAt: "desc" },
-  });
-}
-
-export type StudentMeeting = Awaited<
-  ReturnType<typeof studentMeetings>
->[number];
-
-/**
- * A mentor's own diary: every meeting they have on the books, with the student
- * on it. Not date-filtered for the same reason as `studentMeetings` — the
- * overdue ones are exactly what a mentor's dashboard needs to surface.
- */
-export async function mentorMeetings(mentorId: string) {
-  return prisma.interview.findMany({
-    where: { mentorId },
-    include: { mentor: true, student: { include: { user: true } } },
-    orderBy: { scheduledAt: "desc" },
-  });
-}
-
-export type MentorMeeting = Awaited<ReturnType<typeof mentorMeetings>>[number];
-
-/**
  * The most recent meetings across students, for the log that leads a dashboard.
  * Scoped to one mentor when given, otherwise every program's sessions.
  */
