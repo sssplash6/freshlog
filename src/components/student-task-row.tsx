@@ -143,7 +143,10 @@ export function StudentTaskRow({
           Wrapping rather than truncating: a title is a sentence somebody
           wrote, and a row that cuts it off on a phone is a row a phone reader
           cannot act on. */}
-      <div className="flex items-start gap-x-2">
+      {/* One axis — see the meeting row. The ⋮ is a 36px target, so the row
+          is 36px tall regardless, and top-aligning the rest of it only moved
+          the text seven pixels off the icon beside it. */}
+      <div className="flex items-center gap-x-2">
         {/* NO WRAPPING, for the reason the meeting row's line carries: with
             `flex-wrap` the title dropped to a line of its own or did not,
             depending on how long that row's mentor happened to be called. The
@@ -151,19 +154,19 @@ export function StudentTaskRow({
             the MENTOR is what gives way — a long name truncates inside its own
             chip rather than pushing the work this row is about onto a line of
             its own. */}
-        <div className="flex min-w-0 flex-1 items-start gap-x-2">
+        <div className="flex min-w-0 flex-1 items-center gap-x-2">
           {/* WHEN. First, because a to-do list is read by what is next, and
               the overdue chip replaces the plain date rather than sitting
               beside a second copy of it — its own label already carries the
               day. */}
           {overdue ? (
-            <span className="shrink-0 py-0.5">
+            <span className="shrink-0">
               <StatusChip status={overdue} />
             </span>
           ) : (
             // Its own width — see the meeting row. A column wide enough for
             // "September 26" left "October 4" trailing 40px of nothing.
-            <span className="shrink-0 whitespace-nowrap py-0.5 text-xs font-medium tabular-nums text-ink">
+            <span className="shrink-0 whitespace-nowrap text-xs font-medium tabular-nums text-ink">
               {formatDate(task.dueOn)}
             </span>
           )}
@@ -173,7 +176,7 @@ export function StudentTaskRow({
             <PersonChip person={task.mentor} size="sm" href={task.mentor.href} />
           </span>
           {task.program && (
-            <span className="shrink-0 py-0.5 text-xs text-muted-fg">
+            <span className="shrink-0 text-xs text-muted-fg">
               {task.program.name}
             </span>
           )}
@@ -194,7 +197,7 @@ export function StudentTaskRow({
             a half-width column the 48px it wanted came straight out of the
             title beside it — which is the one thing on the line that cannot
             be read in less space than it takes. */}
-        <span className="flex shrink-0 items-start gap-1.5 py-0.5">
+        <span className="flex shrink-0 items-center gap-1.5">
           {done ? (
             progressStatus && (
               <StatusChip

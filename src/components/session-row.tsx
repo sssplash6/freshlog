@@ -267,7 +267,12 @@ export function SessionRow({
               outside the wrap, so a long agenda item rewraps under the date
               and the mentor rather than pushing the figure onto a line by
               itself. */}
-          <div className="flex items-start gap-x-2">
+          {/* ONE AXIS. The pencil is a 36px target in a 22px line, so the
+              row is 36px tall whatever else happens — and with `items-start`
+              everything else parked at the top of it while the icon sat
+              centred, seven pixels lower. Centring costs no height at all,
+              because the button had already set it. */}
+          <div className="flex items-center gap-x-2">
             {/* NO WRAPPING. It was `flex-wrap` with the agenda item on a
                 160px basis, so whether the item sat on the line or dropped to
                 one of its own came down to how long that row's mentor happened
@@ -278,7 +283,7 @@ export function SessionRow({
                 width is its and the MENTOR is what gives way: a long name
                 truncates inside its own chip (capped at 11rem) rather than
                 pushing the work this row is about onto another line. */}
-            <div className="flex min-w-0 flex-1 items-start gap-x-2.5 text-[0.8125rem]">
+            <div className="flex min-w-0 flex-1 items-center gap-x-2.5 text-[0.8125rem]">
               {/* Its own width, and no minimum. It was a 96px column, so
                   that "September 30" would fit and every date would start the
                   mentor chip at the same x — which meant "July 30" sat in 55px
@@ -286,7 +291,7 @@ export function SessionRow({
                   thing on the row. The figure at the other end is the one that
                   earns a fixed column: a ledger is scanned down its numbers,
                   not down the left edge of its names. */}
-              <span className="shrink-0 whitespace-nowrap py-0.5 tabular-nums text-muted-fg">
+              <span className="shrink-0 whitespace-nowrap tabular-nums text-muted-fg">
                 {formatDate(date)}
               </span>
               <span className="flex min-w-0 max-w-44">
@@ -301,7 +306,7 @@ export function SessionRow({
               {task && (
                 <span
                   title={task.purpose}
-                  className={cn("min-w-0 flex-1 truncate py-0.5 font-medium", textTone)}
+                  className={cn("min-w-0 flex-1 truncate font-medium", textTone)}
                 >
                   {task.purpose}
                 </span>
@@ -310,7 +315,7 @@ export function SessionRow({
             {/* Right-aligned in a fixed column, so 22, 60 and 180 stack into
                 one edge instead of three. It is the only figure on the row and
                 a ledger is read by scanning figures. */}
-            <span className="flex shrink-0 items-start gap-2 py-0.5 text-[0.8125rem]">
+            <span className="flex shrink-0 items-center gap-2 text-[0.8125rem]">
               <span className="w-16 text-right">{duration}</span>
               {/* On the header line, not under the row. A pencil on a line of
                   its own is a whole row of height per session, down a ledger

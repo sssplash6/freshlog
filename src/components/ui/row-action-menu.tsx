@@ -73,9 +73,15 @@ export function RowActionMenu({
         // way, so the word was only ever teaching a pencil what a pencil means.
         triggerClassName={cn(
           // 44px on a phone, where a mis-tap opens the wrong row's menu, and
-          // 36px from sm up, where the pointer is precise and a column of
+          // 28px from sm up, where the pointer is precise and a column of
           // 44px squares is louder than the rows it sits beside.
-          "inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-fg transition sm:h-9 sm:w-9",
+          //
+          // 28 and not 36: a row's text line is about twenty pixels, so a 36px
+          // control set the height of every row it sat in and left eight pixels
+          // of empty band under the words — which is the gap that made a note
+          // read as detached from the line above it. The icon is 16px, so 28
+          // still leaves it six pixels of air on every side.
+          "inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-fg transition sm:h-7 sm:w-7",
           // The tint says "target" and the ring says "pressable" — a border
           // sitting there permanently would say it on every row of the table at
           // once, which is the same as saying it nowhere.
