@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { SearchIcon } from "@/components/icons";
 import { SidebarNav } from "@/components/nav-links";
+import { RailToggle } from "@/components/rail-toggle";
 import type { NavItem } from "@/lib/nav";
 
 /**
@@ -35,18 +36,29 @@ export function Sidebar({
   account: React.ReactNode;
 }) {
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[13.75rem] flex-col border-r border-line bg-surface lg:flex">
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-5">
-        <div className="flex flex-col gap-3 px-1">
-          <Link href="/" className="text-base font-bold tracking-tight text-brand">
-            freshlog
-          </Link>
-          {switcher}
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[13.75rem] flex-col border-r border-line bg-surface lg:flex rail-collapsed:w-16">
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-5 rail-collapsed:px-2">
+        <div className="flex flex-col gap-3 px-1 rail-collapsed:px-0">
+          {/* The wordmark and the toggle share the top line, and the wordmark
+              is what gives way when the rail shuts: the control that reopens
+              it has to survive being collapsed, or there is no way back. */}
+          <div className="flex items-center justify-between gap-2 rail-collapsed:justify-center">
+            <Link
+              href="/"
+              className="text-base font-bold tracking-tight text-brand rail-collapsed:hidden"
+            >
+              freshlog
+            </Link>
+            <RailToggle />
+          </div>
+          <div className="rail-collapsed:hidden">{switcher}</div>
         </div>
-        {search && <NavSearch mentors={search.mentors} />}
+        <div className="rail-collapsed:hidden">
+          {search && <NavSearch mentors={search.mentors} />}
+        </div>
         <SidebarNav items={items} utility={utility} />
       </div>
-      <div className="border-t border-line p-2">{account}</div>
+      <div className="border-t border-line p-2 rail-collapsed:hidden">{account}</div>
     </aside>
   );
 }

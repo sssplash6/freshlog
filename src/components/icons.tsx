@@ -206,6 +206,84 @@ export function LinkIcon({ className }: { className?: string }) {
   );
 }
 
+/*
+ * The nav's own set. Minimal on purpose: these sit at 16px beside a word that
+ * already says what the place is, so their whole job is to give the eye a
+ * shape to aim at down a column of labels — not to carry the meaning alone.
+ */
+
+/** Whatever is waiting for you. */
+export function InboxIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path d="M3 13h4l2 3h6l2-3h4" />
+      <path d="M5 5h14l2 8v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5z" />
+    </Svg>
+  );
+}
+
+/** A roster — more than one person. */
+export function UsersIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3 20a6 6 0 0 1 12 0" />
+      <path d="M16.5 5.5a3.2 3.2 0 0 1 0 5.4M17 14.5a6 6 0 0 1 4 5.5" />
+    </Svg>
+  );
+}
+
+/** One person, doing the work. */
+export function UserIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <circle cx="12" cy="8" r="3.4" />
+      <path d="M5 20a7 7 0 0 1 14 0" />
+    </Svg>
+  );
+}
+
+/** A program: things stacked into one thing. */
+export function LayersIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path d="m12 3 8 4.5-8 4.5-8-4.5z" />
+      <path d="m4 12.5 8 4.5 8-4.5" />
+      <path d="m4 17 8 4.5 8-4.5" />
+    </Svg>
+  );
+}
+
+/** Everything about the reader themself. */
+export function GearIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6" />
+    </Svg>
+  );
+}
+
+/** A student's own front page. */
+export function HomeIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path d="M4 10.5 12 4l8 6.5" />
+      <path d="M6 9.8V20h12V9.8" />
+    </Svg>
+  );
+}
+
+/** The rail, open or shut. */
+export function PanelIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9.5 4v16" />
+    </Svg>
+  );
+}
+
 /** Add one of whatever the surface is a list of. */
 export function PlusIcon({ className }: { className?: string }) {
   return (

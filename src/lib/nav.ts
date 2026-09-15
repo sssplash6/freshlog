@@ -41,24 +41,13 @@ export type NavItem = {
   /**
    * A number beside the label.
    *
-   * ONLY Inbox and Notifications carry one, anywhere in the chrome. A count is
-   * a claim that something is waiting; put one on Students and it reads as a
-   * queue rather than a roster, and a reader who learns that one badge is
-   * decorative stops believing the two that are not.
+   * ONLY Inbox carries one in the rail; the bell in the corner carries the
+   * other. A count is a claim that something is waiting; put one on Students
+   * and it reads as a queue rather than a roster, and a reader who learns that
+   * one badge is decorative stops believing the two that are not.
    */
   count?: number;
 };
-
-/**
- * The one item that is not about a place in the app but about the reader.
- *
- * One address, which it briefly was not: the feed spent a while rendered on
- * each home under an anchor, with this row pointing at it, and the page it is
- * named after sitting unlinked. Both halves are at `/notifications` now.
- */
-export function notificationsItem(unread: number): NavItem {
-  return { href: "/notifications", label: "Notifications", count: unread };
-}
 
 const STUDENT_NAV: NavItem[] = [
   { href: "/student", label: "Home" },

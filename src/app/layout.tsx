@@ -71,7 +71,7 @@ export const viewport: Viewport = {
  * try/catch because reading `localStorage` throws outright in a browser set to
  * block site data, and a theme is not worth a blank page.
  */
-const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t!=="dark"&&t!=="light"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t}catch(e){}})()`;
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t!=="dark"&&t!=="light"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t;if(localStorage.getItem("rail")==="collapsed"){document.documentElement.dataset.rail="collapsed"}}catch(e){}})()`;
 
 export default function RootLayout({
   children,

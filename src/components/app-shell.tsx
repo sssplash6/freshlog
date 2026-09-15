@@ -4,6 +4,10 @@ import { Avatar } from "@/components/avatar";
 import { ChevronDownIcon, LogOutIcon } from "@/components/icons";
 import { NavLinks } from "@/components/nav-links";
 import {
+  NotificationBell as NotificationMenu,
+  type BellNotification,
+} from "@/components/notification-bell";
+import {
   ProfileShortcut,
   ProfileSwitch,
   ProfileSwitchMenu,
@@ -17,7 +21,7 @@ import { signOut } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { adminScope, scopeIsEmpty } from "@/lib/authz";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
-import { navFor, notificationsItem, type NavItem } from "@/lib/nav";
+import { navFor, type NavItem } from "@/lib/nav";
 import { prisma } from "@/lib/prisma";
 import { canSwitchProfile, profileOf, type Profile } from "@/lib/profile";
 import type { User } from "@/generated/prisma/client";
@@ -239,6 +243,8 @@ function StaffShell({
   items,
   lens,
   search,
+  recent,
+  now,
   children,
 }: {
   user: User;
@@ -247,6 +253,10 @@ function StaffShell({
   /** The lens, for the two people in one — null for everybody with one lens. */
   lens: Profile | null;
   search?: { mentors: boolean };
+  /** The last few notices, for the bell's own panel. */
+  recent: BellNotification[];
+  /** One instant for every "3h ago" the panel prints. */
+  now: Date;
   children: React.ReactNode;
 }) {
   const account = (
@@ -258,24 +268,30 @@ function StaffShell({
   );
 
   return (
-    <div className="flex min-h-full flex-1 flex-col lg:pl-[13.75rem]">
+    <div className="flex min-h-full flex-1 flex-col lg:pl-[13.75rem] rail-collapsed:lg:pl-16">
       {/* Once for the whole shell: the switch is in the DOM twice (one of them
           hidden by a breakpoint), so a listener on either would fire twice. */}
       {lens && <ProfileShortcut />}
 
       <Sidebar
         items={items}
-        // The gear carries its word: an icon alone is the thing §4.1 rules out,
-        // and this is the row a reader reaches for least often and needs to
-        // recognise fastest.
-        utility={[
-          notificationsItem(unread),
-          { href: "/settings", label: "Settings" },
-        ]}
+        // Settings alone. Notifications left the rail for the bell in the
+        // corner: it was the one row in a column of PLACES that changes on its
+        // own, which made what has happened look like somewhere to go.
+        utility={[{ href: "/settings", label: "Settings" }]}
         switcher={lens ? <ProfileSwitch active={lens} /> : undefined}
         search={search}
         account={account}
       />
+
+      {/* Top right, over the page rather than in a bar of its own: a bar would
+          cost every page a band of chrome to hold one control, and the corner
+          is in the same place whether the rail is open or shut. */}
+      <div className="pointer-events-none fixed right-4 top-4 z-30 hidden lg:block">
+        <div className="pointer-events-auto">
+          <NotificationMenu unread={unread} recent={recent} now={now} />
+        </div>
+      </div>
 
       <div className="lg:hidden">
         {/* The same measure as the page below it, so the wordmark lines up
@@ -390,10 +406,27 @@ export async function AppShell({
     return <PublicShell user={user}>{children}</PublicShell>;
   }
 
-  const [profile, unread] = await Promise.all([
+  // Six rows and a count, in one round trip each. The panel is a glance, so
+  // `take: 6` is the whole of it — `/notifications` is where the feed lives.
+  const [profile, unread, recent] = await Promise.all([
     profileOf(user),
     prisma.notification.count({ where: { userId: user.id, read: false } }),
+    prisma.notification.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      select: {
+        id: true,
+        type: true,
+        message: true,
+        read: true,
+        createdAt: true,
+      },
+    }),
   ]);
+  // One instant for every "3h ago" the bell prints, computed here rather than
+  // inside the render, for the reason `ViewerContext.now` exists.
+  const now = new Date();
   const items = await navFor(user, profile);
 
   if (user.role === ROLES.STUDENT) {
@@ -416,6 +449,8 @@ export async function AppShell({
     <StaffShell
       user={user}
       unread={unread}
+      recent={recent}
+      now={now}
       items={items}
       lens={canSwitchProfile(user) ? profile : null}
       search={search}

@@ -343,6 +343,29 @@ body {
 }
 
 /*
+ * THE RAIL, OPEN OR SHUT.
+ *
+ * The state is an attribute on <html>, set before the first paint by the same
+ * kind of inline script the theme uses — no React state, for the same three
+ * reasons stated on `ThemeToggle`: the server cannot know which way a browser
+ * left it, correcting a guess in an effect is a cascading render, and the rail
+ * would visibly jump on every page load.
+ *
+ * It costs nothing below `lg`, where there is no rail at all — a phone gets the
+ * tab bar, and collapsing something that is not on screen is not a feature.
+ *
+ * `rail-collapsed:` is the variant every piece of the rail styles itself with,
+ * so a component never has to know how the state is stored.
+ */
+@custom-variant rail-collapsed {
+  @media (width >= 64rem) {
+    :where(html[data-rail="collapsed"]) & {
+      @slot;
+    }
+  }
+}
+
+/*
  * A thread of brand orange running round a control's edge, forever.
  *
  * One conic gradient, spun by animating its own angle. `@property` is what

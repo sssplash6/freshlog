@@ -3,8 +3,54 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import {
+  CalendarIcon,
+  GearIcon,
+  HomeIcon,
+  InboxIcon,
+  LayersIcon,
+  PlusIcon,
+  StarIcon,
+  UserIcon,
+  UsersIcon,
+} from "@/components/icons";
 import { cn } from "@/lib/cn";
 import type { NavItem } from "@/lib/nav";
+
+/**
+ * A shape to aim at, beside the word that carries the meaning.
+ *
+ * Resolved from the HREF rather than stored on `NavItem`, because `lib/nav.ts`
+ * is `server-only` and an icon is a component — and because one of these items
+ * is a PROGRAM'S OWN NAME, which no map keyed on a label could ever cover. The
+ * href is the thing every item actually has.
+ *
+ * Longest prefix wins, the same rule `useCurrentNavItem` uses, so
+ * `/student/meetings` is a calendar rather than a house. Anything unmatched
+ * gets the program mark: the only unlisted hrefs are `/programs/:id`.
+ */
+const NAV_ICONS: [string, (p: { className?: string }) => React.ReactNode][] = [
+  ["/student/meetings", CalendarIcon],
+  ["/student/book", PlusIcon],
+  ["/student/feedback", StarIcon],
+  ["/student", HomeIcon],
+  ["/admin", InboxIcon],
+  ["/mentor", InboxIcon],
+  ["/students", UsersIcon],
+  ["/mentors", UserIcon],
+  ["/programs", LayersIcon],
+  ["/sessions", CalendarIcon],
+  ["/feedback", StarIcon],
+  ["/notifications", InboxIcon],
+  ["/settings", GearIcon],
+];
+
+function NavIcon({ href, className }: { href: string; className?: string }) {
+  const hit = NAV_ICONS.filter(([prefix]) => href === prefix || href.startsWith(`${prefix}/`))
+    .sort((a, b) => b[0].length - a[0].length)[0];
+  const Icon = hit ? hit[1] : LayersIcon;
+  return <Icon className={className} />;
+}
 
 /**
  * Which item the reader is standing on.
@@ -103,18 +149,24 @@ export function SidebarNav({
         key={item.href}
         href={item.href}
         aria-current={active ? "page" : undefined}
+        // `title` is what a collapsed rail leaves a reader: the label is
+        // display:none there, so the browser's own tooltip is the label.
+        title={item.label}
         className={cn(
-          "flex min-h-11 items-center justify-between gap-2 rounded-lg px-3 text-sm transition-colors",
+          "flex min-h-11 items-center gap-2.5 rounded-lg px-3 text-sm transition-colors rail-collapsed:justify-center rail-collapsed:px-0",
           active
             ? "bg-brand-soft font-semibold text-brand"
             : "font-medium text-muted-fg hover:bg-canvas hover:text-ink"
         )}
       >
+        <NavIcon href={item.href} className="h-4 w-4 shrink-0" />
         {/* A program's name is the one label that can be long, and it takes a
             second line rather than sliding out of view. */}
-        <span className="min-w-0">{item.label}</span>
+        <span className="min-w-0 flex-1 rail-collapsed:hidden">{item.label}</span>
         {item.count != null && item.count > 0 && (
-          <NavCount count={item.count} muted={active} />
+          <span className="rail-collapsed:hidden">
+            <NavCount count={item.count} muted={active} />
+          </span>
         )}
       </Link>
     );
