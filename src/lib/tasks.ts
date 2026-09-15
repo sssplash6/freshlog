@@ -22,7 +22,17 @@ export { TASK_PRESETS };
 /** What the picker submits for "none of these — I'll type it". */
 export const TASK_OTHER = "__other__";
 
-export const MAX_TASK_LENGTH = 200;
+/**
+ * 100, down from 200.
+ *
+ * An agenda item is a NAME — "Main essay", "Recommendation letters" — and it is
+ * read inside a session row beside a date, a person and a figure. At 200 it was
+ * long enough to be a sentence, and one such row wrapped to three lines in a
+ * half-width column and pushed every other row down with it. Nothing in the
+ * database was over 52 characters when this was cut, so it takes nothing away
+ * from what anybody has actually written.
+ */
+export const MAX_TASK_LENGTH = 100;
 
 /**
  * Read a task out of a submitted form: the picked preset (or existing task), or

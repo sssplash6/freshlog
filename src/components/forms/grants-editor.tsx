@@ -49,7 +49,7 @@ export function GrantsEditor({
   );
 
   return (
-    <RowActionMenu trigger="pencil" label={`Change ${row.name ?? row.email}'s access`} verb="Edit" width="lg">
+    <RowActionMenu trigger="pencil" label={`Change ${row.name ?? row.email}'s access`} width="lg">
       <RowActionGroup label="Programs">
         <form action={action} className="space-y-2">
           <input type="hidden" name="userId" value={row.userId} />

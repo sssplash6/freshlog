@@ -36,7 +36,6 @@ export function MeetingRowActions({
     <RowActionMenu
       trigger="pencil"
       label="Change this meeting"
-      verb="Change"
       width="lg"
     >
       <RowActionGroup label="Move this meeting">

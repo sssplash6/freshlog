@@ -23,7 +23,7 @@ import { taskStatuses, type Status, type ViewerContext } from "@/lib/status";
  * progress" cannot mean one thing on a student's home and another on the board.
  */
 
-export const MAX_TASK_TITLE = 120;
+export const MAX_TASK_TITLE = 100;
 export const MAX_TASK_NOTE = 500;
 
 /**

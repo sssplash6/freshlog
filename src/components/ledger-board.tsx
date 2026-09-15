@@ -290,7 +290,7 @@ export function LedgerBoard({
           ) : (
             <div className={PANE}>
               <GroupRule label="Still to come" count={ahead.length} />
-              <ul className="divide-y divide-line/50">
+              <ul className="divide-y divide-line">
                 {ahead.map((m) => (
                   <UpcomingMeetingRow key={m.id} meeting={m} viewer={viewer} />
                 ))}
@@ -308,7 +308,7 @@ export function LedgerBoard({
                   between it and the edge, so a hovered row's pencil widened
                   into the column divider and every other row in the card
                   started 20px further in than these did. */}
-              <ul className="divide-y divide-line/50 [&>li]:px-4 sm:[&>li]:px-5">
+              <ul className="divide-y divide-line [&>li]:px-4 sm:[&>li]:px-5">
                 {toSessionEntries(logged, { mentorBase }).map((s, i) => (
                   <SessionRow
                     key={s.id}
@@ -350,7 +350,7 @@ export function LedgerBoard({
             // and a row has to be able to scroll clear of it.
             <div className={`${PANE} pb-14`}>
               <GroupRule label="To do" count={openTasks.length} />
-              <ul className="divide-y divide-line/50">
+              <ul className="divide-y divide-line">
                 {openTasks.map((t, i) => (
                   <StudentTaskRow
                     key={t.id}
@@ -362,7 +362,7 @@ export function LedgerBoard({
                 ))}
               </ul>
               <GroupRule label="Finished" count={doneTasks.length} />
-              <ul className="divide-y divide-line/50">
+              <ul className="divide-y divide-line">
                 {doneTasks.map((t) => (
                   <StudentTaskRow
                     key={t.id}
@@ -410,7 +410,7 @@ export function LedgerBoard({
         ) : (
           <div className={PANE}>
             <GroupRule label="In progress" count={planned.length} />
-            <ul className="divide-y divide-line/50">
+            <ul className="divide-y divide-line">
               {toTaskEntries(planned, { mentorBase }).map((t, i) => (
                 <TaskRow
                   key={t.id}
@@ -425,7 +425,7 @@ export function LedgerBoard({
             <GroupRule label="Finished" count={finished.length} />
             {/* Finished work is one line each: it is here to be counted and
                 to be findable, not to be read again. */}
-            <ul className="divide-y divide-line/50">
+            <ul className="divide-y divide-line">
               {toTaskEntries(finished, { mentorBase }).map((t, i) => (
                 <TaskRow
                   key={t.id}

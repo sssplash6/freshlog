@@ -151,7 +151,9 @@ export function StudentTaskRow({
         {overdue ? (
           <StatusChip status={overdue} />
         ) : (
-          <span className="shrink-0 text-xs font-medium tabular-nums text-ink">
+          // A fixed column, like the date on a meeting row: the mentor chip
+          // after it starts in the same place on every line.
+          <span className="w-20 shrink-0 text-xs font-medium tabular-nums text-ink">
             {formatDate(task.dueOn)}
           </span>
         )}
@@ -188,7 +190,7 @@ export function StudentTaskRow({
             )
           ) : (
             <span
-              className="text-xs font-semibold tabular-nums text-ink"
+              className="w-9 text-right text-xs font-semibold tabular-nums text-ink"
               aria-label={`${task.percent}% of the way through`}
             >
               {task.percent}%

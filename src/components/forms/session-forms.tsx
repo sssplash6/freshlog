@@ -62,7 +62,6 @@ export function SessionRowActions({
     <RowActionMenu
       trigger="pencil"
       label={canEdit ? "Edit this session" : "Manage this session"}
-      verb={canEdit ? "Edit" : "Manage"}
       width="lg"
     >
       {!canEdit && (

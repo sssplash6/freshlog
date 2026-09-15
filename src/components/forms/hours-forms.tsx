@@ -11,6 +11,7 @@ import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { toDateInputValue } from "@/lib/format";
+import { MAX_TASK_LENGTH } from "@/lib/tasks";
 import {
   deleteAssignment,
   setAssignmentProgress,
@@ -260,7 +261,7 @@ function TaskPanel({
             <GrowingField
               name="purpose"
               required
-              maxLength={200}
+              maxLength={MAX_TASK_LENGTH}
               defaultValue={task.purpose}
             />
           </Field>

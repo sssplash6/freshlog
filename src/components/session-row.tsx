@@ -22,7 +22,6 @@ import {
   formatMinutes,
   toDateInputValue,
 } from "@/lib/format";
-import { personTone } from "@/lib/person-tone";
 import { sessionStatuses, type ViewerContext } from "@/lib/status";
 
 /**
@@ -240,23 +239,22 @@ export function SessionRow({
     return (
       <li
         id={anchor}
-        className={cn("group flex gap-4 pb-3 last:pb-0", index != null && "deal-in")}
+        // PACKED INSIDE, DISTANCED BETWEEN. One entry's two lines sit two
+        // pixels apart and its neighbours ten from its edges, so the eye reads
+        // a block and then a gap rather than five lines with rules through
+        // them. It was `pb-3 last:pb-0` — space under a row and none above
+        // it — so every date sat hard against the hairline above it while the
+        // note under it had room to spare, which is the exact inverse.
+        className={cn("group py-2.5", index != null && "deal-in")}
         style={stagger}
       >
-        {/* The rail: a dot in the mentor's own hue, so a run of sessions with
-            one person reads as a run, joined by a hairline that stops itself at
-            the last entry — `group-last` rather than an `isLast` prop, which
-            existed only because a row could not see its own position. */}
-        <div aria-hidden="true" className="flex flex-col items-center">
-          <span
-            className={cn(
-              "mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-4 ring-surface",
-              voided ? "bg-line" : personTone(mentor.id).badge,
-            )}
-          />
-          <span className="mt-1 w-px flex-1 bg-line group-last:hidden" />
-        </div>
-
+        {/* NO RAIL. It was a dot in the mentor's own hue joined by a hairline
+            down the column — twenty-six pixels of width and a vertical line
+            running through the gap between every pair of rows, tying together
+            the entries this list wants read as separate. The colour was the
+            second statement of it anyway: the mentor's chip is ten pixels to
+            its right, in the same hue, with their name in it. The width goes
+            to the agenda item, which is what was wrapping. */}
         <div className="min-w-0 flex-1">
           {/* Date · Mentor · Agenda, on one line, with the minutes and the
               pencil against the right edge — the same shape a task row has,
@@ -271,7 +269,12 @@ export function SessionRow({
               itself. */}
           <div className="flex items-start gap-x-2">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.8125rem]">
-              <span className="shrink-0 tabular-nums text-muted-fg">
+              {/* A FIXED column, not a value that pushes what follows it.
+                  "July 3" and "September 30" are eight pixels apart, so the
+                  mentor chip started somewhere new on every row and the eye
+                  had to find it again each time. `w-20` fits the longest date
+                  this formatter produces. */}
+              <span className="w-20 shrink-0 tabular-nums text-muted-fg">
                 {formatDate(date)}
               </span>
               <PersonChip person={mentor} size="sm" href={mentor.href} />
@@ -281,8 +284,11 @@ export function SessionRow({
                 </span>
               )}
             </div>
+            {/* Right-aligned in a fixed column, so 22, 60 and 180 stack into
+                one edge instead of three. It is the only figure on the row and
+                a ledger is read by scanning figures. */}
             <span className="flex shrink-0 items-center gap-2 text-[0.8125rem]">
-              {duration}
+              <span className="w-16 text-right">{duration}</span>
               {/* On the header line, not under the row. A pencil on a line of
                   its own is a whole row of height per session, down a ledger
                   that is read by scrolling. */}
@@ -293,7 +299,7 @@ export function SessionRow({
               copy of it: a ledger of forty sessions should not have to be
               opened row by row to find the one that says "missed an hour, not
               excused". Tapping the line unfolds the rest. */}
-          {note && <ExpandableNote text={note} className="mt-1" />}
+          {note && <ExpandableNote text={note} className="mt-0.5" />}
           {/* What the student said back. It sits under the mentor's own note
               on purpose: the row reads as the record, then the answer to it. */}
           {session.studentAnswer && (session.studentRating || session.studentNote) && (

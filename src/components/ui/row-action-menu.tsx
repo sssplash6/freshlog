@@ -39,7 +39,6 @@ import { cn } from "@/lib/cn";
 export function RowActionMenu({
   trigger,
   label,
-  verb,
   children,
   contents = "fields",
   width = "lg",
@@ -52,8 +51,6 @@ export function RowActionMenu({
   trigger: "dots" | "pencil";
   /** The trigger's accessible name, and the panel's: "Edit this session". */
   label: string;
-  /** The word a pencil reveals on hover or focus — "Edit", "Change". */
-  verb?: string;
   children: React.ReactNode | ((api: { close: () => void }) => React.ReactNode);
   /** `"actions"` only when the panel holds no fields at all. See `Popover`. */
   contents?: PopoverContents;
@@ -68,39 +65,28 @@ export function RowActionMenu({
         contents={contents}
         origin="end"
         width={width}
+        // One box for both triggers, and the glyph is the only difference.
+        // The pencil used to widen on hover to reveal the word "Edit" — a
+        // control that changes size under the cursor, in a column of rows that
+        // reflow when it does, and the widened chip ran into whatever was to
+        // its right. `label` says "Edit this session" to assistive tech either
+        // way, so the word was only ever teaching a pencil what a pencil means.
         triggerClassName={cn(
           // 44px on a phone, where a mis-tap opens the wrong row's menu, and
           // 36px from sm up, where the pointer is precise and a column of
           // 44px squares is louder than the rows it sits beside.
-          "group inline-flex h-11 items-center justify-center rounded-lg text-muted-fg transition",
+          "inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-fg transition sm:h-9 sm:w-9",
           // The tint says "target" and the ring says "pressable" — a border
           // sitting there permanently would say it on every row of the table at
           // once, which is the same as saying it nowhere.
           "hover:bg-brand-soft hover:text-brand hover:ring-2 hover:ring-brand/15",
           "data-[open]:bg-brand-soft data-[open]:text-brand data-[open]:ring-2 data-[open]:ring-brand/15",
-          trigger === "dots"
-            ? "w-11 sm:h-9 sm:w-9"
-            : "gap-1.5 whitespace-nowrap px-2.5 text-[0.8125rem] font-medium sm:h-9",
         )}
         trigger={
           trigger === "dots" ? (
             <MoreVerticalIcon className="h-4 w-4" />
           ) : (
-            <>
-              <PencilIcon className="h-4 w-4 shrink-0" />
-              {verb && (
-                // The word is what teaches the icon; once learned the icon is
-                // enough, and a column of pencils is quieter than a column of
-                // buttons. Hidden from assistive tech because `label` already
-                // says this, at more length.
-                <span
-                  aria-hidden="true"
-                  className="max-w-0 overflow-hidden opacity-0 transition-all duration-150 ease-out group-hover:max-w-24 group-hover:opacity-100 group-focus-visible:max-w-24 group-focus-visible:opacity-100 group-data-[open]:max-w-24 group-data-[open]:opacity-100 motion-reduce:transition-none"
-                >
-                  {verb}
-                </span>
-              )}
-            </>
+            <PencilIcon className="h-4 w-4" />
           )
         }
       >

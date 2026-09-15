@@ -53,7 +53,7 @@ export function StudentNameChange({
 }) {
   const [, action, save] = useSaveState(setStudentName);
   return (
-    <RowActionMenu trigger="pencil" label="Change their name" verb="Change">
+    <RowActionMenu trigger="pencil" label="Change their name">
       <RowActionGroup label="Full name">
         <form action={action} className="space-y-2">
           <input type="hidden" name="studentProfileId" value={studentProfileId} />
@@ -85,7 +85,7 @@ export function StudentTelegramChange({
 }) {
   const [, action, save] = useSaveState(setStudentTelegram);
   return (
-    <RowActionMenu trigger="pencil" label="Change Telegram handle" verb="Change">
+    <RowActionMenu trigger="pencil" label="Change Telegram handle">
       <RowActionGroup label="Telegram">
         <form action={action} className="space-y-2">
           <input type="hidden" name="studentProfileId" value={studentProfileId} />
@@ -120,7 +120,7 @@ export function StudentEmailChange({
 }) {
   const [, action, save] = useSaveState(setStudentEmail);
   return (
-    <RowActionMenu trigger="pencil" label="Change sign-in email" verb="Change">
+    <RowActionMenu trigger="pencil" label="Change sign-in email">
       <RowActionGroup label="Sign-in email">
         <form action={action} className="space-y-2">
           <input type="hidden" name="studentProfileId" value={studentProfileId} />
@@ -169,7 +169,7 @@ export function StudentPrograms({
   enrollments: { id: string; programId: string; cohortId: string | null; label: string }[];
 }) {
   return (
-    <RowActionMenu trigger="pencil" label="Change programs" verb="Change">
+    <RowActionMenu trigger="pencil" label="Change programs">
       <RowActionGroup label={enrollments.length === 1 ? "Program" : "Programs"}>
         <div className="space-y-4">
           {enrollments.map((e) => (
@@ -328,7 +328,7 @@ export function StudentFolderChange({
 }) {
   const [, action, save] = useSaveState(setStudentFolder);
   return (
-    <RowActionMenu trigger="pencil" label="Change folder link" verb="Change">
+    <RowActionMenu trigger="pencil" label="Change folder link">
       <RowActionGroup label="Folder">
         <form action={action} className="space-y-2">
           <input type="hidden" name="studentProfileId" value={studentProfileId} />
