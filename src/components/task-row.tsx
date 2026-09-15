@@ -334,7 +334,20 @@ export function TaskRow({
             the only shape that fits 390px. */}
         <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
           <div className="min-w-0 flex-1 basis-56">
-            <div className="text-[0.9375rem] leading-snug">{title}</div>
+            {/* WHEN it is due, beside WHAT it is. The date used to sit in the
+                right-hand column under the hours, so a row said what the work
+                costs twice over and never once said when it is wanted next to
+                the name of it. */}
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="min-w-0 text-[0.9375rem] leading-snug">{title}</span>
+              {overdue ? (
+                <StatusChip status={overdue} />
+              ) : (
+                dueText && (
+                  <span className="shrink-0 text-xs text-muted-fg">Due {dueText}</span>
+                )
+              )}
+            </div>
 
             <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
               {mentor ? (
@@ -352,20 +365,16 @@ export function TaskRow({
             )}
           </div>
 
-          <div className="w-full shrink-0 text-xs sm:w-48">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:justify-end">
-              {hours}
+          <div className="w-full shrink-0 text-xs sm:w-64">
+            {/* The overspend BESIDE the figure it is about, and before it:
+                the hours then end at the row's right edge on every line, so
+                the column of figures stays a column. It was under the hours
+                on a line of its own, where it read as a third fact rather
+                than as a remark about the second. */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap sm:justify-end">
               {overBudget && <StatusChip status={overBudget} />}
+              {hours}
             </div>
-            {(overdue || dueText) && (
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 sm:justify-end">
-                {overdue ? (
-                  <StatusChip status={overdue} />
-                ) : (
-                  <span className="text-muted-fg">Due {dueText}</span>
-                )}
-              </div>
-            )}
             {/* The budget as a bar, so a plan running past its hours is visible
                 without reading two numbers and subtracting them. */}
             {meter && <div className="mt-1.5">{meter}</div>}
