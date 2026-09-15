@@ -44,7 +44,7 @@ import type { StudentWithHours } from "@/lib/queries";
  * What this table can be ordered by. The page says which of them it can
  * honour; `lib/sort.ts` does the ordering.
  */
-export const STUDENT_SORTS = ["student", "completed", "remaining"] as const;
+export const STUDENT_SORTS = ["student", "completed", "remaining", "seen"] as const;
 export type StudentSort = (typeof STUDENT_SORTS)[number];
 
 export function StudentsTable({
@@ -112,7 +112,13 @@ export function StudentsTable({
       align: "right",
       ...(on("remaining") ? { sort: "remaining", sortDir: "desc" as const } : {}),
     },
-    { label: "Last session" },
+    {
+      label: "Last session",
+      // Down first: the question this column answers is "who has gone quiet",
+      // and the most recent session is the top of that order — the same rule
+      // the two figures beside it follow.
+      ...(on("seen") ? { sort: "seen", sortDir: "desc" as const } : {}),
+    },
     { label: "Contact" },
   ];
 

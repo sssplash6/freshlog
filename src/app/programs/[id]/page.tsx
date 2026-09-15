@@ -109,6 +109,7 @@ export default async function ProgramPage({
         student: (s) => s.user.name ?? s.user.email,
         completed: (s) => s.completedMinutes,
         remaining: (s) => s.remainingMinutes,
+        seen: (s) => s.lastSessionAt,
       })
     : matching;
   const total = ordered.length;

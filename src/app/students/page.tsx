@@ -1,4 +1,4 @@
-import { StudentsTable } from "@/components/students-table";
+import { STUDENT_SORTS, StudentsTable } from "@/components/students-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
@@ -14,7 +14,7 @@ import {
   type SearchParams,
 } from "@/lib/filters";
 import { prisma } from "@/lib/prisma";
-import { readSort } from "@/lib/sort";
+import { applySort, readSort } from "@/lib/sort";
 import { homeFor, profileOf } from "@/lib/profile";
 import { redirect } from "next/navigation";
 import { studentsWithHours } from "@/lib/queries";
@@ -67,16 +67,18 @@ export default async function StudentsPage({
 
   const params = await searchParams;
   const page = parsePage(readParam(params, "page"));
-  // The one column this roster can honestly order by. The rest are computed
-  // per row after the query has sliced the list into pages.
   const asked = readSort(
     {
       ...(readParam(params, "sort") ? { sort: readParam(params, "sort") } : {}),
       ...(readParam(params, "dir") ? { dir: readParam(params, "dir") } : {}),
     },
-    ["student"] as const
+    STUDENT_SORTS
   );
   const nameOrder = asked?.dir === "desc" ? "desc" : "asc";
+  // The three the database cannot order by, because they are summed per row
+  // after it has answered. Naming them here is what decides whether this page
+  // pages in SQL or in JavaScript.
+  const computedSort = asked != null && asked.key !== "student";
   // One instant for the whole page: the "expiring" and "expired" chips and the
   // forfeiture the table shows have to be judged against the same clock, or a
   // student can be in the filtered list and unexpired in the row.
@@ -100,7 +102,7 @@ export default async function StudentsPage({
     now
   );
 
-  const [programs, students, total] = await Promise.all([
+  const [programs, matching, total] = await Promise.all([
     prisma.program.findMany({
       // The programs this reader can meaningfully filter by: an admin's
       // grants, or — for a mentor — the programs they are assigned to, which
@@ -115,14 +117,41 @@ export default async function StudentsPage({
     // `programIds` twice over on purpose: it narrows WHICH students the `where`
     // returns, and — here — which of each student's programs their hours and
     // their program cell are summed from.
+    //
+    // NO `slice` WHEN THE READER ASKED FOR A COMPUTED ORDER, and that is the
+    // price of the three sortable figures. Completed, Remaining and Last
+    // session are derived per row AFTER the query, so ordering by one of them
+    // over a page the database has already chosen would order twenty-five rows
+    // and call it the roster — a header that changes the URL and not the answer
+    // is worse than a header that does nothing.
+    //
+    // So a computed sort reads the whole matching set and pages it here, the
+    // same shape a program's own roster has always had. It costs the same three
+    // queries either way; what it costs is rows in memory, and the school this
+    // serves has twelve. Ordering by name still slices in the database, because
+    // the database can do that one itself.
     studentsWithHours(where, {
-      slice: { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE },
+      ...(computedSort
+        ? {}
+        : { slice: { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE } }),
       now,
       programIds,
       order: nameOrder,
     }),
     prisma.studentProfile.count({ where }),
   ]);
+
+  const ordered = computedSort
+    ? applySort(matching, asked, {
+        student: (s) => s.user.name ?? s.user.email,
+        completed: (s) => s.completedMinutes,
+        remaining: (s) => s.remainingMinutes,
+        seen: (s) => s.lastSessionAt,
+      })
+    : matching;
+  const students = computedSort
+    ? ordered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+    : ordered;
 
   return (
     <div className="space-y-4">
@@ -180,7 +209,7 @@ export default async function StudentsPage({
         )
       ) : (
         <>
-          <StudentsTable students={students} viewer={lens} sorts={["student"]} />
+          <StudentsTable students={students} viewer={lens} sorts={STUDENT_SORTS} />
           <Pagination
             basePath="/students"
             params={params}
