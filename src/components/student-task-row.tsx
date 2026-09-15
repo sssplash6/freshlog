@@ -161,9 +161,9 @@ export function StudentTaskRow({
               <StatusChip status={overdue} />
             </span>
           ) : (
-            // A fixed column, like the date on a meeting row: the mentor chip
-            // after it starts in the same place on every line.
-            <span className="min-w-24 shrink-0 whitespace-nowrap py-0.5 text-xs font-medium tabular-nums text-ink">
+            // Its own width — see the meeting row. A column wide enough for
+            // "September 26" left "October 4" trailing 40px of nothing.
+            <span className="shrink-0 whitespace-nowrap py-0.5 text-xs font-medium tabular-nums text-ink">
               {formatDate(task.dueOn)}
             </span>
           )}

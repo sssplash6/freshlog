@@ -279,21 +279,30 @@ export function SessionRow({
                 truncates inside its own chip (capped at 11rem) rather than
                 pushing the work this row is about onto another line. */}
             <div className="flex min-w-0 flex-1 items-start gap-x-2.5 text-[0.8125rem]">
-              {/* A FIXED column, not a value that pushes what follows it.
-                  "July 3" and "September 30" are eight pixels apart, so the
-                  mentor chip started somewhere new on every row and the eye
-                  had to find it again each time. `w-20` fits the longest date
-                  this formatter produces in the current year; a date from
-                  another year carries ", 2027" and is allowed to push its own
-                  row out rather than wrap onto two lines. */}
-              <span className="min-w-24 shrink-0 whitespace-nowrap py-0.5 tabular-nums text-muted-fg">
+              {/* Its own width, and no minimum. It was a 96px column, so
+                  that "September 30" would fit and every date would start the
+                  mentor chip at the same x — which meant "July 30" sat in 55px
+                  of text and 40px of nothing, and the gap was the loudest
+                  thing on the row. The figure at the other end is the one that
+                  earns a fixed column: a ledger is scanned down its numbers,
+                  not down the left edge of its names. */}
+              <span className="shrink-0 whitespace-nowrap py-0.5 tabular-nums text-muted-fg">
                 {formatDate(date)}
               </span>
               <span className="flex min-w-0 max-w-44">
                 <PersonChip person={mentor} size="sm" href={mentor.href} />
               </span>
+              {/* ONE LINE, always. An agenda item is capped at 100 characters
+                  and is a name rather than a sentence, so the tail an ellipsis
+                  eats is the end of "…research as a field" — and a log is read
+                  by running down its dates. A row that grows a second line to
+                  finish a name costs every row below it a place on the screen.
+                  The full text is the element's `title`. */}
               {task && (
-                <span className={cn("min-w-0 flex-1 py-0.5 font-medium leading-snug", textTone)}>
+                <span
+                  title={task.purpose}
+                  className={cn("min-w-0 flex-1 truncate py-0.5 font-medium", textTone)}
+                >
                   {task.purpose}
                 </span>
               )}
