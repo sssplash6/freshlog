@@ -14,13 +14,11 @@ import { adminScope, staffLevel, type AdminScope } from "@/lib/authz";
 import { canActAsMentor, ROLES } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import {
-  DATE_PRESETS,
   activeFilterCount,
   feedbackWhere,
   filterSummary,
   readDateWindow,
   readParam,
-  type FilterPreset,
   type SearchParams,
 } from "@/lib/filters";
 import { formatDate } from "@/lib/format";
@@ -151,7 +149,6 @@ export default async function FeedbackPage({
     <AllRatings
       user={user}
       programIds={programIds}
-      mentorReader={mentorReader}
       params={params}
       page={page}
     />
@@ -266,13 +263,11 @@ async function OwnRatings({
 async function AllRatings({
   user,
   programIds,
-  mentorReader,
   params,
   page,
 }: {
   user: User;
   programIds: readonly string[] | undefined;
-  mentorReader: boolean;
   params: SearchParams;
   page: number;
 }) {
@@ -392,23 +387,6 @@ async function AllRatings({
             : count(mentors.length, "mentor"),
         ].join(" · ");
 
-  const presets: FilterPreset[] = [
-    // The lens's contribution, as a chip rather than an invisible default: the
-    // Mentor select's "All mentors" writes an empty param, which every link in
-    // `filters.ts` then drops, so a default the URL did not state would be a
-    // filter nobody could turn off.
-    ...(mentorReader
-      ? [
-          {
-            label: "Just mine",
-            params: { mentor: "me" },
-            hint: "Ratings students left for you.",
-          },
-        ]
-      : []),
-    ...DATE_PRESETS,
-  ];
-
   const columns: Column[] = [
     { label: "Mentor" },
     { label: "Average", align: "right" },
@@ -452,7 +430,6 @@ async function AllRatings({
             options: RATING_OPTIONS,
           },
         ]}
-        presets={presets}
         dateRange={readDateWindow(params, now)}
         // Only once a filter is on. Unfiltered, the sentence would repeat the
         // subtitle a few pixels above it; filtered, it says the one thing the

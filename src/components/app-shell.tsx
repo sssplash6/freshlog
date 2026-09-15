@@ -284,12 +284,19 @@ function StaffShell({
         account={account}
       />
 
-      {/* Top right, over the page rather than in a bar of its own: a bar would
-          cost every page a band of chrome to hold one control, and the corner
-          is in the same place whether the rail is open or shut. */}
-      <div className="pointer-events-none fixed right-4 top-4 z-30 hidden lg:block">
-        <div className="pointer-events-auto">
-          <NotificationMenu unread={unread} recent={recent} now={now} />
+      {/* Top right OF THE PAGE, not of the window. Over the content rather
+          than in a bar of its own — a bar would cost every page a band of
+          chrome to hold one control — but on the same measure and the same
+          gutter as the page below it, so the bell lines up with the right edge
+          of the table and the title's own line instead of floating out by the
+          scrollbar. `fixed` positions against the viewport, so the rail's
+          width has to be repeated here; it is the one place in the shell that
+          has to know it twice. */}
+      <div className="pointer-events-none fixed inset-x-0 top-7 z-30 hidden lg:block lg:pl-[13.75rem] rail-collapsed:lg:pl-16">
+        <div className="mx-auto flex w-full max-w-6xl justify-end px-4">
+          <div className="pointer-events-auto">
+            <NotificationMenu unread={unread} recent={recent} now={now} />
+          </div>
         </div>
       </div>
 
