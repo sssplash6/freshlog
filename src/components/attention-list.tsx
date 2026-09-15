@@ -33,7 +33,7 @@ import { actionableCount, type Status } from "@/lib/status";
  */
 export function AttentionList({
   statuses,
-  title = "Needs you",
+  title = "Active issues",
   /** Rendered when nothing needs the viewer. */
   empty,
   /** A row's own action — Approve, an RSVP — keyed by status type. */

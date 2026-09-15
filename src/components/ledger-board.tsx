@@ -325,8 +325,12 @@ export function LedgerBoard({
         </div>
 
         {/* RIGHT — what the student is doing between meetings.
-            `relative` so the "+" can pin itself to this column's own corner. */}
-        <div className="relative min-w-0">
+            `relative` so the "+" can pin itself to this column's own corner,
+            and `min-h-40` so the corner is never IN the heading: with no tasks
+            set and a short meetings list beside it, the column was about a
+            hundred pixels tall and a 44px button pinned twelve from its bottom
+            landed on top of the caption. */}
+        <div className="relative min-h-40 min-w-0">
           <ColumnHead
             title="Tasks"
             // The whole log's shape, not just what is left: a mentor opening

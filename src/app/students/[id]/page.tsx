@@ -270,6 +270,19 @@ export default async function StudentWorkspacePage({
   const ownsTask = (task: { programId: string; mentorId: string }) =>
     task.mentorId === me.id || scopeCovers(scope, task.programId);
 
+  const sendForm =
+    sendableFrom.length > 0 ? (
+      <SendOnExchangeForm
+        studentProfileId={profile.id}
+        studentName={name}
+        fromPrograms={sendableFrom.map((e) => ({
+          value: e.programId,
+          label: enrollmentLabel(e),
+        }))}
+        toPrograms={elsewhere.map((p) => ({ value: p.id, label: p.name }))}
+      />
+    ) : null;
+
   const openTasks = ledger.assignments.filter(
     (t) => t.progress !== ASSIGNMENT_PROGRESS.DONE
   );
@@ -519,30 +532,29 @@ export default async function StudentWorkspacePage({
           count={exchanges.length || undefined}
         >
           {exchanges.length > 0 ? (
-            <ExchangeList
-              exchanges={exchanges}
-              viewer={viewer}
-              canReturn={isParty}
-            />
-          ) : (
-            <p className="px-4 py-2 text-sm text-muted-fg sm:px-5">
-              Nobody has lent {name} to another program.
-            </p>
-          )}
-          {sendableFrom.length > 0 && (
-            <div className="border-t border-line px-4 py-2 sm:px-5">
-              <SendOnExchangeForm
-                studentProfileId={profile.id}
-                studentName={name}
-                fromPrograms={sendableFrom.map((e) => ({
-                  value: e.programId,
-                  label: enrollmentLabel(e),
-                }))}
-                toPrograms={elsewhere.map((p) => ({
-                  value: p.id,
-                  label: p.name,
-                }))}
+            <>
+              <ExchangeList
+                exchanges={exchanges}
+                viewer={viewer}
+                canReturn={isParty}
               />
+              {sendForm && (
+                <div className="border-t border-line px-4 py-2 sm:px-5">
+                  {sendForm}
+                </div>
+              )}
+            </>
+          ) : (
+            // The sentence and the action on ONE line: a band of its own for a
+            // button under a band holding six words was two rows of chrome to
+            // say that nothing has happened yet. `justify-between` with wrap,
+            // so the form drops to a line of its own when it is opened and
+            // needs the width.
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 sm:px-5">
+              <p className="min-w-0 text-sm text-muted-fg">
+                Nobody has lent {name} to another program.
+              </p>
+              {sendForm}
             </div>
           )}
         </Section>

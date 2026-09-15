@@ -131,7 +131,7 @@ export default async function NotificationsPage({
 
       <AttentionList
         statuses={attention.statuses}
-        title="Needs you"
+        title="Active issues"
         empty={attention.empty}
         dismissible={attention.dismissible}
         renderAction={(s) => {
