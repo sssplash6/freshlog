@@ -7,8 +7,6 @@ import { adminScope, scopeProgramFilter } from "@/lib/authz";
 import { canActAsMentor } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import {
-  MINE_PRESET,
-  STUDENT_PRESETS,
   activeFilterCount,
   filterSummary,
   readParam,
@@ -155,14 +153,13 @@ export default async function StudentsPage({
               ]
             : []
         }
-        presets={
-          // The chip is offered to a dual-role reader, who has both lists to
-          // choose between. For somebody who only mentors it would be a filter
-          // that never changes the answer.
-          administers && isMentor
-            ? [MINE_PRESET, ...STUDENT_PRESETS]
-            : STUDENT_PRESETS
-        }
+        // NO CHIPS. Mine, Pending, Not signed in, No time, Expiring and Expired
+        // were six link-pills wrapping to their own row above a roster of
+        // twelve, and every one of them answers a question the table already
+        // answers by being read — the status chips, the Remaining column and
+        // the Last session column each say the same thing in place. The program
+        // is the one narrowing a reader cannot do with their eyes, because the
+        // rows they want are simply not on the page.
         summary={filterSummary(total, { one: "student", many: "students" }, params)}
       />
 

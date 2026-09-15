@@ -153,7 +153,10 @@ export function SidebarNav({
         // display:none there, so the browser's own tooltip is the label.
         title={item.label}
         className={cn(
-          "flex min-h-11 items-center gap-2.5 rounded-lg px-3 text-sm transition-colors rail-collapsed:justify-center rail-collapsed:px-0",
+          "flex min-h-11 items-center gap-2.5 rounded-lg px-3 text-sm transition-colors",
+          // Shut: the mark alone, centred. Peeking: the row it always was.
+          "rail-collapsed:justify-center rail-collapsed:px-0",
+          "rail-collapsed:group-hover/rail:justify-start rail-collapsed:group-hover/rail:px-3",
           active
             ? "bg-brand-soft font-semibold text-brand"
             : "font-medium text-muted-fg hover:bg-canvas hover:text-ink"
@@ -162,9 +165,11 @@ export function SidebarNav({
         <NavIcon href={item.href} className="h-4 w-4 shrink-0" />
         {/* A program's name is the one label that can be long, and it takes a
             second line rather than sliding out of view. */}
-        <span className="min-w-0 flex-1 rail-collapsed:hidden">{item.label}</span>
+        <span className="min-w-0 flex-1 rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
+          {item.label}
+        </span>
         {item.count != null && item.count > 0 && (
-          <span className="rail-collapsed:hidden">
+          <span className="rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
             <NavCount count={item.count} muted={active} />
           </span>
         )}

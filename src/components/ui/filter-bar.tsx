@@ -216,35 +216,40 @@ export function FilterBar({
             <input key={key} type="hidden" name={key} value={readParam(params, key)} />
           ))}
 
-          {q && (
-            <div className="flex items-center gap-2">
-              <SearchField
-                basePath={basePath}
-                label={SEARCH_LABEL[q]}
-                placeholder={SEARCH_PLACEHOLDER[q]}
-              />
-              {/* The magnifier IS the button, and it is the only one on the
-                  row: the glyph used to sit inside the box saying what the box
-                  was, next to a button spelling "Apply" — a word for a gesture
-                  every search field on earth draws as this icon. Square and
-                  44px, the same target the word had. */}
-              <Button
-                type="submit"
-                size="md"
-                title={SEARCH_LABEL[q]}
-                className="w-11 shrink-0 px-0"
-              >
-                <SearchIcon className="h-4 w-4" />
-                <span className="sr-only">{SEARCH_LABEL[q]}</span>
-              </Button>
-            </div>
-          )}
-
-          {/* One row: what you narrow BY and what you narrow TO. They were two
-              rows, and the second was nothing but chips, which made a bar three
-              rows tall on a page whose first job is the table underneath it. */}
-          {(inlineSelects.length > 0 || (presets.length > 0 && folded.length === 0)) && (
-            <div className={cn("flex flex-wrap items-center gap-2", q && "mt-3")}>
+          {/* ONE ROW: what you are looking for, what you are looking in, and
+              what you want it narrowed to. They were two stacked rows — the box
+              on the first, the selects and the chips on the second — so a bar
+              whose whole job is to sit above a table was three rows tall before
+              the table started. The box takes the leftover width and the
+              selects are fixed, so the row reads left to right at any size and
+              stacks on a phone without either of them going narrow. */}
+          {(q ||
+            inlineSelects.length > 0 ||
+            (presets.length > 0 && folded.length === 0)) && (
+            <div className="flex flex-wrap items-center gap-2">
+              {q && (
+                <div className="flex min-w-56 flex-1 items-center gap-2">
+                  <SearchField
+                    basePath={basePath}
+                    label={SEARCH_LABEL[q]}
+                    placeholder={SEARCH_PLACEHOLDER[q]}
+                  />
+                  {/* The magnifier IS the button, and it is the only one on the
+                      row: the glyph used to sit inside the box saying what the
+                      box was, next to a button spelling "Apply" — a word for a
+                      gesture every search field on earth draws as this icon.
+                      Square and 44px, the same target the word had. */}
+                  <Button
+                    type="submit"
+                    size="md"
+                    title={SEARCH_LABEL[q]}
+                    className="w-11 shrink-0 px-0"
+                  >
+                    <SearchIcon className="h-4 w-4" />
+                    <span className="sr-only">{SEARCH_LABEL[q]}</span>
+                  </Button>
+                </div>
+              )}
               {inlineSelects.map((select) => (
                 <span key={select.name} className="min-w-0 basis-full sm:w-48 sm:basis-auto">
                   <Select
