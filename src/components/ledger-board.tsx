@@ -55,9 +55,13 @@ import { StatusChip } from "@/components/ui/status-chip";
  * stays the height of a screen however long any one of them gets: the whole log
  * is there, and reaching the bottom of it never costs you the other two.
  *
- * `max-h-[60svh]`, not `vh`: mobile browsers shrink the visible viewport when
- * the URL bar is showing, and `vh` panes are what leave a phone reader scrolling
- * a pane inside a page that is also scrolling.
+ * 40svh, not `vh`: mobile browsers shrink the visible viewport when the URL bar
+ * is showing, and `vh` panes are what leave a phone reader scrolling a pane
+ * inside a page that is also scrolling. It was 60, which on a laptop is most of
+ * the screen — and since the two top columns stretch to each other, a student
+ * with thirty meetings and one task got a 540px pane beside 60px of content and
+ * a card nothing else on the page could be read next to. Four or five rows is
+ * what a pane is FOR; the rest is what the scrollbar is for.
  *
  * Read-only apart from the row menus and the one form that adds to it. This is
  * the view you open the page for; the panels below it are the workbench.
@@ -75,7 +79,7 @@ import { StatusChip } from "@/components/ui/status-chip";
  * what a hand already expects — and this pane is a viewport onto a list, not a
  * modal that has to hold the reader inside it.
  */
-const PANE = "max-h-[60svh] overflow-y-auto";
+const PANE = "max-h-[40svh] overflow-y-auto";
 
 /**
  * A column heading inside the board — smaller than a panel's, same grammar.
