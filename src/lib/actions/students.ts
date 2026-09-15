@@ -1441,7 +1441,7 @@ export async function setMentorAllocation(
               type: NOTIFICATION_TYPES.GOAL_ASSIGNED,
               actorId: actor.id,
               href: notificationHref.mentorStudent(profile.id),
-              message: `New task for ${studentName}: "${task}", budgeted ${formatDuration(granted)} to use by ${formatDate(enteredDeadline)}. Log your sessions against it.`,
+              message: `New task for ${studentName}: "${task}", ${formatDuration(granted)} to use by ${formatDate(enteredDeadline)}. Log your sessions against it.`,
             });
           }
         }
@@ -1517,9 +1517,9 @@ export async function setMentorAllocation(
   const taskSummary = taskOutcome
     ? taskOutcome.created
       ? mentorLabel
-        ? ` "${taskOutcome.task}" is now on ${mentorLabel}'s list, budgeted ${formatDuration(taskOutcome.budget)}.`
-        : ` "${taskOutcome.task}" is planned, budgeted ${formatDuration(taskOutcome.budget)} — pick its mentor from the task's ⋮ menu.`
-      : ` "${taskOutcome.task}" is now budgeted ${formatDuration(taskOutcome.budget)}.`
+        ? ` "${taskOutcome.task}" is now on ${mentorLabel}'s list, ${formatDuration(taskOutcome.budget)}.`
+        : ` "${taskOutcome.task}" is planned, ${formatDuration(taskOutcome.budget)} — pick its mentor from the task's ⋮ menu.`
+      : ` "${taskOutcome.task}" now has ${formatDuration(taskOutcome.budget)}.`
     : "";
   return {
     ok: true,

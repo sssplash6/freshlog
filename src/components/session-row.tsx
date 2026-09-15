@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ExpandableNote } from "@/components/expandable-note";
 import { ExpandableText } from "@/components/expandable-text";
 import { PersonChip } from "@/components/person-chip";
 import { Rating } from "@/components/rating";
@@ -257,49 +258,42 @@ export function SessionRow({
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.8125rem]">
-            <PersonChip person={mentor} size="sm" href={mentor.href} />
-            <span className="tabular-nums text-muted-fg">{formatDate(date)}</span>
-            {duration}
-            {/* On the header line, not under the row. A pencil on a line of
-                its own is a whole row of height per session, down a ledger
-                that is read by scrolling. */}
-            {actions && <span className="ml-auto shrink-0">{actions}</span>}
-          </div>
-          {task && (
-            <div className="mt-1.5">
-              <ExpandableText
-                text={task.purpose}
-                lines={2}
-                className={cn("text-[0.8125rem] font-medium", textTone)}
-              />
-            </div>
-          )}
-          {/* Folded, not clamped. `Disclosure`'s own doctrine sends free text
-              to `ExpandableText` instead — and that is what this was — but two
-              lines of prose per row, down a ledger of forty sessions, is still
-              eighty lines of prose between a reader and the next date. The
-              summary says whether there is a note at all, so nothing is hidden
-              that the reader did not already know was there.
+          {/* Date · Mentor · Agenda, on one line, with the minutes and the
+              pencil against the right edge — the same shape a task row has,
+              because they are the same question twice: WHEN, WHO, WHAT, and
+              then the figure. The agenda item had a line of its own under the
+              row, which cost every session in the log a second line to say
+              one phrase.
 
-              Native `<details>`: keyboard and screen-reader behaviour arrive
-              free, it works before hydration, and find-in-page opens it. */}
-          {note && (
-            <details className="group/note mt-1">
-              <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-xs text-muted-fg transition-colors hover:text-ink [&::-webkit-details-marker]:hidden">
-                <span
-                  aria-hidden="true"
-                  className="text-[0.5625rem] transition-transform group-open/note:rotate-90"
-                >
-                  ▸
+              TWO groups, not one wrapping row: the minutes and the pencil sit
+              outside the wrap, so a long agenda item rewraps under the date
+              and the mentor rather than pushing the figure onto a line by
+              itself. */}
+          <div className="flex items-start gap-x-2">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.8125rem]">
+              <span className="shrink-0 tabular-nums text-muted-fg">
+                {formatDate(date)}
+              </span>
+              <PersonChip person={mentor} size="sm" href={mentor.href} />
+              {task && (
+                <span className={cn("min-w-0 flex-1 basis-40 font-medium leading-snug", textTone)}>
+                  {task.purpose}
                 </span>
-                note
-              </summary>
-              <p className={cn("mt-1 whitespace-pre-line text-[0.9375rem]", textTone)}>
-                {note}
-              </p>
-            </details>
-          )}
+              )}
+            </div>
+            <span className="flex shrink-0 items-center gap-2 text-[0.8125rem]">
+              {duration}
+              {/* On the header line, not under the row. A pencil on a line of
+                  its own is a whole row of height per session, down a ledger
+                  that is read by scrolling. */}
+              {actions}
+            </span>
+          </div>
+          {/* One line of the note itself, not the word "note" over a hidden
+              copy of it: a ledger of forty sessions should not have to be
+              opened row by row to find the one that says "missed an hour, not
+              excused". Tapping the line unfolds the rest. */}
+          {note && <ExpandableNote text={note} className="mt-1" />}
           {/* What the student said back. It sits under the mentor's own note
               on purpose: the row reads as the record, then the answer to it. */}
           {session.studentAnswer && (session.studentRating || session.studentNote) && (

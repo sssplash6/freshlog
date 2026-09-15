@@ -1,3 +1,4 @@
+import { ExpandableNote } from "@/components/expandable-note";
 import { PersonChip } from "@/components/person-chip";
 import { StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
@@ -133,11 +134,17 @@ export function StudentTaskRow({
       }
     >
       {/* Deadline · Mentor · Title · Progress, in that order and on one line.
-          Wrapping rather than truncating below `sm`: a title is a sentence
-          somebody wrote — "Rewrite the second paragraph of the personal
-          statement" — and a row that cuts it off on a phone is a row a phone
-          reader cannot act on. */}
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          TWO groups, not one wrapping row: the four values used to share a
+          single `flex-wrap`, so a long date beside a long name pushed "0% ⋮"
+          onto a line of its own — and the note underneath then read as
+          belonging to nothing, half a row below the title it is about.
+          Progress and the menu sit outside the wrap now, always at the right
+          of the first line, and only the three values on the left rewrap.
+          Wrapping rather than truncating: a title is a sentence somebody
+          wrote, and a row that cuts it off on a phone is a row a phone reader
+          cannot act on. */}
+      <div className="flex items-start gap-x-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
         {/* WHEN. First, because a to-do list is read by what is next, and the
             overdue chip replaces the plain date rather than sitting beside a
             second copy of it — its own label already carries the day. */}
@@ -155,11 +162,12 @@ export function StudentTaskRow({
           <span className="shrink-0 text-xs text-muted-fg">{task.program.name}</span>
         )}
 
-        {/* WHAT. The flexible middle, so progress lands against the right edge
-            however short the title is. */}
-        <span className="min-w-0 flex-1 basis-40 text-[0.9375rem] font-medium leading-snug text-ink">
-          {task.title}
-        </span>
+          {/* WHAT. The flexible middle, so progress lands against the right
+              edge however short the title is. */}
+          <span className="min-w-0 flex-1 basis-40 text-[0.9375rem] font-medium leading-snug text-ink">
+            {task.title}
+          </span>
+        </div>
 
         {/* HOW FAR. A figure, not a word: "50%" is what the student actually
             said, and the three state words are already implied by it at both
@@ -170,7 +178,7 @@ export function StudentTaskRow({
             a half-width column the 48px it wanted came straight out of the
             title beside it — which is the one thing on the line that cannot
             be read in less space than it takes. */}
-        <span className="ml-auto flex shrink-0 items-center gap-1.5">
+        <span className="flex shrink-0 items-center gap-1.5">
           {done ? (
             progressStatus && (
               <StatusChip
@@ -190,28 +198,8 @@ export function StudentTaskRow({
         </span>
       </div>
 
-      {/* The description, under the line and clamped to one of its own. The
-          text IS the control: clicking it opens, clicking it again closes.
-          Native `<details>`, like the session row's note — keyboard and
-          screen-reader behaviour arrive free, it works before hydration, and
-          find-in-page opens it. The summary is the whole description rather
-          than the word "note" over a hidden copy of it, so nothing is
-          duplicated and the first line is always readable. */}
-      {task.note && (
-        <details className="group/desc mt-1">
-          <summary className="flex cursor-pointer list-none items-start gap-1.5 text-xs text-muted-fg transition-colors hover:text-ink [&::-webkit-details-marker]:hidden">
-            <span
-              aria-hidden="true"
-              className="mt-0.5 shrink-0 text-[0.5625rem] transition-transform group-open/desc:rotate-90"
-            >
-              ▸
-            </span>
-            <span className="line-clamp-1 min-w-0 whitespace-pre-line group-open/desc:line-clamp-none">
-              {task.note}
-            </span>
-          </summary>
-        </details>
-      )}
+      {/* The description, directly under the line it belongs to. */}
+      {task.note && <ExpandableNote text={task.note} className="mt-1" />}
 
       {footer && <div className="mt-2">{footer}</div>}
     </li>

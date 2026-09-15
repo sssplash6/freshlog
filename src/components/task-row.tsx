@@ -254,9 +254,9 @@ export function TaskRow({
     </>
   );
 
-  // "45 min / 2h", one value instead of two columns and a subtraction. No
-  // budget is stated rather than dashed: a task with no ceiling is a decision
-  // somebody made, and an em dash reads as data nobody has entered.
+  // "45 min / 2h", one value instead of two columns and a subtraction. A row
+  // with no ceiling is just the logged figure: no slash means nothing caps it,
+  // which says it without spending a word on saying it.
   const hours = (
     <span className="tabular-nums">
       <span
@@ -268,7 +268,7 @@ export function TaskRow({
         {formatMinutes(loggedMinutes)}
       </span>
       <span className="text-muted-fg">
-        {minuteLimit == null ? " · no budget" : ` / ${formatMinutes(minuteLimit)}`}
+        {minuteLimit == null ? "" : ` / ${formatMinutes(minuteLimit)}`}
       </span>
     </span>
   );
@@ -636,7 +636,7 @@ export function TasksPanel({
       caption={
         tasks.length === 0
           ? "Nothing planned yet"
-          : `${done}/${tasks.length} done · ${formatDuration(planned)} budgeted`
+          : `${done}/${tasks.length} done · ${formatDuration(planned)}`
       }
     >
       {tasks.length === 0 ? (

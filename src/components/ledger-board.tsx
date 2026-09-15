@@ -9,10 +9,7 @@ import {
 } from "@/components/student-task-row";
 import { TaskRow, toTaskEntries } from "@/components/task-row";
 import { Section } from "@/components/ui/section";
-import {
-  ASSIGNMENT_PROGRESS,
-  SESSION_STATUS,
-} from "@/lib/constants";
+import { ASSIGNMENT_PROGRESS } from "@/lib/constants";
 import {
   formatDuration,
   formatMeetingWhen,
@@ -90,13 +87,18 @@ const PANE = "max-h-[40svh] overflow-y-auto";
  * depending on the answer. Three of them down one card also meant the eye met
  * a line of small caps before every heading it actually wanted.
  */
-function ColumnHead({ title, caption }: { title: string; caption: string }) {
+function ColumnHead({ title, caption }: { title: string; caption?: string }) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-4 pb-2.5 pt-4 sm:px-5">
       <h3 className="text-[0.9375rem] font-bold tracking-tight text-ink">
         {title}
       </h3>
-      <span className="text-xs tabular-nums text-muted-fg">{caption}</span>
+      {/* Optional: a column whose figures are all stated elsewhere in the card
+          gets a heading and nothing else, rather than a number invented to
+          fill the right-hand side of the line. */}
+      {caption && (
+        <span className="text-xs tabular-nums text-muted-fg">{caption}</span>
+      )}
     </div>
   );
 }
@@ -240,9 +242,6 @@ export function LedgerBoard({
   const { upcoming, overdue } = splitMeetings(meetings, viewer.now);
   const ahead = [...upcoming, ...overdue];
   const logged = sessions;
-  const activeCount = sessions.filter(
-    (s) => s.status === SESSION_STATUS.ACTIVE,
-  ).length;
 
   const openTasks = tasks.filter(taskIsOpen);
   const doneTasks = tasks.filter((t) => !taskIsOpen(t));
@@ -260,17 +259,9 @@ export function LedgerBoard({
     // this is the first card on the page, so there is nothing above it for an
     // eyebrow to distinguish it from. "Progress" is what the reader came to
     // find out; the three column heads below say which three lists answer it.
-    <Section
-      title="Progress"
-      // Two figures, not three. What is SCHEDULED is a fact about the diary
-      // rather than about progress, and the Meetings column below counts it
-      // on its own rule — a caption restating a number that is already on
-      // screen twelve pixels lower is a caption nobody reads. And tasks are
-      // counted DONE, like everything else in this card: the whole row reads
-      // forward, so a "2 open" among figures that all count what is finished
-      // was the one that had to be inverted in the reader's head.
-      caption={`${activeCount} logged · ${doneTasks.length}/${tasks.length} tasks done`}
-    >
+    // No caption. Every figure it carried is counted again a few pixels
+    // below it, on the group rule of the very list it was counting.
+    <Section title="Progress">
       {/* The sheet's right-hand totals, given the width they deserve. */}
       <div className="border-b border-line px-4 py-2 sm:px-5">
         <HoursBreakdown
@@ -286,14 +277,12 @@ export function LedgerBoard({
       <div className="grid lg:grid-cols-2 lg:divide-x lg:divide-line">
         {/* LEFT — what happened, and what is about to */}
         <div className="min-w-0 border-b border-line lg:border-b-0">
-          <ColumnHead
-            title="Meetings"
-            caption={
-              activeCount === 0 && ahead.length === 0
-                ? "Nothing planned"
-                : `${formatDuration(totals.completed)} completed`
-            }
-          />
+          {/* No figure at all. "14h 22m completed" was the breakdown's own
+              headline restated twelve pixels below it, in grey instead of the
+              colour the bar uses for it, so the card looked like it held two
+              sums. And a count of logged meetings is already in the card's
+              caption above and on the group rule below. */}
+          <ColumnHead title="Meetings" />
           {ahead.length === 0 && logged.length === 0 ? (
             <p className="px-4 pb-5 text-sm text-muted-fg sm:px-5">
               No meetings yet, scheduled or held.
@@ -400,12 +389,18 @@ export function LedgerBoard({
 
       {/* BELOW, FULL WIDTH — what the hours were bought for */}
       <div className="min-w-0">
+        {/* The figure, and no word after it. "16h 30m budgeted" was the only
+            total in the card wearing a label, and the card is a column of
+            durations — a number in this position is the hours, which is the
+            one thing every other figure here is too. */}
         <ColumnHead
           title="Agenda"
           caption={
             assignments.length === 0
-              ? "Nothing planned"
-              : `${formatDuration(assignments.reduce((sum, a) => sum + (a.minuteLimit ?? 0), 0))} budgeted`
+              ? undefined
+              : formatDuration(
+                  assignments.reduce((sum, a) => sum + (a.minuteLimit ?? 0), 0)
+                )
           }
         />
         {assignments.length === 0 ? (

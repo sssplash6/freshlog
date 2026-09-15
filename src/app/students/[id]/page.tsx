@@ -8,7 +8,6 @@ import {
 import { ApproveStudentButtons } from "@/components/forms/approve-student-buttons";
 import { AssignTaskForm } from "@/components/forms/assign-task-form";
 import { AllocationRowActions, TaskRowActions } from "@/components/forms/hours-forms";
-import { ScheduleInterviewForm } from "@/components/forms/schedule-interview-form";
 import {
   RemoveStudentButton,
   StudentEmailChange,
@@ -31,7 +30,6 @@ import { LinkButton } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FactList } from "@/components/ui/fact-list";
-import { Figure } from "@/components/ui/figure";
 import { ExternalLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
@@ -288,7 +286,7 @@ export default async function StudentWorkspacePage({
       hint:
         task.minuteLimit != null
           ? `${formatMinutes(task.loggedMinutes)}/${formatMinutes(task.minuteLimit)}`
-          : "no budget yet",
+          : undefined,
     });
   }
 
@@ -389,20 +387,18 @@ export default async function StudentWorkspacePage({
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {reaches && (
-              <>
-                <LinkButton
-                  href={`/sessions/new?student=${profile.id}`}
-                  variant={primaryIsLog ? "primary" : "secondary"}
-                  size="md"
-                  {...(canLog ? {} : { "aria-disabled": true, title: logReason })}
-                >
-                  Log a session
-                </LinkButton>
-                <ScheduleInterviewForm
-                  studentProfileId={profile.id}
-                  studentName={name}
-                />
-              </>
+              // One action in the masthead, not two. Scheduling was the
+              // secondary of a pair and the only one that opened a form in the
+              // header rather than going somewhere; the meetings already in
+              // the diary still read on the board below.
+              <LinkButton
+                href={`/sessions/new?student=${profile.id}`}
+                variant={primaryIsLog ? "primary" : "secondary"}
+                size="md"
+                {...(canLog ? {} : { "aria-disabled": true, title: logReason })}
+              >
+                Log a session
+              </LinkButton>
             )}
             {isPending && manages && (
               <ApproveStudentButtons studentProfileId={profile.id} />
@@ -577,13 +573,23 @@ export default async function StudentWorkspacePage({
           a fact about permissions rather than about the time — and the ⋮ menu
           is already there or not there depending on the answer. The title
           names the subject and the caption says what the figures are. */}
-      <Section title="Time by mentor">
-        {tracksPayment && manages && (
-          <div className="px-4 pt-3 sm:px-5">
-            <Figure label="Paid" value={formatMoney(hours.paid)} tone="muted" />
-          </div>
-        )}
-
+      <Section
+        title="Time by mentor"
+        // On the title's line, not in a band of its own. A `Figure` under the
+        // header spent a whole row of the card on one small number and left
+        // the other nine hundred pixels of it empty; the total belongs beside
+        // the heading it totals, the way every other card here reads.
+        action={
+          tracksPayment && manages ? (
+            <span className="text-xs text-muted-fg">
+              <span className="font-semibold tabular-nums text-ink">
+                {formatMoney(hours.paid)}
+              </span>{" "}
+              paid
+            </span>
+          ) : undefined
+        }
+      >
         {hours.perMentor.length === 0 ? (
           <EmptyState framed={false} title="No time yet">
             An admin grants it, with or without a mentor named.
