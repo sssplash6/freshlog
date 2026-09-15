@@ -166,7 +166,12 @@ export function StudentTaskRow({
           ) : (
             // Its own width — see the meeting row. A column wide enough for
             // "September 26" left "October 4" trailing 40px of nothing.
-            <span className="shrink-0 whitespace-nowrap text-xs font-medium tabular-nums text-ink">
+            //
+            // And the meeting row's own tone and size: quiet grey at 13px. A
+            // date is the same kind of value in both columns of this card, so
+            // it may not be bold ink in one and muted in the other — the two
+            // lists sit twelve pixels apart and were read as two designs.
+            <span className="shrink-0 whitespace-nowrap text-[0.8125rem] tabular-nums text-muted-fg">
               {formatDate(task.dueOn)}
             </span>
           )}

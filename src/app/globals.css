@@ -342,6 +342,62 @@ body {
   animation: deal-in 400ms var(--ease-out-strong) both;
 }
 
+/*
+ * A thread of brand orange running round a control's edge, forever.
+ *
+ * One conic gradient, spun by animating its own angle. `@property` is what
+ * makes that possible at all — a custom property has to be registered as an
+ * <angle> before it can be interpolated, and without the registration the
+ * gradient jumps from 0 to 360 in one frame instead of sweeping.
+ *
+ * It lives in a `::before` at `z-index: -1` rather than in a border, because a
+ * gradient BORDER needs `background-clip: padding-box, border-box` and a
+ * transparent border, which would fight every variant `buttonClasses` sets.
+ * Behind the control's own background, so only the pixel and a half it is
+ * inset by ever shows: a filament, not a glow.
+ *
+ * Deliberately NOT a stacking context on the host — `isolation: isolate` would
+ * make a negative-z child paint over the host's own background instead of
+ * under it, which is the whole trick.
+ *
+ * Orange, and orange on purpose: it is the hours colour, and this marks the one
+ * control on the page that spends them. The reduced-motion block above stops
+ * it dead like every other animation here, leaving a static arc.
+ */
+@property --liquid-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes liquid-edge {
+  to {
+    --liquid-angle: 360deg;
+  }
+}
+
+@utility liquid-edge {
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -1.5px;
+    z-index: -1;
+    border-radius: inherit;
+    background: conic-gradient(
+      from var(--liquid-angle),
+      transparent 0deg,
+      transparent 200deg,
+      var(--color-accent-dark) 265deg,
+      var(--color-accent) 300deg,
+      var(--color-accent-dark) 335deg,
+      transparent 360deg
+    );
+    animation: liquid-edge 3.2s linear infinite;
+  }
+}
+
 /* A panel arriving as a block: slightly further, slightly slower than a row. */
 @keyframes lift-in {
   from {

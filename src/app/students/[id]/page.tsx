@@ -395,6 +395,9 @@ export default async function StudentWorkspacePage({
                 href={`/sessions/new?student=${profile.id}`}
                 variant={primaryIsLog ? "primary" : "secondary"}
                 size="md"
+                // The one control on the page that spends the student's hours,
+                // marked by a filament of the colour those hours are drawn in.
+                className="liquid-edge"
                 {...(canLog ? {} : { "aria-disabled": true, title: logReason })}
               >
                 Log a session

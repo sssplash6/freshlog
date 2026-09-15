@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { TaskPicker, type OpenTask } from "@/components/forms/task-picker";
 import { Select, type SelectOption } from "@/components/select";
-import { Input } from "@/components/ui/field";
+import { Input, Textarea } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { setMentorAllocation } from "@/lib/actions/students";
@@ -112,66 +112,88 @@ export function AssignTaskForm({
           openTasks={openTasks}
         />
 
-        <label className="min-w-0">
-          <span className={labelClass}>
-            Minutes <span className="text-accent-ink">*</span>
-          </span>
-          <Input
-            name="minutes"
-            type="number"
-            min="1"
-            step="1"
-            required
-            placeholder="180"
-            className="mt-1"
-          />
-        </label>
+      </div>
 
-        <label className="min-w-0">
-          <span className={labelClass}>
-            Use by <span className="text-accent-ink">*</span>
-          </span>
-          <Input
-            name="deadline"
-            type="date"
-            required
-            min={today}
-            className="mt-1"
-          />
-        </label>
+      {/* NOTE BESIDE THE FIGURES, which is the owner's own sketch: one tall box
+          for what the hours are for, and the three values that decide them
+          stacked down a narrow column to its right. They were six cells in one
+          three-column grid, so the note — the only field anybody types a
+          sentence into — was a single-line input spanning the full width while
+          the numbers wrapped around it.
 
-        <label className="min-w-0 sm:col-span-2 lg:col-span-3">
+          The third slot in that column is PAID where the program bills per
+          student, and the submit button where it does not: a program with no
+          money field had an empty cell under its deadline and its own action
+          orphaned below the form. */}
+      <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_16rem]">
+        <label className="flex min-w-0 flex-col">
           <span className={labelClass}>Note</span>
-          <Input
+          <Textarea
             name="taskNote"
-            type="text"
             maxLength={500}
             placeholder="Optional — e.g. review the intro of each essay"
-            className="mt-1"
+            className="mt-1 min-h-32 flex-1"
           />
         </label>
 
-        {showAmountPaid && (
+        <div className="grid content-start gap-3">
           <label className="min-w-0">
             <span className={labelClass}>
-              Paid for these hours ($) <span className="text-accent-ink">*</span>
+              Minutes <span className="text-accent-ink">*</span>
             </span>
             <Input
-              name="amountPaid"
+              name="minutes"
               type="number"
-              min="0"
-              step="0.01"
+              min="1"
+              step="1"
               required
-              placeholder="1200"
+              placeholder="180"
               className="mt-1"
             />
           </label>
-        )}
+
+          <label className="min-w-0">
+            <span className={labelClass}>
+              Use by <span className="text-accent-ink">*</span>
+            </span>
+            <Input
+              name="deadline"
+              type="date"
+              required
+              min={today}
+              className="mt-1"
+            />
+          </label>
+
+          {showAmountPaid ? (
+            <label className="min-w-0">
+              <span className={labelClass}>
+                Paid for these hours ($) <span className="text-accent-ink">*</span>
+              </span>
+              <Input
+                name="amountPaid"
+                type="number"
+                min="0"
+                step="0.01"
+                required
+                placeholder="1200"
+                className="mt-1"
+              />
+            </label>
+          ) : (
+            <SubmitButton className="w-full" pendingText="Allocating…">
+              Allocate time
+            </SubmitButton>
+          )}
+        </div>
       </div>
 
-      <div className="mt-3.5">
-        <SubmitButton pendingText="Allocating…">Allocate time</SubmitButton>
-      </div>
+      {/* Only where Paid took the slot the button would have had. */}
+      {showAmountPaid && (
+        <div className="mt-3">
+          <SubmitButton pendingText="Allocating…">Allocate time</SubmitButton>
+        </div>
+      )}
       <SaveState state={save} />
     </form>
   );
