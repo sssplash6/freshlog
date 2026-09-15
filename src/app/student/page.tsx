@@ -245,14 +245,12 @@ export default async function StudentHomePage() {
               allotted={hours.allotted}
               completed={hours.completed}
               missed={hours.missed}
-              forfeited={hours.forfeited}
               // Only ever the overdraw. What is left is the ring's job and the
-              // grey tail of the bar shows the same proportion, so a "Still
-              // yours" figure in the key would be the third statement of one
-              // number that this page was reorganised to remove — but a bar
+              // unfilled tail of the track shows the same proportion, so a
+              // "Still yours" figure in the key would be the third statement of
+              // one number that this page was reorganised to remove — but a bar
               // that cannot show an overdraw is a bar that lies about it.
               remaining={Math.min(0, hours.remaining)}
-              extra={hours.extra}
             />
           </div>
         </Section>

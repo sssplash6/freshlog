@@ -268,9 +268,7 @@ export function LedgerBoard({
           allotted={totals.allotted}
           completed={totals.completed}
           missed={totals.missed}
-          forfeited={totals.forfeited}
           remaining={totals.remaining}
-          extra={totals.extra}
         />
       </div>
 
