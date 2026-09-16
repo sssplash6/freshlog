@@ -85,7 +85,7 @@ services:
     schedule: "0 4 * * *"
     buildCommand: "true"
     startCommand: >-
-      curl -fsS --retry 3 --retry-delay 10
+      curl -fsSL --retry 3 --retry-delay 10
       -H "Authorization: Bearer $CRON_SECRET"
       "$APP_URL/api/cron/deadline-reminders"
     envVars:
@@ -93,8 +93,13 @@ services:
       # private-network hostname (e.g. "freshform-srma"), which has no public TLS
       # listener, so curl to https://<that>:443 fails with "couldn't connect".
       # Use the public custom domain directly.
+      # MUST be the canonical host. Cloudflare 301s the apex to www, and the
+      # curl below had no --location: it printed the redirect body and exited
+      # 0, so Render recorded a successful run every day while the endpoint
+      # was never called. --location is now set too, as a tripwire — a future
+      # redirect would strip the bearer and fail loudly with 401 instead.
       - key: APP_URL
-        value: "https://freshlog.net"
+        value: "https://www.freshlog.net"
       - key: CRON_SECRET
         fromService:
           type: web
@@ -112,12 +117,17 @@ services:
     schedule: "0 4 * * 1"
     buildCommand: "true"
     startCommand: >-
-      curl -fsS --retry 3 --retry-delay 10
+      curl -fsSL --retry 3 --retry-delay 10
       -H "Authorization: Bearer $CRON_SECRET"
       "$APP_URL/api/cron/weekly-digest"
     envVars:
+      # MUST be the canonical host. Cloudflare 301s the apex to www, and the
+      # curl below had no --location: it printed the redirect body and exited
+      # 0, so Render recorded a successful run every day while the endpoint
+      # was never called. --location is now set too, as a tripwire — a future
+      # redirect would strip the bearer and fail loudly with 401 instead.
       - key: APP_URL
-        value: "https://freshlog.net"
+        value: "https://www.freshlog.net"
       - key: CRON_SECRET
         fromService:
           type: web

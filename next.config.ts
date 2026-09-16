@@ -150,6 +150,33 @@ const nextConfig: NextConfig = {
   // A stray lockfile exists in the home directory; pin the workspace root.
   turbopack: { root: __dirname },
 
+  experimental: {
+    /**
+     * Every hostname this app is reachable on.
+     *
+     * A server action is a POST, and Next refuses one whose `Origin` does not
+     * match the `Host` it arrived at — a CSRF check, and a silent one: the
+     * action never runs and the form renders nothing, which the mentor reads
+     * as the button not working.
+     *
+     * Three hostnames serve this app. `freshlog.net` redirects to `www` with a
+     * 307, which preserves the method AND the original `Origin`, so a POST
+     * that starts at the apex arrives at `www` carrying an `Origin` that no
+     * longer matches — exactly the mismatch above. The `.onrender.com` address
+     * still answers as well, and people do have it bookmarked.
+     *
+     * Listing them is not a widening of trust: they are the same deployment,
+     * and the check exists to reject OTHER sites posting here.
+     */
+    serverActions: {
+      allowedOrigins: [
+        "www.freshlog.net",
+        "freshlog.net",
+        "freshform-srma.onrender.com",
+      ],
+    },
+  },
+
   async redirects() {
     // 308, not 307: these addresses are gone for good, and a browser that
     // caches the move stops asking. That is also why a row cannot land early —

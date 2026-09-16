@@ -101,10 +101,36 @@ export function LogSessionForm({
   // mentor's answer is silently lost. Remounting them per attempt makes the
   // echoed value the one that wins.
   const [{ state, attempt }, action, pending] = useActionState(
-    async (prev: { state: ActionState; attempt: number }, formData: FormData) => ({
-      state: await logSession(prev.state, formData),
-      attempt: prev.attempt + 1,
-    }),
+    async (prev: { state: ActionState; attempt: number }, formData: FormData) => {
+      try {
+        return {
+          state: await logSession(prev.state, formData),
+          attempt: prev.attempt + 1,
+        };
+      } catch {
+        // A server action that never lands — a dropped connection, a proxy
+        // that ate the POST, an origin the deployment does not recognise —
+        // rejects here, and React renders nothing for a rejected action. The
+        // mentor pressed the button and the page sat there, which is the one
+        // failure they cannot report and cannot work around.
+        //
+        // Echo the fields back the way a refused submit does, so a retry does
+        // not start from an empty form.
+        const values: Record<string, string> = {};
+        for (const [name, value] of formData.entries()) {
+          if (typeof value === "string") values[name] = value;
+        }
+        return {
+          state: {
+            ok: false as const,
+            error:
+              "That did not reach the server, so nothing was logged. Check your connection and try again.",
+            values,
+          },
+          attempt: prev.attempt + 1,
+        };
+      }
+    },
     { state: null as ActionState, attempt: 0 }
   );
   const page = mode === "page";
@@ -120,6 +146,17 @@ export function LogSessionForm({
     opening.studentProfileId ?? (students.length === 1 ? students[0].profileId : "")
   );
   const formRef = useRef<HTMLFormElement>(null);
+  /**
+   * Why the browser refused to submit.
+   *
+   * When a required field is empty the form action never runs and the native
+   * bubble is a tooltip pinned to a control that may be off-screen on a phone
+   * — so the mentor sees the button do nothing. `invalid` does not bubble, but
+   * the capture phase still passes through every ancestor, so one handler here
+   * catches every control. Each control keeps naming itself; this only says
+   * that something did.
+   */
+  const [blocked, setBlocked] = useState(false);
   const today = programToday();
   // The note is the one field React owns, because dictation writes into it.
   const [note, setNote] = useState(opening.note ?? "");
@@ -173,6 +210,19 @@ export function LogSessionForm({
     window.history.replaceState(null, "", url);
   }
 
+  /**
+   * The mentor touched something.
+   *
+   * Both halves matter and neither can be left to the form's own `onChange`:
+   * a `Select` writes its value through React state without dispatching a DOM
+   * change, so the form never hears it — which is why `rememberDraft` was
+   * already being called by hand at every one of these call sites.
+   */
+  function touched(override?: Record<string, string>) {
+    setBlocked(false);
+    rememberDraft(override);
+  }
+
   if (page && state?.ok && state.receipt) {
     return (
       <Receipt
@@ -187,7 +237,8 @@ export function LogSessionForm({
     <form
       ref={formRef}
       action={action}
-      onChange={() => rememberDraft()}
+      onChange={() => touched()}
+      onInvalidCapture={() => setBlocked(true)}
       className={cn(!page && "rounded-xl border border-line bg-surface shadow-sm p-4")}
     >
       {!page && (
@@ -212,7 +263,7 @@ export function LogSessionForm({
               onChange={(value) => {
                 setStudentId(value);
                 setProgramId("");
-                rememberDraft();
+                touched();
               }}
               // A mentor logs for the same few students week after week, and a
               // full caseload is far too long to scan: last picks lead, and the
@@ -245,7 +296,7 @@ export function LogSessionForm({
                 defaultValue={programId || programs[0].value}
                 onChange={(value) => {
                   setProgramId(value);
-                  rememberDraft();
+                  touched();
                 }}
                 options={programs.map((p) => ({
                   value: p.value,
@@ -327,7 +378,7 @@ export function LogSessionForm({
                   // wiping it, and anything already typed survives.
                   const next = note.trim() ? `${note.trim()} ${text}` : text;
                   setNote(next);
-                  rememberDraft({ note: next });
+                  touched({ note: next });
                 }}
               />
             )}
@@ -381,6 +432,11 @@ export function LogSessionForm({
             {/* The whole-form error, for the failures no single field owns: not
           assigned to the program, hours expired, already logged. Suppressed
           when a field owns it, or the same sentence appears twice. */}
+      {blocked && (
+        <p role="alert" className="mt-3 text-xs font-medium text-danger-ink">
+          Something above still needs filling in — it is marked in red.
+        </p>
+      )}
       {!badField && <SaveState state={saveStateFrom(state, pending)} />}
     </form>
   );
