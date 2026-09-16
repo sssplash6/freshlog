@@ -19,6 +19,8 @@
  * Uzbekistan is UTC+5 year-round — it dropped daylight saving in 2005 — which
  * is why a fixed offset is correct here and an `Intl` round-trip is not needed.
  */
+import { toDateInputValue } from "@/lib/format";
+
 export const PROGRAM_ZONE = "Tashkent";
 
 const PROGRAM_OFFSET_MINUTES = 5 * 60;
@@ -34,6 +36,24 @@ const DAY = 24 * 60 * MINUTE;
  */
 export function programWallClock(now: Date): Date {
   return new Date(now.getTime() + PROGRAM_OFFSET_MINUTES * MINUTE);
+}
+
+/**
+ * Today's date in the program's zone, as an `<input type="date">` value.
+ *
+ * Every date field in this app means a PROGRAM day: a session is dated by the
+ * calendar day it happened in Tashkent, and the ledger stores that day at UTC
+ * midnight (`filters.ts`, `parseDateField`). So "today" on a form has to be
+ * the program's today, not the reader's and not UTC's.
+ *
+ * `toDateInputValue(new Date())` was doing UTC, which is neither. Between
+ * 19:00 and 24:00 UTC that is the wrong day for everyone: a mentor in the US
+ * got tomorrow pre-filled into an afternoon session, and a mentor in Tashkent
+ * working after midnight could not pick today at all, because it was past a
+ * `max` that had not rolled over yet.
+ */
+export function programToday(now: Date = new Date()): string {
+  return toDateInputValue(programWallClock(now));
 }
 
 /** Midnight starting the program-local day that `wall` falls in. */

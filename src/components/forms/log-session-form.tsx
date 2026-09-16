@@ -14,6 +14,7 @@ import { SaveState, saveStateFrom } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/cn";
 import { toDateInputValue } from "@/lib/format";
+import { programToday } from "@/lib/when";
 
 const inputClass =
   "w-full rounded-lg border border-line px-3.5 py-2.5 text-[0.9375rem] focus:border-brand focus:outline-none";
@@ -119,7 +120,7 @@ export function LogSessionForm({
     opening.studentProfileId ?? (students.length === 1 ? students[0].profileId : "")
   );
   const formRef = useRef<HTMLFormElement>(null);
-  const today = toDateInputValue(new Date());
+  const today = programToday();
   // The note is the one field React owns, because dictation writes into it.
   const [note, setNote] = useState(opening.note ?? "");
 

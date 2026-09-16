@@ -18,6 +18,7 @@ import {
   updateStudentTask,
 } from "@/lib/actions/student-tasks";
 import { MAX_TASK_NOTE, MAX_TASK_TITLE, PERCENT_STEPS } from "@/lib/student-tasks";
+import { programToday } from "@/lib/when";
 
 /**
  * The three controls a task has, and they belong to two different people.
@@ -60,7 +61,7 @@ export function SetStudentTaskForm({
 }) {
   const [state, action, save] = useSaveState(setStudentTask);
   const [open, setOpen] = useState(false);
-  const today = toDateInputValue(new Date());
+  const today = programToday();
 
   // Collapse once the task is actually set, so the filled-in fields can't be
   // submitted a second time by a mentor who thinks the first didn't take.
