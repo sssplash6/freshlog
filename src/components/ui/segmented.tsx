@@ -42,6 +42,23 @@ const SEGMENT =
  */
 const SEGMENT_DENSE =
   "inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2 text-[0.8125rem] transition-colors";
+/**
+ * The tab track, and it is deliberately smaller than the form one.
+ *
+ * 44px is the rule for `SegmentedRadio`, and it stays: those are form fields,
+ * and the popover comment below explains what a mis-tap costs there. A tab is
+ * not that. Every use of `TabLinks` is a filter — Active/Archived, a program,
+ * a period, a section of the page you are already reading — where a wrong tap
+ * shows you the wrong list and you tap again. Nothing is written, nothing is
+ * lost, so the target does not have to be paid for in height.
+ *
+ * It also hugs its content at every width instead of stretching to the full
+ * row on a phone. Two words and a count are not a full-width control.
+ */
+const TRACK_TAB =
+  "flex w-fit max-w-full flex-wrap gap-0.5 rounded-lg border border-line bg-canvas p-0.5";
+const SEGMENT_TAB =
+  "inline-flex min-h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-[0.8125rem] transition-colors";
 const ON = "bg-surface font-semibold text-ink shadow-sm";
 const OFF = "font-medium text-muted-fg hover:text-ink";
 
@@ -175,7 +192,7 @@ export function TabLinks({
   }, null);
 
   return (
-    <nav aria-label={label} className={cn(TRACK, className)}>
+    <nav aria-label={label} className={cn(TRACK_TAB, className)}>
       {items.map((item) => {
         const active = item === current;
         return (
@@ -189,13 +206,13 @@ export function TabLinks({
             // were looking at when they asked the question.
             scroll={false}
             aria-current={active ? "page" : undefined}
-            className={cn(SEGMENT, active ? ON : OFF)}
+            className={cn(SEGMENT_TAB, active ? ON : OFF)}
           >
             {item.label}
             {item.count != null && (
               <span
                 className={cn(
-                  "text-xs tabular-nums",
+                  "text-[0.6875rem] tabular-nums",
                   active ? "text-muted-fg" : "text-muted-fg/70"
                 )}
               >
