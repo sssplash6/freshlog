@@ -8,7 +8,6 @@ import { formatRough } from "@/lib/format";
 import { programTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { studentsWithHours } from "@/lib/queries";
-import { formatTimeOfDay, programWallClock } from "@/lib/when";
 
 /**
  * The admin's landing page: how big are my programs, and how much time is
@@ -102,13 +101,6 @@ export default async function AdminInboxPage() {
               tone={overall.remaining < 0 ? "danger" : "hours"}
             />
             <span>remaining</span>
-          </span>
-        }
-        // The render time, from the server clock. Freshness is chrome, and this
-        // is the one page with the plumbing to claim it honestly.
-        actions={
-          <span className="text-[0.8125rem] text-muted-fg">
-            Updated {formatTimeOfDay(programWallClock(now), true)}
           </span>
         }
       />
