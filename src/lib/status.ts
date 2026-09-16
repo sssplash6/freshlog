@@ -93,6 +93,134 @@ export type StatusType =
   | "DIGEST_OFF"
   | "ALL_CLEAR";
 
+/**
+ * The four questions an attention list actually answers, plus the two it
+ * answers for a mentor or a student.
+ *
+ * "Needs you" had grown to eleven rows for an admin — an overdraft, an expiry,
+ * two signups, a missing email, two unscoped staff, a program with no mentors
+ * and twenty-two pairings without a booking link — in one flat list, in
+ * whatever order severity happened to put them. Every one of those is real and
+ * none of them is the same KIND of job: topping up time, chasing a deadline,
+ * answering a person, and finishing a setup are four different afternoons.
+ *
+ * The words come from the feed below it on the same page
+ * (`NOTIFICATION_CATEGORY_LABELS`) wherever they fit, so the two halves of
+ * /notifications do not use two vocabularies for one idea. `WAITING` and
+ * `SETUP` are the two the feed has no name for, and they exist so `ACCOUNTS`
+ * does not become the bucket that holds half the list.
+ */
+export type StatusGroup =
+  | "WAITING"
+  | "TIME"
+  | "DEADLINES"
+  | "SESSIONS"
+  | "TASKS"
+  | "SETUP";
+
+export const STATUS_GROUP_LABELS: Record<StatusGroup, string> = {
+  WAITING: "Waiting on you",
+  TIME: "Time",
+  DEADLINES: "Deadlines",
+  SESSIONS: "Sessions",
+  TASKS: "Tasks and agenda",
+  SETUP: "Setup",
+};
+
+/**
+ * Which group each state belongs to, stated once and exhaustively — the same
+ * arrangement `CATEGORY_OF` has in constants.ts, and for the same reason: a
+ * new `StatusType` cannot land without somebody deciding where it is read.
+ */
+export const GROUP_OF: Record<StatusType, StatusGroup> = {
+  // Somebody is blocked until the reader does something about them.
+  STUDENT_PENDING_APPROVAL: "WAITING",
+  STUDENT_NOT_SIGNED_IN: "WAITING",
+  STUDENT_PLACEHOLDER_EMAIL: "WAITING",
+  // A mentor rated low is not a setup gap; it is a person to talk to.
+  FEEDBACK_LOW: "WAITING",
+  SESSION_DISPUTED: "WAITING",
+
+  // Hours: how much is held, and by whom.
+  BALANCE_OVERDRAWN: "TIME",
+  BALANCE_NONE: "TIME",
+  POOL_UNASSIGNED: "TIME",
+  EXCHANGE_UNALLOCATED: "TIME",
+
+  // Hours running out, which is a different job from hours running low.
+  ALLOCATION_EXPIRING: "DEADLINES",
+  ALLOCATION_EXPIRED: "DEADLINES",
+
+  SESSION_NO_SHOW: "SESSIONS",
+  SESSION_LATE: "SESSIONS",
+  SESSION_EXTRA: "SESSIONS",
+  SESSION_RESCHEDULED: "SESSIONS",
+  SESSION_VOIDED: "SESSIONS",
+  SESSION_UNCONFIRMED: "SESSIONS",
+  SESSION_CONFIRMED: "SESSIONS",
+
+  TASK_NOT_STARTED: "TASKS",
+  TASK_IN_PROGRESS: "TASKS",
+  TASK_DONE: "TASKS",
+  TASK_OVERDUE: "TASKS",
+  TASK_OVER_BUDGET: "TASKS",
+  TASK_NEEDS_MENTOR: "TASKS",
+
+  // Something was never finished being wired up. None of it is urgent and all
+  // of it blocks something else quietly.
+  NO_MENTOR: "SETUP",
+  BOOKING_LINK_MISSING: "SETUP",
+  MENTOR_UNASSIGNED: "SETUP",
+  MENTOR_NAME_MISSING: "SETUP",
+  PROGRAM_ARCHIVED: "SETUP",
+  PROGRAM_NO_MENTORS: "SETUP",
+  STAFF_UNSCOPED: "SETUP",
+  DIGEST_OFF: "SETUP",
+  // Never grouped: it is the row that means the list is empty.
+  ALL_CLEAR: "SETUP",
+};
+
+/** The tie-break when two groups hold equally bad news. */
+const GROUP_ORDER: StatusGroup[] = [
+  "TIME",
+  "DEADLINES",
+  "WAITING",
+  "SESSIONS",
+  "TASKS",
+  "SETUP",
+];
+
+/**
+ * Split an attention list into its groups, worst first.
+ *
+ * Returns null when grouping would cost more than it gives: one group is a
+ * heading over the whole list, and a short list is faster to read whole than
+ * to read in parts. A mentor's or a student's list is usually both.
+ */
+export function groupStatuses(
+  statuses: Status[]
+): { group: StatusGroup; rows: Status[] }[] | null {
+  const byGroup = new Map<StatusGroup, Status[]>();
+  for (const status of statuses) {
+    const group = GROUP_OF[status.type];
+    const rows = byGroup.get(group);
+    if (rows) rows.push(status);
+    else byGroup.set(group, [status]);
+  }
+  if (byGroup.size < 2 || statuses.length < 5) return null;
+
+  const worst = (rows: Status[]) =>
+    Math.min(...rows.map((r) => SEVERITY_RANK[r.severity]));
+
+  return [...byGroup.entries()]
+    .map(([group, rows]) => ({ group, rows }))
+    .sort(
+      (a, b) =>
+        worst(a.rows) - worst(b.rows) ||
+        GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group)
+    );
+}
+
 export type Status = {
   type: StatusType;
   severity: Severity;

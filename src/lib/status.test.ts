@@ -10,6 +10,7 @@ import {
 import {
   actionableCount,
   attentionList,
+  groupStatuses,
   EXPIRY_WINDOW_DAYS,
   GLYPH,
   mentorStatuses,
@@ -700,5 +701,44 @@ describe("roll-up wording is the reader's, not the staff's", () => {
 
   it("falls back to the shared wording for an audience with none of its own", () => {
     expect(linkless("mentor", 5)[0].label).toBe("5 pairings have no booking link");
+  });
+});
+
+describe("groupStatuses", () => {
+  const row = (type: string, severity: string): Status =>
+    ({ type, severity, kind: "state", label: type }) as unknown as Status;
+
+  it("leads with the group holding the worst news, not a fixed order", () => {
+    const grouped = groupStatuses([
+      row("BOOKING_LINK_MISSING", "attention"),
+      row("MENTOR_UNASSIGNED", "attention"),
+      row("STAFF_UNSCOPED", "attention"),
+      row("STUDENT_PENDING_APPROVAL", "attention"),
+      row("BALANCE_OVERDRAWN", "problem"),
+    ]);
+    expect(grouped?.map((g) => g.group)).toEqual(["TIME", "WAITING", "SETUP"]);
+  });
+
+  it("does not put a heading over a list that is one question anyway", () => {
+    expect(
+      groupStatuses([
+        row("BALANCE_OVERDRAWN", "problem"),
+        row("BALANCE_NONE", "attention"),
+        row("POOL_UNASSIGNED", "attention"),
+        row("EXCHANGE_UNALLOCATED", "attention"),
+        row("BALANCE_OVERDRAWN", "problem"),
+      ])
+    ).toBeNull();
+  });
+
+  it("leaves a short list alone — reading four rows beats reading two lists", () => {
+    expect(
+      groupStatuses([
+        row("BALANCE_OVERDRAWN", "problem"),
+        row("STUDENT_PENDING_APPROVAL", "attention"),
+        row("BOOKING_LINK_MISSING", "attention"),
+        row("ALLOCATION_EXPIRING", "attention"),
+      ])
+    ).toBeNull();
   });
 });

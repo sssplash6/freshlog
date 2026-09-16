@@ -5,7 +5,12 @@ import { Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
 import { DismissStatus } from "@/components/forms/dismiss-status";
-import { actionableCount, type Status } from "@/lib/status";
+import {
+  actionableCount,
+  groupStatuses,
+  STATUS_GROUP_LABELS,
+  type Status,
+} from "@/lib/status";
 
 /**
  * What needs the reader, as rows.
@@ -57,6 +62,9 @@ export function AttentionList({
   className?: string;
 }) {
   const count = actionableCount(statuses);
+  // Null when the list is short enough, or single-minded enough, that headings
+  // would be more furniture than signpost.
+  const groups = groupStatuses(statuses);
 
   return (
     <Section
@@ -83,6 +91,25 @@ export function AttentionList({
         <p className="px-4 py-2 text-sm text-muted-fg sm:px-5">
           {empty ?? "Nothing needs you."}
         </p>
+      ) : groups ? (
+        groups.map(({ group, rows }, index) => (
+          <div key={group} className={cn(index > 0 && "border-t border-line")}>
+            <h3 className="flex items-baseline gap-2 bg-canvas px-4 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-fg sm:px-5">
+              {STATUS_GROUP_LABELS[group]}
+              <span className="font-normal tabular-nums">{rows.length}</span>
+            </h3>
+            <ul className="divide-y divide-line border-t border-line">
+              {rows.map((s, i) => (
+                <AttentionRow
+                  key={`${s.type}-${s.subject?.id ?? i}`}
+                  status={s}
+                  action={renderAction?.(s)}
+                  dismissible={dismissible}
+                />
+              ))}
+            </ul>
+          </div>
+        ))
       ) : (
         <ul className="divide-y divide-line">
           {statuses.map((s, i) => (
