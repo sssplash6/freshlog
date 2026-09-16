@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle } from "@/components/ui/section";
 import { USER_STATUS } from "@/lib/constants";
 import { requireMentor } from "@/lib/dal";
+import { dictationConfigured } from "@/lib/dictation";
 import { logSessionOptions, mentorCaseload } from "@/lib/queries";
 
 /**
@@ -72,6 +73,7 @@ export default async function LogSessionPage({
           draft={draft}
                     correctBase="/sessions#session-"
           againHref="/sessions/new"
+          canDictate={dictationConfigured()}
         />
       )}
     </div>

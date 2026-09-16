@@ -5,6 +5,7 @@ import { useActionState, useRef, useState } from "react";
 import { logSession } from "@/lib/actions/sessions";
 import type { ActionState } from "@/lib/actions/shared";
 import { AttendancePicker } from "@/components/forms/attendance-picker";
+import { DictateButton } from "@/components/forms/dictate-button";
 import { TimeKindPicker } from "@/components/forms/time-kind-picker";
 import { Select } from "@/components/select";
 import { GrowingField } from "@/components/ui/field";
@@ -82,12 +83,15 @@ export function LogSessionForm({
   correctBase,
   /** The same form, empty — a link, so the back button still works. */
   againHref,
+  /** Whether this deployment has the keys for a spoken note. */
+  canDictate = false,
 }: {
   students: LogSessionStudent[];
   mode?: "inline" | "page";
   draft?: LogSessionDraft;
     correctBase?: string;
   againHref?: string;
+  canDictate?: boolean;
 }) {
     // The attempt counter is what lets the two SegmentedRadio pickers survive a
   // failed submit. They hold their choice in `useState`, and React 19 resets
@@ -116,6 +120,8 @@ export function LogSessionForm({
   );
   const formRef = useRef<HTMLFormElement>(null);
   const today = toDateInputValue(new Date());
+  // The note is the one field React owns, because dictation writes into it.
+  const [note, setNote] = useState(opening.note ?? "");
 
   const student = students.find((s) => s.profileId === studentId);
   const programs = student?.programs ?? [];
@@ -138,7 +144,7 @@ export function LogSessionForm({
    * the page or add a history entry, and the values are only ever read back on
    * a fresh load.
    */
-  function rememberDraft() {
+  function rememberDraft(override?: Record<string, string>) {
     if (!page || typeof window === "undefined") return;
     const form = formRef.current;
     if (!form) return;
@@ -157,7 +163,9 @@ export function LogSessionForm({
       "attendance",
       "timeKind",
     ]) {
-      const value = String(new FormData(form).get(name) ?? "");
+      // `override` is for a value React has just set but the DOM has not
+      // rendered yet — reading the form then would save the previous one.
+      const value = override?.[name] ?? String(new FormData(form).get(name) ?? "");
       if (value) url.searchParams.set(name, value);
       else url.searchParams.delete(name);
     }
@@ -178,7 +186,7 @@ export function LogSessionForm({
     <form
       ref={formRef}
       action={action}
-      onChange={rememberDraft}
+      onChange={() => rememberDraft()}
       className={cn(!page && "rounded-xl border border-line bg-surface shadow-sm p-4")}
     >
       {!page && (
@@ -300,19 +308,39 @@ export function LogSessionForm({
           />
           <FieldError show={badField === "date"} state={state} />
         </label>
-        <label
+        {/* A div, not a label: the dictate button sits on this row, and a
+            button inside a label steals the click into the textarea. */}
+        <div
           className={cn(
             "block min-w-0 text-sm",
             page ? "sm:col-span-2" : "sm:col-span-2 lg:col-span-3"
           )}
         >
-          <span className="text-muted-fg">Notes</span>
-          <GrowingField
-            name="note"
-            placeholder="Optional — what you covered, and what's next"
-            defaultValue={opening.note}
-          />
-        </label>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-fg">Notes</span>
+            {canDictate && (
+              <DictateButton
+                studentProfileId={studentId || undefined}
+                onText={(text) => {
+                  // Append: a second take adds to the first instead of
+                  // wiping it, and anything already typed survives.
+                  const next = note.trim() ? `${note.trim()} ${text}` : text;
+                  setNote(next);
+                  rememberDraft({ note: next });
+                }}
+              />
+            )}
+          </div>
+          <div className="mt-0.5">
+            <GrowingField
+              name="note"
+              aria-label="Notes"
+              placeholder="Optional — what you covered, and what's next"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+            />
+          </div>
+        </div>
       </div>
 
       {noGoals && (

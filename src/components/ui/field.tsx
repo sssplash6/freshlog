@@ -75,10 +75,15 @@ export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
 export function GrowingField({
   className,
   defaultValue,
+  value: controlled,
   onChange,
   ...props
 }: ComponentProps<"textarea">) {
-  const [value, setValue] = useState(String(defaultValue ?? ""));
+  // Uncontrolled by default, which is every caller but one. Pass `value` and
+  // the parent owns it instead — dictation needs to push text INTO this box,
+  // and a field that only ever reads its own keystrokes cannot be written to.
+  const [own, setOwn] = useState(String(defaultValue ?? ""));
+  const value = controlled !== undefined ? String(controlled) : own;
 
   return (
     <div className="grid w-full">
@@ -87,7 +92,7 @@ export function GrowingField({
         rows={1}
         value={value}
         onChange={(event) => {
-          setValue(event.target.value);
+          if (controlled === undefined) setOwn(event.target.value);
           onChange?.(event);
         }}
         className={cn(

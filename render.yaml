@@ -69,14 +69,8 @@ services:
         sync: false
       - key: EMAIL_FROM
         sync: false
-      # Dictated session notes. Until all three are set the mic button does
-      # not render and logging a session is unchanged.
-      #   AZURE_SPEECH_REGION must be one of the six MAI-Transcribe regions:
-      #   eastus, westus, westus2, northeurope, centralindia, southeastasia
-      - key: AZURE_SPEECH_KEY
-        sync: false
-      - key: AZURE_SPEECH_REGION
-        sync: false
+      # Dictated session notes. Until this is set the mic button does not
+      # render and logging a session is unchanged.
       - key: OPENROUTER_API_KEY
         sync: false
 
