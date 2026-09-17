@@ -294,7 +294,6 @@ function StaffShell({
       {lens && <ProfileShortcut />}
 
       <Sidebar
-        bell={<NotificationMenu unread={unread} recent={recent} now={now} />}
         items={items}
         // Settings alone. Notifications left the rail for the bell in the
         // corner: it was the one row in a column of PLACES that changes on its
@@ -304,6 +303,22 @@ function StaffShell({
         search={search}
         account={account}
       />
+
+      {/* THE TOP RIGHT CORNER OF THE WINDOW, and nothing else's.
+
+          It used to be pinned to the right edge of the CONTENT MEASURE —
+          `inset-x-0` plus the rail's own width plus `mx-auto max-w-6xl`. Three
+          things it had to agree with, and it moved whenever any of them did:
+          collapsing the rail slid it 156px, and a page whose content did not
+          fill the measure put it somewhere else again. Pinned to the viewport
+          it has one position on every page, which is what a fixed control is
+          for. `right-4` is the same gutter the page uses.
+
+          `z-40` sits above the rail and the bottom bar (`z-30`) and below
+          anything that opens on top of chrome (`z-50`). */}
+      <div className="fixed right-4 top-4 z-40 hidden lg:block">
+        <NotificationMenu unread={unread} recent={recent} now={now} />
+      </div>
 
       {/* The same measure as the page below it, so the wordmark lines up with
           the h1 rather than floating in from a narrower centre.

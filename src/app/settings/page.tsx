@@ -54,11 +54,10 @@ export default async function SettingsPage() {
     <div className="mx-auto max-w-3xl space-y-4">
       <PageTitle title="Settings" />
 
-      <Section eyebrow="How you appear" title="Profile">
+      <Section title="Profile">
         <div className="px-4 py-2 sm:px-5">
           <SettingsRow
             label="Picture"
-            description="Shown wherever your name appears."
             control={
               <AvatarForm
                 person={{
@@ -73,14 +72,13 @@ export default async function SettingsPage() {
           <OwnNameForm defaultName={user.name ?? ""} />
           <SettingsRow
             label="Sign-in email"
-            description="Changed by an admin — it is the address Google signs you in with."
             control={<span className="text-sm text-ink">{user.email}</span>}
           />
         </div>
       </Section>
 
       {profile && (
-        <Section eyebrow="How your mentors reach you" title="Contact">
+        <Section title="Contact">
           <div className="px-4 py-2 sm:px-5">
             <OwnTelegramForm defaultHandle={profile.telegramUsername ?? ""} />
           </div>
@@ -88,11 +86,7 @@ export default async function SettingsPage() {
       )}
 
       {isMentor && assignments.length > 0 && (
-        <Section
-          eyebrow="One per program you work in"
-          title="Booking links"
-          caption="Students book you through these."
-        >
+        <Section title="Booking links">
           <div className="px-4 py-2 sm:px-5">
             <BookingLinksForm
               assignments={assignments.map((a) => ({
@@ -107,16 +101,9 @@ export default async function SettingsPage() {
         </Section>
       )}
 
-      <Section
-        eyebrow="What reaches you, and where"
-        title="Notifications"
-        caption="Everything arrives in the app unless you say otherwise. Email is off unless you ask for it."
-      >
+      <Section title="Notifications">
         <div className="px-4 py-2 sm:px-5">
-          <WeeklyDigestForm
-            defaultOn={user.weeklyDigest}
-            student={Boolean(profile)}
-          />
+          <WeeklyDigestForm defaultOn={user.weeklyDigest} />
         </div>
         <div className="border-t border-line px-4 py-2 sm:px-5">
           <NotificationMatrix

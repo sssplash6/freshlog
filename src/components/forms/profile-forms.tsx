@@ -215,7 +215,6 @@ export function OwnNameForm({ defaultName }: { defaultName: string }) {
     <SettingsRow
       label="Full name"
       htmlFor={id}
-      description="First and last name — what everyone reads you by on session rows, chips and your students' booking cards."
       control={
         <form action={action} className="flex flex-wrap items-end gap-2">
           <NameInput
@@ -393,10 +392,6 @@ export function AvatarForm({
               </Button>
             )}
           </div>
-          <p className="mt-2 text-xs text-muted-fg">
-            Square works best — anything else is cropped from the middle. Shown
-            next to your name everywhere in the app.
-          </p>
         </div>
       </div>
       <SaveState state={saveStateFrom(state, busy)} />

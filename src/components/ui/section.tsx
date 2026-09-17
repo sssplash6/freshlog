@@ -91,7 +91,13 @@ export function PageTitle({
           {backLabel}
         </Link>
       )}
-      <div className="flex flex-wrap items-end justify-between gap-x-5 gap-y-2">
+      {/* `lg:pr-14` keeps the bell's lane clear. The bell is fixed to the
+          window's top right corner and this row is the only thing in the page
+          that reaches that height, so without it a page action — "Log a
+          session", "Add a student" — takes a 99+ badge through the middle of
+          itself. Reserved on every page rather than on the ones that have an
+          action today, because the collision arrives with the action. */}
+      <div className="flex flex-wrap items-end justify-between gap-x-5 gap-y-2 lg:pr-14">
         {/* The picture and the words it belongs to are ONE group, centred on
             each other. They used to be siblings of the whole row, which is
             end-aligned so the actions sit on the baseline — so a 64px avatar

@@ -36,7 +36,6 @@ export function OwnTelegramForm({ defaultHandle }: { defaultHandle: string }) {
     <SettingsRow
       label="Telegram"
       htmlFor={id}
-      description="How your mentors message you between sessions."
       state={<SaveState state={save} />}
       control={
         <form action={action} className="flex flex-wrap items-center gap-2">
@@ -67,14 +66,7 @@ export function OwnTelegramForm({ defaultHandle }: { defaultHandle: string }) {
  * The other way to switch it off is still the link in the footer of the email
  * itself, for people who will not sign in to say stop.
  */
-export function WeeklyDigestForm({
-  defaultOn,
-  student,
-}: {
-  defaultOn: boolean;
-  /** A student's summary is about their own time; staff read delivery. */
-  student: boolean;
-}) {
+export function WeeklyDigestForm({ defaultOn }: { defaultOn: boolean }) {
   const id = useId();
   const [on, setOn] = useState(defaultOn);
 
@@ -82,11 +74,6 @@ export function WeeklyDigestForm({
     <SettingsRow
       label="Weekly summary"
       htmlFor={id}
-      description={
-        student
-          ? "Every Monday: the hours completed last week and the time remaining to book, with their deadlines."
-          : "Every Monday: the hours completed last week and what is remaining, with the deadlines they fall under."
-      }
       control={
         <form action={setWeeklyDigest} className="flex items-center gap-2">
           <label className="flex min-h-11 items-center gap-2 text-sm text-ink">

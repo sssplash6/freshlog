@@ -85,9 +85,18 @@ export function PersonChip({
       {/* `sm` stays small: it sits in the dense ledger tables, where the name
           beside it does the identifying and row height is the scarce resource.
           `md` is the header/card size and has room for a face. */}
+      {/* `ring-inset` because a photo carries the identity ring and initials do
+          not. A ring is drawn OUTSIDE the box, so a pill holding a face was 4px
+          taller and 4px wider than the identical pill holding initials — and
+          the pill's own 2px of padding was exactly what the ring ate, so the
+          face sat flush against the edge and hung out of the top and bottom.
+          Inset, the ring costs nothing and both pills are one shape. */}
       <Avatar
         person={person}
-        className={sm ? "h-5 w-5 text-[0.5625rem]" : "h-8 w-8 text-[0.6875rem]"}
+        className={cn(
+          "ring-inset",
+          sm ? "h-5 w-5 text-[0.5625rem]" : "h-8 w-8 text-[0.6875rem]"
+        )}
       />
       <span className="min-w-0 truncate">{label}</span>
     </>
