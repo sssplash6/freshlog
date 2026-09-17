@@ -223,6 +223,70 @@ export function LogSessionForm({
     rememberDraft(override);
   }
 
+  /**
+   * The two fields that sit in different places in the two shapes.
+   *
+   * Written once and placed twice rather than written twice: they carry the
+   * dictation wiring and the error plumbing, and the version of this that
+   * duplicated the JSX is how the page shape ended up with a Notes box the
+   * inline one did not have.
+   */
+  const dateField = (
+    <label className="block min-w-0 text-sm">
+      <span className="text-muted-fg">Date *</span>
+      <input
+        name="date"
+        type="date"
+        required
+        defaultValue={opening.date ?? today}
+        max={today}
+        aria-invalid={badField === "date" || undefined}
+        className={cn(inputClass, badField === "date" && badInputClass)}
+      />
+      <FieldError show={badField === "date"} state={state} />
+    </label>
+  );
+
+  const notesField = (
+    // A div, not a label: the dictate button sits on this row, and a button
+    // inside a label steals the click into the textarea.
+    <div
+      className={cn(
+        "flex min-w-0 flex-col text-sm",
+        !page && "sm:col-span-2 lg:col-span-3"
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-muted-fg">Notes</span>
+        {canDictate && (
+          <DictateButton
+            studentProfileId={studentId || undefined}
+            onText={(text) => {
+              // Append: a second take adds to the first instead of
+              // wiping it, and anything already typed survives.
+              const next = note.trim() ? `${note.trim()} ${text}` : text;
+              setNote(next);
+              touched({ note: next });
+            }}
+          />
+        )}
+      </div>
+      {/* Starts at the height of the three fields beside it and grows from
+          there. An empty box the depth of one line, next to a column three
+          times its height, reads as the afterthought it is not. */}
+      <div className="mt-0.5">
+        <GrowingField
+          name="note"
+          aria-label="Notes"
+          placeholder="Optional — what you covered, and what's next"
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          className={cn(page && "lg:min-h-64")}
+        />
+      </div>
+    </div>
+  );
+
   if (page && state?.ok && state.receipt) {
     return (
       <Receipt
@@ -347,83 +411,47 @@ export function LogSessionForm({
           />
           <FieldError show={badField === "minutes"} state={state} />
         </label>
-        <label className="block min-w-0 text-sm">
-          <span className="text-muted-fg">Date *</span>
-          <input
-            name="date"
-            type="date"
-            required
-            defaultValue={opening.date ?? today}
-            max={today}
-            aria-invalid={badField === "date" || undefined}
-            className={cn(inputClass, badField === "date" && badInputClass)}
-          />
-          <FieldError show={badField === "date"} state={state} />
-        </label>
-        {/* A div, not a label: the dictate button sits on this row, and a
-            button inside a label steals the click into the textarea. */}
-        <div
-          className={cn(
-            "block min-w-0 text-sm",
-            page ? "sm:col-span-2" : "sm:col-span-2 lg:col-span-3"
-          )}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-muted-fg">Notes</span>
-            {canDictate && (
-              <DictateButton
-                studentProfileId={studentId || undefined}
-                onText={(text) => {
-                  // Append: a second take adds to the first instead of
-                  // wiping it, and anything already typed survives.
-                  const next = note.trim() ? `${note.trim()} ${text}` : text;
-                  setNote(next);
-                  touched({ note: next });
-                }}
-              />
-            )}
-          </div>
-          <div className="mt-0.5">
-            <GrowingField
-              name="note"
-              aria-label="Notes"
-              placeholder="Optional — what you covered, and what's next"
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-            />
-          </div>
-        </div>
+        {!page && dateField}
+        {!page && notesField}
       </div>
 
-      {noGoals && (
-        <p className="mt-3 text-xs text-muted-fg">
-          No agenda planned for you with this student yet — log the session
-          anyway, and it can be attached to one later with “Edit”.
-        </p>
+      {/* The note is the long answer and the other three are one tap each, so
+          the note takes the column and they stack beside it. They used to run
+          down the page in a single file, which put the submit button below the
+          fold on a laptop and made a 90-second form feel like a questionnaire.
+          One column below `lg`: side-by-side on a phone would give the note
+          about twenty characters a line. */}
+      {page && (
+        <>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            {notesField}
+            <div className="flex flex-col gap-4">
+              {dateField}
+              <AttendancePicker
+                key={`attendance-${attempt}`}
+                defaultValue={opening.attendance}
+              />
+              <TimeKindPicker key={`kind-${attempt}`} defaultValue={opening.timeKind} />
+            </div>
+          </div>
+          <div className="mt-5">
+            <SubmitButton pendingText="Logging…" className="w-full">
+              Log session
+            </SubmitButton>
+          </div>
+        </>
       )}
 
-      {/* Two questions about the same meeting, side by side: how it went, and
-          whether it spends the student's time. */}
-      <div
-        className={cn(
-          "flex flex-wrap items-end justify-between gap-x-6 gap-y-3",
-          page ? "mt-5" : "mt-3"
-        )}
-      >
-        <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
-                    <AttendancePicker key={`attendance-${attempt}`} defaultValue={opening.attendance} />
-          <TimeKindPicker key={`kind-${attempt}`} defaultValue={opening.timeKind} />
-        </div>
-        {!page && (
+      {!page && (
+        <div className="mt-3 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
+            <AttendancePicker
+              key={`attendance-${attempt}`}
+              defaultValue={opening.attendance}
+            />
+            <TimeKindPicker key={`kind-${attempt}`} defaultValue={opening.timeKind} />
+          </div>
           <SubmitButton pendingText="Logging…" className="min-w-40">
-            Log session
-          </SubmitButton>
-        )}
-      </div>
-
-      {page && (
-        <div className="mt-6">
-          <SubmitButton pendingText="Logging…" className="w-full sm:w-auto sm:min-w-48">
             Log session
           </SubmitButton>
         </div>

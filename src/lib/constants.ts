@@ -124,7 +124,15 @@ export const ATTENDANCE_META: Record<
   {
     /** How the option reads in the picker. */
     label: string;
-    hint: string;
+    /**
+     * What choosing this one COSTS, when that is not obvious from the label.
+     *
+     * The default has none on purpose. "Attended" read "The meeting happened
+     * as planned." — a sentence that restates its own label and taught a
+     * mentor to stop reading the line, which is the line that has to land on
+     * the day they pick "Absent".
+     */
+    hint?: string;
     /** How the state reads as a chip on a logged row. */
     chip?: string;
     /**
@@ -134,7 +142,7 @@ export const ATTENDANCE_META: Record<
     status?: StatusType;
   }
 > = {
-  ATTENDED: { label: "Attended", hint: "The meeting happened as planned." },
+  ATTENDED: { label: "Attended" },
   LATE: {
     label: "Came late",
     hint: "It happened; log the time you actually spent.",
@@ -205,12 +213,11 @@ export type TimeKind = (typeof TIME_KIND)[keyof typeof TIME_KIND];
 
 export const TIME_KIND_META: Record<
   string,
-  { label: string; hint: string; chip?: string; status?: StatusType }
+  { label: string; hint?: string; chip?: string; status?: StatusType }
 > = {
-  PLAN: {
-    label: "Counts toward their time",
-    hint: "The usual case — this time comes out of what the student holds with you.",
-  },
+  // No hint: it is the default and the label already says what it does. The
+  // one worth reading is EXTRA's, and it reads better alone.
+  PLAN: { label: "Counts toward their time" },
   EXTRA: {
     label: "Extra, beyond their time",
     hint: "Work on top of the plan. It shows in the log and against the agenda, but charges nothing to their balance.",

@@ -59,7 +59,11 @@ export default async function LogSessionPage({
     : "/mentor";
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
+    // Wider than the 2xl it was: the note and the three one-tap answers sit
+    // side by side above `lg`, and at 42rem each column was too narrow to hold
+    // "Attended / Came late / Absent / Rescheduled" on one row. Below `lg` the
+    // form is one column and this cap never binds.
+    <div className="mx-auto max-w-4xl space-y-4">
       <PageTitle backHref={back} backLabel="Back" title="Log a session" />
 
       {students.length === 0 ? (
