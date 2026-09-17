@@ -35,7 +35,7 @@ async function signOutAction() {
  * The bell, and everything behind it.
  *
  * It used to point at the reader's own home plus `#notifications`, because the
- * feed was rendered there. Both halves of it — what needs you, and what has
+ * feed was rendered there. Both halves of it — the active issues, and what has
  * happened — live at `/notifications` now and nowhere else, so the bell points
  * at the page it is named after.
  *

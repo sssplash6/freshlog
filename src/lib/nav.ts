@@ -72,7 +72,7 @@ function widest(levels: readonly (StaffLevel | null)[]): StaffLevel {
 /**
  * The items for the staff lens, narrowed by what this person was granted.
  *
- * `inbox` is the count of Needs-you rows and arrives from the caller because
+ * `inbox` is the count of Active-issues rows and arrives from the caller because
  * nothing computes it cheaply yet: every home builds its own attention list out
  * of its whole roster, and the shell asking the same question again would
  * double the cost of every page. It becomes a shared query with `/inbox` in

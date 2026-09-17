@@ -22,7 +22,7 @@ notified. **No UI goal may change an hours number** — the forfeiture arithmeti
 
 ## 1. The spine
 
-**Triage.** Every role home is a typed *"Needs you"* list, one lead figure, and a seven-day
+**Triage.** Every role home is a typed *"Active issues"* list, one lead figure, and a seven-day
 *"Up next"* timeline — and then nothing. History and browsing live behind list destinations with
 server-side search, filters and pagination. Each entity (student, mentor, program) has exactly one
 page, shared by every role and gated per-permission. One typed status model produces the inbox
@@ -203,7 +203,7 @@ The horizontal bar is over capacity by its own admission ("Four things do not fi
 freshlog                        ← wordmark, brand blue
 [ Admin | Mentor ]              ← dual-role only, ⌥M
 Find a student or mentor…       ← submits to /students?q= or /mentors?q=
-Inbox                     3     ← count = Needs-you rows
+Inbox                     3     ← count = Active-issues rows
 Students
 Mentors
 Programs                        ← collapses to the program's NAME when scope = 1
@@ -330,7 +330,7 @@ keeps a first screen calm no matter what the data does.
 | `PROGRAM_NO_MENTORS` | No mentors | attention | actionable (admin) | program overview, programs list |
 | `STAFF_UNSCOPED` | No programs granted | problem | blocked | admin inbox, as ONE line (replaces three copies of the "staff configuration" sentence) |
 | `DIGEST_OFF` | Weekly email off | neutral | informational | `/settings` row only — never on a home |
-| `ALL_CLEAR` | Nothing needs you | ok | informational | empty `AttentionList` |
+| `ALL_CLEAR` | No active issues | ok | informational | empty `AttentionList` |
 
 **Notification categories** are the same vocabulary: `Notification.category ∈ {HOURS, SESSIONS,
 MEETINGS, TASKS, ACCOUNTS, DEADLINES, FEEDBACK, WEEKLY}`, mapped from the 17 existing types
@@ -374,7 +374,7 @@ rewrites its call sites — never as a standalone tidy-up.**
 | `ui/settings-row.tsx` | `<SettingsRow label description? control state />` | `own-name-form`, `booking-link-form` rows, `student-folder-form`, the digest panel, rename form |
 | `ui/fact-list.tsx` | `<FactList items={[{label, value, change?}]} />` — GOV.UK summary list with inline **Change** + `SaveState` | `student-corrections.tsx` and `student-folder-form.tsx` as panels; header subtitle runs |
 | `ui/receipt.tsx` | `<Receipt changed balance next />` | the ~60-word run-on success line (`sessions.ts:497-538`) |
-| `attention-list.tsx` | `<AttentionList statuses groupBy="kind" cap={20} voice="staff\|student" empty="Nothing needs you." />` — problems first, roll-up applied | admin pending `Callout`, `flagsFor` panel, mentor booking pill, 4 student `Callout`s, "Awaiting assignment" box, the UNASSIGNED welcome card |
+| `attention-list.tsx` | `<AttentionList statuses groupBy="kind" cap={20} voice="staff\|student" empty="No active issues." />` — problems first, roll-up applied | admin pending `Callout`, `flagsFor` panel, mentor booking pill, 4 student `Callout`s, "Awaiting assignment" box, the UNASSIGNED welcome card |
 | `timeline.tsx` | `<Timeline items groups={["overdue","today","week","later"]} viewer />` · `<TimelineItem />`; items are meetings, use-by dates and task due dates | `scheduled-meetings.tsx` + violet `DateLeaf`, `LedgerBoard.UpcomingMeetingRow`, "Your diary" |
 | `session-row.tsx` | `<SessionRow session variant="table\|timeline\|line" columns actions viewer />` · `<SessionsTable />` | `meetings-log.tsx` (mounted on 6 routes), `LedgerBoard.LoggedMeetingRow`, `student-journey.tsx`, the `/mentor/sessions` inline table |
 | `task-row.tsx` | `<TaskRow task viewer actions />` · `<TaskTable />`; over-budget is danger everywhere, done is a `✓` chip with no wash | `assignments-panel.tsx`, `LedgerBoard.TaskRow`, `student-goals.tsx` `GoalCard`, the program page inline table |
@@ -688,7 +688,7 @@ Core question: *is anything in my programs waiting on me right now?*
 | # | Section | Content | Prose | Built from |
 |---|---|---|---|---|
 | 1 | Title row | `h1` "Inbox" · one muted line "3 programs · 41 students · 212h remaining" · `Updated 09:12` | 12 | `PageTitle` + `Figure inline` |
-| 2 | Needs you | `AttentionList` grouped by kind, problems first: **Approvals** (pending signups, **Approve** inline) · **Time** (overdrawn, expiring ≤14d, expired unused, no time allocated) · **Meetings** (passed, nothing logged) · **Mentors** (not in any program, no booking link) · **Tasks** (overdue, needs a mentor) · **Feedback** (low rating). Row = `StatusChip` · subject · ≤12-word explanation · program (muted) · →. Cap 20, roll-up above 3 per type, then "N more →". Empty: "Nothing needs you." | 8 / row, 4 empty | `AttentionList` |
+| 2 | Active issues | `AttentionList` grouped by kind, problems first: **Approvals** (pending signups, **Approve** inline) · **Time** (overdrawn, expiring ≤14d, expired unused, no time allocated) · **Meetings** (passed, nothing logged) · **Mentors** (not in any program, no booking link) · **Tasks** (overdue, needs a mentor) · **Feedback** (low rating). Row = `StatusChip` · subject · ≤12-word explanation · program (muted) · →. Cap 20, roll-up above 3 per type, then "N more →". Empty: "No active issues." | 8 / row, 4 empty | `AttentionList` |
 | 3 | Up next | Today / Next 7 days: meetings in scope (this is the first render of `ScheduledMeetings view="staff"`, implemented at `scheduled-meetings.tsx:48` and never used), use-by dates ≤7d, task due dates. ≤10 rows · "All scheduled →" | 4 | `Timeline` |
 | 4 | Programs | One row per program in scope: name · students · mentors · remaining (`Figure inline`, danger if <0) · attention count · →. Hidden when scope = 1. No meter, no tilt, no hue, no monogram. | 0 | `Section` + `Table` |
 | 5 | Recent | ≤5 read-only lines "Aug 30 · Malika logged 90 min with Aziz · Master's" · "All sessions →" | 0 | `SessionRow variant="line"` |
@@ -705,7 +705,7 @@ running out of time?* What a mentor sees on Monday morning, in three lines:
 
 ```
 Inbox                                    12h 40m left across 6 students   [Log a session]
-Needs you (3)   ! Meeting passed, nothing logged · Aziza Yusupova · Thu        Log →
+Active issues (3)   ! Meeting passed, nothing logged · Aziza Yusupova · Thu        Log →
                 × 4h 38m expires Sep 30 · Nigel Brooks · Master's        Schedule →
                 ! No booking link · Flexible Program                          Set →
 Up next         Today 15:00  Lyusyena Petrosyan   ✓ Confirmed                 Join
@@ -715,7 +715,7 @@ Up next         Today 15:00  Lyusyena Petrosyan   ✓ Confirmed                 
 | # | Section | Content | Prose | Built from |
 |---|---|---|---|---|
 | 1 | Title row | `h1` "Inbox" · lead `Figure` "12h 40m left across 6 students" · primary **Log a session** → `/sessions/new` (full width under the title below md, so it is the first thing a thumb finds) | 6 | `PageTitle` + `Figure lead` |
-| 2 | Needs you | Meeting passed with nothing logged (→ `/sessions/new?meeting=`) · no booking link per pairing (→ `/settings`) · student expiring ≤14d or overdrawn with me · expired with me · overdue task assigned to me · awaiting the student's answer (informational) · pending approval (informational) · UNASSIGNED mentor sees one `blocked` row "Waiting for a program". Cap 10. Empty: "Nothing needs you." | 8 / row | `AttentionList` |
+| 2 | Active issues | Meeting passed with nothing logged (→ `/sessions/new?meeting=`) · no booking link per pairing (→ `/settings`) · student expiring ≤14d or overdrawn with me · expired with me · overdue task assigned to me · awaiting the student's answer (informational) · pending approval (informational) · UNASSIGNED mentor sees one `blocked` row "Waiting for a program". Cap 10. Empty: "No active issues." | 8 / row | `AttentionList` |
 | 3 | Up next | Overdue · Today · Next 7 days: my meetings with status chip, zone-labelled time, Join link, and **Move / Cancel** in a `RowActionMenu` **only on my own rows** (today `InterviewRowActions` renders on every row, `scheduled-meetings.tsx:131-141`) · use-by dates ≤7d · "All scheduled →" | 4 | `Timeline` |
 | 4 | Your students | ≤8 rows: `PersonCell` (one chip) · left with you · use by · last session · →. Program `SegmentedRadio` filter only when >1 program. "All students →" | 0 | `StudentsTable preset="mentor"` |
 
@@ -734,20 +734,20 @@ mentor with no allocations sees zero students while the picker offers eleven.
 ### 6.3 Student home — `/student`
 
 Core question: *how much time do I have left, what do I need to do next, when am I meeting someone?*
-Phone-first. **The first "Needs you" row must begin above 420px at 390×664** — verified by
+Phone-first. **The first "Active issues" row must begin above 420px at 390×664** — verified by
 screenshot in Phase 8.
 
 | # | Section | Content | Prose | Built from |
 |---|---|---|---|---|
 | 1 | Title row | eyebrow program · `h1` "Hi, Aziza" · `HoursRing` **96px** beside the h1 (not a full-width hero), repaired to read `allocationSummary.remaining` · quiet "Book a session →" link | 6 | `PageTitle`, `HoursRing` |
-| 2 | Needs you | Student-voiced: meeting awaiting your answer (with **I'll be there / I can't make it** inline — the one write on this page) · overdrawn · time expired · task overdue · time expiring ≤30d · no mentor yet · no calendars shared yet. Empty: "Nothing to do right now." | 10 / row, 5 empty | `AttentionList voice="student"` |
+| 2 | Active issues | Student-voiced: meeting awaiting your answer (with **I'll be there / I can't make it** inline — the one write on this page) · overdrawn · time expired · task overdue · time expiring ≤30d · no mentor yet · no calendars shared yet. Empty: "Nothing to do right now." | 10 / row, 5 empty | `AttentionList voice="student"` |
 | 3 | Up next | Today / Next 7 days meetings, zone-labelled, with Join; task due dates ≤7d. Empty: "Nothing scheduled." (distinct from "nothing available") | 6 | `Timeline` |
 | 4 | Your time | `HoursBreakdown` bar + a key of **delivered · missed · expired** only — remaining is the ring and is never stated twice | 4 | `HoursBreakdown` |
 | 5 | Working on | In-progress and not-started `TaskRow`s (purpose, mentor chip, logged/budget `Meter`, due chip). "N finished ▸" as one collapsed line | 4 | `TaskRow` |
 | 6 | Latest change | One line: the newest notification + "All notifications →" | 0 | `NotificationItem` compact |
 
 **Removed:** the orange gradient hero and 120px watermark (`student/page.tsx:77-88`), the balance
-sentence (`:96` — a third statement of one number), both red `Callout`s (`:139-152` → Needs you),
+sentence (`:96` — a third statement of one number), both red `Callout`s (`:139-152` → Active issues),
 `StudentJourney` (13 unpaginated entries, ~1200px → `/student/meetings`), `MentorHoursList` (→
 `/student/book`), the footer counts (`:126-135`). The PENDING wall (`:42-58`) → `/onboarding` step 3.
 
@@ -1198,16 +1198,16 @@ No route moves. No migrations. This is the phase the owner is waiting for.
     duplicate-submit guard, value preservation, adjacent errors, the URL draft, and `ui/receipt.tsx`
     with **Correct · Log another · Back to student**.
 18. `attention-list.tsx` + `timeline.tsx` (built on the status model).
-19. `/mentor` → §6.2: Needs you · Up next · Your students, `mentorReaches` as the caseload, the
+19. `/mentor` → §6.2: Active issues · Up next · Your students, `mentorReaches` as the caseload, the
     embedded forms and the six lifetime figures deleted.
-20. `/admin` → §6.1: Needs you (with inline **Approve**) · Up next · Programs rows · Recent, the
+20. `/admin` → §6.1: Active issues (with inline **Approve**) · Up next · Programs rows · Recent, the
     stat strip and editable log deleted.
-21. `/student` → §6.3: ring beside the `h1`, Needs you with the inline meeting answer, Up next,
+21. `/student` → §6.3: ring beside the `h1`, Active issues with the inline meeting answer, Up next,
     Your time, Working on, Latest change; `StudentJourney` and `MentorHoursList` unmounted from the
     home (they still exist; they get their new homes in Phase 6/7).
 
 *Verify:* sign in as admin, dual admin (both lenses), plain mentor, student; screenshot each home
-at 390px and 1280px; confirm `/student`'s first "Needs you" row starts above 420px at 390×664.
+at 390px and 1280px; confirm `/student`'s first "Active issues" row starts above 420px at 390×664.
 
 ### Phase 3 — Permissions and program scope (7 commits)
 

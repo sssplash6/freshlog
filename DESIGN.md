@@ -198,7 +198,7 @@ four hand-written versions that disagreed about the same fact.
 
 **Lists and chrome.**
 
-- **`attention-list`** — "Needs you", the section every home opens with. It
+- **`attention-list`** — "Active issues", the section every home opens with. It
   replaces nine separate shapes: an approvals callout, an orange "N mentors
   awaiting assignment" pill, the flags panel, four red student callouts, the
   UNASSIGNED welcome card and the booking-link pill. Every row is the same

@@ -97,7 +97,7 @@ export type StatusType =
  * The four questions an attention list actually answers, plus the two it
  * answers for a mentor or a student.
  *
- * "Needs you" had grown to eleven rows for an admin — an overdraft, an expiry,
+ * "Active issues" had grown to eleven rows for an admin — an overdraft, an expiry,
  * two signups, a missing email, two unscoped staff, a program with no mentors
  * and twenty-two pairings without a booking link — in one flat list, in
  * whatever order severity happened to put them. Every one of those is real and
@@ -771,9 +771,9 @@ const META: Record<StatusType, Meta> = {
   ALL_CLEAR: {
     severity: "ok",
     voices: {
-      staff: { kind: "informational", label: () => "Nothing needs you" },
-      mentor: { kind: "informational", label: () => "Nothing needs you" },
-      student: { kind: "informational", label: () => "Nothing needs you" },
+      staff: { kind: "informational", label: () => "No active issues" },
+      mentor: { kind: "informational", label: () => "No active issues" },
+      student: { kind: "informational", label: () => "No active issues" },
     },
   },
 };
@@ -1248,7 +1248,7 @@ export function rollUp(
  * `ALL_CLEAR` row. It used to, and that was a mistake: `AttentionList` already
  * renders its own `empty` text, so every page had to filter the injected row
  * back out — both pages built against it did, independently — and a page is
- * the thing that knows whether the right words are "Nothing needs you" or
+ * the thing that knows whether the right words are "No active issues" or
  * "Nothing to do right now". `ALL_CLEAR` stays in the model for a caller that
  * genuinely wants an all-clear row in a list of rows.
  */

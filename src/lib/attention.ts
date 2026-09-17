@@ -84,7 +84,7 @@ const NOTHING: Attention = {
   statuses: [],
   spilled: 0,
   dismissible: false,
-  empty: "Nothing needs you.",
+  empty: "No active issues.",
 };
 
 /** Rows this reader has silenced, as the keys `notDismissed` compares. */
@@ -386,7 +386,7 @@ async function staffAttention(user: User): Promise<Attention> {
     spilled: Math.max(0, list.length - ROW_CAP),
     moreHref: "/students",
     dismissible: true,
-      empty: "Nothing needs you.",
+  empty: "No active issues.",
   };
 }
 
@@ -484,7 +484,7 @@ async function mentorAttention(user: User): Promise<Attention> {
     statuses: all.slice(0, MENTOR_ROWS),
     spilled: Math.max(0, all.length - MENTOR_ROWS),
     dismissible: true,
-      empty: "Nothing needs you.",
+  empty: "No active issues.",
   };
 }
 

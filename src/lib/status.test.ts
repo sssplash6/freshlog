@@ -622,7 +622,7 @@ describe("attentionList", () => {
   });
 
   it("keeps a blocked row, which counts for nothing but is not nothing", () => {
-    // A mentor with no program cannot act, but "Nothing needs you" above
+    // A mentor with no program cannot act, but "No active issues" above
     // "Waiting for a program" is a redundant line: the blocked row already
     // explains the whole state of the page.
         const rows = attentionList([status("MENTOR_UNASSIGNED", v)!], v);

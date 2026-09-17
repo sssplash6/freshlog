@@ -89,7 +89,7 @@ export function AttentionList({
     >
       {statuses.length === 0 ? (
         <p className="px-4 py-2 text-sm text-muted-fg sm:px-5">
-          {empty ?? "Nothing needs you."}
+          {empty ?? "No active issues."}
         </p>
       ) : groups ? (
         groups.map(({ group, rows }, index) => (

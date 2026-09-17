@@ -28,7 +28,7 @@ import { profileOf } from "@/lib/profile";
  * button: everything about the reader is behind it, and no page carries either
  * list any more.
  *
- * So the order is the question and then the record. What needs you, then a
+ * So the order is the question and then the record. Active issues, then a
  * rule, then what has happened, paged and filterable. `lib/attention.ts`
  * derives the first half for whichever of the three readers is looking; this
  * page renders it and asks nothing about who they are, except for the two
