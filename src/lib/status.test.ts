@@ -428,10 +428,24 @@ describe("sessionStatuses", () => {
     expect(types(sessionStatuses(recent, view("student")))).toEqual([
       "SESSION_UNCONFIRMED",
     ]);
-    // The one voice that can act on it says so; the other two are told.
     expect(sessionStatuses(recent, view("student"))[0].kind).toBe("actionable");
-    expect(sessionStatuses(recent, view("mentor"))[0].kind).toBe("informational");
-    expect(sessionStatuses(recent, view("staff"))[0].kind).toBe("informational");
+  });
+
+  it("tells nobody but the student, who is the only one who can answer", () => {
+    // It used to put "Not confirmed yet" on the mentor's and the staff log
+    // too, where it marked the ORDINARY state — a session is unconfirmed from
+    // the moment it is logged — and so sat on nearly every row of a three
+    // hundred row ledger while neither reader could do anything about it.
+    const recent = session({ date: inDays(-3) });
+    expect(sessionStatuses(recent, view("mentor"))).toEqual([]);
+    expect(sessionStatuses(recent, view("staff"))).toEqual([]);
+  });
+
+  it("still tells them when the student DISPUTES it, which is the news", () => {
+    const argued = session({ date: inDays(-3), studentAnswer: "DISPUTED" });
+    expect(types(sessionStatuses(argued, view("mentor")))).toContain(
+      "SESSION_DISPUTED"
+    );
   });
 
   it("stops asking once the row is a month old", () => {
@@ -613,9 +627,9 @@ describe("attentionList", () => {
 
     it("counts nothing when every row is informational", () => {
     // The honest case: things on screen, none of them yours to do. Both rows
-    // stay — a mentor wants to see an unanswered session — and the badge reads
-    // zero.
-    const list = [status("SESSION_UNCONFIRMED", v)!, status("TASK_IN_PROGRESS", v)!];
+    // stay — a mentor wants to see that a session was confirmed — and the
+    // badge reads zero.
+    const list = [status("SESSION_CONFIRMED", v)!, status("TASK_IN_PROGRESS", v)!];
     const rows = attentionList(list, v);
     expect(rows).toHaveLength(2);
     expect(actionableCount(rows)).toBe(0);

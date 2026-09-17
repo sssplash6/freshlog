@@ -115,7 +115,7 @@ export function DictateButton({
       ? `Stop ${format(seconds)}`
       : phase === "working"
         ? "Tidying…"
-        : "Say it";
+        : "Speak";
 
   return (
     <span className="inline-flex items-center gap-2">

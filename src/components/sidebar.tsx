@@ -25,6 +25,7 @@ export function Sidebar({
   switcher,
   search,
   account,
+  bell,
 }: {
   items: NavItem[];
   /** Rendered under a rule — Notifications, and later Settings. */
@@ -34,6 +35,25 @@ export function Sidebar({
   /** Omitted for a viewer with no list to search. `mentors` adds the second destination. */
   search?: { mentors: boolean };
   account: React.ReactNode;
+  /**
+   * The bell, on the rail's top line beside the toggle.
+   *
+   * It floated over the page before — `fixed` at the top right of the content
+   * measure — which pinned it to the WINDOW and nothing else. So it sat on
+   * whatever happened to be underneath: a page title's own button on arrival,
+   * a table row once you scrolled. One control with no home, crossing
+   * everything.
+   *
+   * The rail is already `fixed inset-y-0` and on screen at every scroll
+   * position of every page at `lg`, so a bell in it is genuinely fixed AND
+   * genuinely out of the way — it is chrome sitting in chrome. Below `lg`
+   * there is no rail and the sticky top bar carries it instead.
+   *
+   * On the top line rather than in the nav list on purpose: the rows below are
+   * PLACES, and the one row among them that changes on its own read as
+   * somewhere to go.
+   */
+  bell?: React.ReactNode;
 }) {
   return (
     // A SHUT RAIL OPENS WHILE THE CURSOR IS ON IT, and shuts again when it
@@ -58,7 +78,13 @@ export function Sidebar({
             >
               freshlog
             </Link>
-            <RailToggle />
+            {/* The bell survives the collapse and the wordmark does not: a
+                shut rail is 64px, which holds one control per line, and the
+                one worth keeping is the one carrying a count. */}
+            <span className="flex items-center gap-1">
+              {bell}
+              <RailToggle />
+            </span>
           </div>
           <div className="rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
             {switcher}

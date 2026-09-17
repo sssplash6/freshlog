@@ -361,7 +361,7 @@ export function FilterBar({
       {/* Only reached when there is no form to carry them — otherwise the
           chips sit on the controls row beside the selects they narrow. */}
       {presets.length > 0 && !showValues && (
-        <div className="flex flex-wrap gap-1.5 px-3 py-2.5 sm:px-4">
+        <div className="flex flex-wrap gap-1.5 px-3 py-2 sm:px-4">
           {presets.map((preset) => (
             <Chip
               key={Object.entries(preset.params).map(([k, v]) => `${k}=${v}`).join("&")}
@@ -446,7 +446,15 @@ function Chip({
         // rounded-lg, not rounded-full. A pill reads as a status, and these are
         // controls: they sit beside a select and a button that are both 8px,
         // and a full radius next to those looks like a different design system.
-        "inline-flex min-h-11 items-center rounded-lg border px-3.5 text-[0.8125rem] font-medium transition-colors",
+        //
+        // 32px, and the same 32px `TabLinks` uses, which is the app's other
+        // filter. It was 44px — the rule for a form field, where a mis-tap
+        // writes something wrong — and five of them across the top of a list
+        // made a band of chrome as tall as the masthead over rows half their
+        // height. `segmented.tsx` already states the distinction: a wrong tap
+        // here shows the wrong list and you tap again, so the target does not
+        // have to be bought with height.
+        "inline-flex min-h-8 items-center rounded-lg border px-3 text-[0.8125rem] font-medium transition-colors",
         active
           ? "border-brand bg-brand-soft font-semibold text-brand"
           : "border-line bg-surface text-muted-fg hover:border-brand/40 hover:text-ink"

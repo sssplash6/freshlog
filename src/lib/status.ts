@@ -513,16 +513,25 @@ const META: Record<StatusType, Meta> = {
   SESSION_UNCONFIRMED: {
     severity: "attention",
     voices: {
-      // The one voice that can act. Staff and mentors get told, because "the
-      // student has not said yes" is the difference between a settled row and
-      // one that might still be corrected — but neither of them can answer it.
+      // The student and nobody else.
+      //
+      // Staff and mentors used to be told too, and it put an amber "Not
+      // confirmed yet" on nearly every row of the sessions log — three hundred
+      // of them, on a page read by scanning down the figures. A chip that is
+      // true of almost everything says nothing about anything, and this one
+      // marked the ORDINARY state: a session is unconfirmed from the moment it
+      // is logged, and most students never answer at all. Neither reader could
+      // act on it either way.
+      //
+      // The state is not gone. It is a question, and it stays where it can be
+      // answered: the student's own list, where it is actionable and where
+      // being asked is the point. A dispute still reaches the mentor as
+      // SESSION_DISPUTED, which is the half that was ever news.
       student: {
         kind: "actionable",
         label: () => "Confirm this session",
         explanation: () => "Say whether it happened, and how it went.",
       },
-      mentor: { kind: "informational", label: () => "Not confirmed yet" },
-      staff: { kind: "informational", label: () => "Not confirmed yet" },
     },
     many: (n) => `${n} sessions are waiting to be confirmed`,
   },
