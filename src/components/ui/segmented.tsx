@@ -12,8 +12,7 @@ import { cn } from "@/lib/cn";
  * `attendance-picker.tsx`, `time-kind-picker.tsx`, `program-tabs.tsx`, the
  * profile switch, the mentor-hours filter pills and the task progress buttons
  * were six implementations of the same thing, and they disagreed about the
- * details that matter: three heights, two focus treatments, and only two of
- * the six explained the consequence of the option you had picked.
+ * details that matter: three heights and two focus treatments.
  *
  * Two shapes, because there are genuinely two jobs:
  *
@@ -62,18 +61,21 @@ const SEGMENT_TAB =
 const ON = "bg-surface font-semibold text-ink shadow-sm";
 const OFF = "font-medium text-muted-fg hover:text-ink";
 
+/**
+ * A value and the word for it. Nothing else.
+ *
+ * There was a `hint` here, rendered under the control for the chosen option —
+ * "A no-show. The time is still charged, but tallied as missed." The reasoning
+ * was that nobody remembers which of four attendance states spends a student's
+ * hours. The owner cut every one of them: these controls are answered weekly
+ * by people who know their own product, and an explanation that is on screen
+ * every single time is furniture, not help. If a state needs explaining again
+ * it belongs where the state is READ BACK — the chip on the logged row — not
+ * under the button that sets it.
+ */
 export type SegmentedOption = {
   value: string;
   label: string;
-  /**
-   * What choosing this one means, in eight words or fewer — "No-show still
-   * charges time."
-   *
-   * Shown under the control for the CHOSEN option only. The alternative is
-   * expecting a mentor to remember which of four attendance states spends a
-   * student's hours, which is exactly the thing nobody remembers.
-   */
-  hint?: string;
 };
 
 export function SegmentedRadio({
@@ -101,7 +103,6 @@ export function SegmentedRadio({
       ? defaultValue
       : options[0]?.value;
   const [value, setValue] = useState(initial);
-  const chosen = options.find((o) => o.value === value);
 
   return (
     <fieldset className={cn("min-w-0", className)}>
@@ -146,9 +147,6 @@ export function SegmentedRadio({
           );
         })}
       </div>
-      {chosen?.hint && (
-        <p className="mt-1.5 text-xs text-muted-fg">{chosen.hint}</p>
-      )}
     </fieldset>
   );
 }

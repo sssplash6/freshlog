@@ -122,17 +122,15 @@ export type Attendance = (typeof ATTENDANCE)[keyof typeof ATTENDANCE];
 export const ATTENDANCE_META: Record<
   string,
   {
-    /** How the option reads in the picker. */
-    label: string;
     /**
-     * What choosing this one COSTS, when that is not obvious from the label.
-     *
-     * The default has none on purpose. "Attended" read "The meeting happened
-     * as planned." — a sentence that restates its own label and taught a
-     * mentor to stop reading the line, which is the line that has to land on
-     * the day they pick "Absent".
+     * How the option reads in the picker, and the whole of what the picker
+     * says. Each of the four carried a sentence underneath explaining what it
+     * cost — "A no-show. The time is still charged, but tallied as missed." —
+     * and the owner cut all four: a mentor logs sessions every week and does
+     * not read the same four explanations every week. What the state means
+     * for the hours is said where it is read back, by `chip`.
      */
-    hint?: string;
+    label: string;
     /** How the state reads as a chip on a logged row. */
     chip?: string;
     /**
@@ -143,21 +141,14 @@ export const ATTENDANCE_META: Record<
   }
 > = {
   ATTENDED: { label: "Attended" },
-  LATE: {
-    label: "Came late",
-    hint: "It happened; log the time you actually spent.",
-    chip: "Came late",
-    status: "SESSION_LATE",
-  },
+  LATE: { label: "Came late", chip: "Came late", status: "SESSION_LATE" },
   ABSENT: {
     label: "Absent",
-    hint: "A no-show. The time is still charged, but tallied as missed.",
     chip: "No-show, time charged",
     status: "SESSION_NO_SHOW",
   },
   RESCHEDULED: {
     label: "Rescheduled",
-    hint: "The meeting moved, so no time is charged.",
     chip: "Rescheduled, no time charged",
     status: "SESSION_RESCHEDULED",
   },
@@ -213,14 +204,11 @@ export type TimeKind = (typeof TIME_KIND)[keyof typeof TIME_KIND];
 
 export const TIME_KIND_META: Record<
   string,
-  { label: string; hint?: string; chip?: string; status?: StatusType }
+  { label: string; chip?: string; status?: StatusType }
 > = {
-  // No hint: it is the default and the label already says what it does. The
-  // one worth reading is EXTRA's, and it reads better alone.
   PLAN: { label: "Counts toward their time" },
   EXTRA: {
     label: "Extra, beyond their time",
-    hint: "Work on top of the plan. It shows in the log and against the agenda, but charges nothing to their balance.",
     chip: "Extra, no time charged",
     status: "SESSION_EXTRA",
   },

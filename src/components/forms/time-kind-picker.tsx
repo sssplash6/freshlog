@@ -11,6 +11,9 @@ const ORDER: string[] = [TIME_KIND.PLAN, TIME_KIND.EXTRA];
  * In-plan leads and is the default: nearly every meeting spends allocated
  * hours, and a mentor who never touches this control should still get the
  * ordinary answer.
+ *
+ * Two labels and nothing else — see `attendance-picker.tsx` for why the
+ * sentence that sat under the chosen one is gone.
  */
 export function TimeKindPicker({
   defaultValue,
@@ -30,7 +33,6 @@ export function TimeKindPicker({
       options={ORDER.map((kind) => ({
         value: kind,
         label: TIME_KIND_META[kind].label,
-        hint: TIME_KIND_META[kind].hint,
       }))}
     />
   );
