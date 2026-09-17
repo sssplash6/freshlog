@@ -483,3 +483,33 @@ export const scopeProgramIds = cache(
     return programs.map((p) => p.id);
   }
 );
+
+/**
+ * Logged sessions as the STUDENT they are about may read them.
+ *
+ * A session note is written by a mentor for the people who run the programme:
+ * what was covered, what the student struggled with, what to pick up next. The
+ * student is the SUBJECT of it, not its reader. They see that the meeting
+ * happened, how long it ran, which agenda item it went toward and what it cost
+ * them, and they can answer it — they do not read the write-up of themselves.
+ *
+ * Stripped HERE rather than by the row that draws it, and that is the whole
+ * point of this function existing. `SessionRow` is a client component: a
+ * version of it that simply does not print `note` still ships every note
+ * inside the RSC payload, where it is one View Source away. A fact a reader
+ * may not have must not be sent to them.
+ *
+ * Deliberately NOT keyed on `ViewerContext`. That type decides whose WORDS a
+ * chip is in and says so at its definition — "never who may act" — and reusing
+ * it as a permission is how a wording change silently becomes a disclosure.
+ * The student's page names this call itself, the way every other gate here is
+ * named at the place it applies.
+ *
+ * `studentNote` is untouched: those are the student's own words back, and they
+ * wrote them.
+ */
+export function withoutMentorNotes<T extends { note: string | null }>(
+  sessions: readonly T[]
+): T[] {
+  return sessions.map((session) => ({ ...session, note: null }));
+}

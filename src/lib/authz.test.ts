@@ -10,6 +10,7 @@ import {
   mentorReaches,
   scopeProgramIds,
   staffLevel,
+  withoutMentorNotes,
 } from "@/lib/authz";
 import {
   admin,
@@ -287,5 +288,41 @@ describe("assertProgramScope / assertPlatformAdmin", () => {
       ok: false,
       error: "Only a platform admin can do that.",
     });
+  });
+});
+
+describe("withoutMentorNotes", () => {
+  const session = (note: string | null) => ({
+    id: "s1",
+    minutes: 60,
+    note,
+    studentNote: "I thought it went well",
+  });
+
+  it("blanks the mentor's note", () => {
+    expect(withoutMentorNotes([session("Struggled with the opening")])[0].note)
+      .toBeNull();
+  });
+
+  it("leaves the student's own words alone", () => {
+    expect(withoutMentorNotes([session("anything")])[0].studentNote).toBe(
+      "I thought it went well"
+    );
+  });
+
+  it("keeps every other field, so the row still reads", () => {
+    const [out] = withoutMentorNotes([session("x")]);
+    expect(out.id).toBe("s1");
+    expect(out.minutes).toBe(60);
+  });
+
+  it("does not mutate what it was given — the staff board reads the same rows", () => {
+    const rows = [session("Struggled with the opening")];
+    withoutMentorNotes(rows);
+    expect(rows[0].note).toBe("Struggled with the opening");
+  });
+
+  it("is a no-op on a session that had no note", () => {
+    expect(withoutMentorNotes([session(null)])[0].note).toBeNull();
   });
 });

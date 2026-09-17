@@ -19,6 +19,7 @@ import { PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
 import { ASSIGNMENT_PROGRESS, ROLES, USER_STATUS } from "@/lib/constants";
+import { withoutMentorNotes } from "@/lib/authz";
 import { requireRole } from "@/lib/dal";
 import { formatDate, formatMinutes } from "@/lib/format";
 import { enrollmentsLabel } from "@/lib/enrollments";
@@ -177,7 +178,11 @@ export default async function StudentHomePage() {
   ]);
 
   // Everything already delivered, newest first — the ledger's own order.
-  const held = ledger.sessions;
+  //
+  // Minus the mentor's note, which this reader is the subject of rather than
+  // the audience for. Stripped here, before anything renders: a row that
+  // merely declines to print it would still ship it to the browser.
+  const held = withoutMentorNotes(ledger.sessions);
 
   const tasks = ledger.assignments.map((task) => ({
     task,
