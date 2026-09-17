@@ -34,7 +34,7 @@ import type { StudentWithHours } from "@/lib/queries";
  * finding on a list.
  *
  * WHAT IS NOT HERE, on the owner's instruction (12 September 2026): a "Use by"
- * column, and every chip beside the name except "Hasn't signed in". A roster
+ * column, and every chip beside the name except "Not signed in". A roster
  * of forty rows wearing a red chip each is a roster nobody reads, and the
  * deadline that drives forfeiture is not a date a reader acts on from here —
  * it is on the student's own page, beside the grant it belongs to, and the

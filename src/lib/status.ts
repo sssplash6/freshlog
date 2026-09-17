@@ -360,8 +360,8 @@ const META: Record<StatusType, Meta> = {
   STUDENT_NOT_SIGNED_IN: {
     severity: "neutral",
     voices: {
-      staff: { kind: "informational", label: () => "Hasn't signed in" },
-      mentor: { kind: "informational", label: () => "Hasn't signed in" },
+      staff: { kind: "informational", label: () => "Not signed in" },
+      mentor: { kind: "informational", label: () => "Not signed in" },
     },
     many: (n) => `${n} students have never signed in`,
   },

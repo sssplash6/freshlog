@@ -161,9 +161,20 @@ export function PersonCell({
     <>
       <Avatar person={person} className="h-8 w-8 shrink-0 text-[0.6875rem]" />
       <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-medium text-ink group-hover:text-brand">
+        <span className="flex min-w-0 items-center gap-x-2 font-medium text-ink group-hover:text-brand">
           <span className="min-w-0 truncate">{person.name ?? person.email}</span>
-          {children}
+          {/* The name gives way, never the chip. These used to wrap to a
+              second line when the two together outran the column, so a roster
+              of forty stood at two different heights depending on how long
+              somebody's name happened to be — and a ragged left edge reads as
+              a difference in kind rather than in spelling. The chips here are
+              short by contract (see above), so holding them on the line costs
+              the longest name a few characters and nothing else. */}
+          {children && (
+            <span className="flex shrink-0 items-center gap-x-2 whitespace-nowrap">
+              {children}
+            </span>
+          )}
         </span>
         {sub && (
           <span className="block min-w-0 truncate text-xs text-muted-fg">
