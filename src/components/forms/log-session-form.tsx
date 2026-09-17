@@ -16,15 +16,32 @@ import { cn } from "@/lib/cn";
 import { toDateInputValue } from "@/lib/format";
 import { programToday } from "@/lib/when";
 
+/**
+ * `min-h-11` for the same reason `Select` has it: 44px, and the two are
+ * side by side. The select declares that height and an input derived its own
+ * from padding and an inherited line-height, so the pair agreed only by
+ * arithmetic that nobody was checking.
+ */
 const inputClass =
-  "w-full rounded-lg border border-line px-3.5 py-2.5 text-[0.9375rem] focus:border-brand focus:outline-none";
+  "min-h-11 w-full rounded-lg border border-line px-3.5 py-2.5 text-[0.9375rem] focus:border-brand focus:outline-none";
+/**
+ * Label above control, and the ONE gap between them.
+ *
+ * It used to be a `mt-0.5` wrapper around each control, which meant every
+ * control that was not wrapped — the two plain `<input>`s, Minutes and Date —
+ * started two pixels above the `Select` beside it. Two pixels is invisible on
+ * its own and unmissable on a row where one field sits next to another. The
+ * gap belongs to the label, which every field has, rather than to a wrapper
+ * somebody has to remember.
+ */
+const labelClass = "mb-0.5 block text-muted-fg";
 const badInputClass = "border-danger-line bg-danger-soft/40";
 
 export type LogSessionStudent = {
   profileId: string;
   /** The student's name — the only thing the picker is scanned by. */
   label: string;
-  /** Balance, program, email: searchable metadata, shown under the name. */
+  /** Balance and program: searchable metadata, shown under the name. */
   hint: string;
   /** The one line worth repeating under the closed select. */
   balance?: string;
@@ -231,9 +248,28 @@ export function LogSessionForm({
    * duplicated the JSX is how the page shape ended up with a Notes box the
    * inline one did not have.
    */
+  const minutesField = (
+    <label className="block min-w-0 text-sm">
+      <span className={labelClass}>Minutes *</span>
+      <input
+        name="minutes"
+        type="number"
+        min="1"
+        step="1"
+        required
+        inputMode="numeric"
+        placeholder="90"
+        defaultValue={opening.minutes}
+        aria-invalid={badField === "minutes" || undefined}
+        className={cn(inputClass, badField === "minutes" && badInputClass)}
+      />
+      <FieldError show={badField === "minutes"} state={state} />
+    </label>
+  );
+
   const dateField = (
     <label className="block min-w-0 text-sm">
-      <span className="text-muted-fg">Date *</span>
+      <span className={labelClass}>Date *</span>
       <input
         name="date"
         type="date"
@@ -256,7 +292,7 @@ export function LogSessionForm({
         !page && "sm:col-span-2 lg:col-span-3"
       )}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="mb-0.5 flex items-center justify-between gap-2">
         <span className="text-muted-fg">Notes</span>
         {canDictate && (
           <DictateButton
@@ -274,16 +310,14 @@ export function LogSessionForm({
       {/* Starts at the height of the three fields beside it and grows from
           there. An empty box the depth of one line, next to a column three
           times its height, reads as the afterthought it is not. */}
-      <div className="mt-0.5">
-        <GrowingField
-          name="note"
-          aria-label="Notes"
-          placeholder="Optional — what you covered, and what's next"
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          className={cn(page && "lg:min-h-64")}
-        />
-      </div>
+      <GrowingField
+        name="note"
+        aria-label="Notes"
+        placeholder="Optional — what you covered, and what's next"
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        className={cn(page && "lg:min-h-72")}
+      />
     </div>
   );
 
@@ -317,29 +351,27 @@ export function LogSessionForm({
           page ? "gap-4 sm:grid-cols-2" : "mt-3 sm:grid-cols-2 lg:grid-cols-3"
         )}
       >
-        <div className={cn("block min-w-0 text-sm", page && "sm:col-span-2")}>
-          <span className="text-muted-fg">Student *</span>
-          <div className="mt-0.5">
-            <Select
-              name="studentProfileId"
-              ariaLabel="Student"
-              defaultValue={studentId}
-              onChange={(value) => {
-                setStudentId(value);
-                setProgramId("");
-                touched();
-              }}
-              // A mentor logs for the same few students week after week, and a
-              // full caseload is far too long to scan: last picks lead, and the
-              // rest is filtered by name, email, or program.
-              recentKey="log-session-student"
-              options={students.map((s) => ({
-                value: s.profileId,
-                label: s.label,
-                hint: s.hint,
-              }))}
-            />
-          </div>
+        <div className="block min-w-0 text-sm">
+          <span className={labelClass}>Student *</span>
+          <Select
+            name="studentProfileId"
+            ariaLabel="Student"
+            defaultValue={studentId}
+            onChange={(value) => {
+              setStudentId(value);
+              setProgramId("");
+              touched();
+            }}
+            // A mentor logs for the same few students week after week, and a
+            // full caseload is far too long to scan: last picks lead, and the
+            // rest is filtered by name, balance or program.
+            recentKey="log-session-student"
+            options={students.map((s) => ({
+              value: s.profileId,
+              label: s.label,
+              hint: s.hint,
+            }))}
+          />
           {balance && <p className="mt-1 text-xs text-muted-fg">{balance}</p>}
           <FieldError show={badField === "studentProfileId"} state={state} />
         </div>
@@ -351,81 +383,64 @@ export function LogSessionForm({
         )}
         {programs.length > 1 && (
           <div className="block min-w-0 text-sm">
-            <span className="text-muted-fg">Program *</span>
-            <div className="mt-0.5">
-              <Select
-                key={studentId}
-                name="programId"
-                ariaLabel="Program"
-                defaultValue={programId || programs[0].value}
-                onChange={(value) => {
-                  setProgramId(value);
-                  touched();
-                }}
-                options={programs.map((p) => ({
-                  value: p.value,
-                  label: p.label,
-                  hint: p.balance,
-                }))}
-              />
-            </div>
+            <span className={labelClass}>Program *</span>
+            <Select
+              key={studentId}
+              name="programId"
+              ariaLabel="Program"
+              defaultValue={programId || programs[0].value}
+              onChange={(value) => {
+                setProgramId(value);
+                touched();
+              }}
+              options={programs.map((p) => ({
+                value: p.value,
+                label: p.label,
+                hint: p.balance,
+              }))}
+            />
             <FieldError show={badField === "programId"} state={state} />
           </div>
         )}
         <div className="block min-w-0 text-sm">
-          <span className="text-muted-fg">Agenda item worked on</span>
-          <div className="mt-0.5">
-            <Select
-              // Remount per student so the previous student's goal is never
-              // left selected behind the new student's list.
-              key={`${studentId}:${chosen?.value ?? ""}`}
-              name="assignmentId"
-              ariaLabel="Agenda item worked on"
-              defaultValue={opening.assignmentId}
-              options={goals}
-              required={false}
-              placeholder={
-                !student
-                  ? "Pick a student first…"
-                  : noGoals
-                    ? "Nothing planned yet"
-                    : "Optional — choose one…"
-              }
-            />
-          </div>
+          <span className={labelClass}>Agenda item worked on</span>
+          <Select
+            // Remount per student so the previous student's goal is never
+            // left selected behind the new student's list.
+            key={`${studentId}:${chosen?.value ?? ""}`}
+            name="assignmentId"
+            ariaLabel="Agenda item worked on"
+            defaultValue={opening.assignmentId}
+            options={goals}
+            required={false}
+            placeholder={
+              !student
+                ? "Pick a student first…"
+                : noGoals
+                  ? "Nothing planned yet"
+                  : "Optional — choose one…"
+            }
+          />
           <FieldError show={badField === "assignmentId"} state={state} />
         </div>
-        <label className="block min-w-0 text-sm">
-          <span className="text-muted-fg">Minutes *</span>
-          <input
-            name="minutes"
-            type="number"
-            min="1"
-            step="1"
-            required
-            inputMode="numeric"
-            placeholder="90"
-            defaultValue={opening.minutes}
-            aria-invalid={badField === "minutes" || undefined}
-            className={cn(inputClass, badField === "minutes" && badInputClass)}
-          />
-          <FieldError show={badField === "minutes"} state={state} />
-        </label>
+        {!page && minutesField}
         {!page && dateField}
         {!page && notesField}
       </div>
 
-      {/* The note is the long answer and the other three are one tap each, so
-          the note takes the column and they stack beside it. They used to run
-          down the page in a single file, which put the submit button below the
-          fold on a laptop and made a 90-second form feel like a questionnaire.
-          One column below `lg`: side-by-side on a phone would give the note
-          about twenty characters a line. */}
+      {/* Who and what, then everything about the meeting itself.
+
+          The note is the only long answer of the five, so it takes a column
+          and the four one-tap ones stack beside it. In a single file these ran
+          past the fold on a laptop and made a 90-second form read as a
+          questionnaire. One column below `lg`: side by side on a phone would
+          leave the note about twenty characters a line. */}
       {page && (
         <>
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             {notesField}
             <div className="flex flex-col gap-4">
+              {minutesField}
               {dateField}
               <AttendancePicker
                 key={`attendance-${attempt}`}

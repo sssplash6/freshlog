@@ -1338,12 +1338,9 @@ export function logSessionOptions(caseload: MentorCaseload) {
     rank: number;
     goals: { value: string; label: string }[];
   };
-  const byStudent = new Map<
-    string,
-    { label: string; email: string; choices: Choice[] }
-  >();
-  const at = (id: string, label: string, email: string) => {
-    const row = byStudent.get(id) ?? { label, email, choices: [] };
+  const byStudent = new Map<string, { label: string; choices: Choice[] }>();
+  const at = (id: string, label: string) => {
+    const row = byStudent.get(id) ?? { label, choices: [] };
     byStudent.set(id, row);
     return row;
   };
@@ -1356,11 +1353,7 @@ export function logSessionOptions(caseload: MentorCaseload) {
     // and sorts last. Dropping it was how a mentor lost the student from the
     // picker entirely the day their deadline passed.
     if (!s.approved) continue;
-    const row = at(
-      s.profile.id,
-      s.profile.user.name ?? s.profile.user.email,
-      s.profile.user.email
-    );
+    const row = at(s.profile.id, s.profile.user.name ?? s.profile.user.email);
     row.choices.push({
       id: s.program.id,
       name: s.program.name,
@@ -1377,7 +1370,7 @@ export function logSessionOptions(caseload: MentorCaseload) {
   }
 
   for (const p of loggable) {
-    const row = at(p.id, p.user.name ?? p.user.email, p.user.email);
+    const row = at(p.id, p.user.name ?? p.user.email);
     for (const program of p.programs) {
       if (row.choices.some((c) => c.id === program.id)) continue;
       row.choices.push({
@@ -1407,10 +1400,17 @@ export function logSessionOptions(caseload: MentorCaseload) {
         label: row.label,
         // The hint is what the searchable dropdown shows on the closed row, so
         // it names the program only when the choice is real.
+        //
+        // No email. A mentor picks from their own caseload — thirty people
+        // they have met — and an address is not how any of them is recognised;
+        // it was a second line of grey text on every row that pushed the one
+        // figure worth reading, the balance, further from the name. It goes
+        // from the SEARCH with it, which is the honest trade: the box matches
+        // what it shows.
         hint:
           choices.length === 1
-            ? `${lead.balance} · ${lead.name} · ${row.email}`
-            : `${choices.length} programs · ${row.email}`,
+            ? `${lead.balance} · ${lead.name}`
+            : `${choices.length} programs`,
         programs: choices.map((c) => ({
           value: c.id,
           label: c.name,

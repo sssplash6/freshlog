@@ -98,7 +98,7 @@ function matches(option: SelectOption, query: string) {
  *
  * Long lists (over six options, or any list passed `searchable`) grow a search
  * box that matches label *and* hint, so a big caseload is filtered by name,
- * email, or program instead of scrolled.
+ * balance or program instead of scrolled.
  *
  * The listbox is portaled to <body> and positioned `fixed`. It has to be: these
  * selects sit at the foot of `Panel`s, which are `overflow-hidden` to mask
