@@ -69,9 +69,21 @@ export function PersonChip({
   const sm = size === "sm";
 
   const classes = cn(
-    "inline-flex max-w-full items-center rounded-full font-medium",
+    // A FIXED HEIGHT, and that is the point of it.
+    //
+    // The pill used to be as tall as whatever was inside it — padding plus the
+    // taller of the avatar and the line box. Which meant two pills side by side
+    // on one row, one holding a face and one holding initials, did not have to
+    // agree, and they didn't: the pair sat at two heights with their top edges
+    // a couple of pixels apart. Height is a property of the chip, not of who is
+    // in it, so it is stated once here: 24px at `sm` (a 20px avatar in 2px of
+    // padding), 40px at `md` (32px in 4px). `leading-none` keeps a long name
+    // from arguing with it.
+    "inline-flex max-w-full items-center rounded-full font-medium leading-none",
     tone.chip,
-    sm ? "gap-1.5 py-0.5 pl-0.5 pr-2.5 text-xs" : "gap-2 py-1 pl-1 pr-3.5 text-sm",
+    sm
+      ? "h-6 gap-1.5 py-0.5 pl-0.5 pr-2.5 text-xs"
+      : "h-10 gap-2 py-1 pl-1 pr-3.5 text-sm",
     href &&
       "ring-1 ring-transparent transition-shadow hover:ring-current focus-visible:ring-current",
     className,
