@@ -8,12 +8,12 @@ import { AttendancePicker } from "@/components/forms/attendance-picker";
 import { DictateButton } from "@/components/forms/dictate-button";
 import { TimeKindPicker } from "@/components/forms/time-kind-picker";
 import { Select } from "@/components/select";
+import { DateField } from "@/components/ui/date-field";
 import { GrowingField } from "@/components/ui/field";
 import { Receipt } from "@/components/ui/receipt";
 import { SaveState, saveStateFrom } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/cn";
-import { toDateInputValue } from "@/lib/format";
 import { programToday } from "@/lib/when";
 
 /**
@@ -267,20 +267,25 @@ export function LogSessionForm({
     </label>
   );
 
+  // A div, not a label: `<button>` is labelable, so a <label> around the
+  // picker's trigger would toggle the panel on every click of the word "Date"
+  // — and twice on a click of the trigger itself. `DateField` names itself.
   const dateField = (
-    <label className="block min-w-0 text-sm">
+    <div className="block min-w-0 text-sm">
       <span className={labelClass}>Date *</span>
-      <input
+      <DateField
         name="date"
-        type="date"
+        label="Date"
         required
         defaultValue={opening.date ?? today}
+        // No future sessions. It is the program's today, not the browser's —
+        // see `programToday`.
         max={today}
-        aria-invalid={badField === "date" || undefined}
-        className={cn(inputClass, badField === "date" && badInputClass)}
+        invalid={badField === "date"}
+        onChange={(date) => touched({ date })}
       />
       <FieldError show={badField === "date"} state={state} />
-    </label>
+    </div>
   );
 
   const notesField = (

@@ -83,7 +83,7 @@ export function formatMoney(n: number): string {
 
 // Spelled out in full, everywhere: a date should never need working out, and
 // "8/3" means two different days on two sides of the world.
-const MONTHS = [
+export const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];

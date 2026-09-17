@@ -8,7 +8,6 @@ import { Input, Textarea } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { setMentorAllocation } from "@/lib/actions/students";
-import { toDateInputValue } from "@/lib/format";
 import { programToday } from "@/lib/when";
 
 const labelClass =

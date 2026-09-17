@@ -69,13 +69,14 @@ const FOCUSABLE = [
  * Controls that own the arrow keys already: a caret moves in a text field, a
  * number input steps, a date input walks its segments, a radio group moves
  * between its own options (which `SegmentedRadio` relies on, and it is inside
- * the session correction panel), and `Select` runs the whole combobox contract
- * off them. Roving focus must never take arrows from one of these, so the
- * menu's own arrow handling applies only outside them. A checkbox is the one
- * input with nothing to do with an arrow, so it joins the roving.
+ * the session correction panel), `Select` runs the whole combobox contract off
+ * them, and a calendar grid reads up and down as a WEEK rather than as the
+ * next item in a list. Roving focus must never take arrows from one of these,
+ * so the menu's own arrow handling applies only outside them. A checkbox is
+ * the one input with nothing to do with an arrow, so it joins the roving.
  */
 const OWNS_ARROWS =
-  'input:not([type="checkbox"]),textarea,select,[role="combobox"]';
+  'input:not([type="checkbox"]),textarea,select,[role="combobox"],[role="grid"]';
 
 /** Panel widths: the app-shell menus at w-60, and the row menus at w-72 / w-80. */
 const WIDTHS = {
@@ -189,6 +190,10 @@ export function Popover({
       // preventDefault. All four copies skipped this test, so dismissing an
       // open Select tore the whole menu down around it.
       if (e.defaultPrevented) return;
+      // And claim it on the way out, so this panel is the only layer that
+      // closes: a date picker opened inside a correction form should hand the
+      // form back, not dismiss the row it belongs to.
+      e.preventDefault();
       close(true);
     };
 
@@ -202,6 +207,20 @@ export function Popover({
       document.removeEventListener("keydown", onKey);
     };
   }, [open, close]);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!open || !panel) return;
+    // A popover can open inside another one — a date picker in the session
+    // correction form. The outer panel closes on any mousedown outside its own
+    // DOM, and this one is portaled, so it IS outside: picking a day would
+    // tear the form down around it. Claim the event at the element, before it
+    // reaches the document listener that would misread it. Same arrangement
+    // `select.tsx` has, for the same reason.
+    const claim = (e: MouseEvent) => e.stopPropagation();
+    panel.addEventListener("mousedown", claim);
+    return () => panel.removeEventListener("mousedown", claim);
+  }, [open, measured]);
 
   // Move into the panel once it has been placed. A panel is `visibility:
   // hidden` for the frame before it is measured, and a hidden element cannot
