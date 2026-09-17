@@ -127,7 +127,20 @@ export function SegmentedRadio({
               key={option.value}
               className={cn(
                 dense ? SEGMENT_DENSE : SEGMENT,
-                "focus-within:ring-2 focus-within:ring-brand/40",
+                // The ring the real radio would draw, moved out to the pill
+                // that is actually visible — the radio itself is `sr-only` and
+                // clipped to a pixel, so its own outline has nowhere to land.
+                //
+                // `:focus-visible`, not `:focus-within`. Focus-within fires on
+                // a mouse click as well, so choosing "Absent" with the pointer
+                // left a blue ring sitting on the answer until you clicked
+                // somewhere else — a keyboard affordance shown to somebody who
+                // was not using the keyboard. A radio clicked with a mouse does
+                // not match :focus-visible; one reached by Tab or arrow keys
+                // does, which is the whole of what the ring is for. It matches
+                // the rest of the app, which is :focus-visible throughout
+                // (globals.css, and the star rating's peer-focus-visible).
+                "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40",
                 active ? ON : OFF
               )}
             >
