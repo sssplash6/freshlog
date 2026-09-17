@@ -199,20 +199,40 @@ function AccountMenu({
   );
 }
 
-/** Wordmark · bell · account. The whole of the chrome that is not navigation. */
+/**
+ * Wordmark · bell · account. The whole of the chrome that is not navigation.
+ *
+ * Sticky, because the bell is in it. Below `lg` this bar is the ONLY way to
+ * reach notifications — the rail that carries them at desktop widths is not
+ * there, and the bottom tab bar does not hold them — so a static bar meant the
+ * one control that changes on its own scrolled off the top of a long agenda
+ * and stayed gone until you went back up.
+ *
+ * `z-30` is this app's layer for chrome pinned to the viewport: the rail and
+ * the bottom tab bar are already there, and this is the third side of the same
+ * frame. Above it sits only `z-50`, which is what opens ON TOP of chrome —
+ * popovers, the account menu, a select's list.
+ */
 function TopBar({
   account,
   unread,
   links,
   width,
+  className,
 }: {
   account: React.ReactNode;
   unread: number;
   links?: React.ReactNode;
   width: string;
+  className?: string;
 }) {
   return (
-    <header className="border-b border-line bg-surface">
+    <header
+      className={cn(
+        "sticky top-0 z-30 border-b border-line bg-surface",
+        className
+      )}
+    >
       <div className={cn("mx-auto flex min-h-16 items-center gap-4 px-4", width)}>
         <Link
           href="/"
@@ -300,11 +320,19 @@ function StaffShell({
         </div>
       </div>
 
-      <div className="lg:hidden">
-        {/* The same measure as the page below it, so the wordmark lines up
-            with the h1 rather than floating in from a narrower centre. */}
-        <TopBar account={account} unread={unread} width="max-w-6xl" />
-      </div>
+      {/* The same measure as the page below it, so the wordmark lines up with
+          the h1 rather than floating in from a narrower centre.
+
+          `lg:hidden` is on the bar itself and not on a wrapper: sticky is
+          confined to its parent's box, and a div that is exactly as tall as
+          the bar inside it leaves nothing to stick to — the bar would scroll
+          away exactly as it did before. */}
+      <TopBar
+        account={account}
+        unread={unread}
+        width="max-w-6xl"
+        className="lg:hidden"
+      />
 
       {/* pb-24 clears the bottom bar; nothing sits under it at lg, where the
           bar is gone. */}
