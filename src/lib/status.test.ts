@@ -307,14 +307,14 @@ describe("mentorStatuses", () => {
     expect(types(mentorStatuses(m, view("mentor")))).not.toContain("BOOKING_LINK_MISSING");
   });
 
-  it("asks the mentor for a booking link and only tells staff", () => {
+  it("asks the mentor for a booking link, and tells staff nothing", () => {
     const m = mentor({ pairingsMissingLink: 2 });
     expect(find(mentorStatuses(m, view("mentor")), "BOOKING_LINK_MISSING")?.kind).toBe(
       "actionable"
     );
-    expect(find(mentorStatuses(m, view("staff")), "BOOKING_LINK_MISSING")?.kind).toBe(
-      "informational"
-    );
+    // Staff cannot add somebody else's calendar, and it was true of most of
+    // any program's mentor list.
+    expect(find(mentorStatuses(m, view("staff")), "BOOKING_LINK_MISSING")).toBeUndefined();
   });
 
   it("waits for a pattern before calling a rating low", () => {
@@ -709,8 +709,13 @@ describe("roll-up wording is the reader's, not the staff's", () => {
     expect(row.label).not.toContain("pairing");
   });
 
-  it("still says 'pairings' to staff, who manage them", () => {
-    expect(linkless("staff", 5)[0].label).toBe("5 pairings have no booking link");
+  it("says nothing to staff, who are no longer told about it", () => {
+    const v: ViewerContext = {
+      audience: "staff",
+      userId: "u1",
+      now: new Date("2026-03-01T09:00:00Z"),
+    };
+    expect(status("BOOKING_LINK_MISSING", v)).toBeNull();
   });
 
   it("falls back to the shared wording for an audience with none of its own", () => {

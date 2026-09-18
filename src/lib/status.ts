@@ -660,7 +660,10 @@ const META: Record<StatusType, Meta> = {
   BOOKING_LINK_MISSING: {
     severity: "attention",
     voices: {
-      staff: { kind: "informational", label: () => "No booking link" },
+      // Not staff. It was an amber chip beside nine of fourteen mentors on a
+      // program page — a setup step the reader looking at it cannot perform,
+      // true of most of the list, and so saying nothing about any of them.
+      // The mentor still gets it, where it is theirs to fix.
       mentor: {
         kind: "actionable",
         label: () => "No booking link",
