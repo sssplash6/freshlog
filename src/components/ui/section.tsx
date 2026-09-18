@@ -153,7 +153,10 @@ export function Section({
       className={cn("overflow-hidden rounded-2xl border border-line bg-surface shadow-sm", className)}
       {...props}
     >
-      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1.5 border-b border-line px-4 py-2.5 sm:px-5">
+      {/* items-baseline, not items-end: the title is 17px and the action beside
+          it is 13-14px, so bottom-aligning the two boxes left their text sitting
+          on two different lines. Baselines are what the eye reads as level. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1.5 border-b border-line px-4 py-2.5 sm:px-5">
         <div className="min-w-0">
           {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
           <h2 className="mt-0.5 flex items-baseline gap-1.5 text-[1.0625rem] font-bold tracking-tight text-ink">
