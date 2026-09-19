@@ -46,7 +46,7 @@ export function Receipt({
     const gain = context.createGain();
     oscillator.frequency.value = 880;
     gain.gain.setValueAtTime(0.0001, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.04, context.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.06, context.currentTime + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.14);
     oscillator.connect(gain).connect(context.destination);
     oscillator.start();
