@@ -1,4 +1,3 @@
-import { Figure } from "@/components/ui/figure";
 import { PageTitle } from "@/components/ui/section";
 import { TabLinks } from "@/components/ui/segmented";
 import { ProgramDot } from "@/components/program-chip";
@@ -6,6 +5,7 @@ import { StatusChip } from "@/components/ui/status-chip";
 import { adminScope } from "@/lib/authz";
 import { requireProgramScope } from "@/lib/dal";
 import { formatMoney, formatRough } from "@/lib/format";
+import { cn } from "@/lib/cn";
 import { programTotals } from "@/lib/hours";
 
 import {
@@ -82,24 +82,26 @@ export default async function ProgramLayout({
           </span>
         }
         subtitle={
-          <span className="flex flex-wrap items-baseline gap-x-1.5">
-            <span>
-              {totals.students} student{totals.students === 1 ? "" : "s"} ·{" "}
-              {mentors} mentor{mentors === 1 ? "" : "s"} ·{" "}
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-sm text-muted-fg">
+              {totals.students} student{totals.students === 1 ? "" : "s"} · {mentors}{" "}
+              mentor{mentors === 1 ? "" : "s"}
             </span>
-            <Figure size="inline" value={formatRough(totals.completed)} tone="hours" />
-            <span>completed ·</span>
-            <Figure
-              size="inline"
+            <ProgramMetric
+              label="Completed"
+              value={formatRough(totals.completed)}
+              tone="hours"
+            />
+            <ProgramMetric
+              label="Remaining"
               value={formatRough(totals.remaining)}
               tone={totals.remaining < 0 ? "danger" : "hours"}
             />
-            <span>remaining</span>
             {/* The column decides, never the program's name — renaming the
                 Master's Program used to switch the money off across the app
                 (`Program.tracksPayment`, schema). */}
             {program.tracksPayment && (
-              <span>· {formatMoney(totals.paid)} paid</span>
+              <ProgramMetric label="Paid" value={formatMoney(totals.paid)} tone="neutral" />
             )}
           </span>
         }
@@ -115,5 +117,29 @@ export default async function ProgramLayout({
 
       {children}
     </div>
+  );
+}
+
+function ProgramMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "hours" | "danger" | "neutral";
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
+        tone === "hours" && "border-accent/30 bg-accent-soft text-ink",
+        tone === "danger" && "border-danger-line bg-danger-soft text-danger-ink",
+        tone === "neutral" && "border-line bg-surface text-muted-fg",
+      )}
+    >
+      <span className="font-medium">{label}</span>
+      <span className="font-semibold tabular-nums">{value}</span>
+    </span>
   );
 }
