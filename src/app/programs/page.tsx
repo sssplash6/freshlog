@@ -10,7 +10,7 @@ import { Table, Td, Tr, type Column } from "@/components/ui/table";
 import { adminScope, scopeProgramFilter } from "@/lib/authz";
 import { requireAdminAccess } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
-import { formatMoney, formatRough } from "@/lib/format";
+import { formatRough } from "@/lib/format";
 import { programTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { studentsWithHours } from "@/lib/queries";
@@ -86,9 +86,7 @@ export default async function ProgramsPage({
     return {
       id: program.id,
       name: program.name,
-      tracksPayment: program.tracksPayment,
       students: totals.students,
-      paid: totals.paid,
       mentors: new Set(theirs.map((p) => p.mentorId)).size,
       remaining: totals.remaining,
     };
@@ -162,11 +160,6 @@ export default async function ProgramsPage({
                   href={`/programs/${p.id}`}
                   className="min-h-11 font-medium sm:min-h-0"
                 />
-                {p.tracksPayment && p.paid > 0 && (
-                  <span className="block text-xs text-muted-fg">
-                    {formatMoney(p.paid)} paid
-                  </span>
-                )}
               </Td>
               <Td label="Students" align="right" className="tabular-nums">
                 {p.students}
