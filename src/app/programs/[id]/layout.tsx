@@ -83,10 +83,12 @@ export default async function ProgramLayout({
         }
         subtitle={
           <span className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-sm text-muted-fg">
-              {totals.students} student{totals.students === 1 ? "" : "s"} · {mentors}{" "}
-              mentor{mentors === 1 ? "" : "s"}
-            </span>
+            <ProgramMetric
+              label="Students"
+              value={String(totals.students)}
+              tone="neutral"
+            />
+            <ProgramMetric label="Mentors" value={String(mentors)} tone="neutral" />
             <ProgramMetric
               label="Completed"
               value={shortHours(formatRough(totals.completed))}
