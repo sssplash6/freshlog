@@ -297,7 +297,7 @@ export function LogSessionForm({
         !page && "sm:col-span-2 lg:col-span-3"
       )}
     >
-      <div className="mb-0.5 flex items-center justify-between gap-2">
+      <div className="mb-0.5 flex items-start justify-between gap-2">
         <span className="text-muted-fg">Notes</span>
         {canDictate && (
           <DictateButton
