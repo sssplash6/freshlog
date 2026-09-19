@@ -89,12 +89,12 @@ export default async function ProgramLayout({
             </span>
             <ProgramMetric
               label="Completed"
-              value={formatRough(totals.completed)}
+              value={shortHours(formatRough(totals.completed))}
               tone="hours"
             />
             <ProgramMetric
               label="Remaining"
-              value={formatRough(totals.remaining)}
+              value={shortHours(formatRough(totals.remaining))}
               tone={totals.remaining < 0 ? "danger" : "hours"}
             />
             {/* The column decides, never the program's name — renaming the
@@ -132,7 +132,7 @@ function ProgramMetric({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
+        "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs",
         tone === "hours" && "border-accent/30 bg-accent-soft text-ink",
         tone === "danger" && "border-danger-line bg-danger-soft text-danger-ink",
         tone === "neutral" && "border-line bg-surface text-muted-fg",
@@ -142,4 +142,8 @@ function ProgramMetric({
       <span className="font-semibold tabular-nums">{value}</span>
     </span>
   );
+}
+
+function shortHours(value: string) {
+  return value.replace(/hours?/, "hrs");
 }
