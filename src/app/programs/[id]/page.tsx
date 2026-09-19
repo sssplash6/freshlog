@@ -12,7 +12,6 @@ import { requireProgramScope } from "@/lib/dal";
 import { programExchanges } from "@/lib/exchanges";
 import {
   activeFilterCount,
-  filterSummary,
   readParam,
   studentsWhere,
   type SearchParams,
@@ -160,11 +159,6 @@ export default async function ProgramPage({
             basePath={basePath}
             params={query}
             q="students"
-            summary={filterSummary(
-              total,
-              { one: "student", many: "students" },
-              query
-            )}
           />
 
           {total === 0 ? (
