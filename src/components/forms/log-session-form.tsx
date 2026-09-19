@@ -288,41 +288,52 @@ export function LogSessionForm({
     </div>
   );
 
-  const notesField = (
-    // A div, not a label: the dictate button sits on this row, and a button
-    // inside a label steals the click into the textarea.
-    <div
-      className={cn(
-        "flex min-w-0 flex-col text-sm",
-        !page && "sm:col-span-2 lg:col-span-3"
+  /**
+   * The label row and the box are separate pieces because the page shape sets
+   * the column of one-tap fields against the BOX — its first label on the
+   * box's top border, its last pill on the bottom one — and a single block
+   * would have started that column at the word "Notes" instead, a row above.
+   */
+  // A div, not a label: the dictate button sits on this row, and a button
+  // inside a label steals the click into the textarea.
+  const notesLabel = (
+    <div className="mb-0.5 flex items-start justify-between gap-2 text-sm">
+      <span className="text-muted-fg">Notes</span>
+      {canDictate && (
+        <DictateButton
+          studentProfileId={studentId || undefined}
+          onText={(text) => {
+            // Append: a second take adds to the first instead of
+            // wiping it, and anything already typed survives.
+            const next = note.trim() ? `${note.trim()} ${text}` : text;
+            setNote(next);
+            touched({ note: next });
+          }}
+        />
       )}
-    >
-      <div className="mb-0.5 flex items-start justify-between gap-2">
-        <span className="text-muted-fg">Notes</span>
-        {canDictate && (
-          <DictateButton
-            studentProfileId={studentId || undefined}
-            onText={(text) => {
-              // Append: a second take adds to the first instead of
-              // wiping it, and anything already typed survives.
-              const next = note.trim() ? `${note.trim()} ${text}` : text;
-              setNote(next);
-              touched({ note: next });
-            }}
-          />
-        )}
-      </div>
-      {/* Starts at the height of the three fields beside it and grows from
-          there. An empty box the depth of one line, next to a column three
-          times its height, reads as the afterthought it is not. */}
-      <GrowingField
-        name="note"
-        aria-label="Notes"
-        placeholder="Optional — what you covered, and what's next"
+    </div>
+  );
+
+  const notesBox = (
+    // Never shorter than the four fields beside it: the box is a grid item
+    // that stretches to its row, and the row is as tall as that column. An
+    // empty box the depth of one line, next to a column four times its
+    // height, reads as the afterthought it is not. It grows past them from
+    // there, as anything typed into it must.
+    <GrowingField
+      name="note"
+      aria-label="Notes"
+      placeholder="Optional — what you covered, and what's next"
         value={note}
         onChange={(event) => setNote(event.target.value)}
-        className={cn(page && "lg:min-h-72")}
+        className={cn(page && "lg:min-h-72", "px-2.5 py-2")}
       />
+  );
+
+  const notesField = (
+    <div className="flex min-w-0 flex-col text-sm sm:col-span-2 lg:col-span-3">
+      {notesLabel}
+      {notesBox}
     </div>
   );
 
@@ -446,9 +457,19 @@ export function LogSessionForm({
           leave the note about twenty characters a line. */}
       {page && (
         <>
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            {notesField}
-            <div className="flex flex-col gap-3 lg:-mt-4">
+          {/* Three cells, two rows, no row gap: the word "Notes" sits alone in
+              row one so that row two is the box and the column of fields and
+              nothing else. Both cells stretch to the taller of the two, which
+              puts "Minutes" on the box's top border and the last pill on its
+              bottom one without either side being told a height in pixels. */}
+          <div className="mt-4 grid gap-x-4 lg:grid-cols-2">
+            <div className="lg:col-start-1 lg:row-start-1">{notesLabel}</div>
+            {/* A grid, not a block: it is what makes the box fill the row
+                rather than stop at its own content. */}
+            <div className="grid min-w-0 lg:col-start-1 lg:row-start-2">
+              {notesBox}
+            </div>
+            <div className="mt-4 flex flex-col gap-3 lg:col-start-2 lg:row-start-2 lg:mt-0">
               {minutesField}
               {dateField}
               <AttendancePicker
