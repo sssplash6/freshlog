@@ -282,7 +282,9 @@ export default async function ProgramPage({
                       className="flex flex-wrap items-center justify-between gap-3 py-2"
                     >
                       <PersonChip person={grant.user} size="sm" />
-                      <span className="text-xs text-muted-fg">{grant.role}</span>
+                      <span className="text-xs text-muted-fg">
+                        {grant.role === "ADMIN" ? "Program super admin" : grant.role}
+                      </span>
                     </li>
                   ))}
                 </ul>

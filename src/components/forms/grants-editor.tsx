@@ -24,8 +24,8 @@ import { SubmitButton } from "@/components/ui/submit-button";
 const LEVELS = [
   {
     value: "ADMIN",
-    label: "Program admin",
-    hint: "Manages students, mentors and time in this program.",
+    label: "Program super admin",
+    hint: "Full admin rights in this program only.",
   },
   { value: "LEADER", label: "Leader", hint: "Reads the program and its feedback." },
   { value: "SALES", label: "Sales", hint: "Reads the program's students." },
@@ -58,8 +58,8 @@ export function GrantsEditor({
         <form action={action} className="space-y-2">
           <input type="hidden" name="userId" value={row.userId} />
           <p className="mb-2 text-xs text-muted-fg">
-            Select only the programs this person should administer. This does not
-            give them platform-wide access.
+            Select the programs where this person should be a super admin. This
+            does not give them platform-wide access.
           </p>
           {programs.map((p) => (
             <div key={p.id} className="flex flex-wrap items-center gap-2">
