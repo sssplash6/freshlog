@@ -327,11 +327,15 @@ export function LogSessionForm({
   );
 
   if (page && state?.ok && state.receipt) {
+    const nextSessionHref = againHref
+      ? `${againHref}${againHref.includes("?") ? "&" : "?"}student=${encodeURIComponent(state.receipt.subject?.id ?? "")}`
+      : undefined;
+
     return (
       <Receipt
         receipt={state.receipt}
                 correctHref={correctBase ? `${correctBase}${state.receipt.id}` : undefined}
-        onAgainHref={againHref}
+        onAgainHref={nextSessionHref}
       />
     );
   }
