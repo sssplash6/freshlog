@@ -297,7 +297,7 @@ export function LogSessionForm({
   // A div, not a label: the dictate button sits on this row, and a button
   // inside a label steals the click into the textarea.
   const notesLabel = (
-    <div className="mb-0.5 flex items-start justify-between gap-2 text-sm">
+    <div className="mb-0.5 flex items-center justify-between gap-2 text-sm">
       <span className="text-muted-fg">Notes</span>
       {canDictate && (
         <DictateButton
