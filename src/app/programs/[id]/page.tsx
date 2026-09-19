@@ -5,6 +5,7 @@ import { STUDENT_SORTS, StudentsTable } from "@/components/students-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { ArrowLink } from "@/components/ui/link";
+import { Disclosure } from "@/components/ui/disclosure";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
 import { Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
@@ -24,6 +25,7 @@ import type { ViewerContext } from "@/lib/status";
 
 import {
   programCohorts,
+  programGrants,
   programOf,
   programPairings,
   requestNow,
@@ -73,11 +75,12 @@ export default async function ProgramPage({
 
   // The first three are the layout's reads, memoised: opening a program asks
   // for its row, its roster and its pairings once between the two files.
-  const [program, pairings, cohorts, exchanges] = await Promise.all([
+  const [program, pairings, cohorts, exchanges, grants] = await Promise.all([
     programOf(id),
     programPairings(id),
     programCohorts(id),
     programExchanges(id),
+    user.platformAdmin ? programGrants(id) : Promise.resolve([]),
   ]);
 
   const where = studentsWhere(
@@ -275,6 +278,26 @@ export default async function ProgramPage({
             </ul>
           )}
         </Section>
+
+        {user.platformAdmin && grants.length > 0 && (
+          <Section title="Admins">
+            <div className="px-4 py-2 sm:px-5">
+              <Disclosure label="Show admins" count={grants.length}>
+                <ul className="divide-y divide-line/60 text-sm">
+                  {grants.map((grant) => (
+                    <li
+                      key={grant.id}
+                      className="flex flex-wrap items-center justify-between gap-3 py-2"
+                    >
+                      <PersonChip person={grant.user} size="sm" />
+                      <span className="text-xs text-muted-fg">{grant.role}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Disclosure>
+            </div>
+          </Section>
+        )}
       </div>
     </div>
   );
