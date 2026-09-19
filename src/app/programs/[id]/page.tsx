@@ -108,6 +108,7 @@ export default async function ProgramPage({
     ? applySort(matching, asked, {
         student: (s) => s.user.name ?? s.user.email,
         completed: (s) => s.completedMinutes,
+        total: (s) => s.allottedMinutes,
         remaining: (s) => s.remainingMinutes,
         seen: (s) => s.lastSessionAt,
       })

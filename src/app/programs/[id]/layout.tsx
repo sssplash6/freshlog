@@ -85,8 +85,10 @@ export default async function ProgramLayout({
           <span className="flex flex-wrap items-baseline gap-x-1.5">
             <span>
               {totals.students} student{totals.students === 1 ? "" : "s"} ·{" "}
-              {mentors} mentor{mentors === 1 ? "" : "s"} ·
+              {mentors} mentor{mentors === 1 ? "" : "s"} ·{" "}
             </span>
+            <Figure size="inline" value={formatRough(totals.completed)} tone="hours" />
+            <span>completed ·</span>
             <Figure
               size="inline"
               value={formatRough(totals.remaining)}

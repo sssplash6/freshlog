@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 import { AttendancePicker } from "@/components/forms/attendance-picker";
 import { TimeKindPicker } from "@/components/forms/time-kind-picker";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
@@ -57,6 +59,22 @@ export function SessionRowActions({
   const [, voidAction, voidSave] = useSaveState(voidSession);
   const [, delAction, delSave] = useSaveState(deleteSession);
   const [, restoreAction, restoreSave] = useSaveState(restoreSession);
+  const editFormRef = useRef<HTMLFormElement>(null);
+  const editTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function autosave() {
+    if (editTimer.current) clearTimeout(editTimer.current);
+    editTimer.current = setTimeout(() => {
+      if (editFormRef.current) editAction(new FormData(editFormRef.current));
+    }, 450);
+  }
+
+  useEffect(
+    () => () => {
+      if (editTimer.current) clearTimeout(editTimer.current);
+    },
+    [],
+  );
 
   return (
     <RowActionMenu
@@ -85,7 +103,12 @@ export function SessionRowActions({
 
       {canEdit && (
         <RowActionGroup label="Edit this session">
-          <form action={editAction} className="space-y-3">
+          <form
+            ref={editFormRef}
+            action={editAction}
+            onChange={autosave}
+            className="space-y-3"
+          >
             <input type="hidden" name="sessionId" value={session.id} />
 
             {goals.length > 0 && (
@@ -140,9 +163,6 @@ export function SessionRowActions({
 
             <TimeKindPicker defaultValue={session.timeKind} compact />
 
-            <SubmitButton size="sm" pendingText="Saving…">
-              Save changes
-            </SubmitButton>
           </form>
           <SaveState state={editSave} />
         </RowActionGroup>

@@ -175,6 +175,72 @@ export function AllocationRowActions({
   );
 }
 
+/**
+ * Inline editor for the one allocation figure admins act on most often. The
+ * deadline and payment stay hidden here because this affordance is specifically
+ * for changing the total; the row menu remains the place for the less common
+ * metadata edits.
+ */
+export function AllocationMinutesEditor({
+  studentProfileId,
+  programId,
+  mentorId,
+  currentMinutes,
+  currentDeadline,
+  currentAmountPaid = null,
+  showAmountPaid = false,
+}: {
+  studentProfileId: string;
+  programId: string;
+  mentorId: string;
+  currentMinutes: number;
+  currentDeadline: string | null;
+  currentAmountPaid?: number | null;
+  showAmountPaid?: boolean;
+}) {
+  const [, setAction, save] = useSaveState(setMentorAllocation);
+  const [minutes, setMinutes] = useState(String(currentMinutes));
+
+  return (
+    <RowActionMenu
+      trigger="pencil"
+      label="Edit total allocated time"
+      width="sm"
+    >
+      <RowActionGroup label="Total allocated time">
+        <form action={setAction} className="space-y-3">
+          <input type="hidden" name="studentProfileId" value={studentProfileId} />
+          <input type="hidden" name="programId" value={programId} />
+          <input type="hidden" name="mentorId" value={mentorId} />
+          <input type="hidden" name="mode" value="set" />
+          <input type="hidden" name="deadline" value={currentDeadline ?? ""} />
+          {showAmountPaid && (
+            <input
+              type="hidden"
+              name="amountPaid"
+              value={currentAmountPaid ?? "0"}
+            />
+          )}
+          <Field label="Total minutes">
+            <Input
+              name="minutes"
+              type="number"
+              min="0"
+              step="1"
+              value={minutes}
+              onChange={(event) => setMinutes(event.target.value)}
+            />
+          </Field>
+          <SubmitButton size="sm" pendingText="Saving…">
+            Save
+          </SubmitButton>
+        </form>
+        <SaveState state={save} />
+      </RowActionGroup>
+    </RowActionMenu>
+  );
+}
+
 const PROGRESS_ORDER = [
   ASSIGNMENT_PROGRESS.NOT_STARTED,
   ASSIGNMENT_PROGRESS.IN_PROGRESS,

@@ -44,7 +44,7 @@ import type { StudentWithHours } from "@/lib/queries";
  * What this table can be ordered by. The page says which of them it can
  * honour; `lib/sort.ts` does the ordering.
  */
-export const STUDENT_SORTS = ["student", "completed", "remaining", "seen"] as const;
+export const STUDENT_SORTS = ["student", "completed", "total", "remaining", "seen"] as const;
 export type StudentSort = (typeof STUDENT_SORTS)[number];
 
 export function StudentsTable({
@@ -106,6 +106,11 @@ export function StudentsTable({
       // Down, on a first click: nobody opens this column looking for the
       // student who has had the least teaching.
       ...(on("completed") ? { sort: "completed", sortDir: "desc" as const } : {}),
+    },
+    {
+      label: "Total",
+      align: "right",
+      ...(on("total") ? { sort: "total", sortDir: "desc" as const } : {}),
     },
     {
       label: viewer.audience === "mentor" ? "Remaining with you" : "Remaining",
@@ -221,6 +226,12 @@ export function StudentsTable({
                 )}
               >
                 {formatDuration(s.completedMinutes)}
+              </span>
+            </Td>
+
+            <Td label="Total" align="right" className="tabular-nums">
+              <span className="font-medium text-muted-fg">
+                {formatDuration(s.allottedMinutes)}
               </span>
             </Td>
 

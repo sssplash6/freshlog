@@ -74,7 +74,7 @@ export function SortHeader({
         aria-hidden="true"
         className={cn(
           "text-[0.5625rem] leading-none transition-opacity",
-          active ? "opacity-100" : "opacity-0 group-hover:opacity-40"
+           active ? "opacity-100" : "opacity-40"
         )}
       >
         {descending ? "▼" : "▲"}

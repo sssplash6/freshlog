@@ -220,6 +220,7 @@ export function AllocationRow({
   showProgram = false,
   showAmountPaid = false,
   actions,
+  assignedActions,
   index,
 }: {
   entry: AllocationEntry;
@@ -227,6 +228,7 @@ export function AllocationRow({
   showProgram?: boolean;
   showAmountPaid?: boolean;
   actions?: React.ReactNode;
+  assignedActions?: React.ReactNode;
   index?: number;
 }) {
   return (
@@ -272,7 +274,7 @@ export function AllocationRow({
       {/* Last, and muted: how big the grant was is the context for the three
           figures before it, not a number anybody acts on. */}
       <Td label="Assigned" align="right" className="tabular-nums text-muted-fg">
-        {formatDuration(entry.allocated)}
+        {assignedActions ?? formatDuration(entry.allocated)}
       </Td>
       {showAmountPaid && (
         <Td label="Paid" align="right" className="tabular-nums">
@@ -288,12 +290,14 @@ export function AllocationsTable({
   entries,
   showAmountPaid = false,
   renderActions,
+  renderAssignedActions,
   framed = true,
   className,
 }: {
   entries: AllocationEntry[];
   showAmountPaid?: boolean;
   renderActions?: (entry: AllocationEntry) => React.ReactNode;
+  renderAssignedActions?: (entry: AllocationEntry) => React.ReactNode;
   framed?: boolean;
   className?: string;
 }) {
@@ -323,6 +327,7 @@ export function AllocationsTable({
           showProgram={showProgram}
           showAmountPaid={showAmountPaid}
           actions={withActions ? rowActions[i] : undefined}
+          assignedActions={renderAssignedActions?.(entry)}
           index={i}
         />
       ))}

@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect } from "react";
+
 import { CheckIcon } from "@/components/icons";
 import { ArrowLink } from "@/components/ui/link";
 import type { ActionReceipt } from "@/lib/actions/shared";
@@ -29,6 +33,26 @@ export function Receipt({
   againLabel?: string;
 }) {
   const { headline, notes, subject } = receipt;
+
+  useEffect(() => {
+    // A short confirmation tone supplements the visible receipt after submit.
+    const AudioContextClass =
+      window.AudioContext ??
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+    if (!AudioContextClass) return;
+    const context = new AudioContextClass();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.frequency.value = 880;
+    gain.gain.setValueAtTime(0.0001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.04, context.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.14);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.15);
+    window.setTimeout(() => void context.close(), 250);
+  }, []);
 
   return (
     <div className="rise-in rounded-2xl border border-line bg-surface shadow-sm p-5 sm:p-6">

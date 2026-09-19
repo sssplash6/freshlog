@@ -1,4 +1,5 @@
 import { Figure } from "@/components/ui/figure";
+import { CreateProgramForm } from "@/components/forms/program-forms";
 import { ProgramChip } from "@/components/program-chip";
 import { PageTitle, Section } from "@/components/ui/section";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
@@ -104,6 +105,8 @@ export default async function AdminInboxPage() {
           </span>
         }
       />
+
+      {user.platformAdmin && <CreateProgramForm />}
 
       {/* One program is the whole scope, and a table of one row that repeats
           the line under the title is furniture. */}

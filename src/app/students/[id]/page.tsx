@@ -6,8 +6,11 @@ import {
   toAllocationEntries,
 } from "@/components/allocation-row";
 import { ApproveStudentButtons } from "@/components/forms/approve-student-buttons";
-import { AssignTaskForm } from "@/components/forms/assign-task-form";
-import { AllocationRowActions, TaskRowActions } from "@/components/forms/hours-forms";
+import {
+  AllocationMinutesEditor,
+  AllocationRowActions,
+  TaskRowActions,
+} from "@/components/forms/hours-forms";
 import {
   RemoveStudentButton,
   StudentEmailChange,
@@ -413,6 +416,11 @@ export default async function StudentWorkspacePage({
                 Log a session
               </LinkButton>
             )}
+            {manages && mentorOptions.length > 0 && (
+              <LinkButton href={`/students/${profile.id}/allocate`} variant="secondary" size="md">
+                Allocate time
+              </LinkButton>
+            )}
             {isPending && manages && (
               <ApproveStudentButtons studentProfileId={profile.id} />
             )}
@@ -556,26 +564,6 @@ export default async function StudentWorkspacePage({
         </Section>
       )}
 
-      {manages && mentorOptions.length > 0 && (
-        // No eyebrow — see "Time by mentor" above. "Adds to a mentor's ledger"
-        // was the consequence of the form, and the form's own first sentence
-        // says it better than a three-word label above the title.
-        <Section title="Allocate time">
-          <div className="px-4 py-2 sm:px-5">
-            <AssignTaskForm
-              studentProfileId={profile.id}
-              programs={enrollments.map((e) => ({
-                value: e.programId,
-                label: enrollmentLabel(e),
-              }))}
-              mentors={mentorOptions}
-              openTasksByMentor={openTasksByMentor}
-              paymentPrograms={[...paymentPrograms]}
-            />
-          </div>
-        </Section>
-      )}
-
       {/* The two halves of the tracking sheet, side by side at ≥lg and stacked
           below. That is how the deleted board earns its keep: holding both at
           once was what it was prized for, and a grid keeps that reading while
@@ -632,6 +620,23 @@ export default async function StudentWorkspacePage({
                         openTasksByMentor[
                           `${entry.program.id}:${entry.mentor?.id ?? ""}`
                         ] ?? []
+                      }
+                      showAmountPaid={paymentPrograms.has(entry.program.id)}
+                      currentAmountPaid={entry.amountPaid ?? null}
+                    />
+                  )
+                : undefined
+            }
+            renderAssignedActions={
+              manages
+                ? (entry) => (
+                    <AllocationMinutesEditor
+                      studentProfileId={profile.id}
+                      programId={entry.program.id}
+                      mentorId={entry.mentor?.id ?? ""}
+                      currentMinutes={entry.allocated}
+                      currentDeadline={
+                        entry.deadline ? toDateInputValue(entry.deadline) : null
                       }
                       showAmountPaid={paymentPrograms.has(entry.program.id)}
                       currentAmountPaid={entry.amountPaid ?? null}

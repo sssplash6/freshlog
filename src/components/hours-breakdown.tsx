@@ -128,14 +128,6 @@ export function HoursBreakdown({
       {/* The key is also the readout: a swatch is only useful next to the
           figure it stands for. */}
       <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2.5">
-        <div>
-          <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-muted-fg">
-            Total
-          </dt>
-          <dd className="mt-0.5 text-[0.9375rem] font-bold tabular-nums text-ink">
-            {formatDuration(allotted)}
-          </dd>
-        </div>
         {shown.map((s) => (
           <div key={s.key}>
             <dt className="flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-muted-fg">
@@ -167,6 +159,14 @@ export function HoursBreakdown({
             </dd>
           </div>
         )}
+        <div>
+          <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-muted-fg">
+            Total
+          </dt>
+          <dd className="mt-0.5 text-[0.9375rem] font-bold tabular-nums text-ink">
+            {formatDuration(allotted)}
+          </dd>
+        </div>
       </dl>
     </div>
   );
