@@ -69,7 +69,11 @@ export function Receipt({
       )}
       <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-line pt-3">
         {correctHref && <ArrowLink href={correctHref} className="text-sm">Edit it</ArrowLink>}
-        {onAgainHref && <ArrowLink href={onAgainHref} className="text-sm">{againLabel}</ArrowLink>}
+        {onAgainHref && (
+          <ArrowLink href={onAgainHref} reloadDocument className="text-sm">
+            {againLabel}
+          </ArrowLink>
+        )}
         {subject && (
           <ArrowLink href={`/mentor/students/${subject.id}`} className="text-sm">
             {subject.name}

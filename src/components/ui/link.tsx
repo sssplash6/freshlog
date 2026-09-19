@@ -23,21 +23,31 @@ export function ArrowLink({
   href,
   children,
   className,
+  reloadDocument = false,
 }: {
   href: string;
   children: React.ReactNode;
   className?: string;
+  reloadDocument?: boolean;
 }) {
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "group inline-flex min-h-11 items-center gap-1.5 font-semibold text-brand hover:text-brand-dark",
-        className
-      )}
-    >
+  const classes = cn(
+    "group inline-flex min-h-11 items-center gap-1.5 font-semibold text-brand hover:text-brand-dark",
+    className
+  );
+  const contents = (
+    <>
       {children}
       <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+    </>
+  );
+
+  return reloadDocument ? (
+    <a href={href} className={classes}>
+      {contents}
+    </a>
+  ) : (
+    <Link href={href} className={classes}>
+      {contents}
     </Link>
   );
 }
