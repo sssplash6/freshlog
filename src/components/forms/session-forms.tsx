@@ -9,6 +9,7 @@ import { Field, GrowingField, Input, inputClasses } from "@/components/ui/field"
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { cn } from "@/lib/cn";
 import {
   deleteSession,
   editSession,
@@ -107,7 +108,11 @@ export function SessionRowActions({
             ref={editFormRef}
             action={editAction}
             onChange={autosave}
-            className="space-y-3"
+            aria-busy={editSave.kind === "saving"}
+            className={cn(
+              "space-y-3 transition-opacity",
+              editSave.kind === "saving" && "opacity-60",
+            )}
           >
             <input type="hidden" name="sessionId" value={session.id} />
 

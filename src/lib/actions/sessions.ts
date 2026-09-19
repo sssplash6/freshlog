@@ -883,7 +883,10 @@ export async function editSession(
     });
   });
 
-  revalidatePath("/", "layout");
+  // Inline autosave must not refresh the route underneath the editor. The
+  // session is already persisted, and the next navigation reads the updated
+  // ledger; revalidating the layout here would reset the open popover on every
+  // field change.
   return { ok: true, message: "Session updated." };
 }
 

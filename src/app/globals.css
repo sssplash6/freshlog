@@ -328,6 +328,23 @@ body {
   }
 }
 
+/* A brief confirmation pulse for completed actions. The receipt already says
+   what happened; this makes the state change visible at a glance without
+   flashing the whole page or introducing a new status colour. */
+@keyframes success-flash {
+  0% {
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 4px var(--color-brand-soft);
+  }
+  100% {
+    border-color: var(--color-line);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+@utility success-flash {
+  animation: success-flash 700ms var(--ease-out-strong) both;
+}
+
 /* Entrance choreography for lists and table rows. Real keyframes rather than
    @starting-style, because these run on first paint of a server-rendered page.
    Callers stagger them with an inline animation-delay (~24ms per row), so a
