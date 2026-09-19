@@ -1,11 +1,11 @@
 import { ExchangeList } from "@/components/exchange-panel";
+import { CrownIcon } from "@/components/icons";
 import { AddStudentsForm } from "@/components/forms/add-students-form";
 import { PersonChip } from "@/components/person-chip";
 import { STUDENT_SORTS, StudentsTable } from "@/components/students-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { ArrowLink } from "@/components/ui/link";
-import { Disclosure } from "@/components/ui/disclosure";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
 import { Section } from "@/components/ui/section";
 import { requireProgramScope } from "@/lib/dal";
@@ -134,6 +134,9 @@ export default async function ProgramPage({
     mentors.set(p.mentorId, held ?? { mentor: p.mentor });
   }
   const mentorRows = [...mentors.values()];
+  const superAdminIds = new Set(
+    grants.filter((grant) => grant.role === "ADMIN").map((grant) => grant.user.id),
+  );
   const spilled = mentorRows.length - MENTORS_SHOWN;
 
   return (
@@ -258,6 +261,11 @@ export default async function ProgramPage({
                         href={`/mentors/${mentor.id}`}
                         tone={programTone(program.id)}
                       />
+                      {superAdminIds.has(mentor.id) && (
+                        <span title="Super admin" className="text-warn-ink">
+                          <CrownIcon className="h-4 w-4" />
+                        </span>
+                      )}
                     </span>
                   </li>
                 ))}
@@ -265,29 +273,6 @@ export default async function ProgramPage({
           )}
         </Section>
 
-        {(user.platformAdmin ||
-          grants.some((grant) => grant.user.id === user.id && grant.role === "ADMIN")) &&
-          grants.length > 0 && (
-          <Section title="Admins">
-            <div className="px-4 py-2 sm:px-5">
-              <Disclosure label="Show admins" count={grants.length}>
-                <ul className="divide-y divide-line/60 text-sm">
-                  {grants.map((grant) => (
-                    <li
-                      key={grant.id}
-                      className="flex flex-wrap items-center justify-between gap-3 py-2"
-                    >
-                      <PersonChip person={grant.user} size="sm" />
-                      <span className="text-xs text-muted-fg">
-                        {grant.role === "ADMIN" ? "Super admin" : grant.role}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </Disclosure>
-            </div>
-          </Section>
-        )}
       </div>
     </div>
   );

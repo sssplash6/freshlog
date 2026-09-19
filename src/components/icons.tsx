@@ -46,6 +46,15 @@ export function BellIcon({ className }: { className?: string }) {
   );
 }
 
+export function CrownIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path d="m3 7 4 4 5-7 5 7 4-4-2 12H5L3 7Z" />
+      <path d="M5 19h14" />
+    </Svg>
+  );
+}
+
 export function SunIcon({ className }: { className?: string }) {
   return (
     <Svg className={className}>
