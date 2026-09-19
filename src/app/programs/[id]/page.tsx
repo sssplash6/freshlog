@@ -8,7 +8,6 @@ import { ArrowLink } from "@/components/ui/link";
 import { Disclosure } from "@/components/ui/disclosure";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
 import { Section } from "@/components/ui/section";
-import { StatusChip } from "@/components/ui/status-chip";
 import { requireProgramScope } from "@/lib/dal";
 import { programExchanges } from "@/lib/exchanges";
 import {
@@ -129,13 +128,11 @@ export default async function ProgramPage({
   // fact. Settings is where a pairing's cohort is set and shown.
   const mentors = new Map<
     string,
-    { mentor: (typeof pairings)[number]["mentor"]; missingLink: boolean }
+    { mentor: (typeof pairings)[number]["mentor"] }
   >();
   for (const p of pairings) {
     const held = mentors.get(p.mentorId);
-    const row = held ?? { mentor: p.mentor, missingLink: false };
-    if (!p.calendlyUrl) row.missingLink = true;
-    mentors.set(p.mentorId, row);
+    mentors.set(p.mentorId, held ?? { mentor: p.mentor });
   }
   const mentorRows = [...mentors.values()];
   const spilled = mentorRows.length - MENTORS_SHOWN;
@@ -245,7 +242,7 @@ export default async function ProgramPage({
             <ul className="divide-y divide-line/60 text-sm">
               {mentorRows
                 .slice(0, MENTORS_SHOWN)
-                .map(({ mentor, missingLink }) => (
+                 .map(({ mentor }) => (
                   // The flag follows the NAME, never the row's far edge.
                   // Justified to the edge it landed on the name's line for a
                   // short name and wrapped below for a long one — the same
@@ -268,11 +265,6 @@ export default async function ProgramPage({
                         tone={programTone(program.id)}
                       />
                     </span>
-                    {missingLink && (
-                      <StatusChip severity="attention">
-                        No booking link
-                      </StatusChip>
-                    )}
                   </li>
                 ))}
             </ul>

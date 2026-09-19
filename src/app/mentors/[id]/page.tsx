@@ -299,7 +299,7 @@ async function MentorRecord({
         {isSelf && (
           <Disclosure
             label="Edit your profile and booking links"
-            // Open when a link is missing. /mentor's "No booking link" row
+             // Open when a link is missing. /mentor's booking-link warning
             // sends the mentor here to fix it, and landing on a closed fold is
             // a second click on a page they were told to visit.
             defaultOpen={allPairings.some((a) => !a.calendlyUrl)}

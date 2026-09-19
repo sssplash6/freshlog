@@ -12,7 +12,6 @@ import { PersonChip } from "@/components/person-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Section } from "@/components/ui/section";
 import { SettingsRow } from "@/components/ui/settings-row";
-import { StatusChip } from "@/components/ui/status-chip";
 import { ROLES } from "@/lib/constants";
 import { requireProgramScope } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
@@ -117,11 +116,6 @@ export default async function ProgramSettingsPage({
                       </span>
                     )}
                   </span>
-                }
-                description={
-                  p.calendlyUrl ? undefined : (
-                    <StatusChip severity="attention">No booking link</StatusChip>
-                  )
                 }
                 control={<RemoveMentorButton assignmentId={p.id} />}
               />
