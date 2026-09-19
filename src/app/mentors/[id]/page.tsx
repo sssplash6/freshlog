@@ -9,8 +9,8 @@ import { PersonCell } from "@/components/person-chip";
 import {
   SessionsLog,
   sessionsCaption,
-  toSessionEntries,
 } from "@/components/session-row";
+import { toSessionEntries } from "@/lib/session-entries";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Figure, FigureRow } from "@/components/ui/figure";

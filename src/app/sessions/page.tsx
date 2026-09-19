@@ -1,5 +1,6 @@
 import { SessionRowActions } from "@/components/forms/session-forms";
-import { SessionsList, toSessionEntries } from "@/components/session-row";
+import { SessionsList } from "@/components/session-row";
+import { toSessionEntries } from "@/lib/session-entries";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";

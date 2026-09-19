@@ -1,5 +1,6 @@
 import { HoursBreakdown } from "@/components/hours-breakdown";
-import { SessionRow, toSessionEntries } from "@/components/session-row";
+import { SessionRow } from "@/components/session-row";
+import { toSessionEntries } from "@/lib/session-entries";
 import {
   StudentTaskRow,
   type StudentTaskEntry,

@@ -11,7 +11,8 @@ import {
 } from "@/components/student-task-row";
 import { TaskProgressControl } from "@/components/forms/student-task-forms";
 import { Disclosure } from "@/components/ui/disclosure";
-import { SessionRow, toSessionEntries } from "@/components/session-row";
+import { SessionRow } from "@/components/session-row";
+import { toSessionEntries } from "@/lib/session-entries";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowLink } from "@/components/ui/link";
 import { Meter } from "@/components/ui/meter";

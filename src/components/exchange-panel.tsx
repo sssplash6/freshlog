@@ -1,6 +1,7 @@
 import { PersonChip } from "@/components/person-chip";
 import { ProgramChip } from "@/components/program-chip";
-import { SessionsList, toSessionEntries } from "@/components/session-row";
+import { SessionsList } from "@/components/session-row";
+import { toSessionEntries } from "@/lib/session-entries";
 import { ReturnExchangeButton } from "@/components/forms/exchange-forms";
 import { Disclosure } from "@/components/ui/disclosure";
 import { StatusChip } from "@/components/ui/status-chip";
