@@ -120,7 +120,10 @@ export async function setStudentTask(
     });
   });
 
-  revalidatePath("/", "layout");
+  // This form lives on the student's workspace. Revalidating the entire app
+  // layout made production task submissions wait on unrelated dashboard reads
+  // and could leave the submit button showing "Setting…" indefinitely.
+  revalidatePath(`/students/${student.id}`);
   return {
     ok: true,
     message: `"${fields.title}" is on their list, due ${formatDate(fields.dueOn)}.`,
