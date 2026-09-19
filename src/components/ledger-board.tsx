@@ -78,44 +78,29 @@ const PANE = "max-h-[40svh] overflow-y-auto";
  * depending on the answer. Three of them down one card also meant the eye met
  * a line of small caps before every heading it actually wanted.
  */
-function ColumnHead({ title, caption }: { title: string; caption?: string }) {
+function ColumnHead({
+  title,
+  caption,
+  count,
+}: {
+  title: string;
+  caption?: string;
+  count?: number;
+}) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-4 pb-2.5 pt-4 sm:px-5">
-      <h3 className="text-[0.9375rem] font-bold tracking-tight text-ink">
-        {title}
-      </h3>
+      <div className="flex items-baseline gap-1.5">
+        <h3 className="text-[0.9375rem] font-bold tracking-tight text-ink">{title}</h3>
+        {count != null && (
+          <span className="text-xs font-semibold tabular-nums text-muted-fg">{count}</span>
+        )}
+      </div>
       {/* Optional: a column whose figures are all stated elsewhere in the card
           gets a heading and nothing else, rather than a number invented to
           fill the right-hand side of the line. */}
       {caption && (
         <span className="text-xs tabular-nums text-muted-fg">{caption}</span>
       )}
-    </div>
-  );
-}
-
-/**
- * The strip between one group of rows and the next.
- *
- * NO LABEL. It said "Completed", "To do", "In progress", "Finished" — four
- * small-caps words down one card, over lists whose rows already wear the state
- * as a chip. What the strip is FOR is the break: a reader scrolling a pane
- * needs to see that one group has ended and another begun, and a band of the
- * page's own ground says that without a word.
- *
- * The count stays, because it is the one thing the rows cannot say about
- * themselves — how many of them there are before the next break.
- *
- * Sticky inside its pane: a reader forty rows into a group would otherwise have
- * nothing on screen holding the break they crossed.
- */
-function GroupRule({ count }: { count: number }) {
-  if (count === 0) return null;
-  return (
-    <div className="sticky top-0 z-10 flex justify-end bg-canvas px-4 py-1.5 sm:px-5">
-      <span className="text-[0.625rem] font-semibold tabular-nums text-muted-fg">
-        {count}
-      </span>
     </div>
   );
 }
@@ -208,14 +193,13 @@ export function LedgerBoard({
               colour the bar uses for it, so the card looked like it held two
               sums. And a count of logged meetings is already in the card's
               caption above and on the group rule below. */}
-          <ColumnHead title="Meetings" />
+          <ColumnHead title="Meetings" count={logged.length} />
           {logged.length === 0 ? (
             <p className="px-4 pb-5 text-sm text-muted-fg sm:px-5">
               No meetings logged yet.
             </p>
           ) : (
             <div className={PANE}>
-              <GroupRule count={logged.length} />
               {/* The inset goes on the ROWS, not on this list: `divide-y` draws
                   its hairline on the child's border box, so padding the list
                   would pull every rule 20px short of the edges while the
@@ -253,6 +237,7 @@ export function LedgerBoard({
         <div className="relative min-h-40 min-w-0">
           <ColumnHead
             title="Tasks"
+            count={tasks.length}
             // The whole log's shape, not just what is left: a mentor opening
             // somebody they have not seen in a month wants to know what was
             // finished as much as what is outstanding.
@@ -273,7 +258,6 @@ export function LedgerBoard({
             // the taller of the two, the "+" sits over the bottom of this list,
             // and a row has to be able to scroll clear of it.
             <div className={`${PANE} pb-14`}>
-              <GroupRule count={openTasks.length} />
               <ul className="divide-y divide-line">
                 {openTasks.map((t, i) => (
                   <StudentTaskRow
@@ -285,7 +269,6 @@ export function LedgerBoard({
                   />
                 ))}
               </ul>
-              <GroupRule count={doneTasks.length} />
               <ul className="divide-y divide-line">
                 {doneTasks.map((t) => (
                   <StudentTaskRow
@@ -319,6 +302,7 @@ export function LedgerBoard({
             one thing every other figure here is too. */}
         <ColumnHead
           title="Agenda"
+          count={assignments.length}
           caption={
             assignments.length === 0
               ? undefined
@@ -333,7 +317,6 @@ export function LedgerBoard({
           </p>
         ) : (
           <div className={PANE}>
-            <GroupRule count={planned.length} />
             <ul className="divide-y divide-line">
               {toTaskEntries(planned, { mentorBase }).map((t, i) => (
                 <TaskRow
@@ -346,7 +329,6 @@ export function LedgerBoard({
                 />
               ))}
             </ul>
-            <GroupRule count={finished.length} />
             {/* Finished work is one line each: it is here to be counted and
                 to be findable, not to be read again. */}
             <ul className="divide-y divide-line">
