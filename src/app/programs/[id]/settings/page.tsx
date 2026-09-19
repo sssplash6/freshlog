@@ -27,7 +27,7 @@ import {
 
 /** What a `ProgramStaff.role` means in a sentence. ADMIN is the only one the UI grants. */
 const LEVEL: Record<string, string> = {
-  ADMIN: "Program super admin",
+  ADMIN: "Super admin",
   LEADER: "Reads this program",
   SALES: "Registers students here",
 };

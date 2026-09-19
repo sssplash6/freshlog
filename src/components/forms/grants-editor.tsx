@@ -24,7 +24,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 const LEVELS = [
   {
     value: "ADMIN",
-    label: "Program super admin",
+    label: "Super admin",
     hint: "Full admin rights in this program only.",
   },
   { value: "LEADER", label: "Leader", hint: "Reads the program and its feedback." },

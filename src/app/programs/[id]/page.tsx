@@ -283,7 +283,7 @@ export default async function ProgramPage({
                     >
                       <PersonChip person={grant.user} size="sm" />
                       <span className="text-xs text-muted-fg">
-                        {grant.role === "ADMIN" ? "Program super admin" : grant.role}
+                        {grant.role === "ADMIN" ? "Super admin" : grant.role}
                       </span>
                     </li>
                   ))}

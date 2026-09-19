@@ -82,7 +82,7 @@ export default async function PlatformPage() {
       <Section
         eyebrow={`${withAccess.length}/${rows.length} have access`}
         title="Program access"
-        caption="Program super admins manage only their selected programs."
+        caption="Super admins here manage only their selected programs."
       >
         {rows.length === 0 ? (
           <EmptyState framed={false} title="Nobody to grant yet">
