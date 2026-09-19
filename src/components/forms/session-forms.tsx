@@ -9,7 +9,6 @@ import { Field, GrowingField, Input, inputClasses } from "@/components/ui/field"
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { cn } from "@/lib/cn";
 import { deleteSession, restoreSession, voidSession } from "@/lib/actions/sessions";
 
 /**
@@ -58,8 +57,12 @@ export function SessionRowActions({
   const editTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editRequest = useRef<AbortController | null>(null);
   const [editStatus, setEditStatus] = useState<"idle" | "saving" | "failed">("idle");
+  const [savingField, setSavingField] = useState<string | null>(null);
 
-  function autosave() {
+  function autosave(event: React.FormEvent<HTMLFormElement>) {
+    const target = event.target as HTMLInputElement;
+    const field = target.name || null;
+    setSavingField(field);
     if (editTimer.current) clearTimeout(editTimer.current);
     editTimer.current = setTimeout(() => {
       void saveEdit();
@@ -80,10 +83,13 @@ export function SessionRowActions({
         signal: controller.signal,
       });
       if (!response.ok) throw new Error("Session could not be saved.");
-      setEditStatus("idle");
+      if (editRequest.current === controller) {
+        setEditStatus("idle");
+        setSavingField(null);
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
-      setEditStatus("failed");
+      if (editRequest.current === controller) setEditStatus("failed");
     }
   }
 
@@ -127,10 +133,8 @@ export function SessionRowActions({
             onSubmit={(event) => event.preventDefault()}
             onChange={autosave}
             aria-busy={editStatus === "saving"}
-            className={cn(
-              "space-y-3 transition-opacity",
-              editStatus === "saving" && "blur-[1px] opacity-60",
-            )}
+            data-saving-field={savingField ?? undefined}
+            className="autosave-editor space-y-3"
           >
             <input type="hidden" name="sessionId" value={session.id} />
 

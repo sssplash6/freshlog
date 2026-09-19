@@ -347,6 +347,18 @@ body {
   animation: success-flash 1100ms var(--ease-out-strong) both;
 }
 
+/* Only the control that triggered an autosave acknowledges the request. */
+.autosave-editor[data-saving-field="minutes"] input[name="minutes"],
+.autosave-editor[data-saving-field="date"] input[name="date"],
+.autosave-editor[data-saving-field="note"] textarea[name="note"],
+.autosave-editor[data-saving-field="assignmentId"] select,
+.autosave-editor[data-saving-field="attendance"] fieldset:has(input[name="attendance"]),
+.autosave-editor[data-saving-field="timeKind"] fieldset:has(input[name="timeKind"]) {
+  filter: blur(1px);
+  opacity: 0.6;
+  transition: filter 150ms var(--ease-out-strong), opacity 150ms var(--ease-out-strong);
+}
+
 /* Entrance choreography for lists and table rows. Real keyframes rather than
    @starting-style, because these run on first paint of a server-rendered page.
    Callers stagger them with an inline animation-delay (~24ms per row), so a

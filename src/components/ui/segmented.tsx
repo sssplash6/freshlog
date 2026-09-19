@@ -85,6 +85,7 @@ export function SegmentedRadio({
   defaultValue,
   required = false,
   dense = false,
+  columns,
   onChange,
   className,
 }: {
@@ -95,6 +96,8 @@ export function SegmentedRadio({
   required?: boolean;
   /** Tighter horizontally, for a popover. Never shorter — see SEGMENT_DENSE. */
   dense?: boolean;
+  /** Use a balanced two-by-two layout for four long choices. */
+  columns?: 2;
   onChange?: (value: string) => void;
   className?: string;
 }) {
@@ -119,7 +122,7 @@ export function SegmentedRadio({
           set of buttons would need its own keyboard handling and would submit
           nothing; radios arrive with arrow-key navigation and form semantics
           already correct. */}
-      <div className={cn(TRACK, "mt-1")}>
+      <div className={cn(TRACK, "mt-1", columns === 2 && "grid grid-cols-2 sm:w-full")}>
         {options.map((option) => {
           const active = value === option.value;
           return (
