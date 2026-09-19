@@ -122,7 +122,13 @@ export function SegmentedRadio({
           set of buttons would need its own keyboard handling and would submit
           nothing; radios arrive with arrow-key navigation and form semantics
           already correct. */}
-      <div className={cn(TRACK, "mt-1", columns === 2 && "grid grid-cols-2 sm:w-full")}>
+      <div
+        className={cn(
+          TRACK,
+          "mt-1",
+          columns === 2 && "grid grid-cols-2 gap-2 p-2 sm:w-full",
+        )}
+      >
         {options.map((option) => {
           const active = value === option.value;
           return (
