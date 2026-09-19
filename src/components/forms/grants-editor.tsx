@@ -22,7 +22,11 @@ import { SubmitButton } from "@/components/ui/submit-button";
  */
 
 const LEVELS = [
-  { value: "ADMIN", label: "Admin", hint: "Manages students, mentors and time." },
+  {
+    value: "ADMIN",
+    label: "Program admin",
+    hint: "Manages students, mentors and time in this program.",
+  },
   { value: "LEADER", label: "Leader", hint: "Reads the program and its feedback." },
   { value: "SALES", label: "Sales", hint: "Reads the program's students." },
 ] as const;
@@ -50,9 +54,13 @@ export function GrantsEditor({
 
   return (
     <RowActionMenu trigger="pencil" label={`Change ${row.name ?? row.email}'s access`} width="lg">
-      <RowActionGroup label="Programs">
+      <RowActionGroup label="Program-specific access">
         <form action={action} className="space-y-2">
           <input type="hidden" name="userId" value={row.userId} />
+          <p className="mb-2 text-xs text-muted-fg">
+            Select only the programs this person should administer. This does not
+            give them platform-wide access.
+          </p>
           {programs.map((p) => (
             <div key={p.id} className="flex flex-wrap items-center gap-2">
               <label className="flex min-h-11 flex-1 items-center gap-2 text-sm text-ink">
@@ -94,7 +102,7 @@ export function GrantsEditor({
         </form>
       </RowActionGroup>
 
-      <RowActionGroup label="Platform">
+      <RowActionGroup label="Platform-wide access">
         <PlatformToggle row={row} />
       </RowActionGroup>
     </RowActionMenu>
@@ -118,7 +126,7 @@ function PlatformToggle({ row }: { row: GrantRow }) {
           defaultChecked={row.platformAdmin}
           className="h-4 w-4 shrink-0 accent-brand"
         />
-        Runs the platform
+          Runs the platform (all programs)
       </label>
       <p className="text-xs text-muted-fg">
         Sees every program, present and future, and is the only person who can
