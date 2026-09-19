@@ -133,7 +133,7 @@ function ProgramMetric({
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs",
-        tone === "hours" && "border-accent/30 bg-accent-soft text-ink",
+        tone === "hours" && "border-line bg-surface text-ink",
         tone === "danger" && "border-danger-line bg-danger-soft text-danger-ink",
         tone === "neutral" && "border-line bg-surface text-muted-fg",
       )}
