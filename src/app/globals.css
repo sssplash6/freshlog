@@ -333,16 +333,18 @@ body {
    flashing the whole page or introducing a new status colour. */
 @keyframes success-flash {
   0% {
+    background-color: var(--color-brand-soft);
     border-color: var(--color-brand);
     box-shadow: 0 0 0 4px var(--color-brand-soft);
   }
   100% {
+    background-color: var(--color-surface);
     border-color: var(--color-line);
     box-shadow: 0 0 0 0 transparent;
   }
 }
 @utility success-flash {
-  animation: success-flash 700ms var(--ease-out-strong) both;
+  animation: success-flash 1100ms var(--ease-out-strong) both;
 }
 
 /* Entrance choreography for lists and table rows. Real keyframes rather than

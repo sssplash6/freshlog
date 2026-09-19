@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AttendancePicker } from "@/components/forms/attendance-picker";
 import { TimeKindPicker } from "@/components/forms/time-kind-picker";
@@ -10,12 +10,7 @@ import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/cn";
-import {
-  deleteSession,
-  editSession,
-  restoreSession,
-  voidSession,
-} from "@/lib/actions/sessions";
+import { deleteSession, restoreSession, voidSession } from "@/lib/actions/sessions";
 
 /**
  * Edit, void or remove one logged session. A mentor gets this on their own
@@ -56,23 +51,46 @@ export function SessionRowActions({
   /** Admins only: remove the row outright rather than voiding it. */
   canDelete?: boolean;
 }) {
-  const [, editAction, editSave] = useSaveState(editSession);
   const [, voidAction, voidSave] = useSaveState(voidSession);
   const [, delAction, delSave] = useSaveState(deleteSession);
   const [, restoreAction, restoreSave] = useSaveState(restoreSession);
   const editFormRef = useRef<HTMLFormElement>(null);
   const editTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editRequest = useRef<AbortController | null>(null);
+  const [editStatus, setEditStatus] = useState<"idle" | "saving" | "failed">("idle");
 
   function autosave() {
     if (editTimer.current) clearTimeout(editTimer.current);
     editTimer.current = setTimeout(() => {
-      if (editFormRef.current) editAction(new FormData(editFormRef.current));
+      void saveEdit();
     }, 450);
+  }
+
+  async function saveEdit() {
+    const form = editFormRef.current;
+    if (!form) return;
+    editRequest.current?.abort();
+    const controller = new AbortController();
+    editRequest.current = controller;
+    setEditStatus("saving");
+    try {
+      const response = await fetch(`/api/sessions/${session.id}`, {
+        method: "PATCH",
+        body: new FormData(form),
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("Session could not be saved.");
+      setEditStatus("idle");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setEditStatus("failed");
+    }
   }
 
   useEffect(
     () => () => {
       if (editTimer.current) clearTimeout(editTimer.current);
+      editRequest.current?.abort();
     },
     [],
   );
@@ -106,12 +124,12 @@ export function SessionRowActions({
         <RowActionGroup label="Edit this session">
           <form
             ref={editFormRef}
-            action={editAction}
+            onSubmit={(event) => event.preventDefault()}
             onChange={autosave}
-            aria-busy={editSave.kind === "saving"}
+            aria-busy={editStatus === "saving"}
             className={cn(
               "space-y-3 transition-opacity",
-              editSave.kind === "saving" && "opacity-60",
+              editStatus === "saving" && "blur-[1px] opacity-60",
             )}
           >
             <input type="hidden" name="sessionId" value={session.id} />
@@ -169,7 +187,11 @@ export function SessionRowActions({
             <TimeKindPicker defaultValue={session.timeKind} compact />
 
           </form>
-          <SaveState state={editSave} />
+          {editStatus === "failed" && (
+            <p role="alert" className="mt-2 text-sm text-danger-ink">
+              This edit could not be saved. Try changing the field again.
+            </p>
+          )}
         </RowActionGroup>
       )}
 
