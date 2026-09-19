@@ -112,8 +112,7 @@ function ColumnHead({ title, caption }: { title: string; caption?: string }) {
 function GroupRule({ count }: { count: number }) {
   if (count === 0) return null;
   return (
-    <div className="sticky top-0 z-10 flex items-center gap-2.5 bg-canvas px-4 py-1.5 sm:px-5">
-      <span className="h-px flex-1 bg-line" aria-hidden="true" />
+    <div className="sticky top-0 z-10 flex justify-end bg-canvas px-4 py-1.5 sm:px-5">
       <span className="text-[0.625rem] font-semibold tabular-nums text-muted-fg">
         {count}
       </span>
