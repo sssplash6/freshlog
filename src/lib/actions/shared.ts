@@ -14,7 +14,7 @@
  * link to it instead of parsing a sentence for an id.
  */
 export type ActionState =
-  | { ok: true; message?: string; receipt?: ActionReceipt }
+  | { ok: true; message?: string; receipt?: ActionReceipt; session?: SessionUpdate }
   | { ok: false; error: string; field?: string; values?: Record<string, string> }
   | null;
 
@@ -27,6 +27,19 @@ export type ActionReceipt = {
   /** The consequences, one clause each — what changed, what is left. */
   notes: string[];
   subject?: { kind: "student" | "mentor" | "program"; id: string; name: string };
+};
+
+/** Normalized session values returned by an inline edit. */
+export type SessionUpdate = {
+  minutes: number;
+  date: string;
+  note: string | null;
+  assignmentId: string | null;
+  attended: boolean;
+  late: boolean;
+  status: string;
+  withinPlan: boolean;
+  task: { id: string; purpose: string } | null;
 };
 
 /**

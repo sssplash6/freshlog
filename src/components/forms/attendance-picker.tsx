@@ -35,7 +35,7 @@ export function AttendancePicker({
       legend="How did it go?"
       required
       dense={compact}
-      columns={2}
+      columns={compact ? 2 : undefined}
       defaultValue={defaultValue}
       options={ORDER.map((state) => ({
         value: state,

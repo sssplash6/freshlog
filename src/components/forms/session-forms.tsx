@@ -4,12 +4,16 @@ import { useEffect, useRef, useState } from "react";
 
 import { AttendancePicker } from "@/components/forms/attendance-picker";
 import { TimeKindPicker } from "@/components/forms/time-kind-picker";
+import { useLiveSession } from "@/components/session-live-context";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { Field, GrowingField, Input, inputClasses } from "@/components/ui/field";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { attendanceOf, timeKindOf } from "@/lib/constants";
+import { toDateInputValue } from "@/lib/format";
 import { deleteSession, restoreSession, voidSession } from "@/lib/actions/sessions";
+import type { SessionUpdate } from "@/lib/actions/shared";
 
 /**
  * Edit, void or remove one logged session. A mentor gets this on their own
@@ -55,9 +59,25 @@ export function SessionRowActions({
   const [, restoreAction, restoreSave] = useSaveState(restoreSession);
   const editFormRef = useRef<HTMLFormElement>(null);
   const editTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const editRequest = useRef<AbortController | null>(null);
+  const editPending = useRef<FormData | null>(null);
+  const editInFlight = useRef(false);
   const [editStatus, setEditStatus] = useState<"idle" | "saving" | "failed">("idle");
   const [savingField, setSavingField] = useState<string | null>(null);
+  const liveSession = useLiveSession();
+  const currentMinutes = liveSession?.session.minutes ?? session.minutes;
+  const currentDate = liveSession
+    ? toDateInputValue(liveSession.session.date)
+    : session.date;
+  const currentNote = liveSession ? liveSession.session.note : session.note;
+  const currentAssignmentId = liveSession
+    ? liveSession.session.task?.id
+    : session.assignmentId;
+  const currentAttendance = liveSession
+    ? attendanceOf(liveSession.session)
+    : session.attendance;
+  const currentTimeKind = liveSession
+    ? timeKindOf(liveSession.session)
+    : session.timeKind;
 
   function autosave(event: React.FormEvent<HTMLFormElement>) {
     const target = event.target as HTMLInputElement;
@@ -65,38 +85,46 @@ export function SessionRowActions({
     setSavingField(field);
     if (editTimer.current) clearTimeout(editTimer.current);
     editTimer.current = setTimeout(() => {
-      void saveEdit();
+      if (editFormRef.current) editPending.current = new FormData(editFormRef.current);
+      void flushEdit();
     }, 450);
   }
 
-  async function saveEdit() {
-    const form = editFormRef.current;
-    if (!form) return;
-    editRequest.current?.abort();
-    const controller = new AbortController();
-    editRequest.current = controller;
+  async function flushEdit() {
+    if (editInFlight.current || !editPending.current) return;
+    const body = editPending.current;
+    editPending.current = null;
+    editInFlight.current = true;
     setEditStatus("saving");
+    let failed = false;
     try {
       const response = await fetch(`/api/sessions/${session.id}`, {
         method: "PATCH",
-        body: new FormData(form),
-        signal: controller.signal,
+        body,
       });
       if (!response.ok) throw new Error("Session could not be saved.");
-      if (editRequest.current === controller) {
+      const result = (await response.json()) as {
+        session?: SessionUpdate;
+      };
+      if (result.session) liveSession?.update(result.session);
+    } catch {
+      failed = true;
+      setEditStatus("failed");
+    } finally {
+      editInFlight.current = false;
+      if (editPending.current) {
+        void flushEdit();
+      } else if (!failed) {
         setEditStatus("idle");
         setSavingField(null);
       }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      if (editRequest.current === controller) setEditStatus("failed");
     }
   }
 
   useEffect(
     () => () => {
       if (editTimer.current) clearTimeout(editTimer.current);
-      editRequest.current?.abort();
+      editPending.current = null;
     },
     [],
   );
@@ -142,7 +170,7 @@ export function SessionRowActions({
               <Field label="Agenda item">
                 <select
                   name="assignmentId"
-                  defaultValue={session.assignmentId ?? ""}
+                    defaultValue={currentAssignmentId ?? ""}
                   className={inputClasses}
                 >
                   {/* Blank keeps whatever the session already has, so fixing
@@ -165,7 +193,7 @@ export function SessionRowActions({
                   min="1"
                   step="1"
                   required
-                  defaultValue={session.minutes}
+                   defaultValue={currentMinutes}
                 />
               </Field>
               <Field label="Date" className="min-w-0 flex-1">
@@ -173,7 +201,7 @@ export function SessionRowActions({
                   name="date"
                   type="date"
                   required
-                  defaultValue={session.date}
+                   defaultValue={currentDate}
                 />
               </Field>
             </div>
@@ -181,14 +209,17 @@ export function SessionRowActions({
             <Field label="Notes">
               <GrowingField
                 name="note"
-                defaultValue={session.note ?? ""}
+                 defaultValue={currentNote ?? ""}
                 placeholder="What you covered"
               />
             </Field>
 
-            <AttendancePicker defaultValue={session.attendance} compact />
+            <AttendancePicker
+              defaultValue={currentAttendance}
+              compact
+            />
 
-            <TimeKindPicker defaultValue={session.timeKind} compact />
+            <TimeKindPicker defaultValue={currentTimeKind} compact />
 
           </form>
           {editStatus === "failed" && (

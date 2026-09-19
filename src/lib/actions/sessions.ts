@@ -883,11 +883,30 @@ export async function editSession(
     });
   });
 
+  const task = assignmentId
+    ? await prisma.assignment.findUnique({
+        where: { id: assignmentId },
+        select: { id: true, purpose: true },
+      })
+    : null;
+
   // Inline autosave must not refresh the route underneath the editor. The
   // session is already persisted, and the next navigation reads the updated
   // ledger; revalidating the layout here would reset the open popover on every
   // field change.
-  return { ok: true, message: "Session updated." };
+  return {
+    ok: true,
+    message: "Session updated.",
+    session: {
+      minutes: minutesParsed.value,
+      date: dateParsed.value.toISOString(),
+      note,
+      assignmentId,
+      ...fields,
+      ...timeKindFields(kind),
+      task,
+    },
+  };
 }
 
 /** Void a session logged in error — the row stays, the hours go back. */

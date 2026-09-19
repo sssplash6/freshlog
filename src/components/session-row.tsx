@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 import { ExpandableNote } from "@/components/expandable-note";
@@ -7,6 +9,7 @@ import { Rating } from "@/components/rating";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusChip } from "@/components/ui/status-chip";
 import { SessionRowActions } from "@/components/forms/session-forms";
+import { SessionLiveProvider, useLiveSession } from "@/components/session-live-context";
 import { ArrowLink } from "@/components/ui/link";
 import { Section } from "@/components/ui/section";
 import {
@@ -151,6 +154,37 @@ export function SessionRow({
   /** Position in the list, for the entrance stagger and nothing else. */
   index?: number;
 }) {
+  return (
+    <SessionLiveProvider initialSession={session}>
+      <SessionRowContent
+        session={session}
+        viewer={viewer}
+        variant={variant}
+        columns={columns}
+        actions={actions}
+        index={index}
+      />
+    </SessionLiveProvider>
+  );
+}
+
+function SessionRowContent({
+  session,
+  viewer,
+  variant = "log",
+  columns = DEFAULT_COLUMNS,
+  actions,
+  index,
+}: {
+  session: SessionEntry;
+  viewer: ViewerContext;
+  variant?: "log" | "timeline" | "line";
+  columns?: SessionColumn[];
+  actions?: React.ReactNode;
+  index?: number;
+}) {
+  const live = useLiveSession()?.session;
+  session = live ?? session;
   const { id, date, minutes, note, mentor, student, task, href } = session;
   const statuses = sessionStatuses(session, viewer);
   const voided = session.status === SESSION_STATUS.VOIDED;
