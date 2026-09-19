@@ -79,7 +79,7 @@ export default async function ProgramPage({
     programPairings(id),
     programCohorts(id),
     programExchanges(id),
-    user.platformAdmin ? programGrants(id) : Promise.resolve([]),
+    programGrants(id),
   ]);
 
   const where = studentsWhere(
@@ -271,7 +271,9 @@ export default async function ProgramPage({
           )}
         </Section>
 
-        {user.platformAdmin && grants.length > 0 && (
+        {(user.platformAdmin ||
+          grants.some((grant) => grant.user.id === user.id && grant.role === "ADMIN")) &&
+          grants.length > 0 && (
           <Section title="Admins">
             <div className="px-4 py-2 sm:px-5">
               <Disclosure label="Show admins" count={grants.length}>
