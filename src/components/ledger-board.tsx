@@ -88,7 +88,7 @@ function ColumnHead({
   count?: number;
 }) {
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-4 pb-2.5 pt-4 sm:px-5">
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 border-b border-line px-4 pb-2.5 pt-4 sm:px-5">
       <div className="flex items-baseline gap-1.5">
         <h3 className="text-[0.9375rem] font-bold tracking-tight text-ink">{title}</h3>
         {count != null && (
