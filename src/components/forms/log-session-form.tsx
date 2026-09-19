@@ -448,7 +448,7 @@ export function LogSessionForm({
         <>
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             {notesField}
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
               {minutesField}
               {dateField}
               <AttendancePicker
