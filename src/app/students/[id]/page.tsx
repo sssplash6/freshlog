@@ -398,7 +398,7 @@ export default async function StudentWorkspacePage({
           </>
         }
         actions={
-          <div className="flex flex-wrap items-center gap-2 lg:-mb-4">
+          <div className="flex flex-wrap items-center gap-2 lg:-mr-14">
             {reaches && (
               // One action in the masthead, not two. Scheduling was the
               // secondary of a pair and the only one that opened a form in the
