@@ -19,12 +19,8 @@ import {
   timeKindOf,
 } from "@/lib/constants";
 import { cn } from "@/lib/cn";
-import {
-  formatDate,
-  formatDuration,
-  formatMinutes,
-  toDateInputValue,
-} from "@/lib/format";
+import { formatDate, formatMinutes, toDateInputValue } from "@/lib/format";
+import { sessionsCaption } from "@/lib/session-entries";
 import { sessionStatuses, type ViewerContext } from "@/lib/status";
 
 /**
@@ -486,27 +482,6 @@ function Separator() {
  * a number, delete the one that recomputes it.
  */
 /**
- * What a log of these adds up to, for the caption above it.
- *
- * Voided and rescheduled rows are history, not hours, and out-of-plan time is
- * named beside the total rather than folded into it — a caption that added
- * them together would disagree with the balance on the same page.
- */
-export function sessionsCaption(sessions: readonly SessionEntry[]): string {
-  const active = sessions.filter((s) => s.status === SESSION_STATUS.ACTIVE);
-  if (active.length === 0) return "Nothing logged yet";
-  const logged = active
-    .filter(chargesAllocation)
-    .reduce((sum, s) => sum + s.minutes, 0);
-  const extra = active
-    .filter((s) => !s.withinPlan)
-    .reduce((sum, s) => sum + s.minutes, 0);
-  return `${active.length} meeting${active.length === 1 ? "" : "s"} · ${formatDuration(logged)}${
-    extra > 0 ? ` · ${formatDuration(extra)} extra` : ""
-  }`;
-}
-
-/**
  * The ledger: two-line rows, and nothing around them.
  *
  * It was `SessionsTable` and it rendered a `<table>`; see the note at the top
@@ -520,7 +495,7 @@ export function SessionsList({
   sessions,
   viewer,
   columns = DEFAULT_COLUMNS,
-  renderActions,
+  actions,
   framed = true,
   empty,
   className,
@@ -529,11 +504,18 @@ export function SessionsList({
   viewer: ViewerContext;
   columns?: SessionColumn[];
   /**
-   * A row's own menu. A function because the answer is per row — a mentor may
-   * correct their own lines, an admin anyone's — and returning nothing for
-   * every row drops the column instead of leaving an empty one.
+   * A row's own menu, keyed by session id — the answer is per row, since a
+   * mentor may correct their own lines and an admin anyone's, and a record
+   * with nothing in it for any row drops the column instead of leaving an
+   * empty one.
+   *
+   * Nodes rather than the `(session) => node` this took until 20 September
+   * 2026: this file became a client module when the edit form learnt to
+   * autosave, and a function is not something a server component may hand
+   * across that boundary. `/sessions` passed one, and every request to it
+   * rendered the error boundary.
    */
-  renderActions?: (session: SessionEntry) => React.ReactNode;
+  actions?: Record<string, React.ReactNode>;
   framed?: boolean;
   /** Pass an `EmptyState variant="no-results"` when a filter did the emptying. */
   empty?: React.ReactNode;
@@ -549,7 +531,7 @@ export function SessionsList({
     );
   }
 
-  const rowActions = sessions.map((s) => renderActions?.(s));
+  const rowActions = sessions.map((s) => actions?.[s.id]);
   const withActions = rowActions.some(Boolean);
 
   // A person earns their place on the row only when the rows span more than
@@ -672,24 +654,27 @@ export function SessionsLog({
             </EmptyState>
           )
         }
-        renderActions={(s) =>
-          canEdit(s) || canDelete ? (
-            <SessionRowActions
-              session={{
-                id: s.id,
-                minutes: s.minutes,
-                date: toDateInputValue(s.date),
-                attendance: attendanceOf(s),
-                timeKind: timeKindOf(s),
-                note: s.note,
-                assignmentId: s.task?.id ?? null,
-              }}
-              goals={manage?.tasksBySession?.[s.id] ?? []}
-              canEdit={canEdit(s)}
-              canDelete={canDelete}
-            />
-          ) : null
-        }
+        actions={Object.fromEntries(
+          sessions.map((s) => [
+            s.id,
+            canEdit(s) || canDelete ? (
+              <SessionRowActions
+                session={{
+                  id: s.id,
+                  minutes: s.minutes,
+                  date: toDateInputValue(s.date),
+                  attendance: attendanceOf(s),
+                  timeKind: timeKindOf(s),
+                  note: s.note,
+                  assignmentId: s.task?.id ?? null,
+                }}
+                goals={manage?.tasksBySession?.[s.id] ?? []}
+                canEdit={canEdit(s)}
+                canDelete={canDelete}
+              />
+            ) : null,
+          ]),
+        )}
       />
     </Section>
   );

@@ -145,6 +145,39 @@ export default async function SessionsPage({
     }),
   ]);
   const tasksBySession = await taskOptionsForSessions(sessions);
+  const entries = toSessionEntries(sessions, {
+    mentorBase: "/mentors",
+    studentBase: "/students",
+  });
+  // Rendered here rather than by a callback the list runs: `SessionsList` is a
+  // client component, and a function prop is not something that survives the
+  // crossing. An element is.
+  const rowActions = Object.fromEntries(
+    entries.map((row) => [
+      row.id,
+      administers || row.mentor.id === user.id ? (
+        <SessionRowActions
+          session={{
+            id: row.id,
+            minutes: row.minutes,
+            date: toDateInputValue(row.date),
+            // `attendanceOf`, not a hand-rolled ternary. This spelt the absent
+            // state "NO_SHOW", which is not a value in `ATTENDANCE` — so
+            // `readAttendance` did not recognise it, the picker opened a
+            // no-show row on "Attended", and saving without touching it turned
+            // the no-show into an attended session.
+            attendance: attendanceOf(row),
+            timeKind: timeKindOf(row),
+            note: row.note,
+            assignmentId: row.task?.id ?? null,
+          }}
+          goals={tasksBySession[row.id] ?? []}
+          canEdit={row.status !== SESSION_STATUS.VOIDED}
+          canDelete={administers}
+        />
+      ) : null,
+    ]),
+  );
 
   // Every row in `sums` is already ACTIVE, so what is left of the charging
   // rule is the plan flag: out-of-plan time was delivered and charges nothing.
@@ -186,37 +219,7 @@ export default async function SessionsPage({
         )
       ) : (
         <>
-          <SessionsList
-            sessions={toSessionEntries(sessions, {
-              mentorBase: "/mentors",
-              studentBase: "/students",
-            })}
-            viewer={viewer}
-            renderActions={(row) =>
-              administers || row.mentor.id === user.id ? (
-                <SessionRowActions
-                  session={{
-                    id: row.id,
-                    minutes: row.minutes,
-                    date: toDateInputValue(row.date),
-                    // `attendanceOf`, not a hand-rolled ternary. This spelt
-                    // the absent state "NO_SHOW", which is not a value in
-                    // `ATTENDANCE` — so `readAttendance` did not recognise it,
-                    // the picker opened a no-show row on "Attended", and
-                    // saving without touching it turned the no-show into an
-                    // attended session.
-                    attendance: attendanceOf(row),
-                    timeKind: timeKindOf(row),
-                    note: row.note,
-                    assignmentId: row.task?.id ?? null,
-                  }}
-                  goals={tasksBySession[row.id] ?? []}
-                  canEdit={row.status !== SESSION_STATUS.VOIDED}
-                  canDelete={administers}
-                />
-              ) : null
-            }
-          />
+          <SessionsList sessions={entries} viewer={viewer} actions={rowActions} />
           <Pagination
             basePath="/sessions"
             params={params}

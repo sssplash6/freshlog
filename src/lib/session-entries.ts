@@ -1,4 +1,6 @@
 import type { SessionEntry } from "@/components/session-row";
+import { SESSION_STATUS, chargesAllocation } from "@/lib/constants";
+import { formatDuration } from "@/lib/format";
 
 export type LoggedSession = {
   id: string;
@@ -56,4 +58,31 @@ export function toSessionEntries(
       : null,
     task: s.assignment ?? null,
   }));
+}
+
+/**
+ * What a log of these adds up to, for the caption above it.
+ *
+ * Voided and rescheduled rows are history, not hours, and out-of-plan time is
+ * named beside the total rather than folded into it — a caption that added
+ * them together would disagree with the balance on the same page.
+ *
+ * It lives here rather than beside the row it captions for the same reason
+ * `toSessionEntries` does: `session-row.tsx` is a client module, and a plain
+ * function exported from one is a client REFERENCE to a server component that
+ * imports it, not the function. Calling it throws, and the page that did —
+ * `/mentors/[id]` — rendered its error boundary instead of a mentor.
+ */
+export function sessionsCaption(sessions: readonly SessionEntry[]): string {
+  const active = sessions.filter((s) => s.status === SESSION_STATUS.ACTIVE);
+  if (active.length === 0) return "Nothing logged yet";
+  const logged = active
+    .filter(chargesAllocation)
+    .reduce((sum, s) => sum + s.minutes, 0);
+  const extra = active
+    .filter((s) => !s.withinPlan)
+    .reduce((sum, s) => sum + s.minutes, 0);
+  return `${active.length} meeting${active.length === 1 ? "" : "s"} · ${formatDuration(logged)}${
+    extra > 0 ? ` · ${formatDuration(extra)} extra` : ""
+  }`;
 }

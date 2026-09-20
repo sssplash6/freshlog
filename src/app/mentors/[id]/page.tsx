@@ -6,11 +6,8 @@ import { BookingLinksForm } from "@/components/forms/booking-link-form";
 import { EditMentorForm } from "@/components/forms/mentor-forms";
 import { AvatarForm, OwnNameForm } from "@/components/forms/profile-forms";
 import { PersonCell } from "@/components/person-chip";
-import {
-  SessionsLog,
-  sessionsCaption,
-} from "@/components/session-row";
-import { toSessionEntries } from "@/lib/session-entries";
+import { SessionsLog } from "@/components/session-row";
+import { sessionsCaption, toSessionEntries } from "@/lib/session-entries";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Figure, FigureRow } from "@/components/ui/figure";
