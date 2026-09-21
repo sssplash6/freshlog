@@ -125,13 +125,28 @@ export default async function ProgramPage({
   // not on the line — programs are flat by default, so on a list of fourteen
   // it was one bare date beside one name, reading as a mystery rather than a
   // fact. Settings is where a pairing's cohort is set and shown.
+  //
+  // EVERYONE WHO WORKS HERE, not only everyone paired to teach: somebody who
+  // administers this program without a pairing in it belongs on the one list
+  // of its people, and leaving them off made a program run by one admin who
+  // does not mentor read as a program with nobody in it. The pairings lead,
+  // in the order they were made, and the admins who teach nothing follow.
   const mentors = new Map<
     string,
-    { mentor: (typeof pairings)[number]["mentor"] }
+    {
+      mentor: { id: string; name: string | null; email: string; avatarUpdatedAt?: Date | null };
+      /** Paired to teach here. False for an admin who only administers it. */
+      teaches: boolean;
+    }
   >();
   for (const p of pairings) {
     const held = mentors.get(p.mentorId);
-    mentors.set(p.mentorId, held ?? { mentor: p.mentor });
+    mentors.set(p.mentorId, held ?? { mentor: p.mentor, teaches: true });
+  }
+  for (const grant of grants) {
+    if (!mentors.has(grant.user.id)) {
+      mentors.set(grant.user.id, { mentor: grant.user, teaches: false });
+    }
   }
   const mentorRows = [...mentors.values()];
   const superAdminIds = new Set(
@@ -233,13 +248,13 @@ export default async function ProgramPage({
         >
           {mentorRows.length === 0 ? (
             <p className="px-4 py-2 text-sm text-muted-fg sm:px-5">
-              Nobody teaches here yet. Settings pairs a mentor with the program.
+              Nobody here yet. Settings pairs a mentor with the program.
             </p>
           ) : (
             <ul className="divide-y divide-line/60 text-sm">
               {mentorRows
                 .slice(0, MENTORS_SHOWN)
-                 .map(({ mentor }) => (
+                 .map(({ mentor, teaches }) => (
                   // The flag follows the NAME, never the row's far edge.
                   // Justified to the edge it landed on the name's line for a
                   // short name and wrapped below for a long one — the same
@@ -265,6 +280,14 @@ export default async function ProgramPage({
                         <span title="Super admin" className="text-warn-ink">
                           <CrownIcon className="h-4 w-4" />
                         </span>
+                      )}
+                      {/* The crown cannot say this: it marks a super admin
+                          whether or not they teach here, and half the names on
+                          a program's list wear one. This says the other thing
+                          — that no session can be logged against them here,
+                          because nobody paired them with the program. */}
+                      {!teaches && (
+                        <span className="text-xs text-muted-fg">Admin only</span>
                       )}
                     </span>
                   </li>
