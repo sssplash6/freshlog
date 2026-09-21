@@ -27,6 +27,7 @@ import { toStudentTaskEntries } from "@/components/student-task-row";
 import {
   SetStudentTaskForm,
   StudentTaskRowActions,
+  TaskProgressControl,
 } from "@/components/forms/student-task-forms";
 import { Avatar } from "@/components/avatar";
 import { PersonChip } from "@/components/person-chip";
@@ -519,6 +520,21 @@ export default async function StudentWorkspacePage({
                 note: task.note,
                 dueOn: task.dueOn,
               }}
+            />
+          ) : null
+        }
+        // The same pair again, and for the same reason: the mentor is who
+        // reads the draft. A student's own claim is still theirs to make on
+        // their home page — this is the person who just sat with them saying
+        // where the work actually got to, rather than a row that says 0% until
+        // somebody remembers to tap.
+        renderTaskProgress={(task) =>
+          ownsTask({ programId: task.programId, mentorId: task.mentor.id }) ? (
+            <TaskProgressControl
+              taskId={task.id}
+              percent={task.percent}
+              done={task.completedAt != null}
+              mine={false}
             />
           ) : null
         }

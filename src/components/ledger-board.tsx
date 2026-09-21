@@ -113,6 +113,7 @@ export function LedgerBoard({
   mentorBase,
   renderSessionActions,
   renderTaskActions,
+  renderTaskProgress,
   renderAgendaActions,
   taskForm,
   viewer,
@@ -148,6 +149,14 @@ export function LedgerBoard({
    */
   renderSessionActions?: (session: LedgerSession) => React.ReactNode;
   renderTaskActions?: (task: StudentTaskEntry) => React.ReactNode;
+  /**
+   * The percentage control, under the row rather than in a menu.
+   *
+   * The student's home has had this since tasks existed; the board it is read
+   * FROM did not, so a mentor who finished a meeting knowing the draft was
+   * half written had nowhere to say so and the row went on claiming 0%.
+   */
+  renderTaskProgress?: (task: StudentTaskEntry) => React.ReactNode;
   renderAgendaActions?: (task: LedgerAssignment) => React.ReactNode;
   /** "Set a task", for a reader entitled to add one. */
   taskForm?: React.ReactNode;
@@ -266,6 +275,7 @@ export function LedgerBoard({
                     viewer={viewer}
                     index={i}
                     trailing={renderTaskActions?.(t)}
+                    footer={renderTaskProgress?.(t)}
                   />
                 ))}
               </ul>
@@ -276,6 +286,7 @@ export function LedgerBoard({
                     task={t}
                     viewer={viewer}
                     trailing={renderTaskActions?.(t)}
+                    footer={renderTaskProgress?.(t)}
                   />
                 ))}
               </ul>

@@ -273,10 +273,13 @@ export function TaskProgressControl({
   taskId,
   percent,
   done,
+  mine = true,
 }: {
   taskId: string;
   percent: number;
   done: boolean;
+  /** False on the mentor's and the admin's copy: it is not their work. */
+  mine?: boolean;
 }) {
   const [, action, save] = useSaveState(setStudentTaskProgress);
   const pending = save.kind === "saving";
@@ -303,7 +306,11 @@ export function TaskProgressControl({
     // The question is on the form rather than above it: five buttons reading
     // 0% 25% 50% 75% Done do not need a sentence saying they are a percentage,
     // and a screen reader still hears one.
-    <form action={action} aria-busy={pending} aria-label="How far along you are">
+    <form
+      action={action}
+      aria-busy={pending}
+      aria-label={mine ? "How far along you are" : "How far along they are"}
+    >
       <input type="hidden" name="taskId" value={taskId} />
       <div className="flex flex-wrap gap-1.5">
         {PERCENT_STEPS.map((step) => {

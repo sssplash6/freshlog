@@ -219,14 +219,26 @@ export async function deleteStudentTask(
 }
 
 /**
- * The student says how far along they are — the one write on this row that is
- * theirs, and the only reason a task is not an agenda item.
+ * How far along the work is — and, since 21 September 2026, said by either of
+ * the two people who know.
+ *
+ * It was the student's write alone, and that was written down as the only
+ * reason a task is not an agenda item. It is still the student's row to move,
+ * and most of the time they are the one who moves it. But the mentor is who
+ * reads the draft: they finish a meeting knowing the thing is half done, and
+ * leaving the list to say 0% until the student remembers to tap makes it a
+ * list nobody trusts. So the mentor who set it may mark it too, and so may an
+ * admin of the program it was set in — `assertTaskScope`, the same pair who
+ * may already correct the task's title, its deadline and its note.
  *
  * 100 is not "done". Reaching the last step and calling the thing finished are
  * two different claims, and a control that conflated them would have no way to
  * say "I've written the whole draft and I'm still checking it". So `percent`
- * moves freely and `completedAt` is stamped only by the Done button, which is
- * also the only thing the mentor is told about in those words.
+ * moves freely and `completedAt` is stamped only by the Done button.
+ *
+ * Whoever did it, the OTHER party hears about it — and the message says who,
+ * because "your task was marked done" with nobody's name on it is a thing the
+ * student cannot check.
  */
 export async function setStudentTaskProgress(
   _prev: ActionState,
@@ -242,16 +254,32 @@ export async function setStudentTaskProgress(
   });
   // "Not yours" and "does not exist" answer identically, so the refusal cannot
   // be used to find out whose tasks exist.
-  if (!task || task.student.userId !== user.id) {
+  const isStudent = task?.student.userId === user.id;
+  if (!task || (!isStudent && (await assertTaskScope(user, task)))) {
     return { ok: false, error: "That task is not yours." };
   }
+
+  /**
+   * Who hears about it, and how the sentence starts.
+   *
+   * The student moving their own work is reported to the mentor in the third
+   * person ("Khabiba finished …"); the mentor moving it is reported to the
+   * student with the mentor's name on it, for the same reason. Nobody is ever
+   * told about their own tap.
+   */
+  const actorName = user.name ?? user.email;
+  const studentName = task.student.user.name ?? task.student.user.email;
+  const audience = isStudent ? [task.mentorId] : [task.student.userId];
+  const href = isStudent
+    ? notificationHref.mentorStudent(task.studentId)
+    : notificationHref.studentHome();
+  const who = isStudent ? studentName : actorName;
 
   // Three things this one control can submit: a percentage, "I'm done", and
   // "I spoke too soon". They share an action because they are one question
   // asked in one place, and splitting them would let two of the three write a
   // state the third contradicts.
   const intent = String(formData.get("intent") ?? "percent");
-  const name = task.student.user.name ?? task.student.user.email;
 
   if (intent === "done") {
     if (task.completedAt) return { ok: true, message: "Already done." };
@@ -261,11 +289,13 @@ export async function setStudentTaskProgress(
         data: { percent: 100, completedAt: new Date() },
       });
       await notify(tx, {
-        to: [task.mentorId],
+        to: audience,
         type: NOTIFICATION_TYPES.TASK_MOVED,
         actorId: user.id,
-        href: notificationHref.mentorStudent(task.studentId),
-        message: `${name} finished "${task.title}".`,
+        href,
+        message: isStudent
+          ? `${who} finished "${task.title}".`
+          : `${who} marked "${task.title}" as done.`,
       });
     });
     revalidatePath("/", "layout");
@@ -283,11 +313,11 @@ export async function setStudentTaskProgress(
         data: { percent: 75, completedAt: null },
       });
       await notify(tx, {
-        to: [task.mentorId],
+        to: audience,
         type: NOTIFICATION_TYPES.TASK_MOVED,
         actorId: user.id,
-        href: notificationHref.mentorStudent(task.studentId),
-        message: `${name} reopened "${task.title}" — it isn't finished after all.`,
+        href,
+        message: `${who} reopened "${task.title}" — it isn't finished after all.`,
       });
     });
     revalidatePath("/", "layout");
@@ -306,19 +336,27 @@ export async function setStudentTaskProgress(
   // student walking a task up in four taps would otherwise send their mentor
   // four notifications about one afternoon, and a feed that always arrives is
   // one nobody reads.
+  //
+  // A MENTOR's nudge is news even so, and the asymmetry is deliberate: this is
+  // somebody else editing the student's own statement about their own work,
+  // and the student should not have to notice it for themselves. The quiet
+  // rule exists to stop one person's afternoon becoming four notices, and a
+  // mentor does not walk a task up in four taps.
   const reopened = task.completedAt != null;
   await prisma.$transaction(async (tx) => {
     await tx.studentTask.update({
       where: { id },
       data: { percent: parsed.value, completedAt: null },
     });
-    if (reopened) {
+    if (reopened || !isStudent) {
       await notify(tx, {
-        to: [task.mentorId],
+        to: audience,
         type: NOTIFICATION_TYPES.TASK_MOVED,
         actorId: user.id,
-        href: notificationHref.mentorStudent(task.studentId),
-        message: `${name} put "${task.title}" back to ${parsed.value}% — it isn't finished after all.`,
+        href,
+        message: reopened
+          ? `${who} put "${task.title}" back to ${parsed.value}% — it isn't finished after all.`
+          : `${who} marked "${task.title}" ${parsed.value}% done.`,
       });
     }
   });

@@ -11,6 +11,7 @@ import { ROLES, SESSION_STATUS } from "@/lib/constants";
 /** Delete order matters: children before the rows they point at. */
 export async function resetDb() {
   await prisma.session.deleteMany();
+  await prisma.studentTask.deleteMany();
   await prisma.hourAllotmentChange.deleteMany();
   await prisma.hourAllocation.deleteMany();
   await prisma.assignment.deleteMany();
@@ -236,6 +237,34 @@ export async function assignment(opts: {
       minuteLimit: opts.minuteLimit ?? null,
       position: opts.position ?? 0,
       createdById: createdBy.id,
+    },
+  });
+}
+
+/**
+ * Work a mentor set the student — the OTHER plan table. No hours, no budget,
+ * and a required mentor: a task nobody set is a task nobody can be asked
+ * about, which is what `Assignment.mentorId` is nullable for instead.
+ */
+export async function studentTask(opts: {
+  studentId: string;
+  mentorId: string;
+  /** Defaults to the student's only (or first) program. */
+  programId?: string;
+  title?: string;
+  percent?: number;
+  dueInDays?: number;
+  completedAt?: Date | null;
+}) {
+  return prisma.studentTask.create({
+    data: {
+      studentId: opts.studentId,
+      programId: opts.programId ?? (await programOfStudent(opts.studentId)),
+      mentorId: opts.mentorId,
+      title: opts.title ?? "Rewrite the draft",
+      percent: opts.percent ?? 0,
+      dueOn: inDays(opts.dueInDays ?? 7),
+      completedAt: opts.completedAt ?? null,
     },
   });
 }
