@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
 import { USER_STATUS } from "@/lib/constants";
+import { allocationSummary } from "@/lib/hours";
+import { mentorCaseload } from "@/lib/queries";
 import {
   admin,
   allocation,
@@ -196,6 +198,36 @@ describe("logSession on a mentor's behalf", () => {
     });
     expect(changes.length).toBeGreaterThan(0);
     expect(changes.every((c) => c.changedById === a.id)).toBe(true);
+  });
+
+  /**
+   * The point of putting the mentor's id on the row rather than the admin's:
+   * nothing downstream has to know that an admin typed it. The balance, the
+   * mentor's own home and the student's ledger all key on
+   * (student, program, mentor), so they read a session this mentor delivered —
+   * which is what happened.
+   */
+  it("draws the hours down on the mentor's balance and shows in both homes", async () => {
+    const p = await program("Master's");
+    const s = await student({ programId: p.id });
+    const m = await mentor("Umid");
+    await pairing({ mentorId: m.id, programId: p.id });
+    await allocation({ studentId: s.id, mentorId: m.id, minutes: 600 });
+    const a = await admin("Malika");
+    await grant({ userId: a.id, programId: p.id });
+    actor.value = a;
+
+    await log(s.id, { mentorId: m.id, minutes: "90" });
+
+    // The student's own hours page, and every admin view of their ledger.
+    const hours = await allocationSummary(s.id);
+    const row = hours.perMentor.find((r) => r.mentor?.id === m.id);
+    expect(row).toMatchObject({ completed: 90, remaining: 510 });
+
+    // The mentor's home: their lifetime figure, and the student on their list.
+    const caseload = await mentorCaseload(m.id);
+    expect(caseload.delivered.minutes).toBe(90);
+    expect(caseload.students.some((c) => c.profile.id === s.id)).toBe(true);
   });
 
   it("refuses an admin of another program", async () => {
