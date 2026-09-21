@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { FolderIcon, SendIcon } from "@/components/icons";
 import {
   AllocationsTable,
+  timeByMentorEntries,
   toAllocationEntries,
 } from "@/components/allocation-row";
 import { ApproveStudentButtons } from "@/components/forms/approve-student-buttons";
@@ -285,6 +286,16 @@ export default async function StudentWorkspacePage({
 
   const openTasks = ledger.assignments.filter(
     (t) => t.progress !== ASSIGNMENT_PROGRESS.DONE
+  );
+
+  // Keep the two kinds of commitment side by side without conflating them:
+  // agenda limits are planned work; allocations are hours actually granted.
+  // Editing an agenda item can make them differ, and that difference is the
+  // fact an admin needs this table to reveal.
+  const timeByMentor = timeByMentorEntries(
+    toAllocationEntries(hours.perMentor, { mentorBase: "/mentors" }),
+    ledger.assignments,
+    { mentorBase: "/mentors" },
   );
 
   // Their open tasks per (program, mentor), so granting more hours for work
@@ -589,59 +600,55 @@ export default async function StudentWorkspacePage({
           ) : undefined
         }
       >
-        {hours.perMentor.length === 0 ? (
+        {timeByMentor.length === 0 ? (
           <EmptyState framed={false} title="No time yet">
             An admin grants it, with or without a mentor named.
           </EmptyState>
         ) : (
           <AllocationsTable
-            entries={toAllocationEntries(hours.perMentor, {
-              mentorBase: "/mentors",
-            })}
+            entries={timeByMentor}
             framed={false}
             showAmountPaid={tracksPayment && manages}
             renderActions={
               manages
-                ? (entry) => (
-                    <AllocationRowActions
-                      studentProfileId={profile.id}
-                      programId={entry.program.id}
-                      mentorId={entry.mentor?.id ?? ""}
-                      mentorLabel={
-                        entry.mentor
-                          ? (entry.mentor.name ?? entry.mentor.email)
-                          : "the unassigned time"
-                      }
-                      currentMinutes={entry.allocated}
-                      currentDeadline={
-                        entry.deadline ? toDateInputValue(entry.deadline) : null
-                      }
-                      openTasks={
-                        openTasksByMentor[
-                          `${entry.program.id}:${entry.mentor?.id ?? ""}`
-                        ] ?? []
-                      }
-                      showAmountPaid={paymentPrograms.has(entry.program.id)}
-                      currentAmountPaid={entry.amountPaid ?? null}
-                    />
-                  )
+                ? (entry) =>
+                    entry.deadline ? (
+                      <AllocationRowActions
+                        studentProfileId={profile.id}
+                        programId={entry.program.id}
+                        mentorId={entry.mentor?.id ?? ""}
+                        mentorLabel={
+                          entry.mentor
+                            ? (entry.mentor.name ?? entry.mentor.email)
+                            : "the unassigned time"
+                        }
+                        currentMinutes={entry.allocated}
+                        currentDeadline={toDateInputValue(entry.deadline)}
+                        openTasks={
+                          openTasksByMentor[
+                            `${entry.program.id}:${entry.mentor?.id ?? ""}`
+                          ] ?? []
+                        }
+                        showAmountPaid={paymentPrograms.has(entry.program.id)}
+                        currentAmountPaid={entry.amountPaid ?? null}
+                      />
+                    ) : null
                 : undefined
             }
             renderAssignedActions={
               manages
-                ? (entry) => (
-                    <AllocationMinutesEditor
-                      studentProfileId={profile.id}
-                      programId={entry.program.id}
-                      mentorId={entry.mentor?.id ?? ""}
-                      currentMinutes={entry.allocated}
-                      currentDeadline={
-                        entry.deadline ? toDateInputValue(entry.deadline) : null
-                      }
-                      showAmountPaid={paymentPrograms.has(entry.program.id)}
-                      currentAmountPaid={entry.amountPaid ?? null}
-                    />
-                  )
+                ? (entry) =>
+                    entry.deadline ? (
+                      <AllocationMinutesEditor
+                        studentProfileId={profile.id}
+                        programId={entry.program.id}
+                        mentorId={entry.mentor?.id ?? ""}
+                        currentMinutes={entry.allocated}
+                        currentDeadline={toDateInputValue(entry.deadline)}
+                        showAmountPaid={paymentPrograms.has(entry.program.id)}
+                        currentAmountPaid={entry.amountPaid ?? null}
+                      />
+                    ) : undefined
                 : undefined
             }
           />

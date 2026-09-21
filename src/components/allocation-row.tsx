@@ -21,7 +21,7 @@ import { EXPIRY_WINDOW_DAYS, type ViewerContext } from "@/lib/status";
  *
  * Two shapes, one set of facts:
  *
- *   table  the staff ledger — four figures and a ⋮ menu
+ *   table  the staff ledger — grant figures, optional planned time and a ⋮ menu
  *   card   the student's own, and the mentor's: a balance, a bar, a date
  *
  * THE FIGURES READ IN THE ORDER THE QUESTION IS ASKED: what was delivered,
@@ -67,6 +67,8 @@ export type AllocationEntry = {
    */
   program: { id: string; name: string };
   allocated: number;
+  /** Hours budgeted on this mentor's agenda items; not the same as a grant. */
+  planned?: number;
   completed: number;
   missed: number;
   remaining: number;
@@ -76,6 +78,82 @@ export type AllocationEntry = {
   /** Master's records what was paid for the time. Null everywhere else. */
   amountPaid?: number | null;
 };
+
+type PlannedAssignment = {
+  programId: string;
+  mentorId: string | null;
+  minuteLimit: number | null;
+  mentor: Omit<RowPerson, "href"> | null;
+  program: { id: string; name: string };
+};
+
+/**
+ * Add the agenda's hour budgets to the allocation rows without pretending
+ * they were granted.
+ *
+ * An agenda item and an allocation are related but independent records after
+ * creation: correcting an item's minute limit does not mint hours. Showing
+ * both figures is what makes a 12h plan beside a 1h grant visible and honest.
+ * A mentor with planned work but no allocation gets a zero-grant row too,
+ * otherwise the exact mismatch this table exists to expose disappears.
+ */
+export function timeByMentorEntries(
+  entries: readonly AllocationEntry[],
+  assignments: readonly PlannedAssignment[],
+  links: { mentorBase?: string } = {},
+): AllocationEntry[] {
+  const key = (programId: string, mentorId: string | null) =>
+    `${programId}:${mentorId ?? ""}`;
+  const plans = new Map<
+    string,
+    { planned: number; mentor: PlannedAssignment["mentor"]; program: PlannedAssignment["program"] }
+  >();
+
+  for (const assignment of assignments) {
+    const minutes = assignment.minuteLimit ?? 0;
+    const k = key(assignment.programId, assignment.mentorId);
+    const current = plans.get(k);
+    plans.set(k, {
+      planned: (current?.planned ?? 0) + minutes,
+      mentor: assignment.mentor,
+      program: assignment.program,
+    });
+  }
+
+  const existing = new Set(
+    entries.map((entry) => key(entry.program.id, entry.mentor?.id ?? null)),
+  );
+  const rows = entries.map((entry) => ({
+    ...entry,
+    planned: plans.get(key(entry.program.id, entry.mentor?.id ?? null))?.planned ?? 0,
+  }));
+
+  for (const [k, plan] of plans) {
+    if (existing.has(k) || plan.planned <= 0) continue;
+    rows.push({
+      mentor: plan.mentor
+        ? {
+            ...plan.mentor,
+            href: links.mentorBase
+              ? `${links.mentorBase}/${plan.mentor.id}`
+              : undefined,
+          }
+        : null,
+      program: plan.program,
+      allocated: 0,
+      planned: plan.planned,
+      completed: 0,
+      missed: 0,
+      remaining: 0,
+      forfeited: 0,
+      expired: false,
+      deadline: null,
+      amountPaid: null,
+    });
+  }
+
+  return rows;
+}
 
 /** The two figures the bar is drawn from, computed once. */
 function spent(entry: AllocationEntry) {
@@ -221,6 +299,7 @@ export function AllocationRow({
   showAmountPaid = false,
   actions,
   assignedActions,
+  showPlanned = false,
   index,
 }: {
   entry: AllocationEntry;
@@ -229,6 +308,7 @@ export function AllocationRow({
   showAmountPaid?: boolean;
   actions?: React.ReactNode;
   assignedActions?: React.ReactNode;
+  showPlanned?: boolean;
   index?: number;
 }) {
   return (
@@ -271,6 +351,11 @@ export function AllocationRow({
       >
         {formatDuration(entry.remaining)}
       </Td>
+      {showPlanned && (
+        <Td label="Planned" align="right" className="tabular-nums text-muted-fg">
+          {(entry.planned ?? 0) > 0 ? formatDuration(entry.planned ?? 0) : <Dash />}
+        </Td>
+      )}
       {/* Last, and muted: how big the grant was is the context for the three
           figures before it, not a number anybody acts on. */}
       <Td label="Assigned" align="right" className="tabular-nums text-muted-fg">
@@ -306,6 +391,7 @@ export function AllocationsTable({
   // Only worth a column when it varies. One program is the page's own subject
   // and gets said once, above the table, not on every line of it.
   const showProgram = new Set(entries.map((e) => e.program.id)).size > 1;
+  const showPlanned = entries.some((entry) => entry.planned !== undefined);
 
   const columns: Column[] = [
     { label: "Mentor" },
@@ -313,6 +399,7 @@ export function AllocationsTable({
     { label: "Completed", align: "right" },
     { label: "Missed", align: "right" },
     { label: "Remaining", align: "right" },
+    ...(showPlanned ? [{ label: "Planned", align: "right" } as Column] : []),
     { label: "Assigned", align: "right" },
     ...(showAmountPaid ? [{ label: "Paid", align: "right" } as Column] : []),
     ...(withActions ? [{ label: "", align: "right" } as Column] : []),
@@ -326,6 +413,7 @@ export function AllocationsTable({
           entry={entry}
           showProgram={showProgram}
           showAmountPaid={showAmountPaid}
+          showPlanned={showPlanned}
           actions={withActions ? rowActions[i] : undefined}
           assignedActions={renderAssignedActions?.(entry)}
           index={i}
