@@ -21,7 +21,7 @@ import { EXPIRY_WINDOW_DAYS, type ViewerContext } from "@/lib/status";
  *
  * Two shapes, one set of facts:
  *
- *   table  the staff ledger — grant figures, optional planned time and a ⋮ menu
+ *   table  the staff ledger — four figures and a ⋮ menu
  *   card   the student's own, and the mentor's: a balance, a bar, a date
  *
  * THE FIGURES READ IN THE ORDER THE QUESTION IS ASKED: what was delivered,
@@ -67,8 +67,8 @@ export type AllocationEntry = {
    */
   program: { id: string; name: string };
   allocated: number;
-  /** Hours budgeted on this mentor's agenda items; not the same as a grant. */
-  planned?: number;
+  /** What the table calls Assigned: allocation plus budgeted agenda work. */
+  assigned?: number;
   completed: number;
   missed: number;
   remaining: number;
@@ -88,14 +88,11 @@ type PlannedAssignment = {
 };
 
 /**
- * Add the agenda's hour budgets to the allocation rows without pretending
- * they were granted.
+ * Add the agenda's hour budgets to the figure the table calls Assigned.
  *
- * An agenda item and an allocation are related but independent records after
- * creation: correcting an item's minute limit does not mint hours. Showing
- * both figures is what makes a 12h plan beside a 1h grant visible and honest.
- * A mentor with planned work but no allocation gets a zero-grant row too,
- * otherwise the exact mismatch this table exists to expose disappears.
+ * The allocation row owns the balance math; the agenda owns additional work
+ * assigned to the mentor. A mentor with agenda work but no allocation gets a
+ * row too, otherwise their assigned time disappears from this breakdown.
  */
 export function timeByMentorEntries(
   entries: readonly AllocationEntry[],
@@ -123,10 +120,12 @@ export function timeByMentorEntries(
   const existing = new Set(
     entries.map((entry) => key(entry.program.id, entry.mentor?.id ?? null)),
   );
-  const rows = entries.map((entry) => ({
-    ...entry,
-    planned: plans.get(key(entry.program.id, entry.mentor?.id ?? null))?.planned ?? 0,
-  }));
+  const rows = entries.map((entry) => {
+    const planned = plans.get(
+      key(entry.program.id, entry.mentor?.id ?? null),
+    )?.planned ?? 0;
+    return { ...entry, assigned: entry.allocated + planned };
+  });
 
   for (const [k, plan] of plans) {
     if (existing.has(k) || plan.planned <= 0) continue;
@@ -141,7 +140,7 @@ export function timeByMentorEntries(
         : null,
       program: plan.program,
       allocated: 0,
-      planned: plan.planned,
+      assigned: plan.planned,
       completed: 0,
       missed: 0,
       remaining: 0,
@@ -299,7 +298,6 @@ export function AllocationRow({
   showAmountPaid = false,
   actions,
   assignedActions,
-  showPlanned = false,
   index,
 }: {
   entry: AllocationEntry;
@@ -308,7 +306,6 @@ export function AllocationRow({
   showAmountPaid?: boolean;
   actions?: React.ReactNode;
   assignedActions?: React.ReactNode;
-  showPlanned?: boolean;
   index?: number;
 }) {
   return (
@@ -351,15 +348,13 @@ export function AllocationRow({
       >
         {formatDuration(entry.remaining)}
       </Td>
-      {showPlanned && (
-        <Td label="Planned" align="right" className="tabular-nums text-muted-fg">
-          {(entry.planned ?? 0) > 0 ? formatDuration(entry.planned ?? 0) : <Dash />}
-        </Td>
-      )}
-      {/* Last, and muted: how big the grant was is the context for the three
-          figures before it, not a number anybody acts on. */}
+      {/* Last, and muted: the full commitment (allocation plus agenda) is
+          context for the three delivery figures before it. */}
       <Td label="Assigned" align="right" className="tabular-nums text-muted-fg">
-        {assignedActions ?? formatDuration(entry.allocated)}
+        <span className="inline-flex items-center justify-end gap-1.5">
+          {formatDuration(entry.assigned ?? entry.allocated)}
+          {assignedActions}
+        </span>
       </Td>
       {showAmountPaid && (
         <Td label="Paid" align="right" className="tabular-nums">
@@ -391,7 +386,6 @@ export function AllocationsTable({
   // Only worth a column when it varies. One program is the page's own subject
   // and gets said once, above the table, not on every line of it.
   const showProgram = new Set(entries.map((e) => e.program.id)).size > 1;
-  const showPlanned = entries.some((entry) => entry.planned !== undefined);
 
   const columns: Column[] = [
     { label: "Mentor" },
@@ -399,7 +393,6 @@ export function AllocationsTable({
     { label: "Completed", align: "right" },
     { label: "Missed", align: "right" },
     { label: "Remaining", align: "right" },
-    ...(showPlanned ? [{ label: "Planned", align: "right" } as Column] : []),
     { label: "Assigned", align: "right" },
     ...(showAmountPaid ? [{ label: "Paid", align: "right" } as Column] : []),
     ...(withActions ? [{ label: "", align: "right" } as Column] : []),
@@ -413,7 +406,6 @@ export function AllocationsTable({
           entry={entry}
           showProgram={showProgram}
           showAmountPaid={showAmountPaid}
-          showPlanned={showPlanned}
           actions={withActions ? rowActions[i] : undefined}
           assignedActions={renderAssignedActions?.(entry)}
           index={i}

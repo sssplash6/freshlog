@@ -21,7 +21,7 @@ const hasan: AllocationEntry = {
 };
 
 describe("time by mentor", () => {
-  it("shows an agenda budget separately from the hours actually granted", () => {
+  it("adds an agenda budget to the assigned total", () => {
     const entries = timeByMentorEntries(
       [hasan],
       [
@@ -35,14 +35,13 @@ describe("time by mentor", () => {
       ],
     );
 
-    expect(entries[0]).toMatchObject({ allocated: 60, planned: 720 });
+    expect(entries[0]).toMatchObject({ allocated: 60, assigned: 780 });
 
     const html = renderToStaticMarkup(
       createElement(AllocationsTable, { entries, framed: false }),
     );
-    expect(html).toContain("Planned");
-    expect(html).toContain("12h");
-    expect(html).toContain("1h");
+    expect(html).not.toContain("Planned");
+    expect(html).toContain("13h");
   });
 
   it("adds a mentor who has planned work but no allocation yet", () => {
@@ -64,7 +63,7 @@ describe("time by mentor", () => {
       allocated: 0,
       completed: 0,
       remaining: 0,
-      planned: 720,
+      assigned: 720,
     });
   });
 });

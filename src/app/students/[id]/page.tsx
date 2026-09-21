@@ -288,10 +288,9 @@ export default async function StudentWorkspacePage({
     (t) => t.progress !== ASSIGNMENT_PROGRESS.DONE
   );
 
-  // Keep the two kinds of commitment side by side without conflating them:
-  // agenda limits are planned work; allocations are hours actually granted.
-  // Editing an agenda item can make them differ, and that difference is the
-  // fact an admin needs this table to reveal.
+  // "Assigned" is the whole commitment to a mentor: their allocation plus
+  // the budgets on their agenda items. Keep the raw allocation on the entry
+  // because its editor and the completed/remaining math still act on that row.
   const timeByMentor = timeByMentorEntries(
     toAllocationEntries(hours.perMentor, { mentorBase: "/mentors" }),
     ledger.assignments,
