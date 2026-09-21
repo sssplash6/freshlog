@@ -105,7 +105,9 @@ async function resolveGoal(
   raw: FormDataEntryValue | null,
   studentProfileId: string,
   programId: string,
-  mentorId: string
+  mentorId: string,
+  /** Whose list it has to be on, said the way the reader would say it. */
+  whose = "yours"
 ): Promise<
   | { value: { id: string; purpose: string; unassigned: boolean } | null }
   | { error: string }
@@ -123,7 +125,7 @@ async function resolveGoal(
     assignment.programId !== programId ||
     (assignment.mentorId !== null && assignment.mentorId !== mentorId)
   ) {
-    return { error: "That task isn't one of yours for this student." };
+    return { error: `That task isn't one of ${whose} for this student.` };
   }
   return {
     value: {
@@ -154,6 +156,7 @@ async function resolveGoal(
  * choice along with the correction. The page refills from this.
  */
 const LOG_FIELDS = [
+  "mentorId",
   "studentProfileId",
   "programId",
   "assignmentId",
@@ -186,10 +189,40 @@ export async function logSession(
     values,
   });
 
-  const mentor = await requireActiveMentor();
+  // Whose session this is, which is not always who is typing it.
+  //
+  // An admin of the program may log for a mentor in it: mentors leave, miss
+  // the week, or never log at all, and the hours were still delivered. What
+  // the admin is NOT is the mentor — the row, the allocation it draws down and
+  // the student's notification all name the person who held the meeting, and
+  // the admin only appears in the audit trail and in what the other staff are
+  // told. Which program the hours land in is checked below, once it is known:
+  // administering one program is not licence to log into another.
+  const actor = await getCurrentUser();
+  if (!actor) return bad("Sign in to do that.");
+  const named = String(formData.get("mentorId") ?? "").trim();
+  const onBehalf = named !== "" && named !== actor.id;
+  const mentor = onBehalf
+    ? await prisma.user.findUnique({ where: { id: named } })
+    : await requireActiveMentor();
   if (!mentor) {
-    return bad("Only assigned mentors can log sessions.");
+    return bad(
+      onBehalf ? "That mentor no longer exists." : "Only assigned mentors can log sessions.",
+      onBehalf ? "mentorId" : undefined
+    );
   }
+  if (onBehalf) {
+    if (scopeIsEmpty(await adminScope(actor))) {
+      return bad("Only an admin can log a session for somebody else.", "mentorId");
+    }
+    if (!canActAsMentor(mentor) || mentor.status !== USER_STATUS.ACTIVE) {
+      return bad("That person isn't an active mentor.", "mentorId");
+    }
+  }
+  /** The mentor by name, for everything said about somebody else's hours. */
+  const mentorLabel = mentor.name ?? mentor.email;
+  /** "remaining with you" — or with the mentor, when the reader is not them. */
+  const theirs = onBehalf ? mentorLabel : "you";
 
   const studentProfileId = String(formData.get("studentProfileId") ?? "");
   const minutesParsed = parseMinutesField(formData.get("minutes"), {
@@ -227,7 +260,9 @@ export async function logSession(
   // themselves.
   if (!(await mentorReaches(mentor, profile))) {
     return bad(
-      "You aren't assigned to that student's program, so you can't log hours for them.",
+      onBehalf
+        ? `${mentorLabel} isn't assigned to that student's program, so hours can't be logged for them.`
+        : "You aren't assigned to that student's program, so you can't log hours for them.",
       "studentProfileId"
     );
   }
@@ -238,23 +273,39 @@ export async function logSession(
   // only when the answer is genuinely more than one; with a single shared
   // program — which is nearly every meeting — the form fills it in silently.
   const reachable = await reachablePrograms(mentor.id, profile);
-  const named = String(formData.get("programId") ?? "").trim();
-  const programId = named
-    ? reachable.find((p) => p.id === named)?.id
+  const namedProgram = String(formData.get("programId") ?? "").trim();
+  const programId = namedProgram
+    ? reachable.find((p) => p.id === namedProgram)?.id
     : reachable.length === 1
       ? reachable[0].id
       : undefined;
   if (!programId) {
     return bad(
-      named
-        ? "You don't work in that program, or the student isn't in it."
+      namedProgram
+        ? onBehalf
+          ? `${mentorLabel} doesn't work in that program, or the student isn't in it.`
+          : "You don't work in that program, or the student isn't in it."
         : reachable.length === 0
-          ? "You aren't assigned to any program this student is in, so you can't log hours for them."
-          : "This student is in more than one of your programs — pick which one this session was for.",
+          ? onBehalf
+            ? `${mentorLabel} isn't assigned to any program this student is in, so hours can't be logged for them.`
+            : "You aren't assigned to any program this student is in, so you can't log hours for them."
+          : onBehalf
+            ? `This student is in more than one of ${mentorLabel}'s programs — pick which one this session was for.`
+            : "This student is in more than one of your programs — pick which one this session was for.",
       "programId"
     );
   }
   const program = reachable.find((p) => p.id === programId)!;
+  // The hours land in this program's ledger, so it has to be one the person
+  // typing actually administers — an admin of Global Admissions logging a
+  // Master's Program session would be moving a balance in a program they
+  // cannot even read.
+  if (onBehalf && !(await canManageProgram(actor, programId))) {
+    return bad(
+      `You don't administer ${program.name}, so you can't log a session in it.`,
+      "programId"
+    );
+  }
   // Is the student HERE on an exchange? Then the session belongs to it, and the
   // row says so: the program that lent them reads its own exchange's sessions
   // rather than asking about a student inside a program it does not administer.
@@ -317,7 +368,8 @@ export async function logSession(
     formData.get("assignmentId"),
     profile.id,
     programId,
-    mentor.id
+    mentor.id,
+    onBehalf ? `${mentorLabel}'s` : "yours"
   );
   if ("error" in resolved) return bad(resolved.error, "assignmentId");
   const goal = resolved.value;
@@ -350,7 +402,6 @@ export async function logSession(
   }
 
   const staff = await staffIdsFor(programId);
-  const mentorLabel = mentor.name ?? mentor.email;
   const studentName = profile.user.name ?? profile.user.email;
   // Said out loud only when the mentor had a choice to make. Confirming the
   // program back to somebody who was never asked about it is noise.
@@ -436,13 +487,15 @@ export async function logSession(
         }
         // Both sides of the hand-off audited, so the allocation history reads
         // where the pool's hours went.
+        // `changedById` is whoever made the change, which is the person who
+        // pressed the button — not the mentor whose name the hours now carry.
         await tx.hourAllotmentChange.createMany({
           data: [
             {
               studentId: profile.id,
               programId,
               mentorId: null,
-              changedById: mentor.id,
+              changedById: actor.id,
               oldMinutes: available,
               newMinutes: poolAfter,
             },
@@ -450,7 +503,7 @@ export async function logSession(
               studentId: profile.id,
               programId,
               mentorId: mentor.id,
-              changedById: mentor.id,
+              changedById: actor.id,
               oldMinutes: mineBefore,
               newMinutes: mineAfter,
             },
@@ -475,7 +528,7 @@ export async function logSession(
     await notify(tx, {
       to: [profile.userId],
       type: NOTIFICATION_TYPES.SESSION_LOGGED,
-      actorId: mentor.id,
+      actorId: actor.id,
       href: notificationHref.studentHome(),
       message: rescheduled
         ? `${mentorLabel} recorded that your ${formatMinutes(minutesParsed.value)} meeting on ${formatDate(dateParsed.value)}${forTask} was rescheduled. No time was charged.`
@@ -488,10 +541,24 @@ export async function logSession(
 
     // Staff watch delivery across every program, so a logged session is news
     // to them as much as to the student.
+    // The mentor whose name is on it, when somebody else put it there. They
+    // are usually not staff, so the notice below would never reach them — and
+    // a session in their log they did not write is the one thing they cannot
+    // be left to discover.
+    if (onBehalf) {
+      await notify(tx, {
+        to: [mentor.id],
+        type: NOTIFICATION_TYPES.SESSION_LOGGED,
+        actorId: actor.id,
+        href: notificationHref.adminStudent(profile.id),
+        message: `${actor.name ?? actor.email} logged ${formatMinutes(minutesParsed.value)} with ${studentName} on ${formatDate(dateParsed.value)} in your name. Correct it on the sessions log if it is wrong.`,
+      });
+    }
+
     await notify(tx, {
       to: staff,
       type: NOTIFICATION_TYPES.SESSION_LOGGED,
-      actorId: mentor.id,
+      actorId: actor.id,
       href: notificationHref.adminStudent(profile.id),
       message:
         (rescheduled
@@ -505,14 +572,18 @@ export async function logSession(
         // allocation history: the pool chose its mentor.
         (carved > 0
           ? ` The time came out of the unassigned pool (${formatDuration(poolAfter)} remaining in it).`
-          : ""),
+          : "") +
+        // Who actually typed it. The row says the mentor delivered the hours,
+        // which is true; this says the mentor did not report them, which is
+        // the part another admin needs when the log is queried later.
+        (onBehalf ? ` Logged by ${actor.name ?? actor.email} on their behalf.` : ""),
     });
 
     if (synced?.becameDone) {
       await notify(tx, {
         to: staff,
         type: NOTIFICATION_TYPES.GOAL_DONE,
-        actorId: mentor.id,
+        actorId: actor.id,
         href: notificationHref.adminStudent(profile.id),
         message: `"${synced.purpose}" for ${studentName} is complete: ${formatMinutes(synced.loggedMinutes)} of ${formatMinutes(synced.minuteLimit ?? 0)} planned hours logged.`,
       });
@@ -556,7 +627,7 @@ export async function logSession(
         mentor.id,
         allocation.minutes
       );
-      notes.push(`${formatDuration(left)} remaining with you.`);
+      notes.push(`${formatDuration(left)} remaining with ${theirs}.`);
     }
     // Nothing allocated means no balance to reassure anyone about — "0h
     // remaining with you" would read as a loss.
@@ -567,8 +638,8 @@ export async function logSession(
     headline = `Logged ${formatMinutes(minutesParsed.value)} with ${studentName}${inProgram}.`;
     notes.push(
       short > 0
-        ? `${formatDuration(carved)} unassigned minutes moved to you — the pool came up ${formatDuration(short)} short, so they are overdrawn with you.`
-        : `${formatDuration(carved)} of their unassigned minutes moved to you; ${formatDuration(poolAfter)} remain in the pool.`
+        ? `${formatDuration(carved)} unassigned minutes moved to ${theirs} — the pool came up ${formatDuration(short)} short, so they are overdrawn with ${theirs}.`
+        : `${formatDuration(carved)} of their unassigned minutes moved to ${theirs}; ${formatDuration(poolAfter)} remain in the pool.`
     );
   } else {
     const remaining = await remainingWith(
@@ -580,13 +651,13 @@ export async function logSession(
     headline = `Logged ${formatMinutes(minutesParsed.value)} with ${studentName}${inProgram}.`;
     notes.push(
       remaining >= 0
-        ? `${formatDuration(remaining)} remaining with you.`
+        ? `${formatDuration(remaining)} remaining with ${theirs}.`
         : allocation
-          ? `Heads up: they are now overdrawn by ${formatDuration(-remaining)} with you.`
+          ? `Heads up: they are now overdrawn by ${formatDuration(-remaining)} with ${theirs}.`
           : // No allocation at all, so this overdraw isn't a balance run down —
             // it is time nobody has granted yet. Name the two ways out rather
             // than leaving a red number the mentor can't act on.
-            `Heads up: no time is allocated to you for them, so they are overdrawn by ${formatDuration(-remaining)} with you. Ask an admin to allocate it, or correct this session to extra time.`
+            `Heads up: no time is allocated to ${theirs} for them, so they are overdrawn by ${formatDuration(-remaining)} with ${theirs}. Ask an admin to allocate it, or correct this session to extra time.`
     );
   }
 

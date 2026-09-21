@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useRef, useState } from "react";
 
 import { logSession } from "@/lib/actions/sessions";
@@ -90,6 +91,9 @@ export type LogSessionDraft = {
  */
 export function LogSessionForm({
   students,
+  mentors = [],
+  mentorId = "",
+  studentPlaceholder,
   mode = "inline",
   draft,
     /**
@@ -105,6 +109,15 @@ export function LogSessionForm({
   canDictate = false,
 }: {
   students: LogSessionStudent[];
+  /**
+   * Whose session this is, for an admin logging one on a mentor's behalf.
+   * Empty for a mentor logging their own, and then the field is not there at
+   * all — a picker of one is a question with no answer to give.
+   */
+  mentors?: { value: string; label: string; hint?: string }[];
+  mentorId?: string;
+  /** Said in place of "Select…" when there is nobody to pick yet. */
+  studentPlaceholder?: string;
   mode?: "inline" | "page";
   draft?: LogSessionDraft;
     correctBase?: string;
@@ -162,6 +175,7 @@ export function LogSessionForm({
   const [studentId, setStudentId] = useState(
     opening.studentProfileId ?? (students.length === 1 ? students[0].profileId : "")
   );
+  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   /**
    * Why the browser refused to submit.
@@ -371,12 +385,53 @@ export function LogSessionForm({
           page ? "gap-4 sm:grid-cols-2" : "mt-3 sm:grid-cols-2 lg:grid-cols-3"
         )}
       >
+        {/* Whose session it is, asked first because every answer under it is
+            a fact about that mentor: their students, their balances, their
+            agenda. Absent for a mentor logging their own. */}
+        {mentors.length > 0 && (
+          <div className="block min-w-0 text-sm">
+            <span className={labelClass}>Mentor *</span>
+            <Select
+              name="mentorId"
+              ariaLabel="Mentor"
+              defaultValue={mentorId}
+              placeholder="Whose session was this?"
+              // Always, rather than past the six-option threshold: a school
+              // with five mentors today has nine next term, and this is the
+              // one list an admin arrives at knowing the name they want.
+              searchable
+              recentKey="log-session-mentor"
+              options={mentors}
+              onChange={(value) => {
+                // A trip to the server, because the caseload is theirs and
+                // not something this form can derive. The draft is already in
+                // the URL — `rememberDraft` put it there — so the note and the
+                // minutes survive; the three answers about the student cannot,
+                // and go.
+                const url = new URL(window.location.href);
+                url.searchParams.set("mentor", value);
+                for (const stale of [
+                  "student",
+                  "studentProfileId",
+                  "programId",
+                  "program",
+                  "assignmentId",
+                ]) {
+                  url.searchParams.delete(stale);
+                }
+                router.replace(`${url.pathname}${url.search}`);
+              }}
+            />
+            <FieldError show={badField === "mentorId"} state={state} />
+          </div>
+        )}
         <div className="block min-w-0 text-sm">
           <span className={labelClass}>Student *</span>
           <Select
             name="studentProfileId"
             ariaLabel="Student"
             defaultValue={studentId}
+            placeholder={studentPlaceholder}
             onChange={(value) => {
               setStudentId(value);
               setProgramId("");

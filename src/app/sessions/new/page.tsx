@@ -3,9 +3,12 @@ import { redirect } from "next/navigation";
 import { LogSessionForm, type LogSessionDraft } from "@/components/forms/log-session-form";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle } from "@/components/ui/section";
-import { USER_STATUS } from "@/lib/constants";
-import { requireMentor } from "@/lib/dal";
+import { adminScope, scopeIsEmpty, scopeProgramFilter } from "@/lib/authz";
+import { canActAsMentor, USER_STATUS } from "@/lib/constants";
+import { mentorsWhere } from "@/lib/filters";
+import { requireMentor, requireUser } from "@/lib/dal";
 import { dictationConfigured } from "@/lib/dictation";
+import { prisma } from "@/lib/prisma";
 import { logSessionOptions, mentorCaseload } from "@/lib/queries";
 
 /**
@@ -18,30 +21,75 @@ import { logSessionOptions, mentorCaseload } from "@/lib/queries";
  * can fill with one thumb and one you cannot, which is the whole reason this
  * route exists.
  *
- * Two query parameters, both optional:
+ * Three query parameters, all optional:
  *   ?student=   preselect, from a student's page or an attention row
+ *   ?mentor=    whose session this is, when an admin logs one for somebody
+ *               else — see below
  *   the draft   whatever the form last wrote to the URL, so a phone
  *               interruption does not lose a half-written session
+ *
+ * An admin may log for any mentor in a program they administer. Mentors miss
+ * meetings, leave, or simply never log; the hours were still delivered, and
+ * until now the only way to get them into the ledger was the database. The
+ * session is the MENTOR's — their name on the row, their allocation drawn
+ * down, their student notified — and the admin is the hand that typed it.
+ *
+ * Whose caseload to load is therefore a server question, which is why the
+ * mentor is a URL parameter rather than a field the form switches locally:
+ * the students, their balances, their programs and their agendas are all
+ * facts about that one mentor, and a picker that changed only the label would
+ * be offering one mentor's students against another's hours.
  */
 export default async function LogSessionPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const user = await requireMentor();
+  const viewer = await requireUser();
+  const scope = await adminScope(viewer);
+  const administers = !scopeIsEmpty(scope);
+  // The gate is unchanged for everybody else: a mentor, named, and assigned.
+  const user = administers ? viewer : await requireMentor();
   const params = await searchParams;
   const one = (key: string) => {
     const value = params[key];
     return typeof value === "string" && value ? value : undefined;
   };
 
-  if (user.status === USER_STATUS.UNASSIGNED) {
+  if (!administers && user.status === USER_STATUS.UNASSIGNED) {
     // Nothing on this page can work, and the reason is not the mentor's to fix.
     redirect("/mentor");
   }
 
-  const caseload = await mentorCaseload(user.id);
-  const students = logSessionOptions(caseload);
+  // Mentors in the programs this admin holds — the only people they may put a
+  // session's name to. An admin who mentors is in their own list, and is the
+  // default, so the ordinary case is the form they have always seen.
+  const mentors = administers
+    ? await prisma.user.findMany({
+        where: mentorsWhere({}, { programIds: scopeProgramFilter(scope) }),
+        orderBy: [{ name: "asc" }, { email: "asc" }],
+        select: { id: true, name: true, email: true },
+      })
+    : [];
+  const named = one("mentor");
+  const mentorId = administers
+    ? (mentors.find((m) => m.id === named)?.id ??
+      (canActAsMentor(user) ? user.id : ""))
+    : user.id;
+  const acting = mentors.find((m) => m.id === mentorId);
+  const onBehalf = mentorId !== "" && mentorId !== user.id;
+
+  const caseload = mentorId ? await mentorCaseload(mentorId) : null;
+  const students = caseload
+    ? logSessionOptions(caseload, {
+        // Only when it is somebody else's time. "3h remaining with you" is
+        // right for a mentor and a lie on an admin's screen.
+        mentorName: onBehalf && acting ? (acting.name ?? acting.email) : undefined,
+        // An admin logging for a mentor may only log into their own programs,
+        // even where the mentor works in more.
+        programIds: onBehalf ? scopeProgramFilter(scope) : undefined,
+      })
+    : [];
 
   const draft: LogSessionDraft = {
     studentProfileId: one("student") ?? one("studentProfileId"),
@@ -54,9 +102,13 @@ export default async function LogSessionPage({
     timeKind: one("timeKind"),
   };
 
-  const back = draft.studentProfileId
-    ? `/mentor/students/${draft.studentProfileId}`
-    : "/mentor";
+  // An admin who does not mentor has no /mentor to go back to — the ledger is
+  // where they came from and the only one of the three that will let them in.
+  const back = !canActAsMentor(user)
+    ? "/sessions"
+    : draft.studentProfileId
+      ? `/mentor/students/${draft.studentProfileId}`
+      : "/mentor";
 
   return (
     // Wider than the 2xl it was: the note and the three one-tap answers sit
@@ -66,13 +118,32 @@ export default async function LogSessionPage({
     <div className="mx-auto max-w-4xl space-y-4">
       <PageTitle backHref={back} backLabel="Back" title="Log a session" />
 
-      {students.length === 0 ? (
+      {students.length === 0 && mentors.length === 0 ? (
         <EmptyState variant="blocked" title="No students to log for">
           You are not assigned to a program with students in it yet.
         </EmptyState>
       ) : (
         <LogSessionForm
+          // Remounted when the mentor changes: every answer below the picker
+          // is about that mentor's caseload, and state held over from the last
+          // one would be a student the new mentor cannot log for. The note,
+          // the minutes and the date come back from the URL draft, so nothing
+          // typed is lost with it.
+          key={mentorId}
           students={students}
+          mentors={mentors.map((m) => ({
+            value: m.id,
+            label: m.name ?? m.email,
+            hint: m.id === user.id ? "You" : m.email,
+          }))}
+          mentorId={mentorId}
+          studentPlaceholder={
+            !mentorId
+              ? "Pick a mentor first…"
+              : students.length === 0
+                ? "Nobody they can log for here"
+                : undefined
+          }
           mode="page"
           draft={draft}
                     correctBase="/sessions#session-"

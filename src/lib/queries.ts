@@ -1325,9 +1325,31 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
  * two balances under it is a puzzle, not a choice. So the rows are folded back
  * together here and the program becomes a second, smaller question the form
  * only asks when there is more than one answer.
+ *
+ * `for` is who is reading. A mentor reads their own caseload and the balances
+ * are addressed to them; an admin logging on somebody's behalf reads the same
+ * caseload about a third person, so the hours are named rather than called
+ * "yours", and the programs narrow to the ones that admin actually holds —
+ * a mentor who works in two programs must not let an admin of one of them log
+ * into the other.
  */
-export function logSessionOptions(caseload: MentorCaseload) {
+export function logSessionOptions(
+  caseload: MentorCaseload,
+  reader: {
+    /** The mentor's name, when the reader is not the mentor. */
+    mentorName?: string;
+    /** Programs the READER may log into. Undefined means no narrowing. */
+    programIds?: readonly string[];
+  } = {}
+) {
   const { students, loggable, goalsByStudent } = caseload;
+  /** "remaining with you" — or with the person whose hours they are. */
+  const whose = reader.mentorName ?? "you";
+  const claims = reader.mentorName
+    ? `logging assigns it to ${reader.mentorName}`
+    : "logging makes it yours";
+  const allowed = reader.programIds ? new Set(reader.programIds) : null;
+  const permitted = (programId: string) => !allowed || allowed.has(programId);
 
   /** One program a session could be logged into, and what it holds. */
   type Choice = {
@@ -1353,6 +1375,7 @@ export function logSessionOptions(caseload: MentorCaseload) {
     // and sorts last. Dropping it was how a mentor lost the student from the
     // picker entirely the day their deadline passed.
     if (!s.approved) continue;
+    if (!permitted(s.program.id)) continue;
     const row = at(s.profile.id, s.profile.user.name ?? s.profile.user.email);
     row.choices.push({
       id: s.program.id,
@@ -1360,10 +1383,10 @@ export function logSessionOptions(caseload: MentorCaseload) {
       balance: s.expired
         ? `Hours expired${s.deadline ? ` ${formatDate(s.deadline)}` : ""} — extra hours only`
         : s.pool != null
-          ? `${formatDuration(s.pool)} unassigned — logging makes it yours`
+          ? `${formatDuration(s.pool)} unassigned — ${claims}`
           : s.allocated > 0
-            ? `${formatDuration(s.remaining)} remaining with you`
-            : "No time allocated to you",
+            ? `${formatDuration(s.remaining)} remaining with ${whose}`
+            : `No time allocated to ${whose}`,
       rank: s.expired ? 3 : s.pool != null || s.allocated > 0 ? 0 : 1,
       goals: goalsByStudent.get(`${s.profile.id}:${s.program.id}`) ?? [],
     });
@@ -1372,11 +1395,12 @@ export function logSessionOptions(caseload: MentorCaseload) {
   for (const p of loggable) {
     const row = at(p.id, p.user.name ?? p.user.email);
     for (const program of p.programs) {
+      if (!permitted(program.id)) continue;
       if (row.choices.some((c) => c.id === program.id)) continue;
       row.choices.push({
         id: program.id,
         name: program.name,
-        balance: "No time allocated to you",
+        balance: `No time allocated to ${whose}`,
         rank: 2,
         goals: goalsByStudent.get(`${p.id}:${program.id}`) ?? [],
       });
@@ -1387,6 +1411,10 @@ export function logSessionOptions(caseload: MentorCaseload) {
     Math.min(...row.choices.map((c) => c.rank));
 
   return [...byStudent.entries()]
+    // Narrowing by program can leave somebody with nowhere for a log to land.
+    // They are not a choice, and a row whose `choices[0]` is undefined is a
+    // crash rather than a picker.
+    .filter(([, row]) => row.choices.length > 0)
     // Students holding live time first, then everyone else, then alphabetical
     // inside each group — the order the picker is read in.
     .sort(([, a], [, b]) => best(a) - best(b) || a.label.localeCompare(b.label))
