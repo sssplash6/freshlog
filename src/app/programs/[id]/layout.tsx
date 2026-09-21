@@ -1,3 +1,4 @@
+import { LinkButton } from "@/components/ui/button";
 import { PageTitle } from "@/components/ui/section";
 import { TabLinks } from "@/components/ui/segmented";
 import { ProgramDot } from "@/components/program-chip";
@@ -33,10 +34,15 @@ import {
  * both going to the same page. The word is with the gear, which is the part the
  * owner asked for.
  *
- * NOTHING ELSE IS IN THE ACTIONS CLUSTER EITHER. "Add students" was a button
- * up here and a fold on the page below it — one action drawn twice, a header
- * apart. It is the full-width button under the tabs now, on the page it acts
- * on, and Overview is gone: the roster IS the program (`page.tsx`).
+ * "Add students" is not up here either — it was a button here AND a fold on the
+ * page below, one action drawn twice a header apart. It is the full-width
+ * button under the tabs now, on the page it acts on.
+ *
+ * THE TWO THAT ARE HERE are the two an admin opens a program to do and could
+ * only reach through a student (21 September 2026, the owner's instruction):
+ * log a session, and grant somebody time. Both need a student, and both now
+ * ask for one themselves — which is the difference between an action in a
+ * header and a link to a page that will turn you away.
  */
 export default async function ProgramLayout({
   children,
@@ -105,6 +111,23 @@ export default async function ProgramLayout({
             {program.tracksPayment && (
               <ProgramMetric label="Paid" value={formatMoney(totals.paid)} tone="neutral" />
             )}
+          </span>
+        }
+        actions={
+          <span className="flex flex-wrap items-center gap-2">
+            <LinkButton href={`${base}/allocate`} variant="secondary" size="md">
+              Allocate time
+            </LinkButton>
+            {/* The program travels with it: a student in two of them has two
+                balances, and the one being looked at is the one this log
+                should land in. */}
+            <LinkButton
+              href={`/sessions/new?program=${program.id}`}
+              variant="secondary"
+              size="md"
+            >
+              Log a session
+            </LinkButton>
           </span>
         }
       />
