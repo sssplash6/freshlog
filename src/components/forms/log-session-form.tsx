@@ -262,6 +262,37 @@ export function LogSessionForm({
    * duplicated the JSX is how the page shape ended up with a Notes box the
    * inline one did not have.
    */
+  /**
+   * Optional, and the only field of the three that is about the WORK rather
+   * than about the meeting — which is why the page shape puts it over the
+   * note and not with the student. It was in the grid at the top, where a
+   * third field above it left it alone on a row with half the screen empty
+   * beside it.
+   */
+  const agendaField = (
+    <div className="block min-w-0 text-sm">
+      <span className={labelClass}>Agenda item worked on</span>
+      <Select
+        // Remount per student so the previous student's goal is never
+        // left selected behind the new student's list.
+        key={`${studentId}:${chosen?.value ?? ""}`}
+        name="assignmentId"
+        ariaLabel="Agenda item worked on"
+        defaultValue={opening.assignmentId}
+        options={goals}
+        required={false}
+        placeholder={
+          !student
+            ? "Pick a student first…"
+            : noGoals
+              ? "Nothing planned yet"
+              : "Optional — choose one…"
+        }
+      />
+      <FieldError show={badField === "assignmentId"} state={state} />
+    </div>
+  );
+
   const minutesField = (
     <label className="block min-w-0 text-sm">
       <span className={labelClass}>Minutes *</span>
@@ -340,7 +371,7 @@ export function LogSessionForm({
       placeholder="Optional — what you covered, and what's next"
         value={note}
         onChange={(event) => setNote(event.target.value)}
-        className={cn(page && "lg:min-h-72", "px-2.5 py-2")}
+        className={cn(page && "lg:min-h-48", "px-2.5 py-2")}
       />
   );
 
@@ -477,27 +508,7 @@ export function LogSessionForm({
             <FieldError show={badField === "programId"} state={state} />
           </div>
         )}
-        <div className="block min-w-0 text-sm">
-          <span className={labelClass}>Agenda item worked on</span>
-          <Select
-            // Remount per student so the previous student's goal is never
-            // left selected behind the new student's list.
-            key={`${studentId}:${chosen?.value ?? ""}`}
-            name="assignmentId"
-            ariaLabel="Agenda item worked on"
-            defaultValue={opening.assignmentId}
-            options={goals}
-            required={false}
-            placeholder={
-              !student
-                ? "Pick a student first…"
-                : noGoals
-                  ? "Nothing planned yet"
-                  : "Optional — choose one…"
-            }
-          />
-          <FieldError show={badField === "assignmentId"} state={state} />
-        </div>
+        {!page && agendaField}
         {!page && minutesField}
         {!page && dateField}
         {!page && notesField}
@@ -512,19 +523,21 @@ export function LogSessionForm({
           leave the note about twenty characters a line. */}
       {page && (
         <>
-          {/* Three cells, two rows, no row gap: the word "Notes" sits alone in
-              row one so that row two is the box and the column of fields and
-              nothing else. Both cells stretch to the taller of the two, which
-              puts "Minutes" on the box's top border and the last pill on its
-              bottom one without either side being told a height in pixels. */}
+          {/* Two columns of equal height, and the left one is a stack rather
+              than rows of its own: the agenda item, then the note under it,
+              then the box taking whatever the column has left. Neither side is
+              told a height in pixels — the grid stretches both to the taller,
+              which is the column of one-tap fields, and the note gives up
+              exactly the height the agenda item takes. */}
           <div className="mt-4 grid gap-x-4 lg:grid-cols-2">
-            <div className="lg:col-start-1 lg:row-start-1">{notesLabel}</div>
-            {/* A grid, not a block: it is what makes the box fill the row
-                rather than stop at its own content. */}
-            <div className="grid min-w-0 lg:col-start-1 lg:row-start-2">
-              {notesBox}
+            <div className="flex min-w-0 flex-col">
+              {agendaField}
+              <div className="mt-3">{notesLabel}</div>
+              {/* A grid, not a block: it is what makes the box fill what is
+                  left of the column rather than stop at its own content. */}
+              <div className="grid min-w-0 flex-1">{notesBox}</div>
             </div>
-            <div className="mt-4 flex flex-col gap-3 lg:col-start-2 lg:row-start-2 lg:mt-0">
+            <div className="mt-4 flex flex-col gap-3 lg:mt-0">
               {minutesField}
               {dateField}
               <AttendancePicker
