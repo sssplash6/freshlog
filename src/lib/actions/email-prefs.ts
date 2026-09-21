@@ -7,8 +7,10 @@ import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { verifyUnsubscribeToken } from "@/lib/email/unsubscribe";
 import {
+  EMAIL_BY_DEFAULT,
   NOTIFICATION_CATEGORY,
   WEEKLY_SUMMARY_PREF,
+  type NotificationCategory,
 } from "@/lib/constants";
 
 const PREFERENCE_CATEGORIES: string[] = Object.values(NOTIFICATION_CATEGORY);
@@ -67,7 +69,11 @@ export async function setNotificationPreference(
   const inApp = formData.get("inApp") === "on";
   const email = formData.get("email") === "on";
 
-  if (inApp && !email) {
+  // The default is not "in the app only" for every category any more — a task
+  // is emailed unless somebody says otherwise (`EMAIL_BY_DEFAULT`). A row is
+  // still written only when the answer differs from the default, so a student
+  // who turns task mail off HAS a row and a student who leaves it on does not.
+  if (inApp && email === EMAIL_BY_DEFAULT[category as NotificationCategory]) {
     await prisma.notificationPreference.deleteMany({
       where: { userId: user.id, category },
     });

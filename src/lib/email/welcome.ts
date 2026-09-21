@@ -1,9 +1,7 @@
 import "server-only";
 
-import { after } from "next/server";
-
 import { renderEmail, type Section } from "@/lib/email/layout";
-import { appUrl, emailConfigured, sendAll, type Mail } from "@/lib/email/send";
+import { appUrl, queueEmails, type Mail } from "@/lib/email/send";
 
 /**
  * The one-time email a student gets on joining a program. Three doors lead
@@ -99,25 +97,7 @@ export function welcomeMail({
   return { to, subject, html, text };
 }
 
-/**
- * Deliver welcome mail after the response has gone out. Live sends are paced
- * ~2/s (see sendAll), so a 20-row registration handed to `await` would hold
- * the form submission open for ten seconds; `after` lets the staff member get
- * their confirmation while the mail drains behind it. Callers queue this only
- * once their transaction has committed — never from inside one.
- */
+/** Deliver welcome mail after the response has gone out. */
 export function sendWelcomeEmails(mails: Mail[]): void {
-  if (mails.length === 0) return;
-  after(async () => {
-    const { sent, failed, errors } = await sendAll(mails);
-    if (failed > 0) {
-      console.error(
-        `[email:welcome] ${sent} sent, ${failed} failed — ${errors.join("; ")}`
-      );
-    } else if (sent > 0 && emailConfigured()) {
-      console.log(
-        `[email:welcome] ${sent} welcome email${sent === 1 ? "" : "s"} sent`
-      );
-    }
-  });
+  queueEmails("welcome", mails);
 }

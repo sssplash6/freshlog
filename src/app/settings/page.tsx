@@ -8,6 +8,7 @@ import {
 import { PageTitle, Section } from "@/components/ui/section";
 import { SettingsRow } from "@/components/ui/settings-row";
 import {
+  EMAIL_BY_DEFAULT,
   NOTIFICATION_CATEGORY_LABELS,
   canActAsMentor,
   type NotificationCategory,
@@ -112,9 +113,10 @@ export default async function SettingsPage() {
             ).map((key) => ({
               key,
               label: NOTIFICATION_CATEGORY_LABELS[key],
-              // No row is the default, and the default is in-app only.
+              // No row is the default: in the app always, by email only where
+              // `EMAIL_BY_DEFAULT` says so.
               inApp: prefOf.get(key)?.inApp ?? true,
-              email: prefOf.get(key)?.email ?? false,
+              email: prefOf.get(key)?.email ?? EMAIL_BY_DEFAULT[key],
             }))}
           />
         </div>

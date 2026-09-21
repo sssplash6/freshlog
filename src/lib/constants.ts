@@ -357,6 +357,28 @@ export const NOTIFICATION_CATEGORY_LABELS: Record<NotificationCategory, string> 
 };
 
 /**
+ * Which categories reach somebody by EMAIL when they have said nothing.
+ *
+ * In-app is the default for everything and email is the default for almost
+ * nothing: a feed is somewhere you look, and an inbox is somewhere you are
+ * interrupted. Tasks are the exception, because a task is the one notice with
+ * a deadline on it and the one thing a student is expected to go away and act
+ * on — a student who does not open the app for a week is exactly the student
+ * it was set for.
+ *
+ * Read by the sender, by the matrix on /settings that draws these switches,
+ * and by the action that stores them — so the screen cannot promise one thing
+ * while the mail does another. Turning it off in Settings is a stored row.
+ */
+export const EMAIL_BY_DEFAULT: Record<NotificationCategory, boolean> = {
+  HOURS: false,
+  SESSIONS: false,
+  TASKS: true,
+  DEADLINES: false,
+  ACCOUNTS: false,
+};
+
+/**
  * Which category each type belongs to, stated once. The migration that added
  * the column derived exactly this in SQL; this is the same map for every row
  * written from here on, so a new type cannot land without being placed.

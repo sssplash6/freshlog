@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
 import { admin, grant, mentor, pairing, program, student, studentTask } from "@/test/db";
@@ -13,13 +13,26 @@ import { admin, grant, mentor, pairing, program, student, studentTask } from "@/
  * the student.
  */
 const actor = vi.hoisted(() => ({ value: null as { id: string } | null }));
+/** What `queueEmails` was handed, in place of handing it to Resend. */
+const outbox = vi.hoisted(() => ({ mails: [] as { to: string; subject: string }[] }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
+// Only the queue: the mail itself is composed for real, so these tests fail if
+// it is addressed to the wrong person. `after()` never runs, which it cannot
+// outside a request anyway.
+vi.mock("@/lib/email/send", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/email/send")>()),
+  queueEmails: (_tag: string, mails: { to: string; subject: string }[]) => {
+    outbox.mails.push(...mails);
+  },
+}));
 vi.mock("@/lib/dal", () => ({
   getCurrentUser: async () =>
     actor.value ? prisma.user.findUnique({ where: { id: actor.value.id } }) : null,
 }));
 
-const { setStudentTaskProgress } = await import("@/lib/actions/student-tasks");
+const { setStudentTask, setStudentTaskProgress } = await import(
+  "@/lib/actions/student-tasks"
+);
 
 function form(fields: Record<string, string>) {
   const data = new FormData();
@@ -137,5 +150,66 @@ describe("setStudentTaskProgress", () => {
     await move(task.id, { percent: "25" });
 
     await expect(prisma.notification.count()).resolves.toBe(0);
+  });
+});
+
+/**
+ * The mail a task sends.
+ *
+ * A task is the one notice with a deadline on it and the one thing a student
+ * is expected to go away and do, so it leaves the feed — see
+ * `EMAIL_BY_DEFAULT`. The switch on /settings is the way out, and a stored row
+ * is the only thing that can turn it off, since sending is the default.
+ */
+describe("setStudentTask email", () => {
+  beforeEach(() => {
+    outbox.mails.length = 0;
+  });
+
+  const set = (studentProfileId: string, programId: string) =>
+    setStudentTask(
+      null,
+      form({
+        studentProfileId,
+        programId,
+        title: "Rewrite the draft",
+        dueOn: "2026-09-25",
+      })
+    );
+
+  it("emails the student the task, by name", async () => {
+    const { p, s, m } = await scene();
+    actor.value = m;
+
+    const state = await set(s.id, p.id);
+
+    expect(state).toMatchObject({ ok: true });
+    expect(outbox.mails).toHaveLength(1);
+    const them = await prisma.user.findUniqueOrThrow({ where: { id: s.userId } });
+    expect(outbox.mails[0].to).toBe(them.email);
+    expect(outbox.mails[0].subject).toBe("New task: Rewrite the draft");
+  });
+
+  it("sends nothing when the student turned task email off", async () => {
+    const { p, s, m } = await scene();
+    await prisma.notificationPreference.create({
+      data: { userId: s.userId, category: "TASKS", inApp: true, email: false },
+    });
+    actor.value = m;
+
+    await set(s.id, p.id);
+
+    expect(outbox.mails).toHaveLength(0);
+  });
+
+  it("sends nothing when the task was refused", async () => {
+    const { p, s } = await scene();
+    const stranger = await mentor("Nobody");
+    actor.value = stranger;
+
+    const state = await set(s.id, p.id);
+
+    expect(state).toMatchObject({ ok: false });
+    expect(outbox.mails).toHaveLength(0);
   });
 });

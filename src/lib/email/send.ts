@@ -1,5 +1,7 @@
 import "server-only";
 
+import { after } from "next/server";
+
 /**
  * The one way mail leaves this app.
  *
@@ -145,4 +147,27 @@ export async function sendAll(
   }
 
   return { sent, failed, errors };
+}
+
+/**
+ * Queue a batch to go out AFTER the response has.
+ *
+ * Live sends are paced ~2/s (see `sendAll`), so twenty rows handed to `await`
+ * would hold a form submission open for ten seconds. `after` lets the person
+ * who pressed the button get their answer while the mail drains behind it.
+ *
+ * Callers queue only once their transaction has committed — never from inside
+ * one: a rollback cannot recall an email, and the network I/O would hold
+ * SQLite's single write lock open while it waited.
+ */
+export function queueEmails(tag: string, mails: Mail[]): void {
+  if (mails.length === 0) return;
+  after(async () => {
+    const { sent, failed, errors } = await sendAll(mails);
+    if (failed > 0) {
+      console.error(`[email:${tag}] ${sent} sent, ${failed} failed — ${errors.join("; ")}`);
+    } else if (sent > 0 && emailConfigured()) {
+      console.log(`[email:${tag}] ${sent} email${sent === 1 ? "" : "s"} sent`);
+    }
+  });
 }

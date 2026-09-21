@@ -5,7 +5,12 @@ import { revalidatePath } from "next/cache";
 import { assertTaskAssigner, assertTaskScope } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
-import { NOTIFICATION_TYPES } from "@/lib/constants";
+import {
+  EMAIL_BY_DEFAULT,
+  NOTIFICATION_CATEGORY,
+  NOTIFICATION_TYPES,
+} from "@/lib/constants";
+import { sendTaskEmails, taskSetMail } from "@/lib/email/task";
 import { formatDate } from "@/lib/format";
 import { notify, notificationHref } from "@/lib/notify";
 import {
@@ -40,6 +45,24 @@ import { parseDateField, type ActionState } from "@/lib/actions/shared";
  * Every refusal about a row that exists reads identically to one about a row
  * that does not, so none of them can be used to find out what is there.
  */
+
+/**
+ * Does this student still want task mail?
+ *
+ * Absence is the default and the default is yes (`EMAIL_BY_DEFAULT.TASKS`), so
+ * the only row that can exist here is one the student wrote by turning the
+ * switch on /settings off — which is why this asks the question rather than
+ * assuming it, and why the answer is not cached with the task.
+ */
+async function wantsTaskEmail(userId: string): Promise<boolean> {
+  const pref = await prisma.notificationPreference.findUnique({
+    where: {
+      userId_category: { userId, category: NOTIFICATION_CATEGORY.TASKS },
+    },
+    select: { email: true },
+  });
+  return pref?.email ?? EMAIL_BY_DEFAULT.TASKS;
+}
 
 /** Title, deadline and note — the three things a mentor is asked. */
 function parseFields(
@@ -81,7 +104,14 @@ export async function setStudentTask(
   const programId = String(formData.get("programId") ?? "");
   const student = await prisma.studentProfile.findUnique({
     where: { id: studentProfileId },
-    include: { user: true, enrollments: { select: { programId: true } } },
+    include: {
+      user: true,
+      // The program's name comes along for the email, which has to say where
+      // the work is from: a student in two programs gets tasks from both.
+      enrollments: {
+        select: { programId: true, program: { select: { name: true } } },
+      },
+    },
   });
   if (!student) return { ok: false, error: "That student no longer exists." };
 
@@ -119,6 +149,26 @@ export async function setStudentTask(
       message: `${actor.name ?? actor.email} set you a task: "${fields.title}", due ${formatDate(fields.dueOn)}.`,
     });
   });
+
+  // Queued AFTER the transaction and never inside it: a rollback cannot recall
+  // an email, and the send holds SQLite's one write lock while it waits. The
+  // mail itself goes out after the response — `queueEmails` — so the mentor
+  // gets their confirmation without waiting on Resend.
+  if (await wantsTaskEmail(student.userId)) {
+    sendTaskEmails([
+      taskSetMail({
+        to: student.user.email,
+        studentName: student.user.name,
+        mentorName: actor.name ?? actor.email,
+        programName:
+          student.enrollments.find((e) => e.programId === programId)?.program.name ??
+          "your program",
+        title: fields.title,
+        dueOn: fields.dueOn,
+        note: fields.note,
+      }),
+    ]);
+  }
 
   // This form lives on the student's workspace. Revalidating the entire app
   // layout made production task submissions wait on unrelated dashboard reads
