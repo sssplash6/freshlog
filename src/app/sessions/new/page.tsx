@@ -91,10 +91,24 @@ export default async function LogSessionPage({
       })
     : [];
 
+  // The student survives a change of mentor — somebody who arrived from a
+  // student's file is still on that student's file afterwards — but only as
+  // far as the new mentor reaches. A preselected id the picker cannot offer
+  // would sit in a hidden input under a control reading "Select…", and the
+  // first the admin heard of it would be the action refusing the submit.
+  const wanted = one("student") ?? one("studentProfileId");
+  const preselected =
+    wanted && students.some((s) => s.profileId === wanted) ? wanted : undefined;
+
+  // Their program and the agenda item are answers ABOUT that student, so they
+  // go with them — and only with them: a `?program=` arriving on its own, from
+  // a program's own page, still names the program the log should land in.
+  const lost = Boolean(wanted) && !preselected;
+
   const draft: LogSessionDraft = {
-    studentProfileId: one("student") ?? one("studentProfileId"),
-    programId: one("programId") ?? one("program"),
-    assignmentId: one("assignmentId"),
+    studentProfileId: preselected,
+    programId: lost ? undefined : (one("programId") ?? one("program")),
+    assignmentId: lost ? undefined : one("assignmentId"),
     minutes: one("minutes"),
     date: one("date"),
         note: one("note"),

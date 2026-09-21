@@ -436,20 +436,18 @@ export function LogSessionForm({
               onChange={(value) => {
                 // A trip to the server, because the caseload is theirs and
                 // not something this form can derive. The draft is already in
-                // the URL — `rememberDraft` put it there — so the note and the
-                // minutes survive; the three answers about the student cannot,
-                // and go.
+                // the URL — `rememberDraft` put it there — so everything
+                // typed survives, and so does the STUDENT: an admin who came
+                // from Khabiba's file is still on Khabiba's file after they
+                // say which mentor met her, and being made to find her again
+                // is the whole reason that link carries her id. The page
+                // drops her only if the mentor they picked cannot reach her.
+                //
+                // The agenda item cannot survive: tasks belong to a mentor,
+                // so the one on screen is the last mentor's.
                 const url = new URL(window.location.href);
                 url.searchParams.set("mentor", value);
-                for (const stale of [
-                  "student",
-                  "studentProfileId",
-                  "programId",
-                  "program",
-                  "assignmentId",
-                ]) {
-                  url.searchParams.delete(stale);
-                }
+                url.searchParams.delete("assignmentId");
                 router.replace(`${url.pathname}${url.search}`);
               }}
             />
