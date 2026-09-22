@@ -7,14 +7,17 @@ import { ProgramChip } from "@/components/program-chip";
 import { PageTitle } from "@/components/ui/section";
 import { TabLinks } from "@/components/ui/segmented";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
-import { adminScope, scopeProgramFilter } from "@/lib/authz";
-import { requireAdminAccess } from "@/lib/dal";
+import { adminScope, scopeIsEmpty, scopeProgramFilter } from "@/lib/authz";
+import { canActAsMentor } from "@/lib/constants";
+import { requireAdminAccess, requireUser } from "@/lib/dal";
+import { profileOf } from "@/lib/profile";
 import { readParam, type SearchParams } from "@/lib/filters";
 import { formatRough } from "@/lib/format";
 import { programTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { studentsWithHours } from "@/lib/queries";
 
+import { MentorPrograms } from "./mentor-programs";
 import { PROGRAM_STATUS, requestNow, studentsOf } from "./reads";
 
 /**
@@ -32,12 +35,27 @@ import { PROGRAM_STATUS, requestNow, studentsOf } from "./reads";
  * an index of one is a click that tells them what they already knew — the same
  * rule the sidebar follows when it collapses "Programs" to the program's own
  * name (`lib/nav.ts:98-110`).
+ *
+ * A MENTOR SEES A DIFFERENT PAGE AT THE SAME ADDRESS (`mentor-programs.tsx`).
+ * The nouns are the same and none of the figures are: a program's roster and
+ * what it still owes belong to the people who administer it, and what a mentor
+ * has no other page for is their own work across the places they do it. The
+ * lens decides, exactly as the nav does — so an admin who mentors reads their
+ * own footprint in the mentor lens and the school's ledger in the admin one,
+ * and neither view can show them anything the other would not let them reach.
  */
 export default async function ProgramsPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  const viewer = await requireUser();
+  const lens = await profileOf(viewer);
+  const reach = await adminScope(viewer);
+  if (canActAsMentor(viewer) && (lens === "mentor" || scopeIsEmpty(reach))) {
+    return <MentorPrograms mentorId={viewer.id} />;
+  }
+
   const user = await requireAdminAccess();
   const scope = await adminScope(user);
   if (scope !== "ALL" && scope.size === 1) {

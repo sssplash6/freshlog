@@ -131,6 +131,11 @@ async function staffNav(viewer: User, inbox?: number): Promise<NavItem[]> {
 function mentorNav(inbox?: number): NavItem[] {
   return [
     { href: "/mentor", label: "Inbox", count: inbox },
+    // Always "Programs", never collapsed to a single program's name the way
+    // the staff rail does: the name in that rail is a link into the program's
+    // own ledger, and a mentor cannot read one. This item goes to their own
+    // page about the same places (`programs/mentor-programs.tsx`).
+    { href: "/programs", label: "Programs" },
     { href: "/sessions", label: "Sessions" },
     { href: "/feedback", label: "Feedback" },
   ];
