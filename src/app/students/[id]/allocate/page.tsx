@@ -58,10 +58,15 @@ export default async function AllocateStudentTimePage({
     });
   }
 
-  const mentorOptions = mentors.map((mentor) => ({
-    value: mentor.id,
-    label: mentor.name ?? mentor.email,
-  }));
+  // The reader is never an option: a grant written to its own author is the
+  // one `setMentorAllocation` refuses, so the picker doesn't offer it rather
+  // than explaining the refusal after the fact.
+  const mentorOptions = mentors
+    .filter((mentor) => mentor.id !== me.id)
+    .map((mentor) => ({
+      value: mentor.id,
+      label: mentor.name ?? mentor.email,
+    }));
   const paymentPrograms = enrollments
     .filter((e) => e.program.tracksPayment)
     .map((e) => e.programId);
