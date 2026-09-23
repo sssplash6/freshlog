@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { SearchIcon } from "@/components/icons";
 import { Input } from "@/components/ui/field";
 
 /** How long the typing has to stop before the list re-reads itself. */
@@ -75,7 +76,7 @@ export function SearchField({
   };
 
   return (
-    <label className="min-w-0 flex-1">
+    <label className="relative min-w-0 flex-1">
       {/*
         The caption is for a screen reader only. "Find a student" above a box
         already placeholdered "Name or email" is the same sentence twice and a
@@ -84,10 +85,18 @@ export function SearchField({
         names it to anyone listening.
       */}
       <span className="sr-only">{label}</span>
+      {/* The magnifier rides inside the box on a phone, the way iOS draws a
+          search field — the button beside it already carries the glyph at
+          wider widths, so the in-box one stays phone-only. */}
+      <SearchIcon
+        aria-hidden="true"
+        className="pointer-events-none absolute left-3.5 top-1/2 hidden h-4 w-4 -translate-y-1/2 text-muted-fg max-sm:block"
+      />
       <Input
         type="search"
         name={name}
         value={value}
+        enterKeyHint="search"
         placeholder={placeholder}
         onChange={(e) => {
           const next = e.target.value;
@@ -100,6 +109,8 @@ export function SearchField({
         onKeyDown={(e) => {
           if (e.key === "Enter" && timer.current) clearTimeout(timer.current);
         }}
+        // Below sm the iOS shape: grey fill, no border, the glyph inside.
+        className="max-sm:rounded-xl max-sm:border-transparent max-sm:bg-canvas max-sm:pl-9 [&::-webkit-search-cancel-button]:hidden"
       />
     </label>
   );

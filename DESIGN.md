@@ -122,6 +122,19 @@ file so the tab and the home screen cannot drift from it.
   from `icon.svg`. The apple icon is flattened onto the same blue, because iOS
   applies its own corner mask and would otherwise round an already-rounded
   square.
+- **`icon-{192,512}.png`** and **`icon-maskable-{192,512}.png`** — the manifest
+  icons. The `any` pair keeps the rounded square; the `maskable` pair is
+  full-bleed blue with the mark inside the 80% safe zone, so Android's crop
+  can take any shape.
+- **`splash/`** — the `apple-touch-startup-image` set: one white launch image
+  with the centred mark per device class, matched by exact logical size and
+  pixel ratio. A device that matches nothing launches on white.
+
+  All of it is rendered by `scripts/generate-brand-assets.mjs` (`npm run
+  brand:assets`), which also rewrites `src/lib/generated/startup-images.ts` —
+  the `startupImage` list `layout.tsx` declares, so a size is never named for
+  a file that does not exist. `sharp` is a Next.js transitive dep; there is
+  nothing to install.
 
 `theme-color` is `surface` white, not brand blue: the address bar sits directly
 above a header that is `bg-surface` under a `line` hairline, so the chrome reads
@@ -344,6 +357,48 @@ grows its fill from empty on mount, so spending hours is something you watch
 happen once. The row a `#session-…` link lands on tints `brand-soft` and fades
 out, because after a second the reader has found it and a permanently
 highlighted row is a row that looks selected.
+
+**Pages push and pop, they do not cut.** `PageTransition` wraps every page's
+content in a `ViewTransition`, and the direction comes from the link that was
+tapped: a link that drills in carries `transitionTypes={["nav-forward"]}`
+(rows, chips, `ArrowLink`, `LinkButton`) and slides the new page in from the
+right over a dimming old one; the shared back row on `PageTitle` carries
+`["nav-back"]` and reverses it. Anything untyped — tab taps, filters,
+pagination, a search keystroke's `router.replace` — crossfades or swaps in
+place. A slide on a tab tap would lie about where you went. The top bar, tab
+bar and rail are named view-transition captures (`vt-topbar` / `vt-tabbar` /
+`vt-rail`) so they hold still while the page moves, and every section's
+`loading.tsx` renders its skeleton *inside* that chrome. New link that goes
+somewhere? Give it the type, or it fades.
+
+**Gestures are part of the motion, not extras.** `NativeGestures` (mounted once
+per shell) owns the touches a phone user makes without thinking: a drag from
+the left edge arms a predictive-back bubble that pops the page past the line
+or on a flick; a pull at scroll top rubber-bands `main` and runs
+`router.refresh()` past 72px; a tap on the status-bar strip scrolls to the
+top; and every pointer-down on an internal link fires `router.prefetch`, so
+the ~200ms a finger spends on the glass is spent warming the route. The
+client router cache is what makes "back" feel instant — `staleTimes.dynamic`
+is 30s in `next.config.ts`, and a pull-refresh is how a reader asks for newer.
+
+**On a phone, a popover is a sheet.** Below `sm`, `Popover` panels and
+`Select` listboxes stop floating beside their trigger and become a rounded
+bottom sheet over a dimmed page — grabber on top, `sheet-up` on the nav
+curve, `--kb` lifting them clear of an open keyboard, and
+`useSwipeDownToDismiss` for the drag-off gesture. Desktop keeps the anchored
+dropdown untouched.
+
+**On a phone, the nav bar is iOS's.** `PhoneChrome` lives in the top bar and
+reads two marks the page already makes: `PageTitle`'s h1 carries
+`data-large-title` so the title echoes into the bar once the big one scrolls
+under (with the hairline arriving at the same moment), and its back row
+carries `data-back-href` so the `‹ Section` chevron renders in the bar — the
+page-level row itself is hidden below `sm`. A back label of "Back" resolves
+to the nav item whose href the link points at, longest prefix wins. New page?
+Use `PageTitle` and the bar works; keep the row descriptive or leave the
+label off and let the nav name it. Chip rows that would wrap use the
+`scroll-x` utility instead — horizontal scroll, hidden scrollbar, edge fade,
+and an exclusion in the gesture layer so a chip fling can't arm swipe-back.
 
 Nothing loops and nothing idles, and no motion celebrates. (`hint-bounce` is
 the one keyframe left in `globals.css` with no call site.)

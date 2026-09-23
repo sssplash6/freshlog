@@ -151,6 +151,23 @@ const nextConfig: NextConfig = {
   turbopack: { root: __dirname },
 
   experimental: {
+    /*
+     * Route navigations become React transitions, which is what lets
+     * `PageTransition` slide pages in and out instead of cutting — the one
+     * gesture every native app has and every web page lacks.
+     */
+    viewTransition: true,
+    /*
+     * Let the client router reuse a page it fetched up to 30s ago. The
+     * default is 0, so every navigation — including a back-swipe to a list
+     * the reader just left — waits on a server round trip, and the pop
+     * transition cannot start until the response lands. A native app shows
+     * the cached screen instantly; a pull-to-refresh is the reader's way to
+     * ask for newer. Half a minute is short enough that a stale balance
+     * corrects itself on the next nav, and `router.refresh()` (pull to
+     * refresh, toast actions) always bypasses the cache.
+     */
+    staleTimes: { dynamic: 30 },
     /**
      * Every hostname this app is reachable on.
      *

@@ -1,5 +1,5 @@
-import Link from "next/link";
-
+import pkg from "../../package.json";
+import { BrandWordmark } from "@/components/brand-wordmark";
 import { SearchIcon } from "@/components/icons";
 import { SidebarNav } from "@/components/nav-links";
 import { RailToggle } from "@/components/rail-toggle";
@@ -45,19 +45,17 @@ export function Sidebar({
     // follows `data-rail` alone, so the rail slides out over the content with a
     // shadow under it. Widening the page instead would reflow a table under the
     // reader's cursor every time they crossed the left edge of the window.
-    <aside className="group/rail fixed inset-y-0 left-0 z-30 hidden w-[13.75rem] flex-col border-r border-line bg-surface transition-[width] duration-200 lg:flex rail-collapsed:w-16 rail-collapsed:hover:w-[13.75rem] rail-collapsed:hover:shadow-lg">
+    <aside className="vt-rail group/rail fixed inset-y-0 left-0 z-30 hidden w-[13.75rem] flex-col border-r border-line bg-surface/80 backdrop-blur-xl backdrop-saturate-150 transition-[width] duration-200 lg:flex rail-collapsed:w-16 rail-collapsed:hover:w-[13.75rem] rail-collapsed:hover:shadow-lg">
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-5 rail-collapsed:px-2 rail-collapsed:group-hover/rail:px-3">
         <div className="flex flex-col gap-3 px-1 rail-collapsed:px-0 rail-collapsed:group-hover/rail:px-1">
           {/* The wordmark and the toggle share the top line, and the wordmark
               is what gives way when the rail shuts: the control that reopens
               it has to survive being collapsed, or there is no way back. */}
           <div className="flex items-center justify-between gap-2 rail-collapsed:justify-center rail-collapsed:group-hover/rail:justify-between">
-            <Link
-              href="/"
-              className="text-base font-bold tracking-tight text-brand rail-collapsed:hidden rail-collapsed:group-hover/rail:block"
-            >
-              freshlog
-            </Link>
+            <BrandWordmark
+              version={pkg.version}
+              className="rail-collapsed:hidden rail-collapsed:group-hover/rail:block"
+            />
             <RailToggle />
           </div>
           <div className="rail-collapsed:hidden rail-collapsed:group-hover/rail:block">

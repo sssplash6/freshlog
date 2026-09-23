@@ -4,6 +4,7 @@ import { PersonCell } from "@/components/person-chip";
 import { ProgramChip } from "@/components/program-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ExternalLink } from "@/components/ui/link";
+import { RowFold } from "@/components/ui/row-fold";
 import { StatusChip } from "@/components/ui/status-chip";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
@@ -160,31 +161,55 @@ export function StudentsTable({
             style={{ animationDelay: `${Math.min(i, 14) * 24}ms` }}
           >
             <Td>
-              <PersonCell
-                person={{
-                  id: s.userId,
-                  name: s.user.name,
-                  email: s.user.email,
-                  avatarUpdatedAt: s.user.avatarUpdatedAt,
-                }}
-                href={`${href}/${s.id}`}
-              >
-                {top && <StatusChip status={top} />}
-                {/* A visitor, where the Program column is not there to say so
-                    — a program's own roster, which drops that column, and the
-                    page where the distinction matters most: the hours beside
-                    this name are capped by another program, and the student
-                    goes home when they run out. */}
-                {!showProgram && s.enrollments.some((e) => e.exchangeId) && (
-                  <span className="shrink-0 text-xs font-normal text-muted-fg">
-                    on exchange
-                  </span>
-                )}
-              </PersonCell>
+              <div className="flex items-center gap-1">
+                <PersonCell
+                  className="min-w-0 flex-1"
+                  person={{
+                    id: s.userId,
+                    name: s.user.name,
+                    email: s.user.email,
+                    avatarUpdatedAt: s.user.avatarUpdatedAt,
+                  }}
+                  href={`${href}/${s.id}`}
+                >
+                  {top && <StatusChip status={top} />}
+                  {/* A visitor, where the Program column is not there to say
+                      so — a program's own roster, which drops that column, and
+                      the page where the distinction matters most: the hours
+                      beside this name are capped by another program, and the
+                      student goes home when they run out. */}
+                  {!showProgram && s.enrollments.some((e) => e.exchangeId) && (
+                    <span className="shrink-0 text-xs font-normal text-muted-fg">
+                      on exchange
+                    </span>
+                  )}
+                </PersonCell>
+                {/* On a phone the rest of the row folds away and this is the
+                    figure it folds to: the balance that runs out. The full
+                    columns — completed, total, the last visit, contact — are
+                    one tap behind the chevron. */}
+                <RowFold label={s.user.name ?? s.user.email}>
+                  {s.allottedMinutes > 0 || s.remainingMinutes !== 0 ? (
+                    <span className="flex flex-col items-end leading-tight">
+                      <span
+                        className={cn(
+                          "text-sm font-semibold tabular-nums",
+                          overdrawn ? "text-danger-ink" : "text-ink"
+                        )}
+                      >
+                        {formatDuration(s.remainingMinutes)}
+                      </span>
+                      <span className="text-[0.625rem] font-medium uppercase tracking-wide text-muted-fg">
+                        left
+                      </span>
+                    </span>
+                  ) : null}
+                </RowFold>
+              </div>
             </Td>
 
             {showProgram && (
-              <Td label="Program">
+              <Td label="Program" data-fold>
                 {/* Every program the READER may see them in — the rows were
                     narrowed to the reader's scope before they got here, so a
                     student in a program this person doesn't administer shows
@@ -218,7 +243,7 @@ export function StudentsTable({
               </Td>
             )}
 
-            <Td label="Completed" align="right" className="tabular-nums">
+            <Td label="Completed" align="right" className="tabular-nums" data-fold>
               <span
                 className={cn(
                   "font-medium",
@@ -229,13 +254,13 @@ export function StudentsTable({
               </span>
             </Td>
 
-            <Td label="Total" align="right" className="tabular-nums">
+            <Td label="Total" align="right" className="tabular-nums" data-fold>
               <span className="font-medium text-muted-fg">
                 {formatDuration(s.allottedMinutes)}
               </span>
             </Td>
 
-            <Td label="Remaining" align="right" className="tabular-nums">
+            <Td label="Remaining" align="right" className="tabular-nums" data-fold>
               <span
                 className={cn(
                   "font-medium",
@@ -251,11 +276,11 @@ export function StudentsTable({
               )}
             </Td>
 
-            <Td label="Last session" className="whitespace-nowrap text-muted-fg">
+            <Td label="Last session" className="whitespace-nowrap text-muted-fg" data-fold>
               {s.lastSessionAt ? formatDate(s.lastSessionAt) : "never"}
             </Td>
 
-            <Td label="Contact">
+            <Td label="Contact" data-fold>
               {/* Two icon chips, as narrow as a 44px tap target allows on a
                   phone and narrower than that on a pointer, where the column
                   was spending more width on its two buttons than the dates

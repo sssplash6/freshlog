@@ -123,6 +123,9 @@
      flat). In-out reserved for on-screen movement like progress bars. */
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  /* The UIKit page-push curve: a slow-in, fast-out profile with a long soft
+     landing. Sharper in-outs read as a wipe; this reads as a slide. */
+  --ease-nav: cubic-bezier(0.32, 0.72, 0, 1);
   --default-transition-duration: 150ms;
   --default-transition-timing-function: var(--ease-out-strong);
 }
@@ -250,10 +253,46 @@
   }
 }
 
+html {
+  /* Rubber-band overscroll reveals whatever is behind <body> — the canvas,
+     not the default white, or a pull past the top of a dark page flashes
+     white. */
+  background: var(--color-canvas);
+  /* The translucent grey iOS paints under a tapped element is the tell of a
+     web page. Press feedback here is drawn by the :active styles below. */
+  -webkit-tap-highlight-color: transparent;
+  /* No double-tap-zoom guess anywhere — panning and pinch still work, and
+     nothing on a phone pauses to see if a tap is really two. `manipulation`
+     is inherited from the root, so this covers the parts of the page that
+     are not controls too (a blank stretch of a card is still a tap). */
+  touch-action: manipulation;
+  /* Android Chrome runs its own pull-to-refresh at scroll top; the app's
+     lives in native-gestures.tsx — one spinner, not two. `contain` keeps the
+     rubber-band glow and drops only the browser's reload gesture. */
+  overscroll-behavior-y: contain;
+  /* Anchor targets (#session-x, #task-y) must land below the sticky bar, not
+     under it — the bar is 56px plus a breath. */
+  scroll-padding-top: 4.5rem;
+}
+
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  /* The dynamic viewport: the bar is exactly as tall as what is on screen,
+     tracking iOS's collapsing URL bar instead of overshooting past it. */
+  min-height: 100vh;
+  min-height: 100dvh;
+  /* A component that spills sideways must never open a sideways page. */
+  overflow-x: clip;
+}
+
+@layer base {
+  /* Taps act on touch, not on the 300ms double-tap-zoom guess. Panning and
+     pinch-zoom still work; only the zoom gesture is off the controls. */
+  :is(a, button, [role="button"], summary, input, select, textarea, label) {
+    touch-action: manipulation;
+  }
 }
 
 @layer base {
@@ -282,7 +321,20 @@ body {
     min-height: 2.75rem;
   }
   a {
-    transition: color 150ms var(--ease-out-strong);
+    transition:
+      color 150ms var(--ease-out-strong),
+      opacity 100ms var(--ease-out-strong);
+    /* iOS answers a long press on a link with its preview sheet — a web tell
+       on every row. Selection stays; the callout goes. */
+    -webkit-touch-callout: none;
+  }
+
+  /* A tapped link dims under the finger — with the tap highlight off, this is
+     the press acknowledgement a native cell gives and a bare anchor did not.
+     Instant on, eased back out on release. */
+  a:active {
+    opacity: 0.6;
+    transition: none;
   }
 }
 
@@ -313,6 +365,46 @@ body {
 @utility overlay-in {
   transition: opacity 200ms var(--ease-out-strong);
   @starting-style {
+    opacity: 0;
+  }
+}
+
+/* A horizontal row that scrolls instead of wrapping — the phone form of a
+   chip strip. The scrollbar is hidden; the right-edge fade hints more. */
+@utility scroll-x {
+  overflow-x: auto;
+  /* A fling on the strip must not chain into the page and slide it
+     sideways — the strip owns its own overscroll. */
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(
+    to right,
+    black calc(100% - 2rem),
+    transparent
+  );
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Bottom sheets — the phone form of a popover. On a small screen a floating
+   dropdown is a web tell: iOS presents pickers and menus as a rounded sheet
+   sliding up over a dimmed page. The panel slides on the nav curve; the
+   scrim just fades. */
+@utility sheet-up {
+  animation: sheet-up 340ms var(--ease-nav) both;
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@utility scrim-in {
+  animation: scrim-in 200ms ease-out both;
+}
+@keyframes scrim-in {
+  from {
     opacity: 0;
   }
 }
@@ -487,9 +579,249 @@ body {
   animation: hint-bounce 450ms var(--ease-out-strong);
 }
 
+/*
+ * THE QUIET PAYS — the delight layer.
+ *
+ * Everything below obeys one rule: it is felt, not watched. A checkmark that
+ * draws itself on a save, a badge that pops when its number changes, a chevron
+ * that leans toward the page it opens — each is under half a second, runs
+ * once, and asks for nothing. The reduced-motion block flattens all of it.
+ */
+
+/* A checkmark writing itself in. The path is ~23 units; 24 covers it. */
+@keyframes check-draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+}
+@utility check-draw {
+  & path {
+    stroke-dasharray: 24;
+    animation: check-draw 380ms var(--ease-out-strong) 60ms both;
+  }
+}
+
+/* A count that changed: a small pop, not a bounce — overshoot once, settle. */
+@keyframes badge-pop {
+  0% {
+    transform: scale(0.4);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@utility badge-pop {
+  animation: badge-pop 320ms var(--ease-out-strong) both;
+}
+
+/* Empty-state furniture arriving: softer than deal-in — it was never away. */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+@utility pop-in {
+  animation: pop-in 300ms var(--ease-out-strong) both;
+}
+
+/* A chevron leans toward the page it opens, on hover or touch-down. */
+[data-chev] {
+  transition: transform 160ms var(--ease-out-strong);
+}
+a:hover [data-chev],
+a:active [data-chev],
+.group:hover [data-chev] {
+  transform: translateX(2px);
+}
+
+/*
+ * The wordmark's one secret: a sheen that sweeps it once on hover. Colour
+ * stays brand — the sweep is light passing over, not a re-theme.
+ */
+@keyframes brand-sheen {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -20% 0;
+  }
+}
+.brand-sheen:hover {
+  background-image: linear-gradient(
+    105deg,
+    var(--color-brand) 40%,
+    color-mix(in oklab, var(--color-brand), white 38%) 50%,
+    var(--color-brand) 60%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: brand-sheen 650ms var(--ease-out-strong) 1;
+}
+
+/* A folded table row on a phone: only the headline cell shows until RowFold
+   opens it. At `sm` the real table renders and the marks mean nothing. */
+@media (max-width: 639.98px) {
+  tr > td[data-fold] {
+    display: none;
+  }
+  tr[data-open] > td[data-fold] {
+    display: block;
+    /* The fields arrive as one soft block rather than snapping in. */
+    animation: deal-in 200ms var(--ease-out-strong) both;
+  }
+}
+
+/* An attention row on its way out — slides right and thins, then the
+   revalidation removes it. If the dismissal fails the class is peeled off
+   and the row stands back up; it never pretends to be gone. */
+.dismissing {
+  opacity: 0;
+  transform: translateX(20px);
+  /* The fold runs *with* the slide, not after it — the space starts closing
+     in the same frame the row starts leaving, so it never stands empty and
+     still. Both end inside a third of a second. */
+  transition:
+    opacity 180ms var(--ease-out-strong),
+    transform 240ms var(--ease-out-strong),
+    max-height 300ms var(--ease-out-strong) 40ms,
+    padding 300ms var(--ease-out-strong) 40ms;
+}
+
+/*
+ * PAGE PUSHES AND POPS — the classes PageTransition resolves onto the
+ * view-transition captures. `vt-fwd` is the iOS drill-in: the new page
+ * arrives from the right ON TOP, trailing a shadow on its leading edge,
+ * while the old page parallax-drifts left and dims. `vt-back` is the same
+ * geometry reversed. `vt-fade` is everything else — tab switches, filters,
+ * pagination, suspense reveals — a crossfade fast enough to read as instant.
+ *
+ * The chrome holds still. Top bar, tab bar and rail are named captures, so
+ * their pixels are lifted out of the page's snapshot and neither slide nor
+ * fade moves them — a bar that slid with the content would say the whole
+ * screen was replaced, which is precisely the web tell this kills.
+ */
+.vt-topbar {
+  view-transition-name: app-topbar;
+}
+.vt-tabbar {
+  view-transition-name: app-tabbar;
+}
+.vt-rail {
+  view-transition-name: app-rail;
+}
+
+::view-transition-group(app-topbar),
+::view-transition-group(app-tabbar),
+::view-transition-group(app-rail) {
+  animation: none;
+}
+::view-transition-old(app-topbar),
+::view-transition-old(app-tabbar),
+::view-transition-old(app-rail) {
+  display: none;
+}
+::view-transition-new(app-topbar),
+::view-transition-new(app-tabbar),
+::view-transition-new(app-rail) {
+  animation: none;
+}
+
+/* Captures paint at natural size, top-aligned. Without this the pair scales
+   a taller page down to fit a shorter one's box — a 1500px list shrunk into
+   a thumbnail in the corner mid-slide, which reads as a glitch rather than
+   a page leaving. */
+::view-transition-old(page),
+::view-transition-new(page) {
+  object-fit: none;
+  object-position: left top;
+}
+
+::view-transition-old(.vt-fwd) {
+  animation: vt-fwd-out 340ms var(--ease-nav) both;
+}
+::view-transition-new(.vt-fwd) {
+  /* The shadow on the leading edge is what sells "arriving over" rather
+     than "sliding in beside". */
+  box-shadow: -20px 0 48px -16px rgb(0 0 0 / 0.35);
+  animation: vt-fwd-in 340ms var(--ease-nav) both;
+}
+::view-transition-old(.vt-back) {
+  /* Pop runs over the page it reveals: the leaving page stays on top. */
+  z-index: 1;
+  box-shadow: -20px 0 48px -16px rgb(0 0 0 / 0.35);
+  animation: vt-back-out 340ms var(--ease-nav) both;
+}
+::view-transition-new(.vt-back) {
+  animation: vt-back-in 340ms var(--ease-nav) both;
+}
+
+::view-transition-old(.vt-fade) {
+  animation: vt-fade-out 140ms ease-out both;
+}
+::view-transition-new(.vt-fade) {
+  animation: vt-fade-in 140ms ease-out both;
+}
+
+@keyframes vt-fwd-out {
+  to {
+    transform: translateX(-30%);
+    opacity: 0.8;
+  }
+}
+@keyframes vt-fwd-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes vt-back-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes vt-back-in {
+  from {
+    transform: translateX(-30%);
+    opacity: 0.8;
+  }
+}
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* THEME MORPH — ThemeToggle's typed transition. The nav chrome, which holds
+   still through page pushes, joins the crossfade here: a bar that snapped to
+   dark while the page was still dissolving would read as two renders, not
+   one theme changing. */
+html:active-view-transition-type(theme)::view-transition-old(app-topbar),
+html:active-view-transition-type(theme)::view-transition-old(app-tabbar),
+html:active-view-transition-type(theme)::view-transition-old(app-rail) {
+  display: block;
+  animation: vt-fade-out 240ms ease-out both;
+}
+html:active-view-transition-type(theme)::view-transition-new(app-topbar),
+html:active-view-transition-type(theme)::view-transition-new(app-tabbar),
+html:active-view-transition-type(theme)::view-transition-new(app-rail) {
+  animation: vt-fade-in 240ms ease-out both;
+}
+
 /* Reduced motion: keep state changes instant instead of animated. Staggered
    delays are zeroed too — otherwise a row with a 300ms delay and a 0.01ms
-   animation just sits invisible for 300ms and then pops in. */
+   animation just sits invisible for 300ms and then pops in. The
+   view-transition pseudos are NOT matched by `*` — they live in the
+   transition overlay, not the document — so they need their own zeroing. */
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
@@ -498,6 +830,12 @@ body {
     animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
   }
 }
 

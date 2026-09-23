@@ -46,7 +46,7 @@ export function ArrowLink({
       {contents}
     </a>
   ) : (
-    <Link href={href} className={classes}>
+    <Link href={href} transitionTypes={["nav-forward"]} className={classes}>
       {contents}
     </Link>
   );

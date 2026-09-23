@@ -43,7 +43,9 @@ export function Toaster() {
   return (
     <div
       aria-live="polite"
-      className="fixed inset-x-0 bottom-6 z-[60] flex flex-col items-center gap-2 px-4"
+      // Clear of the bottom tab bar (~56px + the home-indicator inset) on a
+      // phone; back to the corner-adjacent 24px where the bar is gone.
+      className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-[60] flex flex-col items-center gap-2 px-4 lg:bottom-6"
     >
       {toasts.map((t) => (
         <div

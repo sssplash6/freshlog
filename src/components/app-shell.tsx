@@ -1,6 +1,8 @@
 import Link from "next/link";
 
+import pkg from "../../package.json";
 import { Avatar } from "@/components/avatar";
+import { BrandWordmark } from "@/components/brand-wordmark";
 import { ChevronDownIcon, LogOutIcon } from "@/components/icons";
 import { NavLinks } from "@/components/nav-links";
 import {
@@ -16,6 +18,9 @@ import { PublicShell } from "@/components/public-shell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Sidebar } from "@/components/sidebar";
 import { TabBar } from "@/components/tab-bar";
+import { PageTransition } from "@/components/page-transition";
+import { NativeGestures } from "@/components/native-gestures";
+import { PhoneChrome } from "@/components/phone-chrome";
 import { Popover } from "@/components/ui/popover";
 import { signOut } from "@/lib/auth";
 import { cn } from "@/lib/cn";
@@ -157,6 +162,7 @@ function AccountMenu({
 
       <Link
         href="/settings"
+        transitionTypes={["nav-forward"]}
         className="mt-1 flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
       >
         Settings
@@ -165,6 +171,7 @@ function AccountMenu({
       {user.platformAdmin && (
         <Link
           href="/settings/platform"
+          transitionTypes={["nav-forward"]}
           className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
         >
           Platform
@@ -174,6 +181,7 @@ function AccountMenu({
       {mentorProfile && (
         <Link
           href={`/mentors/${user.id}`}
+          transitionTypes={["nav-forward"]}
           className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
         >
           My profile
@@ -229,17 +237,34 @@ function TopBar({
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 border-b border-line bg-surface",
+        // Translucent and blurred, like a real nav bar: a solid slab is the
+        // web header's tell, and content sliding under frosted glass is the
+        // iOS one. `vt-topbar` keeps it still while pages push past it.
+        // pt-[env(safe-area-inset-top)]: in standalone the clock and battery
+        // sit ON the bar — the padding gives them a strip of frosted glass to
+        // sit on, which is exactly what an iOS nav bar does (resolves to 0 in
+        // a browser tab, where there is no inset). No callout: a long press
+        // on the wordmark or bell must not raise the link-preview sheet.
+        // The hairline is absent until the page scrolls under the bar —
+        // iOS keeps a large-title bar edgeless until content is beneath it.
+        // PhoneChrome toggles `data-scrolled` past 6px.
+        "vt-topbar sticky top-0 z-30 select-none border-b border-transparent bg-surface/80 backdrop-blur-xl backdrop-saturate-150 pt-[env(safe-area-inset-top)] [-webkit-touch-callout:none] transition-[border-color] duration-200 data-[scrolled]:border-line",
         className
       )}
     >
-      <div className={cn("mx-auto flex min-h-16 items-center gap-4 px-4", width)}>
-        <Link
-          href="/"
-          className="shrink-0 text-base font-bold tracking-tight text-brand"
-        >
-          freshlog
-        </Link>
+      <div
+        className={cn(
+          // The max() pair is landscape insurance: on a notched phone held
+          // sideways the safe area is on a SIDE, and a bare px-4 would let the
+          // wordmark sit under the notch. env() resolves to 0 where there is
+          // no inset, so this is px-4 everywhere else.
+          // `relative` anchors the centered page title PhoneChrome drops in.
+          "relative mx-auto flex min-h-14 items-center gap-4 px-4",
+          "pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]",
+          width
+        )}
+      >
+        <PhoneChrome brand={<BrandWordmark version={pkg.version} />} />
         {links}
         <div className="ml-auto flex shrink-0 items-center gap-1">
           <NotificationBell count={unread} />
@@ -334,13 +359,14 @@ function StaffShell({
         className="lg:hidden"
       />
 
-      {/* pb-24 clears the bottom bar; nothing sits under it at lg, where the
-          bar is gone. */}
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-6 lg:pb-10 lg:pt-8">
-        {children}
+      {/* pb-24 clears the bottom bar (56px + the home-indicator inset);
+          nothing sits under it at lg, where the bar is gone. */}
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:pb-10 lg:pt-8">
+        <PageTransition>{children}</PageTransition>
       </main>
 
       <TabBar items={items} className="lg:hidden" />
+      <NativeGestures />
     </div>
   );
 }
@@ -383,11 +409,12 @@ function StudentShell({
         }
       />
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pb-24 pt-6 md:pb-10">
-        {children}
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:pb-10">
+        <PageTransition>{children}</PageTransition>
       </main>
 
       <TabBar items={items} className="md:hidden" />
+      <NativeGestures />
     </div>
   );
 }

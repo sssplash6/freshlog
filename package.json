@@ -11,10 +11,12 @@
     "test:watch": "vitest",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "db:sample": "tsx prisma/sample-data.ts",
     "db:reset-data": "tsx prisma/reset-data.ts",
     "import:masters": "tsx prisma/import-masters.ts",
     "postinstall": "prisma generate",
-    "admins": "tsx prisma/set-program-admins.ts"
+    "admins": "tsx prisma/set-program-admins.ts",
+    "brand:assets": "node scripts/generate-brand-assets.mjs"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.8.0",
@@ -39,5 +41,13 @@
     "tsx": "^4.23.0",
     "typescript": "^5",
     "vitest": "^5.0.0"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true,
+    "esbuild@0.28.1": true,
+    "prisma@7.8.0": true,
+    "sharp@0.34.5": true,
+    "unrs-resolver@1.12.2": true,
+    "@prisma/engines@7.8.0": true
   }
 }

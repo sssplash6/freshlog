@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
 
@@ -107,6 +107,43 @@ export function SegmentedRadio({
       : options[0]?.value;
   const [value, setValue] = useState(initial);
 
+  // The sliding pill. Server-rendered the active label carries its own
+  // highlight; after hydration a measured pill takes over and GLIDES between
+  // options — the iOS segmented control's signature. Geometry is measured,
+  // not guessed, so it survives wrapping rows and the 2×2 grid alike.
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [pill, setPill] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const measure = () => {
+      const el = track.querySelector<HTMLElement>('[data-active="true"]');
+      setPill(
+        el
+          ? {
+              left: el.offsetLeft,
+              top: el.offsetTop,
+              width: el.offsetWidth,
+              height: el.offsetHeight,
+            }
+          : null,
+      );
+    };
+    const id = requestAnimationFrame(measure);
+    const ro = new ResizeObserver(measure);
+    ro.observe(track);
+    return () => {
+      cancelAnimationFrame(id);
+      ro.disconnect();
+    };
+  }, [value]);
+
   return (
     <fieldset className={cn("min-w-0", className)}>
       <legend
@@ -123,17 +160,30 @@ export function SegmentedRadio({
           nothing; radios arrive with arrow-key navigation and form semantics
           already correct. */}
       <div
+        ref={trackRef}
         className={cn(
           TRACK,
-          "mt-1",
+          "relative mt-1",
           columns === 2 && "grid grid-cols-2 gap-2 p-2 sm:w-full",
         )}
       >
+        {pill && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute left-0 top-0 rounded-lg bg-surface shadow-sm transition-[transform,width,height] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]"
+            style={{
+              transform: `translate(${pill.left}px, ${pill.top}px)`,
+              width: pill.width,
+              height: pill.height,
+            }}
+          />
+        )}
         {options.map((option) => {
           const active = value === option.value;
           return (
             <label
               key={option.value}
+              data-active={active}
               className={cn(
                 dense ? SEGMENT_DENSE : SEGMENT,
                 // The ring the real radio would draw, moved out to the pill
@@ -150,7 +200,14 @@ export function SegmentedRadio({
                 // the rest of the app, which is :focus-visible throughout
                 // (globals.css, and the star rating's peer-focus-visible).
                 "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40",
-                active ? ON : OFF
+                // `relative` so every label paints above the gliding pill —
+                // an absolutely-positioned sibling would otherwise cover the
+                // inactive options' text.
+                "relative",
+                // Once the measured pill exists it IS the highlight — the
+                // label sheds its own background so the pill can be seen
+                // gliding underneath.
+                active ? (pill ? "font-semibold text-ink" : ON) : OFF
               )}
             >
               <input

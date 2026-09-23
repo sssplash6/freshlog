@@ -203,8 +203,12 @@ export default async function SessionsPage({
         logged
         {missed > 0 && ` · ${formatDuration(missed)} missed`}
         {extra > 0 && ` · ${formatDuration(extra)} extra`}
-        {" · "}
-        {filterSummary(total, { one: "session", many: "sessions" }, params)}
+        {/* filterSummary returns "" for an unfiltered empty list — the
+            separator has to be conditional or it dangles. */}
+        {(() => {
+          const s = filterSummary(total, { one: "session", many: "sessions" }, params);
+          return s ? ` · ${s}` : null;
+        })()}
       </p>
 
       {total === 0 ? (

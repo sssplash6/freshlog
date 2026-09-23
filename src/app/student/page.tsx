@@ -384,6 +384,7 @@ export default async function StudentHomePage() {
               aside={
                 <Link
                   href="/student/meetings"
+                  transitionTypes={["nav-forward"]}
                   className="text-xs font-medium text-brand hover:underline"
                 >
                   All meetings

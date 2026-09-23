@@ -401,6 +401,7 @@ async function MentorRecord({
                   {manages ? (
                     <Link
                       href={`/programs/${row.id}`}
+                      transitionTypes={["nav-forward"]}
                       className="font-medium text-ink hover:text-brand"
                     >
                       {row.name}

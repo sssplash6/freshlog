@@ -35,7 +35,9 @@ export function AttendancePicker({
       legend="How did it go?"
       required
       dense={compact}
-      columns={compact ? 2 : undefined}
+      // Four choices never fit one row on a phone — 2×2 beats a ragged 3+1
+      // wrap, and stays predictable on a desktop too.
+      columns={2}
       defaultValue={defaultValue}
       options={ORDER.map((state) => ({
         value: state,

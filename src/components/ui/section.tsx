@@ -85,7 +85,15 @@ export function PageTitle({
       {backHref && (
         <Link
           href={backHref}
-          className="group inline-flex items-center gap-1.5 text-sm font-medium text-muted-fg hover:text-ink"
+          /* The one back row every page shares: typing it `nav-back` is what
+             makes PageTransition slide the returning page in from the left
+             instead of pushing it in from the right.
+             Hidden under `sm`, where PhoneChrome lifts it into the top bar —
+             the place iOS puts a back button. `data-back-href` is how the bar
+             finds it; there is no prop drilled through three layouts. */
+          data-back-href={backHref}
+          transitionTypes={["nav-back"]}
+          className="group hidden items-center gap-1.5 text-sm font-medium text-muted-fg hover:text-ink sm:inline-flex"
         >
           <ArrowLeftIcon className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
           {backLabel}
@@ -112,14 +120,26 @@ export function PageTitle({
                 twice the size of its own section headings it was the loudest
                 thing on a page it says the least on. It still leads — 26 over
                 the section's 17 and the row's 13 — by a step rather than by a
-                shout. */}
-            <h1 className="mt-0.5 text-[1.5rem] font-bold leading-tight tracking-tight text-ink sm:text-[1.625rem]">
+                shout.
+                `data-large-title` lets PhoneChrome echo it into the top bar
+                once it scrolls under — the iOS large-title collapse. */}
+            <h1
+              data-large-title
+              className="mt-0.5 text-[1.75rem] font-bold leading-tight tracking-tight text-ink sm:text-[1.625rem]"
+            >
               {title}
             </h1>
             {subtitle && <div className="mt-1 text-sm text-muted-fg">{subtitle}</div>}
           </div>
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+        {actions && (
+          /* Its own line on a phone: beside the title it squeezes the title
+             column to a sliver, and a masthead that wraps mid-word is a web
+             tell — on iOS the actions live under the large title. */
+          <div className="flex flex-wrap items-center gap-2 max-sm:w-full">
+            {actions}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { ProgramTargetsPicker } from "@/components/forms/program-targets-picker";
-import { Field, Input, NameInput } from "@/components/ui/field";
+import { EmailInput, Field, NameInput } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { createMentor, updateMentor } from "@/lib/actions/mentors";
@@ -43,9 +43,8 @@ export function RegisterMentorForm({ programs }: { programs: ProgramOption[] }) 
           required
           hint="The mentor signs in with this address."
         >
-          <Input
+          <EmailInput
             name="email"
-            type="email"
             required
             placeholder="mentor@example.com"
           />
@@ -123,9 +122,8 @@ export function EditMentorForm({
           required
           hint={canEditIdentity ? undefined : "A platform admin changes this."}
         >
-          <Input
+          <EmailInput
             name="email"
-            type="email"
             required
             defaultValue={email}
             readOnly={!canEditIdentity}

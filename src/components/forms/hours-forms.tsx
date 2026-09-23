@@ -104,6 +104,7 @@ export function AllocationRowActions({
             <Input
               name="minutes"
               type="number"
+              inputMode="numeric"
               min="0"
               step="1"
               value={minutes}
@@ -225,6 +226,7 @@ export function AllocationMinutesEditor({
             <Input
               name="minutes"
               type="number"
+              inputMode="numeric"
               min="0"
               step="1"
               value={minutes}

@@ -1,5 +1,7 @@
+import { StarIcon } from "@/components/icons";
 import { PersonCell } from "@/components/person-chip";
 import { EmptyState } from "@/components/ui/empty-state";
+import { RowFold } from "@/components/ui/row-fold";
 import { StatusChip } from "@/components/ui/status-chip";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
 import { mentorStatuses, type ViewerContext } from "@/lib/status";
@@ -102,28 +104,48 @@ export function MentorsTable({
             style={{ animationDelay: `${Math.min(i, 14) * 24}ms` }}
           >
             <Td>
-              <PersonCell
-                person={{
-                  id: m.id,
-                  name: m.name,
-                  email: m.email,
-                  avatarUpdatedAt: m.avatarUpdatedAt,
-                }}
-                href={`${href}/${m.id}`}
-              >
-                {/* Muted text, never a chip: "also an admin" is a fact about
-                    the account, and a coloured pill beside a status chip reads
-                    as a second state to act on. */}
-                {m.isAdmin && (
-                  <span className="shrink-0 text-xs font-normal text-muted-fg">
-                    Admin
-                  </span>
-                )}
-                {top && <StatusChip status={top} />}
-              </PersonCell>
+              <div className="flex items-center gap-1">
+                <PersonCell
+                  className="min-w-0 flex-1"
+                  person={{
+                    id: m.id,
+                    name: m.name,
+                    email: m.email,
+                    avatarUpdatedAt: m.avatarUpdatedAt,
+                  }}
+                  href={`${href}/${m.id}`}
+                >
+                  {/* Muted text, never a chip: "also an admin" is a fact about
+                      the account, and a coloured pill beside a status chip
+                      reads as a second state to act on. */}
+                  {m.isAdmin && (
+                    <span className="shrink-0 text-xs font-normal text-muted-fg">
+                      Admin
+                    </span>
+                  )}
+                  {top && <StatusChip status={top} />}
+                </PersonCell>
+                {/* On a phone the row folds to its headline — who, and what
+                    the students who met them said back. Programs, booking
+                    links and the headcount are a tap behind the chevron. */}
+                <RowFold label={m.name ?? m.email}>
+                  {m.averageRating != null && (
+                    <span className="flex flex-col items-end leading-tight">
+                      <span className="flex items-center gap-0.5 text-sm font-semibold tabular-nums text-ink">
+                        <StarIcon className="h-3.5 w-3.5 text-accent" />
+                        {m.averageRating.toFixed(1)}
+                      </span>
+                      <span className="text-[0.625rem] font-medium uppercase tracking-wide text-muted-fg">
+                        {m.ratingCount}{" "}
+                        {m.ratingCount === 1 ? "rating" : "ratings"}
+                      </span>
+                    </span>
+                  )}
+                </RowFold>
+              </div>
             </Td>
 
-            <Td label="Programs" className="text-ink">
+            <Td label="Programs" className="text-ink" data-fold>
               {m.programs.length > 0 ? (
                 m.programs.join(" · ")
               ) : (
@@ -131,7 +153,7 @@ export function MentorsTable({
               )}
             </Td>
 
-            <Td label="Booking links">
+            <Td label="Booking links" data-fold>
               {m.pairings === 0 ? (
                 <span className="text-muted-fg">—</span>
               ) : (
@@ -147,7 +169,7 @@ export function MentorsTable({
               )}
             </Td>
 
-            <Td label="Students" align="right" className="tabular-nums">
+            <Td label="Students" align="right" className="tabular-nums" data-fold>
               {m.students > 0 ? (
                 <span className="font-medium text-ink">{m.students}</span>
               ) : (

@@ -12,6 +12,8 @@ import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/cn";
 import { useAnchoredPosition } from "@/lib/use-anchored-position";
+import { useMediaQuery } from "@/lib/use-media-query";
+import { useSwipeDownToDismiss } from "@/lib/use-swipe-down";
 
 /**
  * A panel anchored to the control that opened it — a menu, an account card, a
@@ -140,18 +142,40 @@ export function Popover({
   const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
 
-  const anchored = useAnchoredPosition(open, triggerRef, panelRef, {
+  /* On a phone this is a sheet, not a floating panel: a dropdown hovering
+     mid-screen is the desktop's shape and a web tell on a touch device —
+     iOS presents menus and pickers as a rounded sheet sliding up over a
+     dimmed page. 40rem is `sm`: the same line the rest of the phone chrome
+     keys on. */
+  const sheet = useMediaQuery("(max-width: 40rem)");
+
+  const anchored = useAnchoredPosition(open && !sheet, triggerRef, panelRef, {
     align: origin,
     maxHeight: MAX_HEIGHT,
   });
   // The boolean, not the object: `anchored` is replaced on every scroll, and an
   // effect that depends on it would keep re-running while the page moves.
-  const measured = anchored !== null;
+  // A sheet is "measured" the moment it opens — it positions itself.
+  const measured = sheet || anchored !== null;
+
+  // A sheet is modal-feeling: the page behind must not scroll under it.
+  useEffect(() => {
+    if (!(open && sheet)) return;
+    const el = document.documentElement;
+    const prev = el.style.overflow;
+    el.style.overflow = "hidden";
+    return () => {
+      el.style.overflow = prev;
+    };
+  }, [open, sheet]);
 
   const close = useCallback((restoreFocus: boolean) => {
     setRestoring(restoreFocus);
     setOpen(false);
   }, []);
+
+  // Sheets dismiss by dragging down, not only by tapping the dimmed page.
+  useSwipeDownToDismiss(panelRef, open && sheet, () => close(false));
 
   // Escape, or an item that dismissed the menu, must put focus back on the
   // trigger: the panel it was in has just unmounted, and focus left on a
@@ -312,44 +336,74 @@ export function Popover({
 
       {open &&
         createPortal(
-          <div
-            ref={panelRef}
-            id={panelId}
-            role={contents === "actions" ? "menu" : "dialog"}
-            aria-label={label}
-            // -1 so the container can hold focus without joining the tab order.
-            tabIndex={-1}
-            onKeyDown={onPanelKeyDown}
-            style={{
-              ...anchored?.style,
-              // Hidden for the one frame before it is placed, so it never
-              // flashes in the top-left corner of the screen.
-              visibility: anchored ? "visible" : "hidden",
-            }}
-            className={cn(
-              "pop-in z-50 overflow-y-auto overscroll-contain rounded-xl border border-line bg-surface text-left shadow-lg focus:outline-none",
-              // The width is a ceiling on a phone: `useAnchoredPosition` pins
-              // whichever edge `origin` names, so on a 320px screen a w-80
-              // panel would hang the other edge off the side.
-              "max-w-[calc(100vw-1rem)]",
-              WIDTHS[width],
-              // Actions carry their own padding, so the panel gives them only
-              // enough to keep a hover fill off the border.
-              contents === "actions" ? "p-1" : "p-3",
-              anchored?.up
-                ? origin === "end"
-                  ? "[--pop-origin:bottom_right]"
-                  : "[--pop-origin:bottom_left]"
-                : origin === "end"
-                  ? "[--pop-origin:top_right]"
-                  : "[--pop-origin:top_left]",
-              className,
+          <>
+            {sheet && (
+              // The dimmed page the sheet slides over. A tap on it is an
+              // outside mousedown — the document listener closes us — but a
+              // pointer-down here is claimed so nothing beneath reads it.
+              <div
+                aria-hidden="true"
+                className="scrim-in fixed inset-0 z-40 bg-ink/30"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  close(false);
+                }}
+              />
             )}
-          >
-            {typeof children === "function"
-              ? children({ close: () => close(true) })
-              : children}
-          </div>,
+            <div
+              ref={panelRef}
+              id={panelId}
+              role={contents === "actions" ? "menu" : "dialog"}
+              aria-label={label}
+              // -1 so the container can hold focus without joining the tab order.
+              tabIndex={-1}
+              onKeyDown={onPanelKeyDown}
+              style={{
+                ...(sheet ? {} : anchored?.style),
+                // Hidden for the one frame before it is placed, so it never
+                // flashes in the top-left corner of the screen.
+                visibility: measured ? "visible" : "hidden",
+              }}
+              className={cn(
+                "z-50 overflow-y-auto overscroll-contain border border-line bg-surface text-left shadow-lg focus:outline-none",
+                sheet
+                  ? // The sheet: full-width, anchored to the home-indicator
+                    // inset — or to `--kb`, the keyboard's height, when it is
+                    // open: iOS overlays the keyboard and a bare bottom-0
+                    // would bury the panel under it.
+                    "sheet-up fixed inset-x-2 bottom-[calc(max(0.5rem,env(safe-area-inset-bottom))+var(--kb,0px))] max-h-[calc(72dvh-var(--kb,0px))] rounded-2xl"
+                  : cn(
+                      "pop-in rounded-xl",
+                      // The width is a ceiling on a phone: `useAnchoredPosition`
+                      // pins whichever edge `origin` names, so on a 320px screen
+                      // a w-80 panel would hang the other edge off the side.
+                      "max-w-[calc(100vw-1rem)]",
+                      WIDTHS[width],
+                      anchored?.up
+                        ? origin === "end"
+                          ? "[--pop-origin:bottom_right]"
+                          : "[--pop-origin:bottom_left]"
+                        : origin === "end"
+                          ? "[--pop-origin:top_right]"
+                          : "[--pop-origin:top_left]",
+                    ),
+                // Actions carry their own padding, so the panel gives them only
+                // enough to keep a hover fill off the border.
+                contents === "actions" ? "p-1" : "p-3",
+                className,
+              )}
+            >
+              {sheet && (
+                <div
+                  aria-hidden="true"
+                  className="mx-auto mb-1.5 mt-1 h-1 w-9 rounded-full bg-line"
+                />
+              )}
+              {typeof children === "function"
+                ? children({ close: () => close(true) })
+                : children}
+            </div>
+          </>,
           document.body,
         )}
     </>

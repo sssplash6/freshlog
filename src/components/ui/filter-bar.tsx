@@ -184,9 +184,14 @@ export function FilterBar({
   // Built once and placed in exactly one of two rows: beside the fold's summary
   // when there is a fold, otherwise beside the selects on the controls row.
   // Never a row of its own — three pills made the bar taller than the table.
+  //
+  // On a phone the strip scrolls sideways rather than wrapping: five wrapped
+  // pills are two ragged rows of chrome; one flickable row is the shape every
+  // native app gives a filter strip.
   const chips =
-    presets.length > 0
-      ? presets.map((preset) => (
+    presets.length > 0 ? (
+      <div className="scroll-x -mx-1 flex min-w-0 max-w-full flex-nowrap gap-1.5 px-1 max-sm:basis-full">
+        {presets.map((preset) => (
           <Chip
             key={Object.entries(preset.params).map(([k, v]) => `${k}=${v}`).join("&")}
             href={presetHref(basePath, params, preset)}
@@ -194,8 +199,9 @@ export function FilterBar({
             hint={preset.hint}
             active={presetIsActive(params, preset)}
           />
-        ))
-      : null;
+        ))}
+      </div>
+    ) : null;
 
   return (
     <div
@@ -361,7 +367,7 @@ export function FilterBar({
       {/* Only reached when there is no form to carry them — otherwise the
           chips sit on the controls row beside the selects they narrow. */}
       {presets.length > 0 && !showValues && (
-        <div className="flex flex-wrap gap-1.5 px-3 py-2 sm:px-4">
+        <div className="scroll-x flex flex-nowrap gap-1.5 px-3 py-2 sm:px-4">
           {presets.map((preset) => (
             <Chip
               key={Object.entries(preset.params).map(([k, v]) => `${k}=${v}`).join("&")}
@@ -454,7 +460,7 @@ function Chip({
         // height. `segmented.tsx` already states the distinction: a wrong tap
         // here shows the wrong list and you tap again, so the target does not
         // have to be bought with height.
-        "inline-flex min-h-8 items-center rounded-lg border px-3 text-[0.8125rem] font-medium transition-colors",
+        "inline-flex min-h-8 shrink-0 items-center whitespace-nowrap rounded-lg border px-3 text-[0.8125rem] font-medium transition-colors",
         active
           ? "border-brand bg-brand-soft font-semibold text-brand"
           : "border-line bg-surface text-muted-fg hover:border-brand/40 hover:text-ink"
