@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { USER_STATUS } from "@/lib/constants";
 import { allocationSummary } from "@/lib/hours";
 import { mentorCaseload } from "@/lib/queries";
+import { programToday } from "@/lib/when";
 import {
   admin,
   allocation,
@@ -33,7 +34,7 @@ vi.mock("@/lib/dal", () => ({
     actor.value ? prisma.user.findUnique({ where: { id: actor.value.id } }) : null,
 }));
 
-const { logSession } = await import("@/lib/actions/sessions");
+const { editSession, logSession } = await import("@/lib/actions/sessions");
 
 function form(fields: Record<string, string>) {
   const data = new FormData();
@@ -278,5 +279,109 @@ describe("logSession on a mentor's behalf", () => {
     const state = await log(s.id, { mentorId: m.id });
 
     expect(state).toMatchObject({ ok: false, field: "mentorId" });
+  });
+});
+
+/**
+ * Late logging: the meeting's date is what is held against the deadline.
+ *
+ * A mentor met a student late on the 13th, went to sleep, and came back two
+ * days later to be told the hours had expired — the check had asked when the
+ * log was typed. A session held while the hours were good spent them, and may
+ * be logged for a week after the deadline; one held after it may not.
+ */
+describe("logSession against a deadline", () => {
+  /** A program day `n` days from today, as the form sends it. */
+  const day = (n: number) =>
+    new Date(Date.parse(`${programToday()}T00:00:00.000Z`) + n * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+
+  async function heldWith(deadlineInDays: number) {
+    const p = await program("Global Admissions");
+    const s = await student({ programId: p.id });
+    const m = await mentor();
+    const a = await allocation({ studentId: s.id, mentorId: m.id, minutes: 600 });
+    await prisma.hourAllocation.update({
+      where: { id: a.id },
+      data: { deadline: new Date(`${day(deadlineInDays)}T00:00:00.000Z`) },
+    });
+    actor.value = m;
+    return { s, m };
+  }
+
+  it("logs a session held before the deadline, two days after it passed", async () => {
+    const { s, m } = await heldWith(-2);
+
+    expect(await log(s.id, { date: day(-3) })).toMatchObject({ ok: true });
+    await expect(
+      prisma.session.count({ where: { mentorId: m.id, withinPlan: true } })
+    ).resolves.toBe(1);
+  });
+
+  it("logs a session held on the deadline day itself, all day long", async () => {
+    const { s } = await heldWith(0);
+
+    expect(await log(s.id, { date: day(0) })).toMatchObject({ ok: true });
+  });
+
+  it("refuses a session dated after the deadline", async () => {
+    const { s } = await heldWith(-2);
+
+    expect(await log(s.id, { date: day(-1) })).toMatchObject({
+      ok: false,
+      field: "date",
+    });
+  });
+
+  it("refuses once the late-logging week is over", async () => {
+    const { s } = await heldWith(-8);
+
+    expect(await log(s.id, { date: day(-9) })).toMatchObject({
+      ok: false,
+      field: "timeKind",
+    });
+  });
+
+  it("still records it as extra hours after that", async () => {
+    const { s } = await heldWith(-30);
+
+    expect(await log(s.id, { date: day(-31), timeKind: "EXTRA" })).toMatchObject({
+      ok: true,
+    });
+  });
+
+  it("will not let a correction move an in-plan session past the deadline", async () => {
+    const { s } = await heldWith(-2);
+    await log(s.id, { date: day(-3) });
+    const logged = await prisma.session.findFirstOrThrow({ where: { studentId: s.id } });
+
+    const state = await editSession(
+      null,
+      form({ sessionId: logged.id, minutes: "30", date: day(-1) })
+    );
+
+    expect(state).toMatchObject({ ok: false });
+  });
+
+  it("still lets the notes on an old session be corrected", async () => {
+    const { s } = await heldWith(-2);
+    await log(s.id, { date: day(-3) });
+    const logged = await prisma.session.findFirstOrThrow({ where: { studentId: s.id } });
+    await prisma.hourAllocation.updateMany({
+      where: { studentId: s.id },
+      data: { deadline: new Date(`${day(-60)}T00:00:00.000Z`) },
+    });
+    await prisma.session.update({
+      where: { id: logged.id },
+      data: { date: new Date(`${day(-61)}T00:00:00.000Z`) },
+    });
+
+    const state = await editSession(
+      null,
+      form({ sessionId: logged.id, minutes: "30", date: day(-61), note: "Essay plan" })
+    );
+
+    expect(state).toMatchObject({ ok: true });
   });
 });

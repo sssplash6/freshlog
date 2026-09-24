@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { soonestExpiry } from "@/lib/deadlines";
+import { chargeableAgainst, deadlinePassed, soonestExpiry } from "@/lib/deadlines";
 
 const NOW = new Date("2026-09-08T09:00:00Z");
 const DAY = 24 * 60 * 60 * 1000;
@@ -82,5 +82,45 @@ describe("soonestExpiry", () => {
     // the most urgent warning there is, not an expired one.
     const today = soonestExpiry([{ remaining: 120, deadline: NOW }], NOW);
     expect(today).toEqual({ minutes: 120, date: NOW });
+  });
+});
+
+describe("deadlinePassed", () => {
+  // "Use by 13 September", stored as the program day at UTC midnight.
+  const deadline = new Date("2026-09-13T00:00:00.000Z");
+
+  it("holds the whole deadline day, Tashkent time", () => {
+    // 23:30 Tashkent on the 13th. The old check had closed it at 05:00.
+    expect(deadlinePassed(deadline, Date.parse("2026-09-13T18:30:00Z"))).toBe(false);
+  });
+
+  it("closes at Tashkent midnight after it", () => {
+    expect(deadlinePassed(deadline, Date.parse("2026-09-13T19:00:00Z"))).toBe(true);
+  });
+});
+
+describe("chargeableAgainst", () => {
+  const deadline = new Date("2026-09-13T00:00:00.000Z");
+  const held = new Date("2026-09-13T00:00:00.000Z");
+
+  it("takes a session held by the deadline and logged days later", () => {
+    expect(chargeableAgainst(deadline, held, Date.parse("2026-09-15T04:00:00Z"))).toEqual({
+      ok: true,
+    });
+  });
+
+  it("refuses a session held after the deadline", () => {
+    expect(
+      chargeableAgainst(deadline, new Date("2026-09-14T00:00:00.000Z"), Date.parse("2026-09-14T04:00:00Z"))
+    ).toEqual({ ok: false, reason: "after-deadline" });
+  });
+
+  it("closes a week after the deadline day ends", () => {
+    // Last day to log is the 20th; Tashkent midnight after it is 19:00Z.
+    expect(chargeableAgainst(deadline, held, Date.parse("2026-09-20T18:59:00Z")).ok).toBe(true);
+    expect(chargeableAgainst(deadline, held, Date.parse("2026-09-20T19:00:00Z"))).toEqual({
+      ok: false,
+      reason: "too-late",
+    });
   });
 });

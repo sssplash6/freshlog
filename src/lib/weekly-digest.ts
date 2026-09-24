@@ -10,7 +10,9 @@ import {
 } from "@/lib/constants";
 import { notify } from "@/lib/notify";
 
+import { deadlinePassed } from "@/lib/deadlines";
 import { formatDate, formatDuration } from "@/lib/format";
+import { daysAway } from "@/lib/when";
 import { renderEmail, type Section } from "@/lib/email/layout";
 import { appUrl, emailConfigured, sendAll, type Mail } from "@/lib/email/send";
 import { unsubscribeUrl } from "@/lib/email/unsubscribe";
@@ -130,7 +132,7 @@ async function loadPairings(now: Date): Promise<Pairing[]> {
   return allocations.map((a) => {
     const k = key(a.studentId, a.programId, a.mentorId);
     const drawn = used.get(k) ?? 0;
-    const expired = a.deadline.getTime() < now.getTime();
+    const expired = deadlinePassed(a.deadline, now.getTime());
     return {
       studentProfileId: a.studentId,
       studentUserId: a.student.userId,
@@ -159,7 +161,9 @@ const soonest = (a: Pairing, b: Pairing) =>
 
 /** "by Aug 19" / "by Aug 19 — 3 days" once it is close. */
 function deadlinePhrase(deadline: Date, now: Date): string {
-  const days = Math.ceil((deadline.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+  // Counted in program days: a use-by date is a whole Tashkent day, so the
+  // 13th is "today" all through the 13th and "expired" only on the 14th.
+  const days = daysAway(deadline, now);
   if (days < 0) return `expired ${formatDate(deadline)}`;
   if (days === 0) return `expires today, ${formatDate(deadline)}`;
   if (days === 1) return `expires tomorrow, ${formatDate(deadline)}`;

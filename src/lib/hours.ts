@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { CHARGED_SESSION, SESSION_STATUS } from "@/lib/constants";
-import { soonestExpiry } from "@/lib/deadlines";
+import { deadlinePassed, soonestExpiry } from "@/lib/deadlines";
 
 /**
  * Derived time values (spec §5): never stored as mutable counters. Every figure
@@ -107,7 +107,7 @@ export async function allocationSummary(
     const used = (k && usedByMentor.get(k)) || 0;
     const missed = (k && missedByMentor.get(k)) || 0;
     const extra = (k && extraByMentor.get(k)) || 0;
-    const expired = a.deadline.getTime() < now;
+    const expired = deadlinePassed(a.deadline, now);
     const forfeited = expired ? Math.max(0, a.minutes - used) : 0;
     return {
       mentor: a.mentor,

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import {
   CalendarIcon,
+  ChartIcon,
   GearIcon,
   HomeIcon,
   InboxIcon,
@@ -40,6 +41,7 @@ const NAV_ICONS: [string, (p: { className?: string }) => React.ReactNode][] = [
   ["/mentors", UserIcon],
   ["/programs", LayersIcon],
   ["/sessions", CalendarIcon],
+  ["/analytics", ChartIcon],
   ["/feedback", StarIcon],
   ["/notifications", InboxIcon],
   ["/settings", GearIcon],

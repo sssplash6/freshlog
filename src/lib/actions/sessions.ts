@@ -33,6 +33,7 @@ import {
   formatDuration,
   formatMinutes,
 } from "@/lib/format";
+import { chargeableAgainst, lateLogLastDay } from "@/lib/deadlines";
 import { syncGoalProgress } from "@/lib/goal-progress";
 import { notify, notificationHref, staffIdsFor } from "@/lib/notify";
 import {
@@ -89,6 +90,29 @@ async function remainingWith(
     _sum: { minutes: true },
   });
   return allocatedHours - (sum._sum.minutes ?? 0);
+}
+
+/**
+ * Why a session held on `date` cannot charge hours that expire on `deadline`,
+ * or null when it can. Shared by logging and by correcting a log, so the two
+ * never disagree about which meetings the hours cover.
+ */
+function lateLogRefusal(
+  deadline: Date,
+  date: Date
+): { error: string; field: string } | null {
+  const verdict = chargeableAgainst(deadline, date);
+  if (verdict.ok) return null;
+  if (verdict.reason === "after-deadline") {
+    return {
+      error: `These hours had to be used by ${formatDate(deadline)}, and this session is dated after that. Check the date, ask an admin to extend the deadline, or log this as extra hours.`,
+      field: "date",
+    };
+  }
+  return {
+    error: `These hours expired on ${formatDate(deadline)}, and sessions held before then could be logged until ${formatDate(lateLogLastDay(deadline))}. Ask an admin to extend the deadline, allocate new hours, or log this as extra hours.`,
+    field: "timeKind",
+  };
 }
 
 /**
@@ -342,9 +366,16 @@ export async function logSession(
   // choosing between misreporting the meeting as extra and not logging it.
 
   // Deadlines are hard: once passed, the unused hours are forfeited and no
-  // further sessions can be logged against this allocation. A rescheduled
-  // meeting charges nothing, but recording one against expired hours would still
-  // be recording work on a pool that is closed.
+  // meeting held AFTER the deadline can be logged against this allocation. A
+  // rescheduled meeting charges nothing, but recording one against expired hours
+  // would still be recording work on a pool that is closed.
+  //
+  // It is the meeting's date that is held against the deadline, not the moment
+  // the log is typed: a session held on the 13th against hours good until the
+  // 13th spent those hours, whether the mentor logs it that night or two days
+  // later. Late logging stays open for `LATE_LOG_GRACE_DAYS` after the
+  // deadline, and no longer — otherwise forfeited hours could be reopened by a
+  // backdated log months on.
   //
   // Out-of-plan hours are exempt, and deliberately so: an expired deadline means
   // the student's remaining hours are gone, not that a mentor who kept helping
@@ -355,11 +386,9 @@ export async function logSession(
   // one is only an absence. The first closes in-plan logging; the second
   // overdraws.
   const source = withinPlan ? (allocation ?? pool) : null;
-  if (source && source.deadline.getTime() < Date.now()) {
-    return bad(
-      `These hours expired on ${formatDate(source.deadline)} and can no longer be logged against. Ask an admin to extend the deadline, allocate new hours, or log this as extra hours.`,
-      "timeKind"
-    );
+  if (source) {
+    const refusal = lateLogRefusal(source.deadline, dateParsed.value);
+    if (refusal) return bad(refusal.error, refusal.field);
   }
 
   // Checked after reach, so a mentor who may not log for this student at all
@@ -893,6 +922,33 @@ export async function editSession(
     );
     if ("error" in resolved) return { ok: false, error: resolved.error };
     assignmentId = resolved.value?.id ?? null;
+  }
+
+  // The same deadline rule logging applies, so a correction cannot do what a
+  // new log may not. Only what the edit CHANGES is held to it: fixing the notes
+  // on an old session is not blocked because its hours have since expired.
+  // Moving an in-plan session's date must keep it on or before the deadline;
+  // turning extra hours into in-plan ones is a new charge, and is held to the
+  // late-logging window as well.
+  const charges = timeKindFields(kind).withinPlan;
+  const nowCharges = charges && !session.withinPlan;
+  const moved = dateParsed.value.getTime() !== session.date.getTime();
+  if (charges && (nowCharges || moved)) {
+    const allocation = await prisma.hourAllocation.findUnique({
+      where: {
+        studentId_programId_mentorId: {
+          studentId: session.studentId,
+          programId: session.programId,
+          mentorId: session.mentorId,
+        },
+      },
+    });
+    if (allocation) {
+      const refusal = lateLogRefusal(allocation.deadline, dateParsed.value);
+      if (refusal && (nowCharges || refusal.field === "date")) {
+        return { ok: false, error: refusal.error };
+      }
+    }
   }
 
   const wasState = attendanceOf(session);

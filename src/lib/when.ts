@@ -56,6 +56,18 @@ export function programToday(now: Date = new Date()): string {
   return toDateInputValue(programWallClock(now));
 }
 
+/**
+ * The real instant a stored program day ends: the Tashkent midnight after it.
+ *
+ * A date field stores its day at UTC midnight (`parseDateField`), which as a
+ * real instant is 05:00 Tashkent on that same day. Comparing `now` to it
+ * directly closed a "use by 13 September" grant at five in the morning of the
+ * 13th — a meeting held that evening was already past its deadline.
+ */
+export function programDayEnds(day: Date): number {
+  return day.getTime() + DAY - PROGRAM_OFFSET_MINUTES * MINUTE;
+}
+
 /** Midnight starting the program-local day that `wall` falls in. */
 function startOfDay(wall: Date): number {
   return Date.UTC(wall.getUTCFullYear(), wall.getUTCMonth(), wall.getUTCDate());

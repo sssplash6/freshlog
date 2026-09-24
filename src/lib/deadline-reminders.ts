@@ -3,7 +3,9 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { notify, notificationHref } from "@/lib/notify";
 import { CHARGED_SESSION, NOTIFICATION_TYPES } from "@/lib/constants";
+import { deadlinePassed } from "@/lib/deadlines";
 import { formatDate, formatDuration } from "@/lib/format";
+import { programDayEnds } from "@/lib/when";
 
 const UPCOMING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -25,13 +27,17 @@ const UPCOMING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 export async function ensureDeadlineReminders() {
   const now = new Date();
   const soon = new Date(now.getTime() + UPCOMING_WINDOW_MS);
+  // A deadline is a whole program day, so "passed" means that day has ended —
+  // which happens a fixed span after the day's stored instant (19h, Tashkent
+  // being UTC+5). Every deadline at least that far behind now has ended.
+  const endedBy = new Date(now.getTime() - programDayEnds(new Date(0)));
 
   const due = await prisma.hourAllocation.findMany({
     where: {
       deadline: { lte: soon },
       OR: [
         { deadlineStage: null },
-        { deadlineStage: "UPCOMING_SENT", deadline: { lt: now } },
+        { deadlineStage: "UPCOMING_SENT", deadline: { lte: endedBy } },
       ],
     },
     include: {
@@ -75,7 +81,7 @@ export async function ensureDeadlineReminders() {
 
   for (const a of due) {
     const deadline = a.deadline;
-    const passed = deadline.getTime() < now.getTime();
+    const passed = deadlinePassed(deadline, now.getTime());
     const remaining =
       a.minutes - (usedBy.get(`${a.studentId}:${a.programId}:${a.mentorId}`) ?? 0);
     // Unassigned pool: nothing draws it down and there is no mentor to tell,

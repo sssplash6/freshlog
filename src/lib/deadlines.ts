@@ -1,13 +1,54 @@
+import { programDayEnds } from "@/lib/when";
+
 /**
- * Client-safe deadline helper. Kept out of component bodies so the
+ * Client-safe deadline helpers. Kept out of component bodies so the
  * react-hooks purity lint doesn't flag the `Date.now()` call, and so the
  * "has it expired?" rule lives in exactly one place.
  *
- * Once an allocation's use-by deadline has passed, its unused hours are
- * forfeited and no new sessions may be logged against it.
+ * A deadline is a program DAY, and the whole of it is usable: hours to use by
+ * 13 September are still good at 23:30 Tashkent on the 13th. Once that day is
+ * over, the unused hours are forfeited.
  */
-export function deadlinePassed(deadline: Date): boolean {
-  return deadline.getTime() < Date.now();
+export function deadlinePassed(deadline: Date, now: number = Date.now()): boolean {
+  return now >= programDayEnds(deadline);
+}
+
+/**
+ * How long after a deadline a session HELD before it may still be logged.
+ *
+ * A mentor who met a student late on the 13th, slept, and came back on the
+ * 15th was told the hours had expired — the check asked when the log was
+ * typed, not when the meeting happened. The meeting is what spends the hours,
+ * so its date is what is held against the deadline. The window is what stops
+ * that from reopening forfeited hours months later.
+ */
+export const LATE_LOG_GRACE_DAYS = 7;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The instant late logging against this deadline closes. */
+export function lateLogCloses(deadline: Date): number {
+  return programDayEnds(deadline) + LATE_LOG_GRACE_DAYS * DAY_MS;
+}
+
+/** The last program day a late log is accepted on, for saying it out loud. */
+export function lateLogLastDay(deadline: Date): Date {
+  return new Date(deadline.getTime() + LATE_LOG_GRACE_DAYS * DAY_MS);
+}
+
+/**
+ * Whether a session held on `date` may be charged to hours that expire on
+ * `deadline`, logged at `now`. Both days are program days stored at UTC
+ * midnight, so they compare directly.
+ */
+export function chargeableAgainst(
+  deadline: Date,
+  date: Date,
+  now: number = Date.now()
+): { ok: true } | { ok: false; reason: "after-deadline" | "too-late" } {
+  if (date.getTime() > deadline.getTime()) return { ok: false, reason: "after-deadline" };
+  if (now >= lateLogCloses(deadline)) return { ok: false, reason: "too-late" };
+  return { ok: true };
 }
 
 /**
@@ -44,7 +85,7 @@ export function soonestExpiry(
       g.deadline != null &&
       !g.expired &&
       g.remaining > 0 &&
-      g.deadline.getTime() >= at
+      !deadlinePassed(g.deadline, at)
   );
   if (live.length === 0) return null;
 
