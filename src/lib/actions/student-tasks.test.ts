@@ -194,7 +194,7 @@ describe("setStudentTask email", () => {
     ]);
   });
 
-  it("emails the student's other mentors in that program, and not in another", async () => {
+  it("emails the student's other mentors, in every program they study in", async () => {
     const { p, s, m } = await scene();
     const other = await mentor("Dilnoza");
     const elsewhere = await mentor("Bekzod");
@@ -212,7 +212,7 @@ describe("setStudentTask email", () => {
 
     const to = outbox.mails.map((x) => x.to);
     expect(to).toContain(other.email);
-    expect(to).not.toContain(elsewhere.email);
+    expect(to).toContain(elsewhere.email);
   });
 
   it("sends nothing to whoever turned task email off", async () => {

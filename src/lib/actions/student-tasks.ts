@@ -157,13 +157,11 @@ export async function setStudentTask(
   // an email, and the send holds SQLite's one write lock while it waits. The
   // mail itself goes out after the response — `queueEmails` — so the mentor
   // gets their confirmation without waiting on Resend.
-  // The student's mentors in THIS program — the grants say who they are, keyed
-  // on the program so a mentor of their other program hears nothing — and the
-  // mentor who set it, who may hold no grant yet.
+  // Every mentor of the student's — the grants say who they are, in any of
+  // their programs — and the mentor who set it, who may hold no grant yet.
   const grants = await prisma.hourAllocation.findMany({
     where: {
       studentId: student.id,
-      programId,
       mentor: { status: USER_STATUS.ACTIVE },
     },
     select: { mentor: { select: { id: true, email: true } } },
