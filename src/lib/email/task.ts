@@ -66,6 +66,62 @@ export function taskSetMail({
   return { to, subject: `New task: ${title}`, html, text };
 }
 
+/**
+ * The copy a MENTOR gets: the student's mentors in the task's program, and the
+ * mentor who set it. Same facts as the student's mail, addressed about the
+ * student rather than to them, and a button to that student's workspace.
+ */
+export function taskSetMentorMail({
+  to,
+  isSetter,
+  setterName,
+  studentName,
+  studentProfileId,
+  programName,
+  title,
+  dueOn,
+  note,
+}: {
+  to: string;
+  /** The recipient set this task themselves. */
+  isSetter: boolean;
+  setterName: string;
+  studentName: string;
+  studentProfileId: string;
+  programName: string;
+  title: string;
+  dueOn: Date;
+  note: string | null;
+}): Mail {
+  const due = formatDate(dueOn);
+  const who = isSetter ? "You" : setterName;
+
+  const { html, text } = renderEmail({
+    preheader: `${studentName}: ${title} — due ${due}.`,
+    title: "A new task",
+    intro: `${who} set ${studentName} a task in ${programName}.`,
+    sections: [
+      {
+        heading: "The task",
+        lines: note ? [note] : [],
+        rows: [
+          { label: title, value: `Due ${due}` },
+          { label: "Student", value: studentName, muted: programName },
+          { label: "Set by", value: setterName },
+        ],
+      },
+    ],
+    cta: {
+      label: `Open ${studentName}`,
+      url: `${appUrl()}/students/${studentProfileId}`,
+    },
+    footerNote:
+      "You're getting this because a task was set for a student you mentor at Freshman Academy. You can turn task emails off under Notifications in your settings.",
+  });
+
+  return { to, subject: `New task for ${studentName}: ${title}`, html, text };
+}
+
 /** Deliver task mail after the response has gone out. */
 export function sendTaskEmails(mails: Mail[]): void {
   queueEmails("task", mails);

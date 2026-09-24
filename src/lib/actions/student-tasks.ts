@@ -9,8 +9,10 @@ import {
   EMAIL_BY_DEFAULT,
   NOTIFICATION_CATEGORY,
   NOTIFICATION_TYPES,
+  USER_STATUS,
+  canActAsMentor,
 } from "@/lib/constants";
-import { sendTaskEmails, taskSetMail } from "@/lib/email/task";
+import { sendTaskEmails, taskSetMail, taskSetMentorMail } from "@/lib/email/task";
 import { formatDate } from "@/lib/format";
 import { notify, notificationHref } from "@/lib/notify";
 import {
@@ -47,21 +49,22 @@ import { parseDateField, type ActionState } from "@/lib/actions/shared";
  */
 
 /**
- * Does this student still want task mail?
+ * Which of these people still want task mail?
  *
  * Absence is the default and the default is yes (`EMAIL_BY_DEFAULT.TASKS`), so
- * the only row that can exist here is one the student wrote by turning the
- * switch on /settings off — which is why this asks the question rather than
- * assuming it, and why the answer is not cached with the task.
+ * the only row that can exist here is one somebody wrote by turning the switch
+ * on /settings off — which is why this asks the question rather than assuming
+ * it, and why the answer is not cached with the task.
  */
-async function wantsTaskEmail(userId: string): Promise<boolean> {
-  const pref = await prisma.notificationPreference.findUnique({
-    where: {
-      userId_category: { userId, category: NOTIFICATION_CATEGORY.TASKS },
-    },
-    select: { email: true },
+async function wantTaskEmail(userIds: string[]): Promise<Set<string>> {
+  const prefs = await prisma.notificationPreference.findMany({
+    where: { userId: { in: userIds }, category: NOTIFICATION_CATEGORY.TASKS },
+    select: { userId: true, email: true },
   });
-  return pref?.email ?? EMAIL_BY_DEFAULT.TASKS;
+  const said = new Map(prefs.map((p) => [p.userId, p.email]));
+  return new Set(
+    userIds.filter((id) => said.get(id) ?? EMAIL_BY_DEFAULT.TASKS)
+  );
 }
 
 /** Title, deadline and note — the three things a mentor is asked. */
@@ -154,21 +157,54 @@ export async function setStudentTask(
   // an email, and the send holds SQLite's one write lock while it waits. The
   // mail itself goes out after the response — `queueEmails` — so the mentor
   // gets their confirmation without waiting on Resend.
-  if (await wantsTaskEmail(student.userId)) {
-    sendTaskEmails([
-      taskSetMail({
-        to: student.user.email,
-        studentName: student.user.name,
-        mentorName: actor.name ?? actor.email,
-        programName:
-          student.enrollments.find((e) => e.programId === programId)?.program.name ??
-          "your program",
-        title: fields.title,
-        dueOn: fields.dueOn,
-        note: fields.note,
-      }),
-    ]);
-  }
+  // The student's mentors in THIS program — the grants say who they are, keyed
+  // on the program so a mentor of their other program hears nothing — and the
+  // mentor who set it, who may hold no grant yet.
+  const grants = await prisma.hourAllocation.findMany({
+    where: {
+      studentId: student.id,
+      programId,
+      mentor: { status: USER_STATUS.ACTIVE },
+    },
+    select: { mentor: { select: { id: true, email: true } } },
+  });
+  const mentors = new Map(
+    grants.flatMap((g) => (g.mentor ? [[g.mentor.id, g.mentor.email]] : []))
+  );
+  if (canActAsMentor(actor)) mentors.set(actor.id, actor.email);
+  mentors.delete(student.userId);
+
+  const wants = await wantTaskEmail([student.userId, ...mentors.keys()]);
+  const setterName = actor.name ?? actor.email;
+  const studentName = student.user.name ?? student.user.email;
+  const programName =
+    student.enrollments.find((e) => e.programId === programId)?.program.name ??
+    "your program";
+  const task = { programName, title: fields.title, dueOn: fields.dueOn, note: fields.note };
+  sendTaskEmails([
+    ...(wants.has(student.userId)
+      ? [
+          taskSetMail({
+            ...task,
+            to: student.user.email,
+            studentName: student.user.name,
+            mentorName: setterName,
+          }),
+        ]
+      : []),
+    ...[...mentors]
+      .filter(([id]) => wants.has(id))
+      .map(([id, to]) =>
+        taskSetMentorMail({
+          ...task,
+          to,
+          isSetter: id === actor.id,
+          setterName,
+          studentName,
+          studentProfileId: student.id,
+        })
+      ),
+  ]);
 
   // This form lives on the student's workspace. Revalidating the entire app
   // layout made production task submissions wait on unrelated dashboard reads

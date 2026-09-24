@@ -177,23 +177,53 @@ describe("setStudentTask email", () => {
       })
     );
 
-  it("emails the student the task, by name", async () => {
+  it("emails the student the task, by name, and the mentor who set it", async () => {
     const { p, s, m } = await scene();
     actor.value = m;
 
     const state = await set(s.id, p.id);
 
     expect(state).toMatchObject({ ok: true });
-    expect(outbox.mails).toHaveLength(1);
     const them = await prisma.user.findUniqueOrThrow({ where: { id: s.userId } });
-    expect(outbox.mails[0].to).toBe(them.email);
-    expect(outbox.mails[0].subject).toBe("New task: Rewrite the draft");
+    expect(outbox.mails).toEqual([
+      expect.objectContaining({ to: them.email, subject: "New task: Rewrite the draft" }),
+      expect.objectContaining({
+        to: m.email,
+        subject: "New task for Khabiba: Rewrite the draft",
+      }),
+    ]);
   });
 
-  it("sends nothing when the student turned task email off", async () => {
+  it("emails the student's other mentors in that program, and not in another", async () => {
     const { p, s, m } = await scene();
-    await prisma.notificationPreference.create({
-      data: { userId: s.userId, category: "TASKS", inApp: true, email: false },
+    const other = await mentor("Dilnoza");
+    const elsewhere = await mentor("Bekzod");
+    const p2 = await program("Global");
+    await prisma.studentEnrollment.create({ data: { studentId: s.id, programId: p2.id } });
+    await prisma.hourAllocation.createMany({
+      data: [
+        { studentId: s.id, programId: p.id, mentorId: other.id, minutes: 60, deadline: new Date("2026-12-01") },
+        { studentId: s.id, programId: p2.id, mentorId: elsewhere.id, minutes: 60, deadline: new Date("2026-12-01") },
+      ],
+    });
+    actor.value = m;
+
+    await set(s.id, p.id);
+
+    const to = outbox.mails.map((x) => x.to);
+    expect(to).toContain(other.email);
+    expect(to).not.toContain(elsewhere.email);
+  });
+
+  it("sends nothing to whoever turned task email off", async () => {
+    const { p, s, m } = await scene();
+    await prisma.notificationPreference.createMany({
+      data: [s.userId, m.id].map((userId) => ({
+        userId,
+        category: "TASKS",
+        inApp: true,
+        email: false,
+      })),
     });
     actor.value = m;
 
