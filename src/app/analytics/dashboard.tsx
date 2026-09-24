@@ -167,6 +167,7 @@ export function Dashboard({ data, today }: { data: AnalyticsData; today: Today }
         </section>
       ) : (
         <div key={`${level}`} className={s.enter} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {mentor != null && <MentorScope data={data} view={view} go={go} />}
           <Hero data={data} view={view} today={today} yearRows={yearRows} periodRows={periodRows} />
           <MonthsCard data={data} view={view} go={go} yearRows={yearRows} />
           {program == null && mentor == null && (
@@ -195,7 +196,7 @@ export function Dashboard({ data, today }: { data: AnalyticsData; today: Today }
               last={last}
             />
           )}
-          {mentor != null && <MentorDetail data={data} view={view} today={today} go={go} yearRows={yearRows} />}
+          {mentor != null && <MentorDetail view={view} today={today} go={go} yearRows={yearRows} />}
         </div>
       )}
     </div>
@@ -887,20 +888,100 @@ function MentorRow({
 /* ----------------------------------------------------------------- mentor */
 
 function MentorDetail({
-  data,
   view,
   today,
   go,
   yearRows,
 }: {
-  data: AnalyticsData;
   view: View;
   today: Today;
   go: (next: Partial<View>) => void;
   yearRows: AnalyticsRow[];
 }) {
-  const { year, month, program, mentor } = view;
+  const { year, month, program } = view;
   const accent = program != null ? colorOf(program) : "var(--s1)";
+
+  const months = useMemo(() => byMonth(yearRows), [yearRows]);
+  const students = useMemo(() => {
+    const out = Array.from({ length: 12 }, () => new Set<number>());
+    for (const r of yearRows) if (r[5] !== 2) out[monthOf(r[3])].add(r[2]);
+    return out.map((x) => x.size);
+  }, [yearRows]);
+  const maxMonth = Math.max(...months.map(hoursOf), 1);
+  const lastMonth = year === today.year ? today.month : 11;
+
+  return (
+    <>
+      <section className={s.card}>
+        <div className={s.cardHead}>
+          <div>
+            <h2 className={s.cardTitle}>Every day of {year}</h2>
+            <p className={s.cardSub}>Darker means more hours that day.</p>
+          </div>
+        </div>
+        <Heatmap rows={yearRows} year={year} color={accent} selected={month} onPick={(m) => go({ month: m })} />
+      </section>
+      <section className={s.card}>
+        <div className={s.cardHead}>
+          <div>
+            <h2 className={s.cardTitle}>What they logged each month</h2>
+            <p className={s.cardSub}>Pick a row to open that month.</p>
+          </div>
+        </div>
+        <div className={s.tableWrap}>
+          <table className={s.table}>
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>Hours</th>
+                <th>Sessions</th>
+                <th>Students</th>
+                <th>Avg</th>
+                <th>Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              {months.map((m, i) => {
+                if (i > lastMonth) return null;
+                const h = hoursOf(m);
+                const prev = i > 0 ? hoursOf(months[i - 1]) : 0;
+                const d = change(h, prev);
+                return (
+                  <tr
+                    key={i}
+                    className={[month === i && s.rowOn, h === 0 && s.rowEmpty].filter(Boolean).join(" ")}
+                    onClick={() => go({ month: month === i ? null : i })}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        go({ month: month === i ? null : i });
+                      }
+                    }}
+                  >
+                    <td>{MONTHS_LONG[i]}</td>
+                    <td>
+                      <span className={s.inlineBar} style={{ width: (h / maxMonth) * 48, background: accent }} />
+                      <b>{h ? formatDuration(h) : "—"}</b>
+                    </td>
+                    <td>{m.sessions || "—"}</td>
+                    <td>{students[i] || "—"}</td>
+                    <td>{m.sessions ? formatDuration(h / m.sessions) : "—"}</td>
+                    <td>{i === 0 || (h === 0 && prev === 0) ? "" : <Delta value={d} />}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
+  );
+}
+
+/** Which of the mentor's programs to read, and where they stand in it. */
+function MentorScope({ data, view, go }: { data: AnalyticsData; view: View; go: (next: Partial<View>) => void }) {
+  const { year, month, program, mentor } = view;
 
   // Every program this mentor has hours in this year, for the switcher.
   const theirPrograms = useMemo(() => {
@@ -916,118 +997,39 @@ function MentorDetail({
     return at < 0 ? null : { rank: at + 1, of: ranked.length };
   }, [data.rows, year, month, program, mentor]);
 
-  const months = useMemo(() => byMonth(yearRows), [yearRows]);
-  const students = useMemo(() => {
-    const out = Array.from({ length: 12 }, () => new Set<number>());
-    for (const r of yearRows) if (r[5] !== 2) out[monthOf(r[3])].add(r[2]);
-    return out.map((x) => x.size);
-  }, [yearRows]);
-  const maxMonth = Math.max(...months.map(hoursOf), 1);
-  const lastMonth = year === today.year ? today.month : 11;
-
+  if (theirPrograms.length === 0) return null;
   return (
-    <>
-      {(theirPrograms.length > 1 || standing) && (
-        <section className={s.card} style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
-          {theirPrograms.length > 1 ? (
-            <div className={s.chips} role="group" aria-label="Program">
-              <button type="button" className={`${s.chip} ${program == null ? s.chipOn : ""}`} onClick={() => go({ program: null })}>
-                All programs
+    <section className={s.card} style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
+        {theirPrograms.length > 1 ? (
+          <div className={s.chips} role="group" aria-label="Program">
+            <button type="button" className={`${s.chip} ${program == null ? s.chipOn : ""}`} onClick={() => go({ program: null })}>
+              All programs
+            </button>
+            {theirPrograms.map((p) => (
+              <button
+                key={p}
+                type="button"
+                className={`${s.chip} ${program === p ? s.chipOn : ""}`}
+                onClick={() => go({ program: p })}
+              >
+                <span className={s.swatch} style={{ background: colorOf(p) }} />
+                {data.programs[p].name}
               </button>
-              {theirPrograms.map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  className={`${s.chip} ${program === p ? s.chipOn : ""}`}
-                  onClick={() => go({ program: p })}
-                >
-                  <span className={s.swatch} style={{ background: colorOf(p) }} />
-                  {data.programs[p].name}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <span className={s.cardSub} style={{ margin: 0 }}>
-              Works in {data.programs[theirPrograms[0]]?.name}
-            </span>
-          )}
-          {standing && (
-            <span className={s.cardSub} style={{ margin: 0 }}>
-              <b style={{ color: "var(--ink)" }}>#{standing.rank}</b> of {standing.of} mentors
-              {program != null ? ` in ${data.programs[program].name}` : ""} ·{" "}
-              {month != null ? MONTHS_LONG[month] : year}
-            </span>
-          )}
-        </section>
-      )}
-
-      <div className={s.grid2}>
-        <section className={s.card}>
-          <div className={s.cardHead}>
-            <div>
-              <h2 className={s.cardTitle}>What they logged each month</h2>
-              <p className={s.cardSub}>Pick a row to open that month.</p>
-            </div>
+            ))}
           </div>
-          <div className={s.tableWrap}>
-            <table className={s.table}>
-              <thead>
-                <tr>
-                  <th>Month</th>
-                  <th>Hours</th>
-                  <th>Sessions</th>
-                  <th>Students</th>
-                  <th>Avg</th>
-                  <th>Change</th>
-                </tr>
-              </thead>
-              <tbody>
-                {months.map((m, i) => {
-                  if (i > lastMonth) return null;
-                  const h = hoursOf(m);
-                  const prev = i > 0 ? hoursOf(months[i - 1]) : 0;
-                  const d = change(h, prev);
-                  return (
-                    <tr
-                      key={i}
-                      className={[month === i && s.rowOn, h === 0 && s.rowEmpty].filter(Boolean).join(" ")}
-                      onClick={() => go({ month: month === i ? null : i })}
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          go({ month: month === i ? null : i });
-                        }
-                      }}
-                    >
-                      <td>{MONTHS_LONG[i]}</td>
-                      <td>
-                        <span className={s.inlineBar} style={{ width: (h / maxMonth) * 48, background: accent }} />
-                        <b>{h ? formatDuration(h) : "—"}</b>
-                      </td>
-                      <td>{m.sessions || "—"}</td>
-                      <td>{students[i] || "—"}</td>
-                      <td>{m.sessions ? formatDuration(h / m.sessions) : "—"}</td>
-                      <td>{i === 0 || (h === 0 && prev === 0) ? "" : <Delta value={d} />}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section className={s.card}>
-          <div className={s.cardHead}>
-            <div>
-              <h2 className={s.cardTitle}>Every day of {year}</h2>
-              <p className={s.cardSub}>Darker means more hours that day.</p>
-            </div>
-          </div>
-          <Heatmap rows={yearRows} year={year} color={accent} selected={month} onPick={(m) => go({ month: m })} />
-        </section>
-      </div>
-    </>
+        ) : (
+          <span className={s.cardSub} style={{ margin: 0 }}>
+            Works in {data.programs[theirPrograms[0]]?.name}
+          </span>
+        )}
+        {standing && (
+          <span className={s.cardSub} style={{ margin: 0 }}>
+            <b style={{ color: "var(--ink)" }}>#{standing.rank}</b> of {standing.of} mentors
+            {program != null ? ` in ${data.programs[program].name}` : ""} ·{" "}
+            {month != null ? MONTHS_LONG[month] : year}
+          </span>
+        )}
+      </section>
   );
 }
 
@@ -1050,7 +1052,7 @@ function Heatmap({
   const level = (m: number) => (m <= 0 ? 0 : m / max <= 0.25 ? 1 : m / max <= 0.5 ? 2 : m / max <= 0.75 ? 3 : 4);
   const mix = [0, 28, 52, 76, 100];
   const fill = (lv: number) =>
-    lv === 0 ? undefined : `color-mix(in oklab, ${color} ${mix[lv]}%, var(--card-2))`;
+    lv === 0 ? undefined : `color-mix(in oklab, ${color} ${mix[lv]}%, var(--grid))`;
 
   return (
     <>

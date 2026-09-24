@@ -1088,7 +1088,7 @@
   width: 12px;
   height: 12px;
   border-radius: 3px;
-  background: var(--card-2);
+  background: var(--grid);
   border: 0;
   padding: 0;
   transition: transform 0.12s;
