@@ -12,12 +12,11 @@ import { PersonChip } from "@/components/person-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Section } from "@/components/ui/section";
 import { SettingsRow } from "@/components/ui/settings-row";
-import { ROLES } from "@/lib/constants";
 import { requireProgramScope } from "@/lib/dal";
-import { prisma } from "@/lib/prisma";
 
 import {
   PROGRAM_STATUS,
+  mentorPool,
   programCohorts,
   programGrants,
   programOf,
@@ -45,7 +44,8 @@ const LEVEL: Record<string, string> = {
  *
  *   The Mentors list that was byte-identical to the one on the overview. This
  *   one stays, because this is the one with the write controls on it: assigning
- *   and unassigning a mentor happens HERE and nowhere else (§6.14).
+ *   and unassigning a mentor happens here. Assigning is also offered in the
+ *   rail on the roster, where an empty program says it has nobody to teach.
  */
 export default async function ProgramSettingsPage({
   params,
@@ -62,14 +62,7 @@ export default async function ProgramSettingsPage({
       programPairings(id),
       programCohorts(id),
       programGrants(id),
-      // The whole pool, not this program's: placing a mentor is a question asked
-      // of the TARGET program, which is the gate `assignMentorToProgram` uses
-      // and the only way a mentor who is in no program yet ever gets into one.
-      prisma.user.findMany({
-        where: { OR: [{ role: ROLES.MENTOR }, { isMentor: true }] },
-        orderBy: [{ name: "asc" }],
-        select: { id: true, name: true, email: true },
-      }),
+      mentorPool(),
     ]);
 
   const paired = new Set(pairings.map((p) => p.mentorId));

@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { notFound } from "next/navigation";
 
+import { ROLES } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { studentsWithHours, type StudentWithHours } from "@/lib/queries";
 
@@ -83,6 +84,20 @@ export const programCohorts = cache((id: string) =>
     where: { programId: id },
     orderBy: { name: "asc" },
     include: { _count: { select: { enrollments: true, mentorAssignments: true } } },
+  })
+);
+
+/**
+ * Everyone who can be paired to teach — the whole pool, not this program's:
+ * placing a mentor is a question asked of the TARGET program, which is the gate
+ * `assignMentorToProgram` uses and the only way a mentor who is in no program
+ * yet ever gets into one.
+ */
+export const mentorPool = cache(() =>
+  prisma.user.findMany({
+    where: { OR: [{ role: ROLES.MENTOR }, { isMentor: true }] },
+    orderBy: [{ name: "asc" }],
+    select: { id: true, name: true, email: true },
   })
 );
 

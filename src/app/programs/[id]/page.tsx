@@ -1,6 +1,7 @@
 import { ExchangeList } from "@/components/exchange-panel";
 import { CrownIcon } from "@/components/icons";
 import { AddStudentsForm } from "@/components/forms/add-students-form";
+import { AssignMentorForm } from "@/components/forms/program-settings-forms";
 import { PersonChip } from "@/components/person-chip";
 import { STUDENT_SORTS, StudentsTable } from "@/components/students-table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -22,6 +23,7 @@ import { studentsWithHours } from "@/lib/queries";
 import type { ViewerContext } from "@/lib/status";
 
 import {
+  mentorPool,
   programCohorts,
   programGrants,
   programOf,
@@ -73,13 +75,15 @@ export default async function ProgramPage({
 
   // The first three are the layout's reads, memoised: opening a program asks
   // for its row, its roster and its pairings once between the two files.
-  const [program, pairings, cohorts, exchanges, grants] = await Promise.all([
-    programOf(id),
-    programPairings(id),
-    programCohorts(id),
-    programExchanges(id),
-    programGrants(id),
-  ]);
+  const [program, pairings, cohorts, exchanges, grants, pool] =
+    await Promise.all([
+      programOf(id),
+      programPairings(id),
+      programCohorts(id),
+      programExchanges(id),
+      programGrants(id),
+      mentorPool(),
+    ]);
 
   const where = studentsWhere(
     query,
@@ -153,6 +157,13 @@ export default async function ProgramPage({
     grants.filter((grant) => grant.role === "ADMIN").map((grant) => grant.user.id),
   );
   const spilled = mentorRows.length - MENTORS_SHOWN;
+  // Adding a mentor is offered where the list of them is, not only a tab away
+  // in Settings. Removing stays in Settings, beside the cohort each pairing
+  // names — a narrow rail has no room to say which pairing a button unmakes.
+  const paired = new Set(pairings.map((p) => p.mentorId));
+  const eligibleMentors = pool
+    .filter((m) => !paired.has(m.id))
+    .map((m) => ({ value: m.id, label: m.name ?? m.email }));
 
   return (
     <div className="space-y-4">
@@ -248,7 +259,7 @@ export default async function ProgramPage({
         >
           {mentorRows.length === 0 ? (
             <p className="px-4 py-2 text-sm text-muted-fg sm:px-5">
-              Nobody here yet. Settings pairs a mentor with the program.
+              Nobody here yet.
             </p>
           ) : (
             <ul className="divide-y divide-line/60 text-sm">
@@ -293,6 +304,15 @@ export default async function ProgramPage({
                   </li>
                 ))}
             </ul>
+          )}
+          {eligibleMentors.length > 0 && (
+            <div className="border-t border-line px-4 py-2 sm:px-5">
+              <AssignMentorForm
+                programId={program.id}
+                mentors={eligibleMentors}
+                cohorts={cohorts.map((c) => ({ value: c.id, label: c.name }))}
+              />
+            </div>
           )}
         </Section>
 
