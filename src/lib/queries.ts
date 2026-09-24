@@ -9,7 +9,7 @@ import {
   USER_STATUS,
 } from "@/lib/constants";
 import { formatDate, formatDuration } from "@/lib/format";
-import { deadlinePassed } from "@/lib/deadlines";
+import { deadlinePassed, lateLogCloses, lateLogLastDay } from "@/lib/deadlines";
 import type { Prisma } from "@/generated/prisma/client";
 
 /**
@@ -182,7 +182,7 @@ export async function studentsWithHours(
     }
     const drawn =
       usedByAllocation.get(`${a.studentId}:${a.programId}:${a.mentorId}`) ?? 0;
-    if (a.deadline.getTime() < at) {
+    if (deadlinePassed(a.deadline, at)) {
       const lost = Math.max(0, a.minutes - drawn);
       if (lost > 0) for (const k of keys(a)) add(forfeited, k, lost);
     } else {
@@ -1140,11 +1140,13 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
 
   // Skipped once the mentor holds their own grant IN THAT PROGRAM (that row
   // already exists, and their sessions draw their own hours), and once the pool
-  // is empty or expired — there is nothing left to log against.
+  // is empty or closed to late logs too — there is nothing left to log against.
+  // A pool past its deadline but inside the late-logging window stays: the
+  // meetings held before the deadline can still be logged against it.
   const mine = new Set(allocations.map((a) => key(a)));
   for (const p of poolAllocations) {
     if (mine.has(key(p))) continue;
-    if (p.minutes <= 0 || deadlinePassed(p.deadline)) continue;
+    if (p.minutes <= 0 || Date.now() >= lateLogCloses(p.deadline)) continue;
     if (!inScope(p.student, p.programId)) continue;
     students.push({
       profile: p.student,
@@ -1155,7 +1157,7 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
       extra: extraBy.get(key(p)) ?? 0,
       remaining: 0,
       deadline: p.deadline,
-      expired: false,
+      expired: deadlinePassed(p.deadline),
       approved: p.student.user.status === USER_STATUS.ACTIVE,
       pool: p.minutes,
       reach: "pool",
@@ -1380,8 +1382,13 @@ export function logSessionOptions(
     row.choices.push({
       id: s.program.id,
       name: s.program.name,
+      // Past the deadline is not closed yet: for two weeks the meetings held
+      // before it can still be logged, and a mentor who is two days late has
+      // to be told that, not "extra hours only".
       balance: s.expired
-        ? `Hours expired${s.deadline ? ` ${formatDate(s.deadline)}` : ""} — extra hours only`
+        ? s.deadline && Date.now() < lateLogCloses(s.deadline)
+          ? `Hours expired ${formatDate(s.deadline)} — sessions held by then can be logged until ${formatDate(lateLogLastDay(s.deadline))}`
+          : `Hours expired${s.deadline ? ` ${formatDate(s.deadline)}` : ""} — extra hours only`
         : s.pool != null
           ? `${formatDuration(s.pool)} unassigned — ${claims}`
           : s.allocated > 0

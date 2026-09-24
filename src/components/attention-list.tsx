@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { ArrowRightIcon } from "@/components/icons";
+import { CheckIcon, ChevronRightIcon } from "@/components/icons";
 import { Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
@@ -75,6 +75,7 @@ export function AttentionList({
         moreHref ? (
           <Link
             href={moreHref}
+            transitionTypes={["nav-forward"]}
             className="text-xs font-medium text-brand hover:underline"
           >
             {moreLabel ?? "See all"}
@@ -88,7 +89,9 @@ export function AttentionList({
       }
     >
       {statuses.length === 0 ? (
-        <p className="px-4 py-2 text-sm text-muted-fg sm:px-5">
+        <p className="flex items-baseline gap-1.5 px-4 py-2 text-sm text-muted-fg sm:px-5">
+          {/* Inbox zero gets the tick — the one moment "nothing" is the news. */}
+          <CheckIcon className="check-draw h-3.5 w-3.5 shrink-0 translate-y-0.5 text-ink/60" />
           {empty ?? "No active issues."}
         </p>
       ) : groups ? (
@@ -164,16 +167,17 @@ function AttentionRow({
   );
 
   return (
-    <li className="group/row flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 sm:px-5">
+    <li className="group/row flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 transition-colors has-[:active]:bg-canvas sm:px-5">
       {href && !action ? (
         // The row is the target. `min-w-0` so the subject's truncate works;
-        // without it the name sets the width and pushes the arrow off.
+        // without it the name sets the width and pushes the chevron off.
         <Link
           href={href}
+          transitionTypes={["nav-forward"]}
           className="group -my-1 flex min-w-0 flex-1 items-center justify-between gap-3 py-1"
         >
           <span className="min-w-0">{body}</span>
-          <ArrowRightIcon className="h-4 w-4 shrink-0 text-muted-fg transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+          <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg/70 transition-colors group-hover:text-brand" />
         </Link>
       ) : (
         <span className={cn("min-w-0", action ? "" : "flex-1")}>{body}</span>

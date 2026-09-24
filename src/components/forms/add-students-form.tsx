@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Input, inputClasses } from "@/components/ui/field";
+import { EmailInput, Input, inputClasses } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { createStudents } from "@/lib/actions/students";
 import {
@@ -130,9 +130,8 @@ function StudentRows({
           {rows.map((r, i) => (
             <div key={r.id} className="flex items-start gap-2">
               <div className="grid flex-1 gap-2 sm:grid-cols-4">
-                <Input
+                <EmailInput
                   name="email"
-                  type="email"
                   value={r.email}
                   onChange={(e) => update(r.id, "email", e.target.value)}
                   placeholder="student@example.com"

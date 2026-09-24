@@ -21,6 +21,7 @@ import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
 import { formatDate, formatDuration } from "@/lib/format";
+import { allocationSummary, canBookOn } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import {
   assignmentsForStudentWhere,
@@ -401,6 +402,7 @@ async function MentorRecord({
                   {manages ? (
                     <Link
                       href={`/programs/${row.id}`}
+                      transitionTypes={["nav-forward"]}
                       className="font-medium text-ink hover:text-brand"
                     >
                       {row.name}
@@ -610,6 +612,10 @@ async function MentorRecord({
  * indistinguishable from one who does not exist. A colleague sees only the
  * programs the two of them share — the old page showed a mentor every program
  * every other mentor worked in.
+ *
+ * And a student is handed the calendar only where they hold time with this
+ * mentor, in that pairing's program. Sharing a program is not a grant: this
+ * card was how students with none of a mentor's hours were booking them.
  */
 async function MentorCard({
   mentor,
@@ -621,6 +627,9 @@ async function MentorCard({
   isStudent: boolean;
 }) {
   let visible;
+  // Programs where a calendar may be offered. Null for a colleague, who books
+  // nobody and may see every shared link.
+  let bookableIn: Set<string> | null = null;
   if (isStudent) {
     const profile = await prisma.studentProfile.findUnique({
       where: { userId: viewer.id },
@@ -628,11 +637,20 @@ async function MentorCard({
     });
     // Not onboarded, or not approved yet — their home says what is next.
     if (!profile || viewer.status !== USER_STATUS.ACTIVE) redirect("/student");
-    visible = await prisma.mentorAssignment.findMany({
-      where: { mentorId: mentor.id, ...assignmentsForStudentWhere(profile) },
-      include: { program: true, cohort: true },
-      orderBy: { createdAt: "asc" },
-    });
+    const [pairings, hours] = await Promise.all([
+      prisma.mentorAssignment.findMany({
+        where: { mentorId: mentor.id, ...assignmentsForStudentWhere(profile) },
+        include: { program: true, cohort: true },
+        orderBy: { createdAt: "asc" },
+      }),
+      allocationSummary(profile.id),
+    ]);
+    visible = pairings;
+    bookableIn = new Set(
+      hours.perMentor.flatMap((h) =>
+        h.mentor?.id === mentor.id && canBookOn(h) ? [h.program.id] : []
+      )
+    );
   } else {
     // A colleague: the programs both of them work in, and nothing else.
     const mine = await prisma.mentorAssignment.findMany({
@@ -680,14 +698,15 @@ async function MentorCard({
                 {labelOf(a)}
               </span>
             )}
-            {a.calendlyUrl ? (
+            {a.calendlyUrl && (!bookableIn || bookableIn.has(a.programId)) ? (
               <ExternalLink variant="action" href={a.calendlyUrl}>
                 Book {first}
               </ExternalLink>
             ) : (
-              /* Never a dashed placeholder: a pairing with no booking link
-                 still has a person behind it, so the page hands over the way
-                 to reach them instead of announcing a missing setting. */
+              /* Never a dashed placeholder: a pairing with no booking link, or
+                 a student with no time left to book on it, still has a person
+                 behind it, so the page hands over the way to reach them
+                 instead of announcing a missing setting. */
               <ExternalLink variant="chip" href={`mailto:${mentor.email}`}>
                 {mentor.email}
               </ExternalLink>

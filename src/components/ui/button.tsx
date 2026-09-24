@@ -94,5 +94,14 @@ export function LinkButton({
   className,
   ...props
 }: LinkButtonProps) {
-  return <Link className={buttonClasses(variant, size, className)} {...props} />;
+  return (
+    <Link
+      /* "Log a session", "Allocate time" — every LinkButton drills into a
+         page, so it pushes forward. A caller that means otherwise can pass
+         its own transitionTypes. */
+      transitionTypes={["nav-forward"]}
+      className={buttonClasses(variant, size, className)}
+      {...props}
+    />
+  );
 }

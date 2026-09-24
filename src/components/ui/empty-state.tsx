@@ -45,13 +45,13 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center gap-2 px-6 py-10 text-center",
+        "rise-in flex flex-col items-center gap-2 px-6 py-10 text-center",
         framed && "rounded-xl border border-line bg-surface shadow-sm",
         className
       )}
     >
       {icon && (
-        <div className="mb-1 text-muted-fg/40 [&_svg]:h-8 [&_svg]:w-8">{icon}</div>
+        <div className="pop-in mb-1 text-muted-fg/40 [&_svg]:h-8 [&_svg]:w-8">{icon}</div>
       )}
       {title && (
         <p

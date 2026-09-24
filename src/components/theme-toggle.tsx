@@ -28,13 +28,29 @@ export function ThemeToggle({ className }: { className?: string }) {
   const flip = () => {
     const root = document.documentElement;
     const next = root.dataset.theme === "dark" ? "light" : "dark";
-    root.dataset.theme = next;
-    try {
-      localStorage.setItem("theme", next);
-    } catch {
-      // A browser blocking site data still gets the theme for this page; it
-      // just will not remember it. Losing the preference beats throwing.
-    }
+    const apply = () => {
+      root.dataset.theme = next;
+      try {
+        localStorage.setItem("theme", next);
+      } catch {
+        // A browser blocking site data still gets the theme for this page; it
+        // just will not remember it. Losing the preference beats throwing.
+      }
+    };
+    // Where supported, the swap is a crossfade — the whole interface morphs
+    // into the other theme rather than snapping. The "theme" type lets the
+    // chrome captures join the fade (globals.css) instead of holding still
+    // the way they do on page pushes. Browsers without the API (Safari <
+    // 18.4) get the same instant flip they always had.
+    const doc = document as Document & {
+      startViewTransition?: (opts: {
+        update: () => void;
+        types: string[];
+      }) => unknown;
+    };
+    if (doc.startViewTransition)
+      doc.startViewTransition({ update: apply, types: ["theme"] });
+    else apply();
   };
 
   return (

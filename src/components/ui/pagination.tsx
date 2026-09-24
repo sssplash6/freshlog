@@ -113,7 +113,7 @@ export function Pagination({
       <p className="text-xs text-muted-fg" aria-live="polite">
         {total <= pageSize ? (
           <>
-            {total} {unit}
+            {total} {total === 1 ? unit.replace(/s$/, "") : unit}
           </>
         ) : (
           <>

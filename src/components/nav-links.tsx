@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import {
   CalendarIcon,
+  ChartIcon,
   GearIcon,
   HomeIcon,
   InboxIcon,
@@ -40,12 +41,13 @@ const NAV_ICONS: [string, (p: { className?: string }) => React.ReactNode][] = [
   ["/mentors", UserIcon],
   ["/programs", LayersIcon],
   ["/sessions", CalendarIcon],
+  ["/analytics", ChartIcon],
   ["/feedback", StarIcon],
   ["/notifications", InboxIcon],
   ["/settings", GearIcon],
 ];
 
-function NavIcon({ href, className }: { href: string; className?: string }) {
+export function NavIcon({ href, className }: { href: string; className?: string }) {
   const hit = NAV_ICONS.filter(([prefix]) => href === prefix || href.startsWith(`${prefix}/`))
     .sort((a, b) => b[0].length - a[0].length)[0];
   const Icon = hit ? hit[1] : LayersIcon;
@@ -87,7 +89,9 @@ export function NavCount({ count, muted }: { count: number; muted?: boolean }) {
         muted ? "bg-canvas text-muted-fg" : "bg-brand text-on-brand"
       )}
     >
-      {count > 99 ? "99+" : count}
+      <span key={count} className="badge-pop inline-flex">
+        {count > 99 ? "99+" : count}
+      </span>
     </span>
   );
 }

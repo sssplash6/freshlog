@@ -55,7 +55,7 @@ export function ProgramChip({
 
   if (href) {
     return (
-      <Link href={href} title={program.name} className={classes}>
+      <Link href={href} title={program.name} transitionTypes={["nav-forward"]} className={classes}>
         {body(true)}
       </Link>
     );

@@ -76,6 +76,8 @@ export function NotificationBell({
             <li key={n.id}>
               <a
                 href={`/n/${n.id}`}
+                // The row's GET marks it read; warming it would read it early.
+                data-no-prefetch
                 className={`flex flex-col gap-0.5 px-4 py-2 transition-colors hover:bg-canvas ${
                   n.read ? "" : "bg-brand-soft/40"
                 }`}
@@ -100,6 +102,7 @@ export function NotificationBell({
       <div className="px-3 pt-2">
         <Link
           href="/notifications"
+          transitionTypes={["nav-forward"]}
           className="text-xs font-semibold text-brand hover:underline"
         >
           See all

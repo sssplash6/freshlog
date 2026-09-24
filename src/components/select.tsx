@@ -13,6 +13,8 @@ import { createPortal } from "react-dom";
 import { CheckIcon, ChevronDownIcon, SearchIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 import { useAnchoredPosition } from "@/lib/use-anchored-position";
+import { useMediaQuery } from "@/lib/use-media-query";
+import { useSwipeDownToDismiss } from "@/lib/use-swipe-down";
 
 export type SelectOption = {
   value: string;
@@ -157,10 +159,26 @@ export function Select({
 
   const withSearch = searchable ?? options.length > SEARCH_THRESHOLD;
 
-  const anchored = useAnchoredPosition(open, triggerRef, popRef, {
+  /* On a phone the listbox is a bottom sheet, not a dropdown pinned to the
+     trigger: that is where iOS puts pickers, and a floating box anchored to a
+     field mid-screen is the desktop shape a web app would show. */
+  const sheet = useMediaQuery("(max-width: 40rem)");
+
+  const anchored = useAnchoredPosition(open && !sheet, triggerRef, popRef, {
     matchTriggerWidth: true,
     maxHeight: 320,
   });
+
+  // A sheet is modal-feeling: the page behind must not scroll under it.
+  useEffect(() => {
+    if (!(open && sheet)) return;
+    const el = document.documentElement;
+    const prev = el.style.overflow;
+    el.style.overflow = "hidden";
+    return () => {
+      el.style.overflow = prev;
+    };
+  }, [open, sheet]);
 
   // Rows: the optional "no choice" row, then recent picks, then everything else.
   const rows = useMemo<Row[]>(() => {
@@ -225,6 +243,9 @@ export function Select({
     if (restoreFocus) triggerRef.current?.focus();
   };
 
+  // Sheets dismiss by dragging down, not only by tapping the dimmed page.
+  useSwipeDownToDismiss(popRef, open && sheet, () => close(false));
+
   const choose = (v: string) => {
     setValue(v);
     setInvalid(false);
@@ -287,7 +308,7 @@ export function Select({
   // it there fails silently, leaving the keystrokes at the trigger, where a
   // searchable select has nothing to do with them. Depends on the boolean, not
   // on `anchored` itself, or every re-measure on scroll would yank focus back.
-  const measured = anchored !== null;
+  const measured = sheet || anchored !== null;
   useEffect(() => {
     if (open && withSearch && measured) searchRef.current?.focus();
   }, [open, withSearch, measured]);
@@ -478,40 +499,72 @@ export function Select({
 
       {open &&
         createPortal(
-          <div
-            ref={popRef}
-            style={{
-              ...anchored?.style,
-              // Hidden for the single frame before it has been measured, so it
-              // never flashes at the top-left corner.
-              visibility: anchored ? "visible" : "hidden",
-            }}
-            className={cn(
-              "pop-in z-50 flex max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-lg",
-              anchored?.up ? "[--pop-origin:bottom]" : "[--pop-origin:top]",
+          <>
+            {sheet && (
+              // The dimmed page the sheet slides over; a tap on it closes,
+              // as tapping outside a native action sheet does.
+              <div
+                aria-hidden="true"
+                className="scrim-in fixed inset-0 z-40 bg-ink/30"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  close(false);
+                }}
+              />
             )}
-          >
-            {withSearch && (
-              <div className="flex items-center gap-2 border-b border-line px-3">
-                <SearchIcon className="h-4 w-4 shrink-0 text-muted-fg" />
-                <input
-                  ref={searchRef}
-                  type="text"
-                  role="combobox"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={onKeyDown}
-                  aria-label={`Search ${ariaLabel.toLowerCase()}`}
-                  aria-expanded
-                  aria-autocomplete="list"
-                  aria-controls={listId}
-                  aria-activedescendant={pickable(active) ? optionId(active) : undefined}
-                  placeholder="Type to filter…"
-                  className="min-h-11 min-w-0 flex-1 bg-transparent text-sm text-ink placeholder:text-muted-fg focus:outline-none"
+            <div
+              ref={popRef}
+              style={{
+                ...(sheet ? {} : anchored?.style),
+                // Hidden for the single frame before it has been measured, so it
+                // never flashes at the top-left corner.
+                visibility: measured ? "visible" : "hidden",
+              }}
+              className={cn(
+                "z-50 flex flex-col overflow-hidden border border-line bg-surface shadow-lg",
+                sheet
+                  ? // `var(--kb)` lifts the sheet above an open keyboard —
+                    // iOS overlays it rather than resizing the viewport.
+                    "sheet-up fixed inset-x-2 bottom-[calc(max(0.5rem,env(safe-area-inset-bottom))+var(--kb,0px))] max-h-[calc(72dvh-var(--kb,0px))] rounded-2xl"
+                  : cn(
+                      "pop-in max-w-[calc(100vw-1rem)] rounded-xl",
+                      anchored?.up
+                        ? "[--pop-origin:bottom]"
+                        : "[--pop-origin:top]",
+                    ),
+              )}
+            >
+              {sheet && (
+                <div
+                  aria-hidden="true"
+                  className="mx-auto mb-1 mt-1.5 h-1 w-9 shrink-0 rounded-full bg-line"
                 />
-              </div>
-            )}
-            <ul
+              )}
+              {withSearch && (
+                <div className="flex items-center gap-2 border-b border-line px-3">
+                  <SearchIcon className="h-4 w-4 shrink-0 text-muted-fg" />
+                  <input
+                    ref={searchRef}
+                    type="text"
+                    role="combobox"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={onKeyDown}
+                    aria-label={`Search ${ariaLabel.toLowerCase()}`}
+                    aria-expanded
+                    aria-autocomplete="list"
+                    aria-controls={listId}
+                    aria-activedescendant={
+                      pickable(active) ? optionId(active) : undefined
+                    }
+                    placeholder="Type to filter…"
+                    // text-base below sm: a focused field under 16px makes iOS
+                    // zoom the page, and it stays zoomed after you leave.
+                    className="min-h-11 min-w-0 flex-1 bg-transparent text-base text-ink placeholder:text-muted-fg focus:outline-none sm:text-sm"
+                  />
+                </div>
+              )}
+              <ul
               ref={listRef}
               id={listId}
               role="listbox"
@@ -523,29 +576,30 @@ export function Select({
                   Nothing matches “{query.trim()}”.
                 </li>
               )}
-              {rows.map((row, i) =>
-                row.kind === "header" ? (
-                  <li
-                    key={`h-${row.label}`}
-                    role="presentation"
-                    className="px-2.5 pb-1 pt-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted-fg"
-                  >
-                    {row.label}
-                  </li>
-                ) : (
-                  <SelectItem
-                    key={row.option.value || "__none"}
-                    id={optionId(i)}
-                    option={row.option}
-                    selected={row.option.value === value}
-                    active={i === active}
-                    onHover={() => setActive(i)}
-                    onSelect={() => choose(row.option.value)}
-                  />
-                ),
-              )}
-            </ul>
-          </div>,
+                {rows.map((row, i) =>
+                  row.kind === "header" ? (
+                    <li
+                      key={`h-${row.label}`}
+                      role="presentation"
+                      className="px-2.5 pb-1 pt-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted-fg"
+                    >
+                      {row.label}
+                    </li>
+                  ) : (
+                    <SelectItem
+                      key={row.option.value || "__none"}
+                      id={optionId(i)}
+                      option={row.option}
+                      selected={row.option.value === value}
+                      active={i === active}
+                      onHover={() => setActive(i)}
+                      onSelect={() => choose(row.option.value)}
+                    />
+                  ),
+                )}
+              </ul>
+            </div>
+          </>,
           document.body,
         )}
     </div>

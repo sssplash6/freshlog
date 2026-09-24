@@ -7,11 +7,11 @@ import {
   setWeeklyDigest,
 } from "@/lib/actions/email-prefs";
 import { setOwnTelegram } from "@/lib/actions/profile";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SettingsRow } from "@/components/ui/settings-row";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { Switch } from "@/components/ui/switch";
 
 /**
  * The rows on /settings that had no form of their own, because the things they
@@ -76,20 +76,20 @@ export function WeeklyDigestForm({ defaultOn }: { defaultOn: boolean }) {
       htmlFor={id}
       control={
         <form action={setWeeklyDigest} className="flex items-center gap-2">
-          <label className="flex min-h-11 items-center gap-2 text-sm text-ink">
-            <input
-              id={id}
-              type="checkbox"
-              name="weeklyDigest"
-              checked={on}
-              onChange={(e) => setOn(e.target.checked)}
-              className="h-4 w-4 shrink-0 accent-brand"
-            />
-            {on ? "On" : "Off"}
-          </label>
-          <Button type="submit" variant="secondary" size="sm">
-            Save
-          </Button>
+          {/* Flip is the whole interaction: the switch submits itself, the way
+              a Settings row does on a phone. A checkbox plus a Save button
+              reads as a form; this reads as a preference. A failed flip still
+              surfaces — rejected actions land on the toaster. */}
+          <Switch
+            id={id}
+            name="weeklyDigest"
+            checked={on}
+            onChange={(e) => {
+              setOn(e.target.checked);
+              e.target.form?.requestSubmit();
+            }}
+            aria-label="Weekly summary"
+          />
         </form>
       }
     />
@@ -134,38 +134,41 @@ function CategoryRow({
 }) {
   const [inApp, setInApp] = useState(category.inApp);
   const [email, setEmail] = useState(category.email);
+  // Either switch submits the pair — the row is one preference, and a flip is
+  // the whole interaction, not half of a form.
+  const flip = (set: (v: boolean) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    set(e.target.checked);
+    e.target.form?.requestSubmit();
+  };
 
   return (
     <form
       action={setNotificationPreference}
-      className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-2"
+      className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 py-2"
     >
       <input type="hidden" name="category" value={category.key} />
-      <span className="text-sm font-medium text-ink">{category.label}</span>
+      <div className="min-w-0">
+        <span className="text-sm font-medium text-ink">{category.label}</span>
+      </div>
       <div className="flex items-center gap-4">
         <label className="flex min-h-11 items-center gap-2 text-sm text-muted-fg">
-          <input
-            type="checkbox"
+          <Switch
             name="inApp"
             checked={inApp}
-            onChange={(e) => setInApp(e.target.checked)}
-            className="h-4 w-4 accent-brand"
+            onChange={flip(setInApp)}
+            aria-label={`${category.label} — in the app`}
           />
           In the app
         </label>
         <label className="flex min-h-11 items-center gap-2 text-sm text-muted-fg">
-          <input
-            type="checkbox"
+          <Switch
             name="email"
             checked={email}
-            onChange={(e) => setEmail(e.target.checked)}
-            className="h-4 w-4 accent-brand"
+            onChange={flip(setEmail)}
+            aria-label={`${category.label} — by email`}
           />
           Email
         </label>
-        <Button type="submit" variant="secondary" size="sm">
-          Save
-        </Button>
       </div>
     </form>
   );

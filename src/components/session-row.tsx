@@ -248,7 +248,7 @@ function SessionRowContent({
         <span className="tabular-nums">{formatDate(date)}</span>
         <Separator />
         {href ? (
-          <Link href={href} className="min-w-0 hover:text-brand">
+          <Link href={href} transitionTypes={["nav-forward"]} className="min-w-0 hover:text-brand">
             {summary}
           </Link>
         ) : (

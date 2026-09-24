@@ -5,9 +5,16 @@ import { useState, type ComponentProps } from "react";
 import { cn } from "@/lib/cn";
 import { FULL_NAME_RE, NAME_MAX } from "@/lib/actions/shared";
 
-/** The one text-field look, shared by Input, Textarea and the native Select. */
+/**
+ * The one text-field look, shared by Input, Textarea and the native Select.
+ *
+ * `text-base` below `sm` is load-bearing and about iOS, not readability: a
+ * focused field under 16px makes Safari zoom the page to fill the input, and
+ * it stays zoomed after you leave — the layout never quite comes back. 15px
+ * survives at ≥sm, where zoom on focus is a desktop-only irrelevance.
+ */
 export const inputClasses =
-  "min-h-11 w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-[0.9375rem] text-ink transition-colors placeholder:text-muted-fg hover:border-brand/40 focus:border-brand focus:outline-none";
+  "min-h-11 w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-base text-ink caret-brand transition-colors placeholder:text-muted-fg hover:border-brand/40 focus:border-brand focus:outline-none sm:text-[0.9375rem]";
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(inputClasses, className)} {...props} />;
@@ -36,6 +43,30 @@ export function NameInput({ className, ...props }: ComponentProps<"input">) {
       // make it `^^…$$` and match nothing.
       pattern={FULL_NAME_RE.source.replace(/^\^|\$$/g, "")}
       title="First and last name, please — not just one word."
+      className={className}
+      {...props}
+    />
+  );
+}
+
+/**
+ * The one email input: sign-in addresses, staff-typed student contacts.
+ *
+ * The attributes are the mobile contract, not decoration — without
+ * `autoCapitalize="none"` iOS uppercases the first letter of an email on every
+ * keyboard that isn't Safari's own, `autoCorrect` "fixes" dot-less domains,
+ * and without `autoComplete="email"` the password managers that actually fill
+ * these forms can't find the field.
+ */
+export function EmailInput({ className, ...props }: ComponentProps<"input">) {
+  return (
+    <Input
+      type="email"
+      autoComplete="email"
+      autoCapitalize="none"
+      autoCorrect="off"
+      spellCheck={false}
+      inputMode="email"
       className={className}
       {...props}
     />

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { CHARGED_SESSION, SESSION_STATUS } from "@/lib/constants";
-import { soonestExpiry } from "@/lib/deadlines";
+import { deadlinePassed, soonestExpiry } from "@/lib/deadlines";
 
 /**
  * Derived time values (spec §5): never stored as mutable counters. Every figure
@@ -107,7 +107,7 @@ export async function allocationSummary(
     const used = (k && usedByMentor.get(k)) || 0;
     const missed = (k && missedByMentor.get(k)) || 0;
     const extra = (k && extraByMentor.get(k)) || 0;
-    const expired = a.deadline.getTime() < now;
+    const expired = deadlinePassed(a.deadline, now);
     const forfeited = expired ? Math.max(0, a.minutes - used) : 0;
     return {
       mentor: a.mentor,
@@ -214,6 +214,20 @@ export async function allocationSummary(
 }
 
 export type AllocationSummary = Awaited<ReturnType<typeof allocationSummary>>;
+
+/**
+ * Whether a student may book this mentor, in this program, on this grant.
+ *
+ * A mentor's calendar is offered against time held with them and nothing else.
+ * Being paired into a student's program is not a grant: mentors were being
+ * booked by students of the program who held none of their hours, and then had
+ * to turn them away. Spent, expired and never-granted time all say no.
+ */
+export function canBookOn(
+  entry: Pick<AllocationSummary["perMentor"][number], "expired" | "remaining">
+): boolean {
+  return !entry.expired && entry.remaining > 0;
+}
 
 /**
  * Minutes a student has left with one specific mentor, in one program.

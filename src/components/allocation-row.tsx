@@ -4,6 +4,7 @@ import { Meter } from "@/components/ui/meter";
 import { DeadlineText, StatusChip } from "@/components/ui/status-chip";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
+import { ASSIGNMENT_PROGRESS } from "@/lib/constants";
 import { formatDuration, formatMoney } from "@/lib/format";
 import { EXPIRY_WINDOW_DAYS, type ViewerContext } from "@/lib/status";
 
@@ -67,7 +68,12 @@ export type AllocationEntry = {
    */
   program: { id: string; name: string };
   allocated: number;
-  /** What the table calls Assigned: allocation plus budgeted agenda work. */
+  /**
+   * What the table calls Assigned: the commitment to this mentor — the grant,
+   * or the open agenda's budget where work was planned past it. Never their
+   * sum: a task born of a grant is funded BY it, so adding the two counts the
+   * same hours twice.
+   */
   assigned?: number;
   completed: number;
   missed: number;
@@ -83,16 +89,21 @@ type PlannedAssignment = {
   programId: string;
   mentorId: string | null;
   minuteLimit: number | null;
+  progress: string;
   mentor: Omit<RowPerson, "href"> | null;
   program: { id: string; name: string };
 };
 
 /**
- * Add the agenda's hour budgets to the figure the table calls Assigned.
+ * Fold the agenda's open budgets into the figure the table calls Assigned.
  *
- * The allocation row owns the balance math; the agenda owns additional work
- * assigned to the mentor. A mentor with agenda work but no allocation gets a
- * row too, otherwise their assigned time disappears from this breakdown.
+ * A task's hour limit is funded by the grant that named it, not added on top
+ * — so Assigned is the LARGER of grant and plan: a 4h grant carrying a 4h
+ * task is 4h of commitment, while a 12h plan beside a 1h grant still reads as
+ * the 12h it promises. Done items count nothing — their hours are spent, and
+ * the delivered figure already carries them. A mentor with planned work but
+ * no allocation gets a row too, otherwise that commitment disappears from
+ * this breakdown.
  */
 export function timeByMentorEntries(
   entries: readonly AllocationEntry[],
@@ -107,6 +118,7 @@ export function timeByMentorEntries(
   >();
 
   for (const assignment of assignments) {
+    if (assignment.progress === ASSIGNMENT_PROGRESS.DONE) continue;
     const minutes = assignment.minuteLimit ?? 0;
     const k = key(assignment.programId, assignment.mentorId);
     const current = plans.get(k);
@@ -124,7 +136,7 @@ export function timeByMentorEntries(
     const planned = plans.get(
       key(entry.program.id, entry.mentor?.id ?? null),
     )?.planned ?? 0;
-    return { ...entry, assigned: entry.allocated + planned };
+    return { ...entry, assigned: Math.max(entry.allocated, planned) };
   });
 
   for (const [k, plan] of plans) {
@@ -348,7 +360,7 @@ export function AllocationRow({
       >
         {formatDuration(entry.remaining)}
       </Td>
-      {/* Last, and muted: the full commitment (allocation plus agenda) is
+      {/* Last, and muted: the commitment (the grant, or the plan past it) is
           context for the three delivery figures before it. */}
       <Td label="Assigned" align="right" className="tabular-nums text-muted-fg">
         <span className="inline-flex items-center justify-end gap-1.5">

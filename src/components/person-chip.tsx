@@ -116,7 +116,7 @@ export function PersonChip({
 
   if (href) {
     return (
-      <Link href={href} title={title} className={classes}>
+      <Link href={href} title={title} transitionTypes={["nav-forward"]} className={classes}>
         {body}
       </Link>
     );
@@ -212,6 +212,7 @@ export function PersonCell({
       // a one-line cell with no secondary would otherwise be about 20px tall.
       <Link
         href={href}
+        transitionTypes={["nav-forward"]}
         className={cn(
           "group flex min-h-11 min-w-0 items-center gap-2.5",
           className,

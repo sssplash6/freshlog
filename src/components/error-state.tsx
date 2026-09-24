@@ -46,6 +46,7 @@ export function ErrorState({
         <Button onClick={retry}>Try again</Button>
         <Link
           href={home}
+          transitionTypes={["nav-back"]}
           className="inline-flex h-10 items-center rounded-lg px-4 text-sm font-medium text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
         >
           Back to safety

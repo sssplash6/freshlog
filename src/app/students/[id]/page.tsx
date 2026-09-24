@@ -289,9 +289,10 @@ export default async function StudentWorkspacePage({
     (t) => t.progress !== ASSIGNMENT_PROGRESS.DONE
   );
 
-  // "Assigned" is the whole commitment to a mentor: their allocation plus
-  // the budgets on their agenda items. Keep the raw allocation on the entry
-  // because its editor and the completed/remaining math still act on that row.
+  // "Assigned" is the commitment to a mentor: the grant, or the open agenda's
+  // budget where work was planned past it — never their sum, since a task born
+  // of a grant is funded by it. Keep the raw allocation on the entry because
+  // its editor and the completed/remaining math still act on that row.
   const timeByMentor = timeByMentorEntries(
     toAllocationEntries(hours.perMentor, { mentorBase: "/mentors" }),
     ledger.assignments,
@@ -627,7 +628,11 @@ export default async function StudentWorkspacePage({
             renderActions={
               manages
                 ? (entry) =>
-                    entry.deadline ? (
+                    // Nobody edits the row that pays them: a grant is an
+                    // admin's write about a mentor, and when the admin IS the
+                    // mentor `setMentorAllocation` refuses — so the affordance
+                    // stays off the row it could not save anyway.
+                    entry.deadline && entry.mentor?.id !== me.id ? (
                       <AllocationRowActions
                         studentProfileId={profile.id}
                         programId={entry.program.id}
@@ -653,7 +658,7 @@ export default async function StudentWorkspacePage({
             renderAssignedActions={
               manages
                 ? (entry) =>
-                    entry.deadline ? (
+                    entry.deadline && entry.mentor?.id !== me.id ? (
                       <AllocationMinutesEditor
                         studentProfileId={profile.id}
                         programId={entry.program.id}

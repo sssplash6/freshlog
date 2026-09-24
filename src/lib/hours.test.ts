@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SESSION_STATUS } from "@/lib/constants";
 import {
   allocationSummary,
+  canBookOn,
   programTotals,
   remainingWithMentor,
   type StudentHoursRow,
@@ -338,5 +339,29 @@ describe("programTotals", () => {
     const totals = programTotals([row({ amountPaid: 12000 }), row({ amountPaid: 0 }), row({ amountPaid: 4500 })]);
     expect(totals.paid).toBe(16500);
     expect(totals.students).toBe(3);
+  });
+});
+
+describe("canBookOn", () => {
+  it("offers a calendar only against time still held", async () => {
+    const s = await student();
+    const held = await mentor();
+    const spent = await mentor();
+    const lapsed = await mentor();
+    await allocation({ studentId: s.id, mentorId: held.id, minutes: 120 });
+    await allocation({ studentId: s.id, mentorId: spent.id, minutes: 60 });
+    await session({ studentId: s.id, mentorId: spent.id, minutes: 60 });
+    await allocation({
+      studentId: s.id,
+      mentorId: lapsed.id,
+      minutes: 120,
+      deadlineInDays: -30,
+    });
+
+    const { perMentor } = await allocationSummary(s.id);
+    const of = (id: string) => perMentor.find((h) => h.mentor?.id === id)!;
+    expect(canBookOn(of(held.id))).toBe(true);
+    expect(canBookOn(of(spent.id))).toBe(false);
+    expect(canBookOn(of(lapsed.id))).toBe(false);
   });
 });

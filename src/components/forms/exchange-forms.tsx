@@ -94,7 +94,7 @@ export function SendOnExchangeForm({
           />
         </Field>
         <Field label="Minutes">
-          <Input name="minutes" type="number" min="1" step="1" required placeholder="420" />
+          <Input name="minutes" type="number" inputMode="numeric" min="1" step="1" required placeholder="420" />
         </Field>
         <Field label="Use by">
           <Input name="deadline" type="date" required />

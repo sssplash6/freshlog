@@ -85,6 +85,12 @@ export function useSaveState(
     setSeen({ result, at: result?.ok ? new Date() : null });
   }
 
+  // The save's felt acknowledgement: the check draws itself in render, and on
+  // Android the device ticks under the thumb. iOS ignores vibrate entirely.
+  useEffect(() => {
+    if (result?.ok) navigator.vibrate?.(6);
+  }, [result]);
+
   useUnsavedChanges(unsaved);
 
   return [
@@ -158,7 +164,7 @@ export function SaveState({
       <p role="status">
         {saved && (
           <span className="rise-in flex flex-wrap items-baseline gap-x-1.5 text-sm text-ink">
-            <CheckIcon className="h-3.5 w-3.5 shrink-0 translate-y-0.5" />
+            <CheckIcon className="check-draw h-3.5 w-3.5 shrink-0 translate-y-0.5" />
             {saved.message ?? "Saved"}
             {saved.at && (
               <span className="tabular-nums text-muted-fg">

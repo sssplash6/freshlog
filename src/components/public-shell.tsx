@@ -1,4 +1,7 @@
+import pkg from "../../package.json";
+import { BrandWordmark } from "@/components/brand-wordmark";
 import { LogOutIcon } from "@/components/icons";
+import { PageTransition } from "@/components/page-transition";
 import { signOut } from "@/lib/auth";
 import type { User } from "@/generated/prisma/client";
 
@@ -36,10 +39,8 @@ export function PublicShell({
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <header className="border-b border-line bg-surface">
-        <div className="mx-auto flex min-h-16 max-w-2xl items-center justify-between gap-3 px-4">
-          <span className="text-base font-bold tracking-tight text-brand">
-            freshlog
-          </span>
+        <div className="mx-auto flex min-h-16 max-w-2xl items-center justify-between gap-3 px-4 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]">
+          <BrandWordmark version={pkg.version} />
           {user && (
             <form action={signOutAction} className="flex items-center gap-2">
               <span className="hidden min-w-0 truncate text-sm text-muted-fg sm:inline">
@@ -57,8 +58,8 @@ export function PublicShell({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
-        {children}
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]">
+        <PageTransition>{children}</PageTransition>
       </main>
     </div>
   );

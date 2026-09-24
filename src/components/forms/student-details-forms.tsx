@@ -13,7 +13,7 @@ import {
   unenrollStudent,
 } from "@/lib/actions/students";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
-import { Field, Input, NameInput } from "@/components/ui/field";
+import { EmailInput, Field, Input, NameInput } from "@/components/ui/field";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -125,9 +125,8 @@ export function StudentEmailChange({
         <form action={action} className="space-y-2">
           <input type="hidden" name="studentProfileId" value={studentProfileId} />
           <Field label="Email">
-            <Input
+            <EmailInput
               name="email"
-              type="email"
               required
               defaultValue={currentEmail}
             />

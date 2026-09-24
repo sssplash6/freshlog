@@ -1,5 +1,5 @@
 import { PersonBadge } from "@/components/person-chip";
-import { ArrowRightIcon } from "@/components/icons";
+import { ChevronRightIcon } from "@/components/icons";
 import { NOTIFICATION_META } from "@/lib/constants";
 import { formatAgo } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -55,9 +55,14 @@ function NotificationRow({
       */}
       <a
         href={`/n/${n.id}`}
+        // The gesture layer prefetches on touch-down too — same reason, so
+        // same guard.
+        data-no-prefetch
         className={cn(
           "group flex w-full items-start gap-3 px-4 py-2 text-left transition-colors sm:px-5",
-          n.read ? "hover:bg-canvas" : "bg-brand-soft/40 hover:bg-brand-soft/70",
+          n.read
+            ? "hover:bg-canvas active:bg-canvas"
+            : "bg-brand-soft/40 hover:bg-brand-soft/70 active:bg-brand-soft/70",
         )}
       >
           <span
@@ -92,7 +97,7 @@ function NotificationRow({
             </span>
           </span>
           {n.href && (
-            <ArrowRightIcon className="mt-1 h-4 w-4 shrink-0 text-muted-fg transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+            <ChevronRightIcon className="mt-1 h-4 w-4 shrink-0 text-muted-fg/70 transition-colors group-hover:text-brand" />
           )}
       </a>
     </li>

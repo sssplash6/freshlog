@@ -3,9 +3,11 @@
 function Svg({
   children,
   className,
+  ...rest
 }: {
   children: React.ReactNode;
   className?: string;
+  "data-chev"?: boolean;
 }) {
   return (
     <svg
@@ -17,6 +19,7 @@ function Svg({
       strokeLinejoin="round"
       aria-hidden="true"
       className={className}
+      {...rest}
     >
       {children}
     </svg>
@@ -98,6 +101,23 @@ export function ChevronDownIcon({ className }: { className?: string }) {
   );
 }
 
+export function ChevronLeftIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path d="m15 18-6-6 6-6" />
+    </Svg>
+  );
+}
+
+/** The row-edge "this drills in" mark — the iOS cell chevron, not an arrow. */
+export function ChevronRightIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className} data-chev>
+      <path d="m9 18 6-6-6-6" />
+    </Svg>
+  );
+}
+
 /** A state that wants attention, or a problem. Same glyph, tone tells them apart. */
 export function AlertIcon({ className }: { className?: string }) {
   return (
@@ -143,6 +163,17 @@ export function MoreVerticalIcon({ className }: { className?: string }) {
       <circle cx="12" cy="5" r="1" />
       <circle cx="12" cy="12" r="1" />
       <circle cx="12" cy="19" r="1" />
+    </Svg>
+  );
+}
+
+/** The tab bar's overflow slot — the fifth destination and beyond. */
+export function MoreHorizontalIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <circle cx="5" cy="12" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
     </Svg>
   );
 }
@@ -201,6 +232,16 @@ export function CalendarIcon({ className }: { className?: string }) {
       <rect x="3" y="5" width="18" height="16" rx="2" />
       <path d="M3 10h18" />
       <path d="M8 3v4M16 3v4" />
+    </Svg>
+  );
+}
+
+/** Rising bars — hours over time. */
+export function ChartIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path d="M4 20h16" />
+      <path d="M7 16v-4M12 16V8M17 16V5" />
     </Svg>
   );
 }
