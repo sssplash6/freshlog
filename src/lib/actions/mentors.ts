@@ -95,8 +95,8 @@ async function resolveAssignmentTargets(raw: FormDataEntryValue[]) {
 }
 
 /**
- * Admin registers a mentor directly (the mentor pool is small): email, full
- * name, and every program — or cohort, where the program has them — they
+ * Admin registers a mentor directly (the mentor pool is small): email, first
+ * and last name, and every program — or cohort, where the program has them — they
  * work in. The mentor then signs in with Google and sets their own booking
  * links.
  */
@@ -111,7 +111,13 @@ export async function createMentor(
   if (!EMAIL_RE.test(email)) {
     return { ok: false, error: "Enter a valid email address." };
   }
-  const parsed = parseNameField(formData.get("name"), "the mentor's");
+  // Asked for as two halves and joined into the one string `User.name` holds,
+  // as `addStudents` does; one half alone is one word and refused below.
+  const joined = [formData.get("firstName"), formData.get("lastName")]
+    .map((part) => String(part ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+  const parsed = parseNameField(joined, "the mentor's");
   if ("error" in parsed) return { ok: false, error: parsed.error };
   const name = parsed.value;
 

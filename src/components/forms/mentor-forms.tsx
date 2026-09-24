@@ -1,10 +1,11 @@
 "use client";
 
 import { ProgramTargetsPicker } from "@/components/forms/program-targets-picker";
-import { EmailInput, Field, NameInput } from "@/components/ui/field";
+import { EmailInput, Field, Input, NameInput } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { createMentor, updateMentor } from "@/lib/actions/mentors";
+import { NAME_MAX } from "@/lib/actions/shared";
 import type { ProgramOption } from "@/lib/queries";
 
 /**
@@ -26,7 +27,8 @@ import type { ProgramOption } from "@/lib/queries";
  */
 
 /**
- * Register a mentor: an email, a name, and the programs they work in.
+ * Register a mentor: an email, a first and last name, and the programs they
+ * work in.
  *
  * The mentor signs in with Google against that email afterwards and sets their
  * own booking links; nothing here can set one, because a link is per pairing
@@ -49,8 +51,27 @@ export function RegisterMentorForm({ programs }: { programs: ProgramOption[] }) 
             placeholder="mentor@example.com"
           />
         </Field>
-        <Field label="Full name" required>
-          <NameInput name="name" required />
+      </div>
+      {/* Two boxes, not one: a box labelled "Full name" is a box people put one
+          word in. `createMentor` joins them, the same as the students form. */}
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <Field label="First name" required>
+          <Input
+            name="firstName"
+            type="text"
+            required
+            autoComplete="off"
+            maxLength={NAME_MAX}
+          />
+        </Field>
+        <Field label="Last name" required>
+          <Input
+            name="lastName"
+            type="text"
+            required
+            autoComplete="off"
+            maxLength={NAME_MAX}
+          />
         </Field>
       </div>
       <ProgramTargetsPicker programs={programs} legend="Programs" />
