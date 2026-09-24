@@ -31,7 +31,11 @@ export default async function AnalyticsPage() {
   return (
     <Dashboard
       data={data}
-      today={{ year: today.getUTCFullYear(), month: today.getUTCMonth() }}
+      today={{
+        year: today.getUTCFullYear(),
+        month: today.getUTCMonth(),
+        day: today.getUTCDate(),
+      }}
     />
   );
 }

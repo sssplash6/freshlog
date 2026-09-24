@@ -22,7 +22,7 @@ export function deadlinePassed(deadline: Date, now: number = Date.now()): boolea
  * so its date is what is held against the deadline. The window is what stops
  * that from reopening forfeited hours months later.
  */
-export const LATE_LOG_GRACE_DAYS = 7;
+export const LATE_LOG_GRACE_DAYS = 14;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

@@ -115,10 +115,10 @@ describe("chargeableAgainst", () => {
     ).toEqual({ ok: false, reason: "after-deadline" });
   });
 
-  it("closes a week after the deadline day ends", () => {
-    // Last day to log is the 20th; Tashkent midnight after it is 19:00Z.
-    expect(chargeableAgainst(deadline, held, Date.parse("2026-09-20T18:59:00Z")).ok).toBe(true);
-    expect(chargeableAgainst(deadline, held, Date.parse("2026-09-20T19:00:00Z"))).toEqual({
+  it("closes two weeks after the deadline day ends", () => {
+    // Last day to log is the 27th; Tashkent midnight after it is 19:00Z.
+    expect(chargeableAgainst(deadline, held, Date.parse("2026-09-27T18:59:00Z")).ok).toBe(true);
+    expect(chargeableAgainst(deadline, held, Date.parse("2026-09-27T19:00:00Z"))).toEqual({
       ok: false,
       reason: "too-late",
     });

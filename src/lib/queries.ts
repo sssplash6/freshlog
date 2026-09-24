@@ -1382,7 +1382,7 @@ export function logSessionOptions(
     row.choices.push({
       id: s.program.id,
       name: s.program.name,
-      // Past the deadline is not closed yet: for a week the meetings held
+      // Past the deadline is not closed yet: for two weeks the meetings held
       // before it can still be logged, and a mentor who is two days late has
       // to be told that, not "extra hours only".
       balance: s.expired

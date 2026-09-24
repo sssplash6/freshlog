@@ -288,7 +288,7 @@ describe("logSession on a mentor's behalf", () => {
  * A mentor met a student late on the 13th, went to sleep, and came back two
  * days later to be told the hours had expired — the check had asked when the
  * log was typed. A session held while the hours were good spent them, and may
- * be logged for a week after the deadline; one held after it may not.
+ * be logged for two weeks after the deadline; one held after it may not.
  */
 describe("logSession against a deadline", () => {
   /** A program day `n` days from today, as the form sends it. */
@@ -334,10 +334,10 @@ describe("logSession against a deadline", () => {
     });
   });
 
-  it("refuses once the late-logging week is over", async () => {
-    const { s } = await heldWith(-8);
+  it("refuses once the late-logging fortnight is over", async () => {
+    const { s } = await heldWith(-15);
 
-    expect(await log(s.id, { date: day(-9) })).toMatchObject({
+    expect(await log(s.id, { date: day(-16) })).toMatchObject({
       ok: false,
       field: "timeKind",
     });
