@@ -13,7 +13,11 @@ import { StatusChip } from "@/components/ui/status-chip";
 import { ROLES, USER_STATUS, canActAsMentor } from "@/lib/constants";
 import { requireRole } from "@/lib/dal";
 
-import { allocationSummary, type AllocationSummary } from "@/lib/hours";
+import {
+  allocationSummary,
+  canBookOn,
+  type AllocationSummary,
+} from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { assignmentsForStudentWhere } from "@/lib/queries";
 import {
@@ -29,13 +33,13 @@ type Mentor = NonNullable<MentorHours["mentor"]>;
 /**
  * One mentor: the time held with them, and the way to reach them.
  *
- * `hours` and `bookingUrl` are independently optional because the two facts
- * come from two different tables that do not have to agree — which is the bug
- * this page was rebuilt around. See the union below.
+ * `hours` is always there — a row exists because the student holds (or held)
+ * time with this mentor. `bookingUrl` is optional because it comes from the
+ * pairing, a different table that does not have to agree.
  */
 type BookRow = {
   mentor: Mentor;
-  hours: MentorHours | null;
+  hours: MentorHours;
   bookingUrl: string | null;
   /** A calendar this student may actually open. See `offersBooking`. */
   bookable: boolean;
@@ -56,11 +60,11 @@ function offersBooking(mentor: Mentor, bookingUrl: string | null): boolean {
   );
 }
 
-/** Soonest use-by first; a mentor with no allocation has no clock and goes last. */
+/** Soonest use-by first; time with no deadline has no clock and goes last. */
 function byUseBy(a: BookRow, b: BookRow): number {
   return (
-    (a.hours?.deadline?.getTime() ?? Infinity) -
-    (b.hours?.deadline?.getTime() ?? Infinity)
+    (a.hours.deadline?.getTime() ?? Infinity) -
+    (b.hours.deadline?.getTime() ?? Infinity)
   );
 }
 
@@ -90,48 +94,49 @@ export default async function StudentBookPage() {
   ]);
 
   // A mentor can be paired twice — once program-wide, once for the cohort — so
-  // what matters is whether they have a link ANYWHERE, not whether the pairing
-  // this student's cohort happened to match carries one.
-  const pairings = new Map<string, { mentor: Mentor; bookingUrl: string | null }>();
+  // a pairing's link is looked up per (program, mentor), taking whichever of
+  // the two carries one. The mentor-wide entry is the fallback for time held in
+  // a program whose own pairing has no link yet: it is the same person's
+  // calendar either way.
+  const links = new Map<string, string>();
   for (const a of assignments) {
-    const seen = pairings.get(a.mentorId);
-    if (!seen?.bookingUrl) {
-      pairings.set(a.mentorId, { mentor: a.mentor, bookingUrl: a.calendlyUrl });
-    }
+    if (!a.calendlyUrl) continue;
+    const pair = `${a.programId}:${a.mentorId}`;
+    if (!links.has(pair)) links.set(pair, a.calendlyUrl);
+    if (!links.has(a.mentorId)) links.set(a.mentorId, a.calendlyUrl);
   }
 
-  // THE UNION, and the reason this page was rebuilt: it is keyed on the mentor,
-  // and a mentor qualifies by holding this student's time OR by having a
-  // calendar to open. Keying it on `MentorAssignment` alone — the pairing — put
-  // hours a student still holds with a mentor whose pairing was later removed
-  // inside the ring total on /student and on no page at all: they could see the
-  // balance and not whose it was.
+  // Keyed on the mentor, and a mentor qualifies ONLY by holding this student's
+  // time. A pairing alone is not an invitation: mentors were booked by students
+  // of their program who held none of their hours, and had to turn them away
+  // (Sep 2026). Keying on the allocation also keeps time held with a mentor
+  // whose pairing was later removed on this page, where the student can see
+  // whose it is.
   const rows = new Map<string, BookRow>();
   for (const h of hours.perMentor) {
     // Pooled time has no mentor to book with; the state row above names it.
     if (!h.mentor) continue;
-    const bookingUrl = pairings.get(h.mentor.id)?.bookingUrl ?? null;
-    rows.set(h.mentor.id, {
+    const bookingUrl =
+      links.get(`${h.program.id}:${h.mentor.id}`) ??
+      links.get(h.mentor.id) ??
+      null;
+    const row: BookRow = {
       mentor: h.mentor,
       hours: h,
       bookingUrl,
-      bookable:
-        offersBooking(h.mentor, bookingUrl) && !h.expired && h.remaining >= 0,
-    });
-  }
-  for (const [mentorId, { mentor, bookingUrl }] of pairings) {
-    if (rows.has(mentorId)) continue;
-    // No time and no calendar is nothing to offer. This is what emptied the
-    // page of its eight dashed placeholders.
-    if (!offersBooking(mentor, bookingUrl)) continue;
-    rows.set(mentorId, { mentor, hours: null, bookingUrl, bookable: true });
+      bookable: offersBooking(h.mentor, bookingUrl) && canBookOn(h),
+    };
+    // Time with one mentor in two programs is two entries; the one that can
+    // still be booked is the one this card is for.
+    const seen = rows.get(h.mentor.id);
+    if (!seen || (!seen.bookable && row.bookable)) rows.set(h.mentor.id, row);
   }
 
   const all = [...rows.values()].sort(byUseBy);
   // Settled: nothing left to spend and nothing to book. Folded rather than cut —
   // the count keeps the magnitude on screen, and expired or overdrawn time is
   // still time the student needs to be able to name.
-  const settled = all.filter((r) => !r.bookable && (r.hours?.remaining ?? 0) <= 0);
+  const settled = all.filter((r) => !r.bookable && r.hours.remaining <= 0);
   const live = all.filter((r) => !settled.includes(r));
   // A fold that hides everything is just a hidden page.
   const open = live.length > 0 ? live : settled;
@@ -239,16 +244,12 @@ function MentorRow({
   const { mentor, hours, bookingUrl, bookable } = row;
   const name = mentor.name ?? mentor.email;
 
-  // A pairing with a calendar but no grant behind it yet: bookable, and honest
-  // about the fact that nothing has been allocated.
-  const noTime = hours ? null : status("BALANCE_NONE", viewer);
-
   // One chip, for the one thing standing between this row and a booking.
   // Overdrawn is deliberately absent: the balance beside the name already says
   // "over", in red, and saying it twice on one row is the habit this page was
   // rebuilt to drop.
   const blocked =
-    hours?.expired && hours.forfeited > 0
+    hours.expired && hours.forfeited > 0
       ? status("ALLOCATION_EXPIRED", viewer, { minutes: hours.forfeited })
       : !bookingUrl && sayLinkState
         ? status("BOOKING_LINK_MISSING", viewer)
@@ -270,22 +271,16 @@ function MentorRow({
           className="min-w-0 flex-1"
         />
         <span className="shrink-0">
-          {hours ? (
-            <AllocationBalance entry={hours} />
-          ) : (
-            noTime && <StatusChip status={noTime} />
-          )}
+          <AllocationBalance entry={hours} />
         </span>
       </div>
 
-      {hours && (
-        <AllocationMeter
-          entry={hours}
-          viewer={viewer}
-          label={`Time with ${name}`}
-          className="mt-2"
-        />
-      )}
+      <AllocationMeter
+        entry={hours}
+        viewer={viewer}
+        label={`Time with ${name}`}
+        className="mt-2"
+      />
 
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
         {bookable && bookingUrl ? (
