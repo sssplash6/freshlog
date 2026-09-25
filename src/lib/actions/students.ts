@@ -14,6 +14,7 @@ import { notify, notificationHref, staffIdsFor } from "@/lib/notify";
 import {
   ASSIGNMENT_PROGRESS,
   canActAsMentor,
+  CHARGED_SESSION,
   EXCHANGE_STATUS,
   NOTIFICATION_TYPES,
   PLACEHOLDER_EMAIL_DOMAIN,
@@ -37,6 +38,7 @@ import { emailConfigured } from "@/lib/email/send";
 import { sendWelcomeEmails, welcomeMail } from "@/lib/email/welcome";
 import { enrollmentsLabel } from "@/lib/enrollments";
 import { allocatedUnder, ExchangeCapExceeded } from "@/lib/exchanges";
+import { deadlinePassed } from "@/lib/deadlines";
 import type { Cohort, Program } from "@/generated/prisma/client";
 
 /** "Program" or "Program / Cohort" display label. */
@@ -1643,5 +1645,277 @@ export async function removeMentorAllocation(
     message: mentorLabel
       ? `${mentorLabel} removed from this student in ${allocation.program.name}, along with the tasks their time was for.`
       : `The unassigned time in ${allocation.program.name} was removed, along with the tasks it was for.`,
+  };
+}
+
+/** Thrown inside the transfer's transaction when a session logged meanwhile
+ *  has spent minutes the pre-check thought were free. */
+class TransferExceedsBalance extends Error {
+  constructor(readonly spare: number) {
+    super("transfer exceeds the unused balance");
+  }
+}
+
+/**
+ * Move unused time a student holds with one mentor to another mentor in the
+ * same program — what happens when a student changes mentors partway through.
+ *
+ * Before this existed the only tools were "grant" and "correct", so a hand-over
+ * was a grant to the new mentor that nobody remembered to pair with a cut to
+ * the old one, and the student showed up holding both. A transfer is the two
+ * halves as one write: the source goes down by exactly what the target goes up,
+ * each half is audited, and all three people are told.
+ *
+ * Only UNUSED minutes move. What the old mentor already delivered is history
+ * and stays theirs, and hours past their deadline are forfeited, not
+ * transferable. Everything stays inside the one program: the key is
+ * `(student, program, mentor)`, and a transfer across programs would spend one
+ * program's grant in another.
+ *
+ * The rules `setMentorAllocation` holds hold here too: admin scope on the
+ * grant's own program, and nobody moves hours to or from themselves.
+ */
+export async function transferMentorAllocation(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+
+  const profileId = String(formData.get("studentProfileId") ?? "");
+  const programId = String(formData.get("programId") ?? "").trim();
+  // Empty = the unassigned pool, which can hand its time to a mentor as well.
+  const fromMentorId = String(formData.get("fromMentorId") ?? "").trim() || null;
+  const toMentorId = String(formData.get("toMentorId") ?? "").trim();
+  const moveTasks = formData.get("moveTasks") === "on";
+
+  const parsed = parseMinutesField(formData.get("minutes"), {
+    min: 1,
+    label: "Minutes to move",
+  });
+  if ("error" in parsed) return { ok: false, error: parsed.error };
+  const minutes = parsed.value;
+
+  if (!toMentorId) return { ok: false, error: "Pick the mentor to move the time to." };
+  if (toMentorId === fromMentorId) {
+    return { ok: false, error: "Pick a different mentor — that one already holds this time." };
+  }
+
+  const source = await prisma.hourAllocation.findFirst({
+    where: { studentId: profileId, programId, mentorId: fromMentorId },
+    include: { program: true, student: { include: { user: true } }, mentor: true },
+  });
+  // "Not yours" and "does not exist" answer the same, before the gate as after.
+  if (!source) return { ok: false, error: "That allocation no longer exists." };
+  const denied = await assertProgramScope(actor, source.programId);
+  if (denied) return { ok: false, error: "That allocation no longer exists." };
+
+  if (fromMentorId === actor.id || toMentorId === actor.id) {
+    return {
+      ok: false,
+      error: "Your own hours are moved by another admin — not by you.",
+    };
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: toMentorId } });
+  if (!target || !canActAsMentor(target)) return { ok: false, error: "Pick a mentor." };
+
+  if (deadlinePassed(source.deadline)) {
+    return {
+      ok: false,
+      error: `These hours expired on ${formatDate(source.deadline)}, so there is nothing left to move.`,
+    };
+  }
+
+  const program = source.program;
+  const studentName = source.student.user.name ?? source.student.user.email;
+  const fromLabel = source.mentor
+    ? (source.mentor.name ?? source.mentor.email)
+    : null;
+  const toLabel = target.name ?? target.email;
+
+  /** Minutes the source still holds unspent, read through `db`. */
+  const spareIn = async (db: Pick<typeof prisma, "hourAllocation" | "session">) => {
+    const row = await db.hourAllocation.findUnique({ where: { id: source.id } });
+    if (!row) return { row: null, spare: 0 };
+    if (!fromMentorId) return { row, spare: row.minutes };
+    const used = await db.session.aggregate({
+      where: { studentId: profileId, programId, mentorId: fromMentorId, ...CHARGED_SESSION },
+      _sum: { minutes: true },
+    });
+    return { row, spare: Math.max(0, row.minutes - (used._sum.minutes ?? 0)) };
+  };
+
+  const before = await spareIn(prisma);
+  if (minutes > before.spare) {
+    return {
+      ok: false,
+      error:
+        before.spare === 0
+          ? `${fromLabel ?? "The unassigned time"} has no unused time to move.`
+          : `Only ${formatDuration(before.spare)} is unused — that is the most you can move.`,
+    };
+  }
+
+  const inProgram = await prisma.mentorAssignment.findFirst({
+    where: { mentorId: toMentorId, programId },
+  });
+
+  let tasksMoved = 0;
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Again from inside the transaction: a session logged since the check
+      // above may have spent part of what we were about to move.
+      const { row, spare } = await spareIn(tx);
+      if (!row || minutes > spare) throw new TransferExceedsBalance(spare);
+
+      const dest = await tx.hourAllocation.findUnique({
+        where: {
+          studentId_programId_mentorId: {
+            studentId: profileId,
+            programId,
+            mentorId: toMentorId,
+          },
+        },
+      });
+
+      // Money follows the hours in the programs that bill for them, in the
+      // same proportion — otherwise the old mentor's row would read as paid
+      // for time it no longer holds.
+      const paidMoved =
+        program.tracksPayment && row.amountPaid != null && row.minutes > 0
+          ? Number(((row.amountPaid * minutes) / row.minutes).toFixed(2))
+          : null;
+
+      await tx.hourAllocation.update({
+        where: { id: row.id },
+        data: {
+          minutes: row.minutes - minutes,
+          ...(paidMoved != null
+            ? { amountPaid: Number(((row.amountPaid ?? 0) - paidMoved).toFixed(2)) }
+            : {}),
+        },
+      });
+
+      const destOld = dest?.minutes ?? 0;
+      if (dest) {
+        // The later of the two dates, as a top-up keeps: hours already held
+        // are never shortened by the ones arriving.
+        const deadline = dest.deadline > row.deadline ? dest.deadline : row.deadline;
+        await tx.hourAllocation.update({
+          where: { id: dest.id },
+          data: {
+            minutes: destOld + minutes,
+            deadline,
+            ...(deadline.getTime() !== dest.deadline.getTime() ? { deadlineStage: null } : {}),
+            ...(paidMoved != null
+              ? { amountPaid: Number(((dest.amountPaid ?? 0) + paidMoved).toFixed(2)) }
+              : {}),
+            ...(row.exchangeId && !dest.exchangeId ? { exchangeId: row.exchangeId } : {}),
+          },
+        });
+      } else {
+        await tx.hourAllocation.create({
+          data: {
+            studentId: profileId,
+            programId,
+            mentorId: toMentorId,
+            minutes,
+            deadline: row.deadline,
+            ...(paidMoved != null ? { amountPaid: paidMoved } : {}),
+            // Still the same placement's time: moving it between the host
+            // program's mentors does not change what it was lent under.
+            ...(row.exchangeId ? { exchangeId: row.exchangeId } : {}),
+          },
+        });
+      }
+
+      if (!inProgram) {
+        await tx.mentorAssignment.create({
+          data: { mentorId: toMentorId, programId, cohortId: null },
+        });
+      }
+
+      await tx.hourAllotmentChange.createMany({
+        data: [
+          {
+            studentId: profileId,
+            programId,
+            mentorId: fromMentorId,
+            changedById: actor.id,
+            oldMinutes: row.minutes,
+            newMinutes: row.minutes - minutes,
+          },
+          {
+            studentId: profileId,
+            programId,
+            mentorId: toMentorId,
+            changedById: actor.id,
+            oldMinutes: destOld,
+            newMinutes: destOld + minutes,
+          },
+        ],
+      });
+
+      // The open work goes with the time when the admin asks: the new mentor
+      // logs against it, and the old one stops seeing it on their list.
+      // Finished tasks stay where they were done.
+      if (moveTasks) {
+        const moved = await tx.assignment.updateMany({
+          where: {
+            studentId: profileId,
+            programId,
+            mentorId: fromMentorId,
+            progress: { not: ASSIGNMENT_PROGRESS.DONE },
+          },
+          data: { mentorId: toMentorId },
+        });
+        tasksMoved = moved.count;
+      }
+
+      const taskNote =
+        tasksMoved > 0
+          ? ` ${tasksMoved === 1 ? "One open task" : `${tasksMoved} open tasks`} moved with it.`
+          : "";
+      await notify(tx, {
+        to: fromMentorId ? [fromMentorId] : [],
+        type: NOTIFICATION_TYPES.HOURS_GRANTED,
+        actorId: actor.id,
+        href: notificationHref.mentorStudent(profileId),
+        message: `${formatDuration(minutes)} of your time with ${studentName} moved to ${toLabel}. You now hold ${formatDuration(row.minutes - minutes)} with them.${taskNote}`,
+      });
+      await notify(tx, {
+        to: [toMentorId],
+        type: NOTIFICATION_TYPES.HOURS_GRANTED,
+        actorId: actor.id,
+        href: notificationHref.mentorStudent(profileId),
+        message: `${formatDuration(minutes)} of ${studentName}'s time moved to you${fromLabel ? ` from ${fromLabel}` : ""}. You now hold ${formatDuration(destOld + minutes)} with them.${taskNote}`,
+      });
+      await notify(tx, {
+        to: [source.student.userId],
+        type: NOTIFICATION_TYPES.HOURS_GRANTED,
+        actorId: actor.id,
+        href: notificationHref.studentHome(),
+        message: `${formatDuration(minutes)} of your time${fromLabel ? ` with ${fromLabel}` : ""} moved to ${toLabel}. Your total hours are the same.`,
+      });
+    });
+  } catch (error) {
+    if (error instanceof TransferExceedsBalance) {
+      return {
+        ok: false,
+        error: `A session was just logged against this time. ${formatDuration(error.spare)} is unused now — move that or less.`,
+      };
+    }
+    throw error;
+  }
+
+  revalidatePath("/", "layout");
+  const taskSummary =
+    tasksMoved > 0
+      ? ` ${tasksMoved === 1 ? "Their open task went" : `${tasksMoved} open tasks went`} with it.`
+      : "";
+  return {
+    ok: true,
+    message: `Moved ${formatDuration(minutes)} from ${fromLabel ?? "the unassigned time"} to ${toLabel} in ${program.name}.${taskSummary}`,
   };
 }

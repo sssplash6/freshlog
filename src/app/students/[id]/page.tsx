@@ -651,6 +651,12 @@ export default async function StudentWorkspacePage({
                         }
                         showAmountPaid={paymentPrograms.has(entry.program.id)}
                         currentAmountPaid={entry.amountPaid ?? null}
+                        // In date and unspent is what a transfer can move;
+                        // `remaining` is already zero once a deadline passes.
+                        unusedMinutes={Math.max(0, entry.remaining)}
+                        transferTo={mentorOptions.filter(
+                          (m) => m.value !== entry.mentor?.id && m.value !== me.id
+                        )}
                       />
                     ) : null
                 : undefined

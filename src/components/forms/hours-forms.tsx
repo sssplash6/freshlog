@@ -20,6 +20,7 @@ import {
 import {
   removeMentorAllocation,
   setMentorAllocation,
+  transferMentorAllocation,
 } from "@/lib/actions/students";
 import {
   ASSIGNMENT_PROGRESS,
@@ -62,6 +63,8 @@ export function AllocationRowActions({
   openTasks = [],
   showAmountPaid = false,
   currentAmountPaid = null,
+  unusedMinutes = 0,
+  transferTo = [],
 }: {
   studentProfileId: string;
   /** Which program's grant this row is. An allocation cannot be addressed
@@ -76,6 +79,11 @@ export function AllocationRowActions({
   openTasks?: OpenTask[];
   showAmountPaid?: boolean;
   currentAmountPaid?: number | null;
+  /** What this row still holds unspent and in date — the most a transfer can
+   *  move. Zero hides the transfer: there is nothing to hand over. */
+  unusedMinutes?: number;
+  /** Mentors the time may be moved to. This row's own mentor is left out. */
+  transferTo?: SelectOption[];
 }) {
   const [minutes, setMinutes] = useState(String(currentMinutes));
   // A raise grants hours, and hours arriving name the work they are for.
@@ -150,6 +158,17 @@ export function AllocationRowActions({
         <SaveState state={setSave} />
       </RowActionGroup>
 
+      {unusedMinutes > 0 && transferTo.length > 0 && (
+        <TransferGroup
+          studentProfileId={studentProfileId}
+          programId={programId}
+          fromMentorId={mentorId}
+          unusedMinutes={unusedMinutes}
+          mentors={transferTo}
+          hasOpenTasks={openTasks.length > 0}
+        />
+      )}
+
       <RowActionGroup>
         <ConfirmInline
           variant="quiet"
@@ -173,6 +192,79 @@ export function AllocationRowActions({
         <SaveState state={delSave} />
       </RowActionGroup>
     </RowActionMenu>
+  );
+}
+
+/**
+ * Hand this row's unused time to another mentor in the same program — the
+ * student changed mentors. One write that takes from here exactly what it
+ * gives there, where "grant the new one, then remember to cut the old one"
+ * was two, and the second was the one that got forgotten.
+ */
+function TransferGroup({
+  studentProfileId,
+  programId,
+  fromMentorId,
+  unusedMinutes,
+  mentors,
+  hasOpenTasks,
+}: {
+  studentProfileId: string;
+  programId: string;
+  fromMentorId: string;
+  unusedMinutes: number;
+  mentors: SelectOption[];
+  hasOpenTasks: boolean;
+}) {
+  const [, action, save] = useSaveState(transferMentorAllocation);
+
+  return (
+    <RowActionGroup label="Move time to another mentor">
+      <form action={action} className="space-y-3">
+        <input type="hidden" name="studentProfileId" value={studentProfileId} />
+        <input type="hidden" name="programId" value={programId} />
+        <input type="hidden" name="fromMentorId" value={fromMentorId} />
+
+        <Field label="To">
+          <Select
+            name="toMentorId"
+            options={mentors}
+            placeholder="Pick a mentor"
+            ariaLabel="Mentor to move the time to"
+          />
+        </Field>
+
+        <Field label={`Minutes to move (${unusedMinutes} unused)`}>
+          <Input
+            name="minutes"
+            type="number"
+            inputMode="numeric"
+            min="1"
+            max={unusedMinutes}
+            step="1"
+            required
+            defaultValue={unusedMinutes}
+          />
+        </Field>
+
+        {hasOpenTasks && (
+          <label className="flex items-center gap-2 text-xs text-ink">
+            <input type="checkbox" name="moveTasks" defaultChecked />
+            Move their open tasks too
+          </label>
+        )}
+
+        <p className="text-[0.6875rem] text-muted-fg">
+          Logged time stays with the current mentor. The student&apos;s total
+          doesn&apos;t change.
+        </p>
+
+        <SubmitButton size="sm" pendingText="Moving…">
+          Move time
+        </SubmitButton>
+      </form>
+      <SaveState state={save} />
+    </RowActionGroup>
   );
 }
 
