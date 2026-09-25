@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 
 import { analyticsData } from "@/lib/analytics";
-import { adminScope, scopeProgramFilter } from "@/lib/authz";
-import { requireAdminAccess } from "@/lib/dal";
+import { requireUser } from "@/lib/dal";
 import { programWallClock } from "@/lib/when";
 
 import { Dashboard } from "./dashboard";
@@ -13,19 +12,19 @@ export const metadata: Metadata = { title: "Analytics · freshlog" };
  * Hours over time: the school, then one program, then one mentor, each by
  * month and — inside a month — by day.
  *
- * Every program the reader administers and none they do not: the same scope
- * every other staff page reads (`adminScope`), applied to the SESSION's own
- * program, so a mentor who works in two programs shows an admin of one of them
- * only that program's hours.
+ * Every signed-in person reads the whole school — students and mentors as well
+ * as staff, and staff past their own grants. That is a decision, not a missed
+ * scope: the page carries mentor names and hours, and never a student's name
+ * (`lib/analytics.ts`), so there is nothing on it one program must hide from
+ * another.
  *
  * All the drilling happens in the browser over one read. The URL carries the
  * position (`?y=&m=&p=&u=`) so a view can be shared and the back button walks
  * back up the levels.
  */
 export default async function AnalyticsPage() {
-  const user = await requireAdminAccess();
-  const scope = await adminScope(user);
-  const data = await analyticsData(scopeProgramFilter(scope));
+  await requireUser();
+  const data = await analyticsData(undefined);
   const today = programWallClock(new Date());
 
   return (

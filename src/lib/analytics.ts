@@ -17,8 +17,8 @@ import { prisma } from "@/lib/prisma";
  *   EXTRA      out of plan and attended — delivered, charged to nobody
  *   NO_SHOW    the student did not come — charged, but nothing was delivered
  *
- * WHOSE SESSIONS. `programIds` is the reader's scope, `undefined` for a platform
- * admin. A session belongs to the program it names (`Session.programId`), never
+ * WHOSE SESSIONS. `programIds` narrows to those programs; `undefined` is the
+ * whole school, which is what `/analytics` reads for everybody. A session belongs to the program it names (`Session.programId`), never
  * to the student's enrollments — so a student in two programs contributes each
  * meeting to exactly one of them. Visits on an exchange count in the HOST
  * program, where they were logged and nowhere else: "hours are new, never

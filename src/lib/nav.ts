@@ -49,11 +49,18 @@ export type NavItem = {
   count?: number;
 };
 
+/**
+ * The school's hours, and the one item every rail carries: `/analytics` asks
+ * only that you are signed in, so no lens and no grant can take it away.
+ */
+const analytics: NavItem = { href: "/analytics", label: "Analytics" };
+
 const STUDENT_NAV: NavItem[] = [
   { href: "/student", label: "Home" },
   { href: "/student/book", label: "Book" },
   { href: "/student/interviews", label: "Interviews" },
   { href: "/student/feedback", label: "Feedback" },
+  analytics,
 ];
 
 /**
@@ -82,7 +89,7 @@ function widest(levels: readonly (StaffLevel | null)[]): StaffLevel {
 async function staffNav(viewer: User, inbox?: number): Promise<NavItem[]> {
   const scope = await adminScope(viewer);
   const inboxItem: NavItem = { href: "/admin", label: "Inbox", count: inbox };
-  if (scopeIsEmpty(scope)) return [inboxItem];
+  if (scopeIsEmpty(scope)) return [inboxItem, analytics];
 
   const ids = scope === "ALL" ? [] : [...scope];
   const level: StaffLevel =
@@ -109,8 +116,9 @@ async function staffNav(viewer: User, inbox?: number): Promise<NavItem[]> {
   const students: NavItem = { href: "/students", label: "Students" };
   const feedback: NavItem = { href: "/feedback", label: "Feedback" };
 
-  if (level === "SALES") return [inboxItem, students, ...programItem];
-  if (level === "LEADER") return [inboxItem, students, feedback, ...programItem];
+  if (level === "SALES") return [inboxItem, students, ...programItem, analytics];
+  if (level === "LEADER")
+    return [inboxItem, students, feedback, ...programItem, analytics];
 
   return [
     inboxItem,
@@ -118,7 +126,7 @@ async function staffNav(viewer: User, inbox?: number): Promise<NavItem[]> {
     { href: "/mentors", label: "Mentors" },
     ...programItem,
     { href: "/sessions", label: "Sessions" },
-    { href: "/analytics", label: "Analytics" },
+    analytics,
     feedback,
   ];
 }
@@ -140,6 +148,7 @@ function mentorNav(inbox?: number): NavItem[] {
     { href: "/programs", label: "Programs" },
     { href: "/sessions", label: "Sessions" },
     { href: "/feedback", label: "Feedback" },
+    analytics,
   ];
 }
 
