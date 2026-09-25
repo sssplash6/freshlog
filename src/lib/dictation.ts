@@ -59,6 +59,28 @@ House vocabulary: never write "budgeted". A planned piece of work is an agenda i
 
 Reply with the note and nothing else. No preamble, no quotation marks, no markdown. If the recording contains no speech, reply with nothing at all.`;
 
+/**
+ * The same rules for a student's notes on a practice interview with a
+ * classmate. Everything that makes the session prompt careful applies here —
+ * the student proofreads, and an invented judgement of somebody else's answer
+ * is the expensive kind of wrong — only the speaker and the subject change.
+ */
+const INTERVIEW_SYSTEM = `You are given a voice recording of a student describing a practice interview they have just done with a classmate. Write out what they said, as interview notes in written English.
+
+Fix grammar, spelling and punctuation. Drop filler words, false starts and repetition. Keep the student's own sentences, their own words and roughly their own length: these are their notes tidied up, not a summary and not a rewrite.
+
+Never add a fact, a name, a date, a number, a judgement or a next step that was not said. If something was left vague, leave it vague rather than guessing what was meant.
+
+Reply with the notes and nothing else. No preamble, no quotation marks, no markdown. If the recording contains no speech, reply with nothing at all.`;
+
+/** What is being dictated, which picks the prompt. */
+export type DictationKind = "session" | "interview";
+
+const PROMPTS: Record<DictationKind, string> = {
+  session: SYSTEM,
+  interview: INTERVIEW_SYSTEM,
+};
+
 export type DictationResult =
   | { ok: true; text: string }
   | { ok: false; error: string };
@@ -76,7 +98,11 @@ export function dictationConfigured(): boolean {
 }
 
 /** The one place the provider is named. */
-async function ask(audio: Blob, names: string[]): Promise<string> {
+async function ask(
+  audio: Blob,
+  names: string[],
+  kind: DictationKind
+): Promise<string> {
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -87,7 +113,7 @@ async function ask(audio: Blob, names: string[]): Promise<string> {
       model: MODEL,
       max_tokens: 1000,
       messages: [
-        { role: "system", content: SYSTEM },
+        { role: "system", content: PROMPTS[kind] },
         {
           role: "user",
           content: [
@@ -137,7 +163,8 @@ async function ask(audio: Blob, names: string[]): Promise<string> {
  */
 export async function dictateNote(
   audio: Blob,
-  names: string[] = []
+  names: string[] = [],
+  kind: DictationKind = "session"
 ): Promise<DictationResult> {
   if (!dictationConfigured()) {
     return {
@@ -148,7 +175,7 @@ export async function dictateNote(
 
   let heard: string;
   try {
-    heard = await ask(audio, names);
+    heard = await ask(audio, names, kind);
   } catch (error) {
     console.error("[dictation] failed", error);
     return { ok: false, error: "Could not make out the recording. Try again." };

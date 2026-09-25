@@ -1,16 +1,18 @@
 import type { User } from "@/generated/prisma/client";
 
 import { mentorReaches } from "@/lib/authz";
-import { canActAsMentor, USER_STATUS } from "@/lib/constants";
+import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/dal";
-import { dictateNote, MAX_AUDIO_BYTES } from "@/lib/dictation";
+import { dictateNote, MAX_AUDIO_BYTES, type DictationKind } from "@/lib/dictation";
+import { sideOf } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
 
 // Reads the session and the database on every request; never prerender.
 export const dynamic = "force-dynamic";
 
 /**
- * Turn a mentor's spoken note into text for the box they are typing into.
+ * Turn a spoken note into text for the box somebody is typing into: a
+ * mentor's session note, or a student's notes on a practice interview.
  *
  * A route handler rather than a server action, for two reasons. The result has
  * to land in a form that has NOT been submitted — the mentor is still choosing
@@ -27,14 +29,41 @@ export async function POST(request: Request) {
   // anyone who knows its address, and "the UI does not show it" has never
   // been a permission check.
   const actor = await getCurrentUser();
-  if (!actor || !canActAsMentor(actor) || actor.status !== USER_STATUS.ACTIVE) {
+  if (!actor || actor.status !== USER_STATUS.ACTIVE) {
     return Response.json(
-      { ok: false, error: "You are not signed in as a mentor." },
+      { ok: false, error: "You are not signed in." },
       { status: 401 }
     );
   }
 
   const form = await request.formData();
+
+  // Who may dictate, and about what. A mentor dictates session notes. A
+  // student dictates only the notes on a practice interview they are one of
+  // the two people in — named in the request and checked here, so the
+  // endpoint is not a free transcriber for anyone with a student account.
+  let kind: DictationKind;
+  let names: string[];
+  if (canActAsMentor(actor)) {
+    kind = "session";
+    names = await nameHints(actor, form);
+  } else if (actor.role === ROLES.STUDENT) {
+    const partner = await interviewPartner(actor, form);
+    if (partner === null) {
+      return Response.json(
+        { ok: false, error: "Dictation works on your own interview notes." },
+        { status: 403 }
+      );
+    }
+    kind = "interview";
+    names = partner ? [partner] : [];
+  } else {
+    return Response.json(
+      { ok: false, error: "You are not signed in as a mentor or a student." },
+      { status: 401 }
+    );
+  }
+
   const audio = form.get("audio");
   if (!(audio instanceof Blob) || audio.size === 0) {
     return Response.json(
@@ -49,7 +78,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await dictateNote(audio, await nameHints(actor, form));
+  const result = await dictateNote(audio, names, kind);
   return Response.json(result, { status: result.ok ? 200 : 502 });
 }
 
@@ -81,4 +110,37 @@ async function nameHints(actor: User, form: FormData): Promise<string[]> {
     profile.user?.name ?? "",
     ...profile.enrollments.map((enrollment) => enrollment.program.name),
   ].filter(Boolean);
+}
+
+/**
+ * The classmate on the other side of the student's practice interview, as a
+ * spelling hint — or null when the request names no interview this student is
+ * in, which refuses the request outright. An empty string is "yours, but the
+ * classmate has no name set".
+ */
+async function interviewPartner(actor: User, form: FormData): Promise<string | null> {
+  const interviewId = String(form.get("interviewId") ?? "").trim();
+  if (!interviewId) return null;
+
+  const [profile, interview] = await Promise.all([
+    prisma.studentProfile.findUnique({
+      where: { userId: actor.id },
+      select: { id: true },
+    }),
+    prisma.peerInterview.findUnique({
+      where: { id: interviewId },
+      select: {
+        hostId: true,
+        guestId: true,
+        host: { select: { user: { select: { name: true } } } },
+        guest: { select: { user: { select: { name: true } } } },
+      },
+    }),
+  ]);
+  if (!profile || !interview) return null;
+
+  const side = sideOf(interview, profile.id);
+  if (!side) return null;
+  const other = side === "host" ? interview.guest : interview.host;
+  return other.user.name ?? "";
 }
