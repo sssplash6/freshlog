@@ -226,6 +226,9 @@ model StudentProfile {
   allotmentChanges HourAllotmentChange[]
   mentorFeedback   MentorFeedback[]
   exchanges        ProgramExchange[]
+  interviewSlots   InterviewSlot[]
+  interviewsHosted PeerInterview[]       @relation("InterviewHost")
+  interviewsBooked PeerInterview[]       @relation("InterviewGuest")
 }
 
 // One student, in one program — the membership fact, and nothing else.
@@ -685,4 +688,67 @@ model MentorFeedback {
 
   student StudentProfile @relation(fields: [studentId], references: [id])
   mentor  User           @relation("FeedbackMentor", fields: [mentorId], references: [id])
+}
+
+// A time one student has offered for a practice interview with a classmate.
+//
+// Students rehearse admissions interviews on each other: one offers a few
+// times, a classmate who shares one of their own programs books one and picks
+// the questions. Nothing here touches the ledger — no hours, no mentor, no
+// program column. It is not a meeting a mentor arranges (that left the product
+// on 15 Sep 2026, with the old `Interview` table); it is two students
+// practising, and the only people who read these rows are the two of them.
+//
+// `startsAt` is the program's wall clock in a UTC field, the convention
+// lib/when.ts documents: the student types "15:00" meaning 15:00 Tashkent,
+// and every reader is handed back that same 15:00.
+model InterviewSlot {
+  id        String   @id @default(cuid())
+  studentId String
+  startsAt  DateTime
+  minutes   Int
+  createdAt DateTime @default(now())
+
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  // Null while the time is open. Being booked IS this row existing: the slot
+  // has no flag of its own that could disagree with it.
+  interview PeerInterview?
+
+  @@unique([studentId, startsAt])
+  @@index([startsAt])
+}
+
+// One booked practice interview between two students.
+//
+// Unique on the slot, which is what makes a time bookable once: two classmates
+// pressing Book at the same moment meet this constraint, not a race. Cancelling
+// deletes the row, and the slot is open again.
+//
+// Completed is `completedAt`, not a status column — the flag and the date are
+// one column, as `StudentTask.completedAt` is, because two would let them
+// disagree. Either student may set it.
+//
+// Notes are per side and private to their writer: what one student thought of
+// the other's answers is theirs to keep, not something the other reads.
+model PeerInterview {
+  id          String    @id @default(cuid())
+  slotId      String    @unique
+  // The student who offered the time, and the one who took it.
+  hostId      String
+  guestId     String
+  // An id from INTERVIEW_TEMPLATES in lib/interview-templates.ts. Fixed by the
+  // product; students choose one and never write their own.
+  template    String
+  completedAt DateTime?
+  hostNotes   String?
+  guestNotes  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  slot  InterviewSlot  @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  host  StudentProfile @relation("InterviewHost", fields: [hostId], references: [id], onDelete: Cascade)
+  guest StudentProfile @relation("InterviewGuest", fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@index([hostId])
+  @@index([guestId])
 }

@@ -79,6 +79,10 @@ export type StatusType =
   | "TASK_OVERDUE"
   | "TASK_OVER_BUDGET"
   | "TASK_NEEDS_MENTOR"
+  // A practice interview between two students
+  | "INTERVIEW_BOOKED"
+  | "INTERVIEW_TO_MARK"
+  | "INTERVIEW_COMPLETED"
   // A mentor's setup
   | "BOOKING_LINK_MISSING"
   | "MENTOR_UNASSIGNED"
@@ -165,6 +169,10 @@ export const GROUP_OF: Record<StatusType, StatusGroup> = {
   TASK_OVERDUE: "TASKS",
   TASK_OVER_BUDGET: "TASKS",
   TASK_NEEDS_MENTOR: "TASKS",
+
+  INTERVIEW_BOOKED: "SESSIONS",
+  INTERVIEW_TO_MARK: "SESSIONS",
+  INTERVIEW_COMPLETED: "SESSIONS",
 
   // Something was never finished being wired up. None of it is urgent and all
   // of it blocks something else quietly.
@@ -587,6 +595,35 @@ const META: Record<StatusType, Meta> = {
       staff: { kind: "informational", label: () => "Voided, time returned" },
       mentor: { kind: "informational", label: () => "Voided, time returned" },
       student: { kind: "informational", label: () => "Cancelled, time returned" },
+    },
+  },
+
+  // Students only: nobody else reads a practice interview.
+  INTERVIEW_BOOKED: {
+    severity: "neutral",
+    voices: {
+      student: { kind: "informational", label: () => "Booked" },
+    },
+  },
+
+  // The time has passed and neither student has said it happened. Attention,
+  // not a problem: the notes form is behind this, and it is the one thing the
+  // reader can do about it.
+  INTERVIEW_TO_MARK: {
+    severity: "attention",
+    voices: {
+      student: {
+        kind: "actionable",
+        label: () => "Not marked done",
+        explanation: () => "Mark it done to write your notes.",
+      },
+    },
+  },
+
+  INTERVIEW_COMPLETED: {
+    severity: "ok",
+    voices: {
+      student: { kind: "informational", label: () => "Completed" },
     },
   },
 

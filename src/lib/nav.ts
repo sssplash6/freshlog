@@ -52,6 +52,7 @@ export type NavItem = {
 const STUDENT_NAV: NavItem[] = [
   { href: "/student", label: "Home" },
   { href: "/student/book", label: "Book" },
+  { href: "/student/interviews", label: "Interviews" },
   { href: "/student/feedback", label: "Feedback" },
 ];
 

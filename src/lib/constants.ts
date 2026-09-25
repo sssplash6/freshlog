@@ -317,6 +317,8 @@ export const NOTIFICATION_TYPES = {
   EXCHANGE_SENT: "EXCHANGE_SENT", // to the host program's admins: a student was lent to you, with hours to allocate
   EXCHANGE_ALLOCATED: "EXCHANGE_ALLOCATED", // back to the sender: the host put those hours on a mentor
   EXCHANGE_RETURNED: "EXCHANGE_RETURNED", // to the other side: the placement is off
+  PEER_INTERVIEW_BOOKED: "PEER_INTERVIEW_BOOKED", // to a student: a classmate booked one of their interview times
+  PEER_INTERVIEW_CANCELLED: "PEER_INTERVIEW_CANCELLED", // to the other student: a practice interview is off
   WEEKLY_SUMMARY: "WEEKLY_SUMMARY", // to everyone who wants it: the Monday digest, in the feed too
 } as const;
 
@@ -407,6 +409,11 @@ export const CATEGORY_OF: Record<NotificationType, NotificationCategory> = {
   EXCHANGE_SENT: "HOURS",
   EXCHANGE_ALLOCATED: "HOURS",
   EXCHANGE_RETURNED: "HOURS",
+  // A practice interview is a meeting the student will turn up to, which is
+  // what the rest of this category is about — not a category of its own for
+  // two notices.
+  PEER_INTERVIEW_BOOKED: "SESSIONS",
+  PEER_INTERVIEW_CANCELLED: "SESSIONS",
   WEEKLY_SUMMARY: "ACCOUNTS",
 };
 
@@ -447,6 +454,8 @@ export const NOTIFICATION_META: Record<
   EXCHANGE_SENT: { label: "Exchange", tone: "accent" },
   EXCHANGE_ALLOCATED: { label: "Exchange", tone: "accent" },
   EXCHANGE_RETURNED: { label: "Exchange", tone: "warning" },
+  PEER_INTERVIEW_BOOKED: { label: "Practice interview", tone: "brand" },
+  PEER_INTERVIEW_CANCELLED: { label: "Interview cancelled", tone: "warning" },
   WEEKLY_SUMMARY: { label: "Weekly summary", tone: "plan" },
 };
 

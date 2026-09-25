@@ -27,11 +27,11 @@ import type { NavItem } from "@/lib/nav";
  * href is the thing every item actually has.
  *
  * Longest prefix wins, the same rule `useCurrentNavItem` uses, so
- * `/student/meetings` is a calendar rather than a house. Anything unmatched
+ * `/student/interviews` is two people rather than a house. Anything unmatched
  * gets the program mark: the only unlisted hrefs are `/programs/:id`.
  */
 const NAV_ICONS: [string, (p: { className?: string }) => React.ReactNode][] = [
-  ["/student/meetings", CalendarIcon],
+  ["/student/interviews", UsersIcon],
   ["/student/book", PlusIcon],
   ["/student/feedback", StarIcon],
   ["/student", HomeIcon],
