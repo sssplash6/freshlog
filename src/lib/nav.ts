@@ -50,8 +50,8 @@ export type NavItem = {
 };
 
 /**
- * The school's hours, and the one item every rail carries: `/analytics` asks
- * only that you are signed in, so no lens and no grant can take it away.
+ * The school's hours, on every mentor and staff rail: `/analytics` asks only
+ * that you are not a student, so no lens and no grant can take it away.
  */
 const analytics: NavItem = { href: "/analytics", label: "Analytics" };
 
@@ -60,7 +60,6 @@ const STUDENT_NAV: NavItem[] = [
   { href: "/student/book", label: "Book" },
   { href: "/student/interviews", label: "Interviews" },
   { href: "/student/feedback", label: "Feedback" },
-  analytics,
 ];
 
 /**

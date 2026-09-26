@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/app-shell";
-import { requireUser } from "@/lib/dal";
+import { ROLES } from "@/lib/constants";
+import { requireRole } from "@/lib/dal";
 
 // Authenticated, per-user pages that read the database on every request.
 // Never prerender them at build time — on Render the SQLite disk only exists
@@ -16,6 +17,11 @@ export default async function AnalyticsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await requireUser();
+  const user = await requireRole(
+    ROLES.ADMIN,
+    ROLES.DEPT_LEADER,
+    ROLES.SALES,
+    ROLES.MENTOR
+  );
   return <AppShell user={user}>{children}</AppShell>;
 }
