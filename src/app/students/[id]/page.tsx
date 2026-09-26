@@ -628,11 +628,7 @@ export default async function StudentWorkspacePage({
             renderActions={
               manages
                 ? (entry) =>
-                    // Nobody edits the row that pays them: a grant is an
-                    // admin's write about a mentor, and when the admin IS the
-                    // mentor `setMentorAllocation` refuses — so the affordance
-                    // stays off the row it could not save anyway.
-                    entry.deadline && entry.mentor?.id !== me.id ? (
+                    entry.deadline ? (
                       <AllocationRowActions
                         studentProfileId={profile.id}
                         programId={entry.program.id}
@@ -664,7 +660,7 @@ export default async function StudentWorkspacePage({
             renderAssignedActions={
               manages
                 ? (entry) =>
-                    entry.deadline && entry.mentor?.id !== me.id ? (
+                    entry.deadline ? (
                       <AllocationMinutesEditor
                         studentProfileId={profile.id}
                         programId={entry.program.id}

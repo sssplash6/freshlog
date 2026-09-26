@@ -1200,18 +1200,6 @@ export async function setMentorAllocation(
     return { ok: false, error: "Pick a mentor." };
   }
 
-  // The one grant an admin may not write is their own. Hours are the thing a
-  // mentor is paid with, so the person holding the pen is never the person
-  // they pay — a mentor-admin's time is set, corrected and removed by another
-  // admin's hand, which is what lets everybody trust the ledger.
-  if (mentorId === actor.id) {
-    return {
-      ok: false,
-      error:
-        "Your own hours are set by another admin — you can't grant time to yourself.",
-    };
-  }
-
   // Hours are granted from mentors within the student's program. If the
   // mentor isn't in the program yet (admin adding a fresh mentor to the
   // student), assign them program-wide as part of this action.
@@ -1593,14 +1581,6 @@ export async function removeMentorAllocation(
   // in", which would let an admin of one program delete another program's time.
   const denied = await assertProgramScope(actor, allocation.programId);
   if (denied) return denied;
-
-  // The same rule as granting: nobody takes their own hours off the ledger.
-  if (mentorId === actor.id) {
-    return {
-      ok: false,
-      error: "Your own hours are removed by another admin — not by you.",
-    };
-  }
 
   // The pool has no sessions by construction — only mentors log them.
   if (mentorId) {
