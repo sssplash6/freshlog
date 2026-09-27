@@ -10,6 +10,8 @@ import { ROLES, SESSION_STATUS } from "@/lib/constants";
 
 /** Delete order matters: children before the rows they point at. */
 export async function resetDb() {
+  await prisma.interviewAnswer.deleteMany();
+  await prisma.interviewFeedback.deleteMany();
   await prisma.peerInterview.deleteMany();
   await prisma.interviewSlot.deleteMany();
   await prisma.session.deleteMany();

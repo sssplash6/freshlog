@@ -216,19 +216,21 @@ model StudentProfile {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  user             User                  @relation("StudentUser", fields: [userId], references: [id])
-  createdBy        User                  @relation("CreatedBy", fields: [createdById], references: [id])
-  enrollments      StudentEnrollment[]
-  sessions         Session[]
-  hourAllocations  HourAllocation[]
-  assignments      Assignment[]
-  tasks            StudentTask[]
-  allotmentChanges HourAllotmentChange[]
-  mentorFeedback   MentorFeedback[]
-  exchanges        ProgramExchange[]
-  interviewSlots   InterviewSlot[]
-  interviewsHosted PeerInterview[]       @relation("InterviewHost")
-  interviewsBooked PeerInterview[]       @relation("InterviewGuest")
+  user              User                  @relation("StudentUser", fields: [userId], references: [id])
+  createdBy         User                  @relation("CreatedBy", fields: [createdById], references: [id])
+  enrollments       StudentEnrollment[]
+  sessions          Session[]
+  hourAllocations   HourAllocation[]
+  assignments       Assignment[]
+  tasks             StudentTask[]
+  allotmentChanges  HourAllotmentChange[]
+  mentorFeedback    MentorFeedback[]
+  exchanges         ProgramExchange[]
+  interviewSlots    InterviewSlot[]
+  interviewsHosted  PeerInterview[]       @relation("InterviewHost")
+  interviewsBooked  PeerInterview[]       @relation("InterviewGuest")
+  interviewAnswers  InterviewAnswer[]
+  interviewFeedback InterviewFeedback[]
 }
 
 // One student, in one program — the membership fact, and nothing else.
@@ -703,11 +705,15 @@ model MentorFeedback {
 // lib/when.ts documents: the student types "15:00" meaning 15:00 Tashkent,
 // and every reader is handed back that same 15:00.
 model InterviewSlot {
-  id        String   @id @default(cuid())
-  studentId String
-  startsAt  DateTime
-  minutes   Int
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  studentId  String
+  startsAt   DateTime
+  minutes    Int
+  // Where the two students meet — a Meet or Zoom link, https only, optional.
+  // Shown to the two students of a booked interview, never to classmates
+  // browsing open times.
+  meetingUrl String?
+  createdAt  DateTime @default(now())
 
   student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
   // Null while the time is open. Being booked IS this row existing: the slot
@@ -745,10 +751,53 @@ model PeerInterview {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  slot  InterviewSlot  @relation(fields: [slotId], references: [id], onDelete: Cascade)
-  host  StudentProfile @relation("InterviewHost", fields: [hostId], references: [id], onDelete: Cascade)
-  guest StudentProfile @relation("InterviewGuest", fields: [guestId], references: [id], onDelete: Cascade)
+  slot     InterviewSlot       @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  host     StudentProfile      @relation("InterviewHost", fields: [hostId], references: [id], onDelete: Cascade)
+  guest    StudentProfile      @relation("InterviewGuest", fields: [guestId], references: [id], onDelete: Cascade)
+  answers  InterviewAnswer[]
+  feedback InterviewFeedback[]
 
   @@index([hostId])
   @@index([guestId])
+}
+
+// One student's own answer to one question, typed or dictated. Private to the
+// student who gave it: no page or action selects it for the partner.
+//
+// `question` is the wording at the time, so editing a template never relabels
+// an answer already given.
+model InterviewAnswer {
+  id            String   @id @default(cuid())
+  interviewId   String
+  studentId     String
+  questionIndex Int
+  question      String
+  text          String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  interview PeerInterview  @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([interviewId, studentId, questionIndex])
+}
+
+// What one student says about their partner's answers. A draft is its author's
+// alone; `submittedAt` is the moment it becomes the partner's to read, and
+// after it the row does not change.
+model InterviewFeedback {
+  id          String    @id @default(cuid())
+  interviewId String
+  fromId      String
+  summary     String?
+  wentWell    String?
+  toImprove   String?
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  interview PeerInterview  @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  from      StudentProfile @relation(fields: [fromId], references: [id], onDelete: Cascade)
+
+  @@unique([interviewId, fromId])
 }
