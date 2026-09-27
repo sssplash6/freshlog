@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * Turn a spoken note into text for the box somebody is typing into: a
- * mentor's session note, or a student's notes on a practice interview.
+ * mentor's session note, a student's notes on a practice interview, or their
+ * spoken answer to a practice question.
  *
  * A route handler rather than a server action, for two reasons. The result has
  * to land in a form that has NOT been submitted — the mentor is still choosing
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
         { status: 403 }
       );
     }
-    kind = "interview";
+    kind = form.get("purpose") === "answer" ? "answer" : "interview";
     names = partner ? [partner] : [];
   } else {
     return Response.json(
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
   }
   if (audio.size > MAX_AUDIO_BYTES) {
     return Response.json(
-      { ok: false, error: "That recording is too long. Keep it under a minute." },
+      { ok: false, error: "That recording is too long. Keep it under two minutes." },
       { status: 413 }
     );
   }

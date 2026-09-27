@@ -73,12 +73,27 @@ Never add a fact, a name, a date, a number, a judgement or a next step that was 
 
 Reply with the notes and nothing else. No preamble, no quotation marks, no markdown. If the recording contains no speech, reply with nothing at all.`;
 
+/**
+ * A student's spoken ANSWER to a practice question — the opposite job to the
+ * two prompts above. Their partner will judge grammar, vocabulary, pace and
+ * filler words from this text, so tidying it would erase exactly what is being
+ * practised. Punctuation is the only thing added.
+ */
+const ANSWER_SYSTEM = `You are given a voice recording of a student answering a practice interview question in English. Write down exactly what they said.
+
+Keep every word as spoken, including grammar mistakes, wrong word choices, filler words ("um", "uh", "like", "you know"), false starts and repetitions. Do not correct, shorten, summarise or improve anything. Add only punctuation and sentence breaks so it can be read.
+
+Never add a word that was not said. If a word is unclear, write your best guess of what was actually said, not a better word.
+
+Reply with the transcript and nothing else. No preamble, no quotation marks, no markdown. If the recording contains no speech, reply with nothing at all.`;
+
 /** What is being dictated, which picks the prompt. */
-export type DictationKind = "session" | "interview";
+export type DictationKind = "session" | "interview" | "answer";
 
 const PROMPTS: Record<DictationKind, string> = {
   session: SYSTEM,
   interview: INTERVIEW_SYSTEM,
+  answer: ANSWER_SYSTEM,
 };
 
 export type DictationResult =
@@ -111,7 +126,7 @@ async function ask(
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 1000,
+      max_tokens: 1500,
       messages: [
         { role: "system", content: PROMPTS[kind] },
         {

@@ -66,4 +66,25 @@ describe("POST /api/notes/dictate, as a student", () => {
     expect((await post({})).status).toBe(403);
     expect(heard.calls).toEqual([]);
   });
+
+  it("writes an answer down word for word when asked for one", async () => {
+    const { host, interview } = await scene();
+    actor.value = { id: host.userId };
+    heard.calls = [];
+
+    const response = await post({ interviewId: interview.id, purpose: "answer" });
+
+    expect(response.status).toBe(200);
+    expect(heard.calls).toEqual([{ names: ["Bekzod"], kind: "answer" }]);
+  });
+
+  it("still refuses an answer on somebody else's interview", async () => {
+    const { p, interview } = await scene();
+    const stranger = await student({ programId: p.id });
+    actor.value = { id: stranger.userId };
+    heard.calls = [];
+
+    expect((await post({ interviewId: interview.id, purpose: "answer" })).status).toBe(403);
+    expect(heard.calls).toEqual([]);
+  });
 });

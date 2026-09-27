@@ -29,6 +29,7 @@ type Phase = "idle" | "recording" | "working";
 export function DictateButton({
   studentProfileId,
   interviewId,
+  purpose,
   onText,
 }: {
   /** Whose name to hint the transcriber with. Optional; no student yet is fine. */
@@ -38,6 +39,8 @@ export function DictateButton({
    * route only transcribes notes on an interview they are in.
    */
   interviewId?: string;
+  /** "answer": transcribe word for word, mistakes kept. Default: a tidied note. */
+  purpose?: "answer";
   onText: (text: string) => void;
 }) {
   const [phase, setPhase] = useState<Phase>("idle");
@@ -73,6 +76,7 @@ export function DictateButton({
         body.append("audio", await toWav(recorded), "note.wav");
         if (studentProfileId) body.append("studentProfileId", studentProfileId);
         if (interviewId) body.append("interviewId", interviewId);
+        if (purpose) body.append("purpose", purpose);
 
         const response = await fetch("/api/notes/dictate", { method: "POST", body });
         const result = (await response.json()) as
@@ -88,7 +92,7 @@ export function DictateButton({
         setSeconds(0);
       }
     },
-    [onText, studentProfileId, interviewId]
+    [onText, studentProfileId, interviewId, purpose]
   );
 
   async function start() {
