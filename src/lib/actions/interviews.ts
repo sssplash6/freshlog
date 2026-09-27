@@ -14,6 +14,7 @@ import {
   formatSlotWhen,
   hasStarted,
   overlaps,
+  parseMeetingUrl,
   parseSlotLength,
   parseSlotStart,
   sideOf,
@@ -83,6 +84,8 @@ export async function addInterviewSlot(
   if ("error" in start) return { ok: false, error: start.error };
   const minutes = parseSlotLength(formData.get("minutes"));
   if (!minutes) return { ok: false, error: "Pick how long the interview runs." };
+  const link = parseMeetingUrl(formData.get("meetingUrl"));
+  if ("error" in link) return { ok: false, error: link.error };
 
   const slot = { startsAt: start.value, minutes };
   if ((await busyTimes(me.profile.id)).some((t) => overlaps(t, slot))) {
@@ -90,7 +93,7 @@ export async function addInterviewSlot(
   }
 
   await prisma.interviewSlot.create({
-    data: { studentId: me.profile.id, ...slot },
+    data: { studentId: me.profile.id, ...slot, meetingUrl: link.value },
   });
 
   revalidatePath(INTERVIEWS, "layout");

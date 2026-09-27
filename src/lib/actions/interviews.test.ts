@@ -230,6 +230,37 @@ describe("addInterviewSlot / removeInterviewSlot", () => {
   });
 });
 
+describe("addInterviewSlot meeting link", () => {
+  const tomorrow = () => toDateInputValue(wallHoursFromNow(24));
+
+  it("keeps an https link on the time", async () => {
+    const { guest } = await scene();
+    as(guest);
+
+    const result = await addInterviewSlot(
+      null,
+      form({ date: tomorrow(), time: "10:00", minutes: "45", meetingUrl: "https://meet.google.com/abc-defg-hij" })
+    );
+
+    expect(result).toMatchObject({ ok: true });
+    const slot = await prisma.interviewSlot.findFirstOrThrow({ where: { studentId: guest.id } });
+    expect(slot.meetingUrl).toBe("https://meet.google.com/abc-defg-hij");
+  });
+
+  it("refuses a link that is not https, and stores nothing", async () => {
+    const { guest } = await scene();
+    as(guest);
+
+    const result = await addInterviewSlot(
+      null,
+      form({ date: tomorrow(), time: "10:00", minutes: "45", meetingUrl: "javascript:alert(1)" })
+    );
+
+    expect(result).toMatchObject({ ok: false });
+    expect(await prisma.interviewSlot.count({ where: { studentId: guest.id } })).toBe(0);
+  });
+});
+
 describe("after booking", () => {
   /** A booked interview whose time has already started. */
   async function heldScene() {

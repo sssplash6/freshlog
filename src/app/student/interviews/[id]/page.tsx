@@ -6,6 +6,7 @@ import {
   MarkDoneButton,
 } from "@/components/forms/interview-forms";
 import { PersonChip } from "@/components/person-chip";
+import { buttonClasses } from "@/components/ui/button";
 import { PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { ROLES, USER_STATUS } from "@/lib/constants";
@@ -56,7 +57,7 @@ export default async function InterviewPage({
       completedAt: true,
       hostNotes: true,
       guestNotes: true,
-      slot: { select: { startsAt: true, minutes: true } },
+      slot: { select: { startsAt: true, minutes: true, meetingUrl: true } },
       host: { select: { user: { select: { id: true, name: true, avatarUpdatedAt: true } } } },
       guest: { select: { user: { select: { id: true, name: true, avatarUpdatedAt: true } } } },
     },
@@ -84,9 +85,21 @@ export default async function InterviewPage({
       <Section title="With">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-5">
           <PersonChip person={{ ...other, email: "" }} />
+          {interview.slot.meetingUrl && (
+            <a
+              href={interview.slot.meetingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonClasses("secondary", "sm")}
+            >
+              Join meeting
+            </a>
+          )}
           {phase === "booked" && (
             <p className="text-sm text-muted-fg">
-              Arrange where to meet between you. You can mark it done once it starts.
+              {interview.slot.meetingUrl
+                ? "You can mark it done once it starts."
+                : "Arrange where to meet between you. You can mark it done once it starts."}
             </p>
           )}
         </div>

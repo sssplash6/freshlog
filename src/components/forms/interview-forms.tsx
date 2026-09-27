@@ -19,7 +19,7 @@ import {
 } from "@/lib/actions/interviews";
 import { cn } from "@/lib/cn";
 import type { InterviewTemplate } from "@/lib/interview-templates";
-import { NOTES_MAX, SLOT_LENGTHS } from "@/lib/peer-interviews";
+import { MEETING_URL_MAX, NOTES_MAX, SLOT_LENGTHS } from "@/lib/peer-interviews";
 
 /**
  * Offer a time for a classmate to book. Date, start, length — and the day
@@ -59,6 +59,17 @@ export function OfferSlotForm({
           required
         />
       </div>
+      <label className="block text-sm">
+        <span className="text-muted-fg">Meeting link (optional)</span>
+        <Input
+          name="meetingUrl"
+          type="url"
+          inputMode="url"
+          placeholder="https://meet.google.com/…"
+          maxLength={MEETING_URL_MAX}
+          className="mt-0.5"
+        />
+      </label>
       <div className="flex flex-wrap items-center gap-3">
         <SubmitButton pendingText="Adding…">Add this time</SubmitButton>
         <SaveState state={save} />
