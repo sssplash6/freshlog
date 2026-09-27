@@ -23,6 +23,17 @@ export type InterviewTemplate = {
 
 export const INTERVIEW_TEMPLATES: readonly InterviewTemplate[] = [
   {
+    id: "freshman-session-1",
+    name: "Freshman Interview Practice: Session 1",
+    summary: "The school's first session: getting to know you, and why college.",
+    questions: [
+      "What are you reading, watching, or working on right now? Is there anything that has caught your attention recently?",
+      "Describe a teacher you really enjoyed learning from.",
+      "What are you most excited about in college?",
+      "Tell me about a situation when you had to change your mind or adapt to make something work.",
+    ],
+  },
+  {
     id: "university-admissions",
     name: "University admissions",
     summary: "An admissions officer or alumnus meeting an applicant.",
@@ -86,3 +97,59 @@ export function templateById(id: string): InterviewTemplate | null {
 export function templateName(id: string): string {
   return templateById(id)?.name ?? "Practice interview";
 }
+
+/**
+ * The session around the questions, the same for every template: the school's
+ * own words, kept verbatim so a student reads what their teacher wrote.
+ */
+export const INTERVIEW_INTRO =
+  "Introduce yourself to your partner. Share your name, where you're from, and a little about what you've been up to this week.";
+
+export const INTERVIEW_RUBRIC: readonly { name: string; questions: readonly string[] }[] = [
+  {
+    name: "Content",
+    questions: [
+      "How relevant, detailed, and insightful was the response?",
+      "Did your partner provide specific examples?",
+      "Did you learn something interesting?",
+    ],
+  },
+  {
+    name: "Flow & Structure",
+    questions: [
+      "Was the response easy to follow?",
+      "Were the ideas logically connected, or did your partner jump from point to point?",
+      "Did the response have a clear structure?",
+    ],
+  },
+  {
+    name: "Grammar & Language",
+    questions: [
+      "Was the language grammatically accurate?",
+      "Did your partner use appropriate and varied vocabulary?",
+      "Were there any recurring mistakes?",
+    ],
+  },
+  {
+    name: "Confidence",
+    questions: [
+      "Did your partner speak clearly and confidently?",
+      "Did they maintain a natural pace?",
+      "Did they avoid excessive filler words and unnecessary pauses?",
+    ],
+  },
+];
+
+export const INTERVIEW_TURNS =
+  "Take turns interviewing each other using the following questions. Listen carefully to your partner's responses.";
+
+export const FEEDBACK_PROMPTS = {
+  summary: "Briefly summarize your partner's answers.",
+  wentWell:
+    "Always start with positive feedback. Highlight what your partner did particularly well.",
+  toImprove:
+    "Identify areas for improvement and provide specific, constructive suggestions.",
+} as const;
+
+export const FEEDBACK_DISCUSS =
+  "Discuss your feedback with each other before submitting the form.";

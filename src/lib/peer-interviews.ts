@@ -10,6 +10,7 @@
  */
 import { studiesIn } from "@/lib/enrollments";
 import { formatDate } from "@/lib/format";
+import type { InterviewTemplate } from "@/lib/interview-templates";
 import type { StatusType } from "@/lib/status";
 import { formatTimeOfDay, programWallClock } from "@/lib/when";
 
@@ -135,3 +136,57 @@ export const PHASE_STATUS: Record<InterviewPhase, StatusType> = {
   "to-mark": "INTERVIEW_TO_MARK",
   completed: "INTERVIEW_COMPLETED",
 };
+
+/** Long enough for any meeting link with its query string. */
+export const MEETING_URL_MAX = 500;
+
+/**
+ * The optional "where we meet" link on an offered time. https only: the link
+ * is rendered as an href another student clicks, so `javascript:` and plain
+ * http are refused here, not trusted to the browser.
+ */
+export function parseMeetingUrl(
+  raw: FormDataEntryValue | null
+): { value: string | null } | { error: string } {
+  const text = String(raw ?? "").trim();
+  if (!text) return { value: null };
+  const invalid = { error: "Paste a meeting link that starts with https://." };
+  if (text.length > MEETING_URL_MAX) return invalid;
+  let url: URL;
+  try {
+    url = new URL(text);
+  } catch {
+    return invalid;
+  }
+  return url.protocol === "https:" ? { value: text } : invalid;
+}
+
+/** The question at `index` in a template, or null if it has no such question. */
+export function questionAt(template: InterviewTemplate | null, index: number): string | null {
+  if (!template || !Number.isInteger(index)) return null;
+  return template.questions[index] ?? null;
+}
+
+/**
+ * Feedback is its author's until they submit it; after that, the partner it is
+ * about reads it too. A half-written judgement is never shown.
+ */
+export function feedbackVisibleTo(
+  feedback: { fromId: string; submittedAt: Date | null },
+  studentId: string
+): boolean {
+  return feedback.fromId === studentId || feedback.submittedAt !== null;
+}
+
+/**
+ * Whether this student may still use the guide: from the start time until
+ * they submit their own feedback. NOT until the interview is completed — the
+ * partner who submits first completes it, and must not lock the other out.
+ */
+export function guideOpen(
+  slot: { startsAt: Date },
+  mySubmittedAt: Date | null,
+  now: Date
+): boolean {
+  return mySubmittedAt === null && hasStarted(slot.startsAt, now);
+}

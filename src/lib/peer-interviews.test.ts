@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import {
   areClassmates,
+  feedbackVisibleTo,
   formatSlotSpan,
+  guideOpen,
   interviewPhase,
   overlaps,
+  parseMeetingUrl,
   parseSlotLength,
   parseSlotStart,
+  questionAt,
 } from "@/lib/peer-interviews";
+import { INTERVIEW_TEMPLATES, templateById } from "@/lib/interview-templates";
 
 /** 12:00 UTC is 17:00 in Tashkent — the clock every time here is read on. */
 const NOW = new Date("2026-09-03T12:00:00.000Z");
@@ -97,5 +102,70 @@ describe("formatSlotSpan", () => {
     expect(formatSlotSpan({ startsAt: at("2026-09-04T09:30"), minutes: 45 })).toBe(
       "09:30–10:15"
     );
+  });
+});
+
+describe("parseMeetingUrl", () => {
+  it("takes nothing as no link", () => {
+    expect(parseMeetingUrl("")).toEqual({ value: null });
+    expect(parseMeetingUrl(null)).toEqual({ value: null });
+    expect(parseMeetingUrl("   ")).toEqual({ value: null });
+  });
+
+  it("takes an https link, trimmed", () => {
+    expect(parseMeetingUrl(" https://meet.google.com/abc-defg-hij ")).toEqual({
+      value: "https://meet.google.com/abc-defg-hij",
+    });
+  });
+
+  it("refuses anything that is not an https link", () => {
+    expect(parseMeetingUrl("javascript:alert(1)")).toHaveProperty("error");
+    expect(parseMeetingUrl("http://meet.google.com/x")).toHaveProperty("error");
+    expect(parseMeetingUrl("meet.google.com/x")).toHaveProperty("error");
+    expect(parseMeetingUrl(`https://x.com/${"a".repeat(600)}`)).toHaveProperty("error");
+  });
+});
+
+describe("questionAt", () => {
+  const t = templateById("freshman-session-1");
+
+  it("gives the question at an index the template has", () => {
+    expect(questionAt(t, 1)).toBe("Describe a teacher you really enjoyed learning from.");
+  });
+
+  it("refuses an index it does not have, and a missing template", () => {
+    expect(questionAt(t, 4)).toBeNull();
+    expect(questionAt(t, -1)).toBeNull();
+    expect(questionAt(t, 1.5)).toBeNull();
+    expect(questionAt(null, 0)).toBeNull();
+  });
+});
+
+describe("feedbackVisibleTo", () => {
+  it("shows a draft to its author only", () => {
+    const draft = { fromId: "a", submittedAt: null };
+    expect(feedbackVisibleTo(draft, "a")).toBe(true);
+    expect(feedbackVisibleTo(draft, "b")).toBe(false);
+  });
+
+  it("shows submitted feedback to the partner", () => {
+    expect(feedbackVisibleTo({ fromId: "a", submittedAt: NOW }, "b")).toBe(true);
+  });
+});
+
+describe("guideOpen", () => {
+  const slot = { startsAt: at("2026-09-03T17:00") }; // exactly now on Tashkent's clock
+
+  it("opens at the start time and stays open until this student submits", () => {
+    expect(guideOpen({ startsAt: at("2026-09-03T18:00") }, null, NOW)).toBe(false);
+    expect(guideOpen(slot, null, NOW)).toBe(true);
+    expect(guideOpen(slot, NOW, NOW)).toBe(false);
+  });
+});
+
+describe("Session 1", () => {
+  it("is offered first, with the school's four questions", () => {
+    expect(INTERVIEW_TEMPLATES[0].id).toBe("freshman-session-1");
+    expect(INTERVIEW_TEMPLATES[0].questions).toHaveLength(4);
   });
 });
