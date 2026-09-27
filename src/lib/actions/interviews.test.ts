@@ -396,6 +396,10 @@ describe("the guide", () => {
     as(host);
     expect(await answer(interview.id, "4", "x")).toMatchObject({ ok: false });
     expect(await answer(interview.id, "abc", "x")).toMatchObject({ ok: false });
+    expect(await answer(interview.id, "", "x")).toMatchObject({ ok: false });
+    expect(await answer(interview.id, " ", "x")).toMatchObject({ ok: false });
+
+    expect(await prisma.interviewAnswer.count()).toBe(0);
   });
 
   it("refuses answers before the interview starts", async () => {
@@ -467,5 +471,25 @@ describe("the guide", () => {
     );
     expect(result).toMatchObject({ ok: false });
     expect(await prisma.interviewFeedback.count({ where: { submittedAt: { not: null } } })).toBe(0);
+  });
+
+  it("does not let a cancel racing a submit delete the just-submitted feedback", async () => {
+    const { host, guest, interview } = await liveScene();
+    as(guest);
+    expect(
+      await submitInterviewFeedback(null, form({ interviewId: interview.id, ...FULL }))
+    ).toMatchObject({ ok: true });
+    await prisma.notification.deleteMany();
+
+    as(host);
+    const result = await cancelInterview(null, form({ interviewId: interview.id }));
+
+    expect(result).toMatchObject({ ok: false });
+    expect(await prisma.peerInterview.count({ where: { id: interview.id } })).toBe(1);
+    const fb = await prisma.interviewFeedback.findUniqueOrThrow({
+      where: { interviewId_fromId: { interviewId: interview.id, fromId: guest.id } },
+    });
+    expect(fb.submittedAt).not.toBeNull();
+    expect(await prisma.notification.count({ where: { type: "PEER_INTERVIEW_CANCELLED" } })).toBe(0);
   });
 });

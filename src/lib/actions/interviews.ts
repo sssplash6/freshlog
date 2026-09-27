@@ -265,8 +265,14 @@ export async function cancelInterview(
   }
 
   const other = side === "host" ? interview.guest.user.id : interview.host.user.id;
-  await prisma.$transaction(async (tx) => {
-    await tx.peerInterview.delete({ where: { id: interview.id } });
+  // Scoped to "still not completed" in the delete itself: the partner may have
+  // submitted their feedback (which completes the interview) between the read
+  // above and here, and that submission must not be cascaded away.
+  const cancelled = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.peerInterview.deleteMany({
+      where: { id: interview.id, completedAt: null },
+    });
+    if (count === 0) return false;
     await notify(tx, {
       to: [other],
       type: NOTIFICATION_TYPES.PEER_INTERVIEW_CANCELLED,
@@ -274,7 +280,11 @@ export async function cancelInterview(
       href: INTERVIEWS,
       actorId: me.user.id,
     });
+    return true;
   });
+  if (!cancelled) {
+    return { ok: false, error: "This interview is already marked done." };
+  }
 
   // The interview's own page is gone with the row.
   revalidatePath(INTERVIEWS, "layout");
@@ -369,9 +379,12 @@ export async function saveInterviewAnswer(
   const mine = await myFeedback(interview.id, me.profile.id);
   if (!guideOpen(interview.slot, mine?.submittedAt ?? null, new Date())) return GUIDE_CLOSED;
 
-  const questionIndex = Number(String(formData.get("questionIndex") ?? ""));
+  const rawIndex = String(formData.get("questionIndex") ?? "");
+  const notAQuestion: ActionState = { ok: false, error: "That question isn't in this interview." };
+  if (!/^\d+$/.test(rawIndex)) return notAQuestion;
+  const questionIndex = Number(rawIndex);
   const question = questionAt(templateById(interview.template), questionIndex);
-  if (question === null) return { ok: false, error: "That question isn't in this interview." };
+  if (question === null) return notAQuestion;
 
   const text = String(formData.get("text") ?? "").trim();
   if (text.length > NOTES_MAX) {
