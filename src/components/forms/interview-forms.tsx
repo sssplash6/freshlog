@@ -196,7 +196,7 @@ export function CancelInterviewButton({ interviewId }: { interviewId: string }) 
     <div className="flex flex-wrap items-center gap-3">
       <ConfirmInline
         label="Cancel interview"
-        question="Your classmate is told, and the time opens for others to book."
+        question="Your classmate is told, any answers and feedback are deleted, and the time opens for others to book."
         confirmLabel="Yes, cancel it"
         cancelLabel="Keep it"
         pendingLabel="Cancelling…"

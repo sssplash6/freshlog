@@ -319,6 +319,7 @@ export const NOTIFICATION_TYPES = {
   EXCHANGE_RETURNED: "EXCHANGE_RETURNED", // to the other side: the placement is off
   PEER_INTERVIEW_BOOKED: "PEER_INTERVIEW_BOOKED", // to a student: a classmate booked one of their interview times
   PEER_INTERVIEW_CANCELLED: "PEER_INTERVIEW_CANCELLED", // to the other student: a practice interview is off
+  PEER_INTERVIEW_FEEDBACK: "PEER_INTERVIEW_FEEDBACK", // to the other student: their partner sent feedback on a practice interview
   WEEKLY_SUMMARY: "WEEKLY_SUMMARY", // to everyone who wants it: the Monday digest, in the feed too
 } as const;
 
@@ -414,6 +415,7 @@ export const CATEGORY_OF: Record<NotificationType, NotificationCategory> = {
   // two notices.
   PEER_INTERVIEW_BOOKED: "SESSIONS",
   PEER_INTERVIEW_CANCELLED: "SESSIONS",
+  PEER_INTERVIEW_FEEDBACK: "SESSIONS",
   WEEKLY_SUMMARY: "ACCOUNTS",
 };
 
@@ -456,6 +458,7 @@ export const NOTIFICATION_META: Record<
   EXCHANGE_RETURNED: { label: "Exchange", tone: "warning" },
   PEER_INTERVIEW_BOOKED: { label: "Practice interview", tone: "brand" },
   PEER_INTERVIEW_CANCELLED: { label: "Interview cancelled", tone: "warning" },
+  PEER_INTERVIEW_FEEDBACK: { label: "Interview feedback", tone: "brand" },
   WEEKLY_SUMMARY: { label: "Weekly summary", tone: "plan" },
 };
 

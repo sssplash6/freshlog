@@ -12,11 +12,13 @@ import {
   NOTES_MAX,
   areClassmates,
   formatSlotWhen,
+  guideOpen,
   hasStarted,
   overlaps,
   parseMeetingUrl,
   parseSlotLength,
   parseSlotStart,
+  questionAt,
   sideOf,
 } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
@@ -229,9 +231,10 @@ async function myInterview(studentId: string, interviewId: string) {
       hostId: true,
       guestId: true,
       completedAt: true,
+      template: true,
       slot: { select: { startsAt: true, minutes: true } },
-      host: { select: { user: { select: { id: true } } } },
-      guest: { select: { user: { select: { id: true } } } },
+      host: { select: { user: { select: { id: true, name: true } } } },
+      guest: { select: { user: { select: { id: true, name: true } } } },
     },
   });
   if (!interview) return null;
@@ -333,4 +336,167 @@ export async function saveInterviewNotes(
 
   revalidatePath(`${INTERVIEWS}/${interview.id}`);
   return { ok: true, message: "Notes saved." };
+}
+
+/** This student's own feedback row on an interview, if they have started one. */
+async function myFeedback(interviewId: string, studentId: string) {
+  return prisma.interviewFeedback.findUnique({
+    where: { interviewId_fromId: { interviewId, fromId: studentId } },
+    select: { submittedAt: true },
+  });
+}
+
+const GUIDE_CLOSED: ActionState = {
+  ok: false,
+  error: "The guide opens at the start time and closes once you submit your feedback.",
+};
+
+/**
+ * Save this student's own answer to one question. Called as the box loses
+ * focus, so it is an upsert: the latest text wins, and the question's wording
+ * is copied in the first time.
+ */
+export async function saveInterviewAnswer(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const me = await activeStudent();
+  if (!me) return NOT_A_STUDENT;
+  const found = await myInterview(me.profile.id, String(formData.get("interviewId") ?? ""));
+  if (!found) return NOT_YOURS;
+  const { interview } = found;
+
+  const mine = await myFeedback(interview.id, me.profile.id);
+  if (!guideOpen(interview.slot, mine?.submittedAt ?? null, new Date())) return GUIDE_CLOSED;
+
+  const questionIndex = Number(String(formData.get("questionIndex") ?? ""));
+  const question = questionAt(templateById(interview.template), questionIndex);
+  if (question === null) return { ok: false, error: "That question isn't in this interview." };
+
+  const text = String(formData.get("text") ?? "").trim();
+  if (text.length > NOTES_MAX) {
+    return { ok: false, error: `An answer can be up to ${NOTES_MAX} characters.` };
+  }
+
+  await prisma.interviewAnswer.upsert({
+    where: {
+      interviewId_studentId_questionIndex: {
+        interviewId: interview.id,
+        studentId: me.profile.id,
+        questionIndex,
+      },
+    },
+    create: { interviewId: interview.id, studentId: me.profile.id, questionIndex, question, text },
+    update: { text },
+  });
+  return { ok: true, message: "Saved." };
+}
+
+/** The three feedback boxes, trimmed, or the sentence refusing them. */
+function readFeedback(
+  formData: FormData
+): { value: { summary: string; wentWell: string; toImprove: string } } | { error: string } {
+  const value = {
+    summary: String(formData.get("summary") ?? "").trim(),
+    wentWell: String(formData.get("wentWell") ?? "").trim(),
+    toImprove: String(formData.get("toImprove") ?? "").trim(),
+  };
+  if (Object.values(value).some((v) => v.length > NOTES_MAX)) {
+    return { error: `Each box can be up to ${NOTES_MAX} characters.` };
+  }
+  return { value };
+}
+
+/** Save a feedback draft. Only its author reads it until it is submitted. */
+export async function saveInterviewFeedback(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const me = await activeStudent();
+  if (!me) return NOT_A_STUDENT;
+  const found = await myInterview(me.profile.id, String(formData.get("interviewId") ?? ""));
+  if (!found) return NOT_YOURS;
+  const { interview } = found;
+
+  const mine = await myFeedback(interview.id, me.profile.id);
+  if (!guideOpen(interview.slot, mine?.submittedAt ?? null, new Date())) return GUIDE_CLOSED;
+
+  const read = readFeedback(formData);
+  if ("error" in read) return { ok: false, error: read.error };
+  const fields = {
+    summary: read.value.summary || null,
+    wentWell: read.value.wentWell || null,
+    toImprove: read.value.toImprove || null,
+  };
+
+  // Create the row if missing, then write only while it is unsubmitted: a
+  // submit in another tab between the check above and here stays as sent.
+  await prisma.interviewFeedback.upsert({
+    where: { interviewId_fromId: { interviewId: interview.id, fromId: me.profile.id } },
+    create: { interviewId: interview.id, fromId: me.profile.id },
+    update: {},
+  });
+  const { count } = await prisma.interviewFeedback.updateMany({
+    where: { interviewId: interview.id, fromId: me.profile.id, submittedAt: null },
+    data: fields,
+  });
+  if (count === 0) return GUIDE_CLOSED;
+  return { ok: true, message: "Draft saved." };
+}
+
+/**
+ * Hand the feedback to the partner. Final: the row is locked, the interview is
+ * completed if the partner has not already, and the partner is told.
+ */
+export async function submitInterviewFeedback(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const me = await activeStudent();
+  if (!me) return NOT_A_STUDENT;
+  const found = await myInterview(me.profile.id, String(formData.get("interviewId") ?? ""));
+  if (!found) return NOT_YOURS;
+  const { interview, side } = found;
+
+  const mine = await myFeedback(interview.id, me.profile.id);
+  if (!guideOpen(interview.slot, mine?.submittedAt ?? null, new Date())) return GUIDE_CLOSED;
+
+  const read = readFeedback(formData);
+  if ("error" in read) return { ok: false, error: read.error };
+  if (!read.value.summary || !read.value.wentWell || !read.value.toImprove) {
+    return { ok: false, error: "Fill in all three boxes before you submit.", values: read.value };
+  }
+
+  const other = side === "host" ? interview.guest.user : interview.host.user;
+  const now = new Date();
+  const submitted = await prisma.$transaction(async (tx) => {
+    await tx.interviewFeedback.upsert({
+      where: { interviewId_fromId: { interviewId: interview.id, fromId: me.profile.id } },
+      create: { interviewId: interview.id, fromId: me.profile.id },
+      update: {},
+    });
+    // The lock is this filter: a second submit racing the first finds
+    // submittedAt already set and changes nothing.
+    const { count } = await tx.interviewFeedback.updateMany({
+      where: { interviewId: interview.id, fromId: me.profile.id, submittedAt: null },
+      data: { ...read.value, submittedAt: now },
+    });
+    if (count === 0) return false;
+    await tx.peerInterview.updateMany({
+      where: { id: interview.id, completedAt: null },
+      data: { completedAt: now },
+    });
+    await notify(tx, {
+      to: [other.id],
+      type: NOTIFICATION_TYPES.PEER_INTERVIEW_FEEDBACK,
+      message: `${me.user.name ?? "Your classmate"} sent you feedback on your practice interview.`,
+      href: `${INTERVIEWS}/${interview.id}`,
+      actorId: me.user.id,
+    });
+    return true;
+  });
+  if (!submitted) return GUIDE_CLOSED;
+
+  revalidatePath(INTERVIEWS, "layout");
+  return { ok: true, message: "Feedback sent." };
 }
