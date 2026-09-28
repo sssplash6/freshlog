@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 
 import { DictateButton } from "@/components/forms/dictate-button";
 import { Button, buttonClasses } from "@/components/ui/button";
@@ -54,8 +54,22 @@ export function InterviewGuide({
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>(savedAnswers);
   const [feedback, setFeedback] = useState<Feedback>(savedFeedback);
-  const [message, setMessage] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  // Keyed by STEP INDEX, not by the current step, so an error survives
+  // navigating away from the step that failed to save (see the persistent
+  // notice below) instead of being wiped by the next step's own outcome.
+  const [errors, setErrors] = useState<Record<number, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  // The background autosave (blur, and the one Next/Back fires before it
+  // navigates) must never disable Back/Next/Submit — a click that lands while
+  // a box is still focused blurs the box first, which would otherwise disable
+  // the very button being clicked before the click is processed. Submit gets
+  // its own pending flag so IT can still disable itself against a double
+  // send.
+  const [, startSave] = useTransition();
+  const [submitPending, startSubmit] = useTransition();
+  // What was last sent for a given step, so a save the blur already fired
+  // isn't repeated the instant Next/Back fires the same save again.
+  const savedRef = useRef<Record<string, string>>({});
 
   const current = steps[step];
   const qIndex = current.startsWith("q") ? Number(current.slice(1)) : null;
@@ -67,15 +81,47 @@ export function InterviewGuide({
     return action(null, data);
   }
 
+  function clearStepError(stepIndex: number) {
+    setErrors((was) => {
+      if (!(stepIndex in was)) return was;
+      const next = { ...was };
+      delete next[stepIndex];
+      return next;
+    });
+  }
+
   function saveCurrent() {
-    startTransition(async () => {
-      const result =
-        qIndex !== null
-          ? await send(saveInterviewAnswer, { questionIndex: String(qIndex), text: answers[qIndex] ?? "" })
-          : current === "feedback"
-            ? await send(saveInterviewFeedback, feedback)
-            : null;
-      setMessage(result && !result.ok ? result.error : null);
+    if (qIndex === null && current !== "feedback") return;
+    const key = current;
+    const stepIndex = step;
+    const value = qIndex !== null ? (answers[qIndex] ?? "") : JSON.stringify(feedback);
+    // Already sent this exact value (the blur that just fired, or a previous
+    // Next/Back at this step) — skip the repeat request.
+    if (savedRef.current[key] === value) return;
+    savedRef.current[key] = value;
+
+    startSave(async () => {
+      try {
+        const result =
+          qIndex !== null
+            ? await send(saveInterviewAnswer, { questionIndex: String(qIndex), text: value })
+            : await send(saveInterviewFeedback, feedback);
+        if (result && !result.ok) {
+          delete savedRef.current[key];
+          setErrors((was) => ({ ...was, [stepIndex]: result.error }));
+        } else {
+          clearStepError(stepIndex);
+        }
+      } catch {
+        // A thrown action (a dropped connection) must not unmount the guide —
+        // it is recorded as this step's error instead of reaching the error
+        // boundary.
+        delete savedRef.current[key];
+        setErrors((was) => ({
+          ...was,
+          [stepIndex]: "That didn't save. Check your connection and try again.",
+        }));
+      }
     });
   }
 
@@ -84,13 +130,26 @@ export function InterviewGuide({
     setStep(to);
   }
 
+  /** What a step with an unsaved error is called, for the "go back" notice. */
+  function stepLabel(i: number): string {
+    const id = steps[i];
+    if (id === "feedback") return "Feedback";
+    if (id?.startsWith("q")) return `Question ${Number(id.slice(1)) + 1}`;
+    return "This step";
+  }
+
   function submit() {
-    startTransition(async () => {
-      const result = await send(submitInterviewFeedback, feedback);
-      if (result?.ok) {
-        router.push(`/student/interviews/${interviewId}`);
-      } else {
-        setMessage(result?.error ?? "Could not send. Try again.");
+    setSubmitError(null);
+    startSubmit(async () => {
+      try {
+        const result = await send(submitInterviewFeedback, feedback);
+        if (result?.ok) {
+          router.push(`/student/interviews/${interviewId}`);
+        } else {
+          setSubmitError(result?.error ?? "Could not send. Try again.");
+        }
+      } catch {
+        setSubmitError("That didn't save. Check your connection and try again.");
       }
     });
   }
@@ -139,7 +198,10 @@ export function InterviewGuide({
                   onText={(text) =>
                     setAnswers((was) => {
                       const before = (was[qIndex] ?? "").trim();
-                      return { ...was, [qIndex]: before ? `${before} ${text}` : text };
+                      const combined = before ? `${before} ${text}` : text;
+                      // maxLength on the field only stops typing past it — a
+                      // dictated chunk appended in one go bypasses it.
+                      return { ...was, [qIndex]: combined.slice(0, NOTES_MAX) };
                     })
                   }
                 />
@@ -171,20 +233,37 @@ export function InterviewGuide({
         </Section>
       )}
 
-      {message && <p className="text-sm text-danger-ink" role="alert">{message}</p>}
+      {Object.keys(errors)
+        .map(Number)
+        .filter((i) => i !== step)
+        .map((i) => (
+          <p key={i} className="text-sm text-danger-ink" role="alert">
+            {stepLabel(i)} didn&rsquo;t save. Go back to it.
+          </p>
+        ))}
+      {errors[step] && (
+        <p className="text-sm text-danger-ink" role="alert">
+          {errors[step]}
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="secondary" disabled={step === 0 || pending} onClick={() => go(step - 1)}>
+        <Button variant="secondary" disabled={step === 0} onClick={() => go(step - 1)}>
           Back
         </Button>
         {current === "feedback" ? (
-          <Button disabled={pending} onClick={submit}>
-            {pending ? "Sending…" : `Send feedback to ${partner}`}
-          </Button>
+          <div className="flex flex-col items-end gap-1.5">
+            {submitError && (
+              <p className="text-sm text-danger-ink" role="alert">
+                {submitError}
+              </p>
+            )}
+            <Button disabled={submitPending} onClick={submit}>
+              {submitPending ? "Sending…" : `Send feedback to ${partner}`}
+            </Button>
+          </div>
         ) : (
-          <Button disabled={pending} onClick={() => go(step + 1)}>
-            Next
-          </Button>
+          <Button onClick={() => go(step + 1)}>Next</Button>
         )}
       </div>
     </div>
