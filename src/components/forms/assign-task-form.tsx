@@ -8,7 +8,6 @@ import { Input, Textarea } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { setMentorAllocation } from "@/lib/actions/students";
-import { programToday } from "@/lib/when";
 
 const labelClass =
   "block text-xs font-semibold uppercase tracking-[0.06em] text-muted-fg";
@@ -53,7 +52,6 @@ export function AssignTaskForm({
   const [programId, setProgramId] = useState(
     programs.length === 1 ? programs[0].value : ""
   );
-  const today = programToday();
   // The money fields belong to the grant, so they follow the program picked
   // rather than the student: a student in the Master's Program and in Global
   // Admissions is asked what they paid for one and not for the other.
@@ -161,7 +159,6 @@ export function AssignTaskForm({
               name="deadline"
               type="date"
               required
-              min={today}
               className="mt-1"
             />
           </label>
