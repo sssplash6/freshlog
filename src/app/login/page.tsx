@@ -69,6 +69,19 @@ export default async function LoginPage({
           Students: use the email your program registered. Mentors: use your
           @freshman.academy account.
         </p>
+
+        {/* Only when the server was started with DEV_LOGIN=1 (`npm run
+            start:local`); the route behind it also refuses anything but a
+            localhost request. A plain <a>, because the route answers with a
+            Set-Cookie redirect the client router must not intercept. */}
+        {process.env.DEV_LOGIN === "1" && (
+          <a
+            href="/api/dev-login"
+            className="mt-4 block text-center text-xs font-medium text-brand hover:underline"
+          >
+            Local sign-in (dev only)
+          </a>
+        )}
       </div>
     </main>
   );

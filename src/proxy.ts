@@ -12,7 +12,12 @@ import { NextRequest, NextResponse } from "next/server";
 // The API path MUST be listed. Bouncing it to /login would answer a mail
 // client's unsubscribe POST with a redirect to a sign-in page, which reads as
 // success to the client while nothing was actually turned off.
-const PUBLIC_PATHS = ["/login", "/unsubscribe", "/api/email"];
+//
+// /api/dev-login is the local-only sign-in (see its route): it answers 404
+// unless DEV_LOGIN=1 on a localhost request, so listing it here opens nothing
+// anywhere else — it has to be reachable signed-out because signing in is
+// what it is for.
+const PUBLIC_PATHS = ["/login", "/unsubscribe", "/api/email", "/api/dev-login"];
 
 export default function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
