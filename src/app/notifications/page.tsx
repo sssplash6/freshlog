@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle } from "@/components/ui/section";
 import { Section } from "@/components/ui/section";
+import { ArrowLink } from "@/components/ui/link";
 import { Pagination, parsePage } from "@/components/ui/pagination";
 import { attentionFor } from "@/lib/attention";
 import { requireUser } from "@/lib/dal";
@@ -129,7 +130,10 @@ export default async function NotificationsPage({
 
       <AttentionList
         statuses={attention.statuses}
-        title="Active issues"
+        // "Active issues" is the staff word for a queue they work through. A
+        // student has no queue — these are things about their own time to look
+        // at — so they are told so in their own words.
+        title={user.role === "STUDENT" ? "Things to check" : "Active issues"}
         empty={attention.empty}
         dismissible={attention.dismissible}
         renderAction={(s) => {
@@ -200,6 +204,12 @@ export default async function NotificationsPage({
           </>
         )}
       </Section>
+
+      {/* The feed's other half — which of these also reach the reader's inbox
+          — is decided on Settings, and nothing here led there. */}
+      <ArrowLink href="/settings" className="text-sm">
+        Email preferences
+      </ArrowLink>
     </div>
   );
 }

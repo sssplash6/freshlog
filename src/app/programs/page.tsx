@@ -107,6 +107,7 @@ export default async function ProgramsPage({
       students: totals.students,
       mentors: new Set(theirs.map((p) => p.mentorId)).size,
       remaining: totals.remaining,
+      forfeited: totals.forfeited,
     };
   });
 
@@ -115,6 +116,9 @@ export default async function ProgramsPage({
     { label: "Students", align: "right" },
     { label: "Mentors", align: "right" },
     { label: "Remaining", align: "right" },
+    // Minutes lost to passed deadlines — the figure that makes the ledger
+    // honest, and the one a Remaining of zero used to hide entirely.
+    { label: "Expired unused", align: "right" },
   ];
 
   return (
@@ -192,6 +196,15 @@ export default async function ProgramsPage({
                   tone={p.remaining < 0 ? "danger" : "hours"}
                   className="sm:text-right"
                 />
+              </Td>
+              <Td label="Expired unused" align="right" className="tabular-nums">
+                {p.forfeited > 0 ? (
+                  <span className="font-medium text-warn-ink">
+                    {formatRough(p.forfeited)}
+                  </span>
+                ) : (
+                  <span className="text-muted-fg">—</span>
+                )}
               </Td>
             </Tr>
           ))}

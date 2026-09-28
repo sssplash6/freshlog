@@ -3,6 +3,10 @@ import Link from "next/link";
 import pkg from "../../package.json";
 import { Avatar } from "@/components/avatar";
 import { BrandWordmark } from "@/components/brand-wordmark";
+import {
+  CommandPalette,
+  CommandPaletteButton,
+} from "@/components/command-palette";
 import { ChevronDownIcon, LogOutIcon } from "@/components/icons";
 import { NavLinks } from "@/components/nav-links";
 import {
@@ -16,6 +20,7 @@ import {
 } from "@/components/profile-switch";
 import { PublicShell } from "@/components/public-shell";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { DensityToggle } from "@/components/density-toggle";
 import { Sidebar } from "@/components/sidebar";
 import { TabBar } from "@/components/tab-bar";
 import { PageTransition } from "@/components/page-transition";
@@ -192,6 +197,7 @@ function AccountMenu({
           that changes nothing about where you are. */}
       <div className="mt-1 border-t border-line pt-1">
         <ThemeToggle />
+        <DensityToggle />
       </div>
 
       <form action={signOutAction} className="mt-1 border-t border-line pt-1">
@@ -204,6 +210,27 @@ function AccountMenu({
         </button>
       </form>
     </Popover>
+  );
+}
+
+/**
+ * The first Tab stop on every signed-in page.
+ *
+ * Without it a keyboard reader crosses the wordmark, the whole rail and the
+ * account menu before reaching the page they came for — on every page, since
+ * the chrome is the same everywhere. Hidden until focused, then brand-filled
+ * over everything (`z-50`), because a skip link you cannot see when you land
+ * on it is one nobody learns is there. `#main` is `tabIndex={-1}` so focus
+ * actually moves, and the next Tab continues from inside the page.
+ */
+function SkipLink() {
+  return (
+    <a
+      href="#main"
+      className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-brand focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-on-brand focus:shadow-lg focus:outline-none focus:ring-4 focus:ring-brand/30"
+    >
+      Skip to content
+    </a>
   );
 }
 
@@ -225,12 +252,15 @@ function TopBar({
   account,
   unread,
   links,
+  search,
   width,
   className,
 }: {
   account: React.ReactNode;
   unread: number;
   links?: React.ReactNode;
+  /** The palette's opener, for a reader who has the palette. */
+  search?: React.ReactNode;
   width: string;
   className?: string;
 }) {
@@ -267,6 +297,7 @@ function TopBar({
         <PhoneChrome brand={<BrandWordmark version={pkg.version} />} />
         {links}
         <div className="ml-auto flex shrink-0 items-center gap-1">
+          {search}
           <NotificationBell count={unread} />
           {account}
         </div>
@@ -314,6 +345,18 @@ function StaffShell({
 
   return (
     <div className="flex min-h-full flex-1 flex-col lg:pl-[13.75rem] rail-collapsed:lg:pl-16">
+      <SkipLink />
+
+      {/* Once for the whole shell: ⌘K opens it from anywhere, and the rail's
+          field and the top bar's button fire its event. Only for a reader
+          with something to search — the same condition the rail's field has. */}
+      {search && (
+        <CommandPalette
+          places={[...items, { href: "/settings", label: "Settings" }]}
+          mentors={search.mentors}
+        />
+      )}
+
       {/* Once for the whole shell: the switch is in the DOM twice (one of them
           hidden by a breakpoint), so a listener on either would fire twice. */}
       {lens && <ProfileShortcut />}
@@ -355,13 +398,24 @@ function StaffShell({
       <TopBar
         account={account}
         unread={unread}
+        search={
+          search ? (
+            <CommandPaletteButton
+              label={search.mentors ? "Find a student, mentor or page" : "Find a student or page"}
+            />
+          ) : undefined
+        }
         width="max-w-6xl"
         className="lg:hidden"
       />
 
       {/* pb-24 clears the bottom bar (56px + the home-indicator inset);
           nothing sits under it at lg, where the bar is gone. */}
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:pb-10 lg:pt-8">
+      <main
+        id="main"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-6xl focus:outline-none flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:pb-10 lg:pt-8"
+      >
         <PageTransition>{children}</PageTransition>
       </main>
 
@@ -393,6 +447,7 @@ function StudentShell({
 }) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
+      <SkipLink />
       <TopBar
         width="max-w-2xl"
         unread={unread}
@@ -409,7 +464,11 @@ function StudentShell({
         }
       />
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:pb-10">
+      <main
+        id="main"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-2xl focus:outline-none flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:pb-10"
+      >
         <PageTransition>{children}</PageTransition>
       </main>
 
@@ -499,13 +558,16 @@ export async function AppShell({
     );
   }
 
-  // The search goes where the lists are. A person with no grants has no list to
-  // search, and only a full admin has a Mentors list to send the second submit
-  // to — both read off the items `navFor` just derived rather than off a role.
+  // The search goes where the lists are — the same two readers `/students`
+  // lets in: somebody with a grant, and somebody who mentors, whose roster is
+  // everyone they may log hours with. A person with neither has no list to
+  // search. Only a full admin has a Mentors item, and that is read off the
+  // items `navFor` just derived rather than off a role.
   const scope = await adminScope(user);
-  const search = scopeIsEmpty(scope)
-    ? undefined
-    : { mentors: items.some((i) => i.href === "/mentors") };
+  const search =
+    scopeIsEmpty(scope) && !canActAsMentor(user)
+      ? undefined
+      : { mentors: items.some((i) => i.href === "/mentors") };
 
   return (
     <StaffShell

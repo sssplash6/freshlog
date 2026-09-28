@@ -114,7 +114,11 @@ export function StudentsTable({
       ...(on("total") ? { sort: "total", sortDir: "desc" as const } : {}),
     },
     {
-      label: viewer.audience === "mentor" ? "Remaining with you" : "Remaining",
+      // Just "Remaining": the figure is the student's total across EVERY
+      // mentor's grant (`studentsWithHours`), so "with you" would claim a
+      // mentor's column holds their own balance. The per-mentor figure with
+      // that label lives on /mentor's caseload table, which does scope it.
+      label: "Remaining",
       align: "right",
       ...(on("remaining") ? { sort: "remaining", sortDir: "desc" as const } : {}),
     },

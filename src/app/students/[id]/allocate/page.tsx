@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { AssignTaskForm } from "@/components/forms/assign-task-form";
 import { PageTitle, Section } from "@/components/ui/section";
-import { adminScope, canManageStudent, scopeProgramFilter, studentScope } from "@/lib/authz";
+import { adminWriteScope, canAdministerStudent, scopeProgramFilter } from "@/lib/authz";
 import { enrollmentLabel } from "@/lib/enrollments";
 import { requireUser } from "@/lib/dal";
 import { formatMinutes } from "@/lib/format";
@@ -26,10 +26,15 @@ export default async function AllocateStudentTimePage({
       },
     },
   });
-  if (!profile || !(await canManageStudent(me, profile))) notFound();
+  // A form, not a record: a read-only grant (LEADER, SALES) has nothing to do
+  // here, so the gate and the picker both ask the write scope — an enrollment
+  // the admin can read but not write must not be offered as a grant target.
+  if (!profile || !(await canAdministerStudent(me, profile))) notFound();
 
-  const scope = await adminScope(me);
-  const visible = await studentScope(me, profile);
+  const scope = await adminWriteScope(me);
+  const visible = profile.enrollments
+    .map((e) => e.programId)
+    .filter((id) => scope === "ALL" || scope.has(id));
   const enrollments = profile.enrollments.filter((e) => visible.includes(e.programId));
   const programIds = scopeProgramFilter(scope);
   const [mentors, ledger] = await Promise.all([

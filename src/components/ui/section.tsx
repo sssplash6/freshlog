@@ -170,7 +170,7 @@ export function Section({
 }) {
   return (
     <section
-      className={cn("overflow-hidden rounded-2xl border border-line bg-surface shadow-sm", className)}
+      className={cn("overflow-clip rounded-xl border border-line bg-surface shadow-sm", className)}
       {...props}
     >
       {/* items-baseline, not items-end: the title is 17px and the action beside

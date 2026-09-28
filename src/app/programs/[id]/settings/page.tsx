@@ -10,6 +10,7 @@ import {
 } from "@/components/forms/program-settings-forms";
 import { PersonChip } from "@/components/person-chip";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ArrowLink } from "@/components/ui/link";
 import { Section } from "@/components/ui/section";
 import { SettingsRow } from "@/components/ui/settings-row";
 import { requireProgramScope } from "@/lib/dal";
@@ -24,11 +25,15 @@ import {
   programStudents,
 } from "../../reads";
 
-/** What a `ProgramStaff.role` means in a sentence. ADMIN is the only one the UI grants. */
+/**
+ * A `ProgramStaff.role` by the name the grants editor gives it. It used to be
+ * a sentence ("Reads this program"), which promised a limit the level does not
+ * set on its own — the editor on Platform settings says what each one shows.
+ */
 const LEVEL: Record<string, string> = {
-  ADMIN: "Super admin",
-  LEADER: "Reads this program",
-  SALES: "Registers students here",
+  ADMIN: "Admin",
+  LEADER: "Leader",
+  SALES: "Sales",
 };
 
 /**
@@ -53,7 +58,7 @@ export default async function ProgramSettingsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireProgramScope(id);
+  const viewer = await requireProgramScope(id);
 
   const [program, students, pairings, cohorts, grants, allMentors] =
     await Promise.all([
@@ -175,12 +180,20 @@ export default async function ProgramSettingsPage({
       {/* Read-only, deliberately: `/settings/platform` is the ONE place a grant
           is made, changed or removed (§8.4), so this says who holds one and
           sends the reader there rather than growing a second write surface.
-          The link itself lands with that page, in commit 49. */}
+          Only a platform admin can open that page, so only they get the link;
+          everybody else is told where it happens and who to ask. */}
       <Section
         eyebrow="Access"
         title="Admins"
         count={grants.length > 0 ? grants.length : undefined}
         caption="Granted on Platform settings"
+        action={
+          viewer.platformAdmin ? (
+            <ArrowLink href="/settings/platform" className="text-sm">
+              Manage on Platform settings
+            </ArrowLink>
+          ) : undefined
+        }
       >
         {grants.length === 0 ? (
           <EmptyState framed={false} title="Nobody is granted this program">
@@ -228,8 +241,10 @@ export default async function ProgramSettingsPage({
         </div>
       </Section>
 
+      {/* The eyebrow names what is true of the action — it cannot be taken
+          back — rather than dramatising it with a warning-sign cliché. */}
       <Section
-        eyebrow="Danger zone"
+        eyebrow="Permanent"
         title="Delete this program"
         caption="Only possible once nothing is left in it"
       >

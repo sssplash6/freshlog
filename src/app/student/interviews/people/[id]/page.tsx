@@ -82,7 +82,7 @@ export default async function ClassmatePage({
 
   const slots = classmate.interviewSlots.map((s) => ({
     id: s.id,
-    day: formatSlotDay(s.startsAt),
+    day: formatSlotDay(s.startsAt, { zone: true }),
     span: formatSlotSpan(s),
   }));
 

@@ -1,13 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 
 import { Toaster } from "@/components/toaster";
 import { STARTUP_IMAGES } from "@/lib/generated/startup-images";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+/**
+ * The type is the platform's own on Apple devices and Inter everywhere else.
+ *
+ * SF Pro may not be served as a web font — its licence covers Apple platforms
+ * only — but `-apple-system` asks the OS for it, so an iPhone or a Mac reads
+ * this app in the face every other app on it uses. Inter is the stand-in for
+ * the rest: the closest open face to SF, and with `cv11` (single-storey a) and
+ * `ss01` (open digits) switched on in globals.css it sits closer still. The
+ * stack itself lives in `--font-sans`, so this only has to load Inter.
+ */
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin", "cyrillic"],
 });
 
 const geistMono = Geist_Mono({
@@ -103,11 +113,13 @@ export const viewport: Viewport = {
  * so a reader who chose dark gets a full white page first. That flash is the
  * whole reason this is a `<script>` in the document and not a component.
  *
- * A stored choice wins; with none, the operating system decides. Wrapped in
+ * A stored choice wins; with none, the operating system decides. The table
+ * density rides along for the same reason — a roster that paints at one row
+ * height and jumps to another is the same flash in a different shape. Wrapped in
  * try/catch because reading `localStorage` throws outright in a browser set to
  * block site data, and a theme is not worth a blank page.
  */
-const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t!=="dark"&&t!=="light"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t;if(localStorage.getItem("rail")==="collapsed"){document.documentElement.dataset.rail="collapsed"}}catch(e){}})()`;
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t!=="dark"&&t!=="light"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t;if(localStorage.getItem("rail")==="collapsed"){document.documentElement.dataset.rail="collapsed"}var d=localStorage.getItem("density");if(d==="compact"||d==="comfortable"){document.documentElement.dataset.density=d}}catch(e){}})()`;
 
 export default function RootLayout({
   children,
@@ -117,7 +129,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

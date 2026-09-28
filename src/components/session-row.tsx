@@ -137,6 +137,7 @@ export function SessionRow({
   variant = "log",
   columns = DEFAULT_COLUMNS,
   actions,
+  footer,
   index,
 }: {
   session: SessionEntry;
@@ -147,6 +148,12 @@ export function SessionRow({
   columns?: SessionColumn[];
   /** Edit · Void · Delete · Rate — already resolved for this reader. */
   actions?: React.ReactNode;
+  /**
+   * Content pinned under the row — the student's "Did this happen?" form on
+   * /student/meetings. Rendered by the `timeline` and `log` variants; `line`
+   * stays a single sentence and ignores it.
+   */
+  footer?: React.ReactNode;
   /** Position in the list, for the entrance stagger and nothing else. */
   index?: number;
 }) {
@@ -158,6 +165,7 @@ export function SessionRow({
         variant={variant}
         columns={columns}
         actions={actions}
+        footer={footer}
         index={index}
       />
     </SessionLiveProvider>
@@ -170,6 +178,7 @@ function SessionRowContent({
   variant = "log",
   columns = DEFAULT_COLUMNS,
   actions,
+  footer,
   index,
 }: {
   session: SessionEntry;
@@ -177,6 +186,7 @@ function SessionRowContent({
   variant?: "log" | "timeline" | "line";
   columns?: SessionColumn[];
   actions?: React.ReactNode;
+  footer?: React.ReactNode;
   index?: number;
 }) {
   const live = useLiveSession()?.session;
@@ -203,7 +213,10 @@ function SessionRowContent({
     statuses.length > 0 ? (
       <span className="flex flex-wrap gap-1.5">
         {statuses.map((s) => (
-          <StatusChip key={s.type} status={s} />
+          // The timeline is the student's own history, read on a phone —
+          // where a `title` tooltip never appears — so the reason a session
+          // cost what it cost is printed, not hovered.
+          <StatusChip key={s.type} status={s} explain={variant === "timeline"} />
         ))}
       </span>
     ) : null;
@@ -371,6 +384,7 @@ function SessionRowContent({
             </div>
           )}
           {chips && <div className="mt-1">{chips}</div>}
+          {footer && <div className="mt-2">{footer}</div>}
         </div>
       </li>
     );
@@ -455,6 +469,8 @@ function SessionRowContent({
           {chips}
         </div>
       )}
+
+      {footer && <div className="mt-1">{footer}</div>}
     </li>
   );
 }

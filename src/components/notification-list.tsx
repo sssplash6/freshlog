@@ -72,6 +72,9 @@ function NotificationRow({
               n.read ? "bg-transparent" : "bg-brand",
             )}
           />
+          {/* The dot is the only mark of an unread row, and it is drawn, not
+              said — so the row says it first, where a screen reader starts. */}
+          {!n.read && <span className="sr-only">Unread, </span>}
           <span className="min-w-0 flex-1">
             <span className="flex flex-wrap items-center gap-2">
               <span

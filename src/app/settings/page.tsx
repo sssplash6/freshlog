@@ -1,3 +1,5 @@
+import { DensityToggle } from "@/components/density-toggle";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { BookingLinksForm } from "@/components/forms/booking-link-form";
 import { AvatarForm, OwnNameForm } from "@/components/forms/profile-forms";
 import {
@@ -101,6 +103,25 @@ export default async function SettingsPage() {
           </div>
         </Section>
       )}
+
+      {/* Kept in this browser rather than on the account: a laptop at a desk
+          and a phone on the bus want different answers, and neither choice is
+          worth a round trip. The account menu carries the same two rows. */}
+      <Section title="Display">
+        <div className="px-4 py-2 sm:px-5">
+          <SettingsRow
+            label="Theme"
+            description="Light or dark, for this browser."
+            control={<ThemeToggle inline className="sm:ml-auto sm:w-48" />}
+          />
+          <SettingsRow
+            label="Density"
+            description="How tightly tables and text pack on a larger screen. Phones always keep full-size controls."
+            className="max-sm:hidden"
+            control={<DensityToggle inline className="sm:ml-auto sm:w-48" />}
+          />
+        </div>
+      </Section>
 
       <Section title="Notifications">
         <div className="px-4 py-2 sm:px-5">

@@ -6,15 +6,28 @@ import { cn } from "@/lib/cn";
 import { FULL_NAME_RE, NAME_MAX } from "@/lib/actions/shared";
 
 /**
- * The one text-field look, shared by Input, Textarea and the native Select.
+ * The one text-field look, shared by Input, Textarea, Select and DateField.
+ *
+ * A FILL, not a box. The field is a pale translucent grey with no visible
+ * border at rest — iOS's grouped-form field — so a form reads as a few calm
+ * wells on the card rather than a stack of outlined rectangles. Focus is where
+ * the edge appears: the border takes the brand colour and a soft 4px halo
+ * spreads from it, and the fill turns to the card's white so the text being
+ * typed is the brightest thing on screen. The border stays in the box model
+ * (transparent) so focusing never shifts a pixel.
+ *
+ * `fieldChrome` is the fill and focus alone, for the custom controls that
+ * bring their own padding and layout (Select's trigger, the search box).
  *
  * `text-base` below `sm` is load-bearing and about iOS, not readability: a
  * focused field under 16px makes Safari zoom the page to fill the input, and
  * it stays zoomed after you leave — the layout never quite comes back. 15px
  * survives at ≥sm, where zoom on focus is a desktop-only irrelevance.
  */
-export const inputClasses =
-  "min-h-11 w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-base text-ink caret-brand transition-colors placeholder:text-muted-fg hover:border-brand/40 focus:border-brand focus:outline-none sm:text-[0.9375rem]";
+export const fieldChrome =
+  "rounded-lg border border-transparent bg-fill text-ink caret-brand transition-[background-color,border-color,box-shadow] hover:bg-fill-strong focus:border-brand focus:bg-surface focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand)_16%,transparent)] focus:outline-none";
+
+export const inputClasses = `${fieldChrome} min-h-11 w-full px-3.5 py-2.5 text-base placeholder:text-muted-fg sm:text-[0.9375rem]`;
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(inputClasses, className)} {...props} />;

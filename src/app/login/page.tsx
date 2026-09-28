@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { Callout } from "@/components/ui/callout";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { signIn } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/dal";
 import { homeFor, profileOf } from "@/lib/profile";
@@ -54,13 +55,14 @@ export default async function LoginPage({
             await signIn("google", { redirectTo: "/" });
           }}
         >
-          <button
-            type="submit"
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-[0.9375rem] font-medium text-ink transition-colors hover:border-brand/40 hover:bg-canvas"
+          <SubmitButton
+            variant="secondary"
+            pendingText="Opening Google…"
+            className="w-full gap-3 py-3 text-[0.9375rem] text-ink"
           >
             <GoogleIcon />
             Continue with Google
-          </button>
+          </SubmitButton>
         </form>
 
         <p className="mt-4 text-center text-xs text-muted-fg">

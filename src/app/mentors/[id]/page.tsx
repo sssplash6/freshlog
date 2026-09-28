@@ -15,7 +15,12 @@ import { ArrowLink, ExternalLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
 import { TabLinks } from "@/components/ui/segmented";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
-import { adminScope, canManageMentor, scopeProgramFilter } from "@/lib/authz";
+import {
+  adminScope,
+  canAdministerMentor,
+  canManageMentor,
+  scopeProgramFilter,
+} from "@/lib/authz";
 import { cn } from "@/lib/cn";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
@@ -89,7 +94,11 @@ export default async function MentorPage({
 
   const isSelf = viewer.id === mentor.id;
   const isStudent = viewer.role === ROLES.STUDENT;
+  // `manages` opens the record — a shared program at any grant level reads a
+  // mentor's figures. `edits` is the write answer, so a read-only grant (a
+  // LEADER, a SALES row) sees the record but not the Edit disclosure.
   const manages = !isStudent && (await canManageMentor(viewer, mentor.id));
+  const edits = !isStudent && (await canAdministerMentor(viewer, mentor.id));
 
   if (isSelf || manages) {
     return (
@@ -98,6 +107,7 @@ export default async function MentorPage({
         viewer={viewer}
         isSelf={isSelf}
         manages={manages}
+        edits={edits}
         query={query}
       />
     );
@@ -129,12 +139,14 @@ async function MentorRecord({
   viewer,
   isSelf,
   manages,
+  edits,
   query,
 }: {
   mentor: User;
   viewer: User;
   isSelf: boolean;
   manages: boolean;
+  edits: boolean;
   query: SearchParams;
 }) {
   // One instant for every use-by date and every window bound on the page.
@@ -178,7 +190,7 @@ async function MentorRecord({
     // unticked box safe to read as a removal: a pairing in a program they do
     // not hold draws no row, and `updateMentor` refuses to delete what drew no
     // row. Only fetched when there is an Edit fold to put it in.
-    manages ? programOptions(programIds) : Promise.resolve([]),
+    edits ? programOptions(programIds) : Promise.resolve([]),
   ]);
 
   /**
@@ -268,7 +280,7 @@ async function MentorRecord({
           }
         />
 
-        {manages && (
+        {edits && (
           <Disclosure label="Edit">
             <EditMentorForm
               mentorId={mentor.id}
@@ -715,7 +727,11 @@ async function MentorCard({
         ))}
       </ul>
 
-      {isStudent && <ArrowLink href="/student/feedback">Rate {first}</ArrowLink>}
+      {isStudent && (
+        // Straight to the form with this mentor chosen: the student has just
+        // said who they mean by opening this page.
+        <ArrowLink href={`/student/feedback?mentor=${mentor.id}`}>Rate {first}</ArrowLink>
+      )}
     </div>
   );
 }

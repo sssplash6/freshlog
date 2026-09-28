@@ -15,21 +15,38 @@ import { SubmitButton } from "@/components/ui/submit-button";
  * half-finished edit stand — and "which programs is this person on?" is one
  * question, which the reader should be able to answer and change in one place.
  *
- * The levels are the two old scoped roles plus Admin. Nothing but Admin is
- * granted in practice today; they are offered because the model can say them
- * and because a program that wants a read-only coordinator should not need a
- * migration to get one.
+ * The levels are the two old scoped roles plus Admin. The copy describes each
+ * by the pages it puts in the person's menu, and deliberately promises nothing
+ * about what they cannot change: a hint that says "reads only" is a guarantee,
+ * and the level select once shipped one the server did not keep (audit C3).
+ * Say what the menu shows; give a level only to somebody trusted with the
+ * program.
  */
 
 const LEVELS = [
   {
     value: "ADMIN",
-    label: "Super admin",
-    hint: "Full admin rights in this program only.",
+    label: "Admin",
+    hint: "Manages this program's students, mentors, sessions and time.",
   },
-  { value: "LEADER", label: "Leader", hint: "Reads the program and its feedback." },
-  { value: "SALES", label: "Sales", hint: "Reads the program's students." },
+  { value: "LEADER", label: "Leader", hint: "Menu shows Students, Feedback and the program." },
+  { value: "SALES", label: "Sales", hint: "Menu shows Students and the program." },
 ] as const;
+
+/** Most access first — the order of LEVELS, and the order `widest` in nav.ts ranks. */
+const RANK: readonly string[] = LEVELS.map((l) => l.value);
+
+/**
+ * The level a newly ticked program starts on: the highest this person already
+ * holds anywhere, or the lowest level if they hold none. Pre-selecting Admin
+ * meant ticking a second program for a Sales grantee quietly offered them the
+ * top level, one careless save away.
+ */
+function startingLevel(grants: Record<string, string>): string {
+  const held = Object.values(grants).filter((g) => RANK.includes(g));
+  if (held.length === 0) return RANK[RANK.length - 1];
+  return held.reduce((best, g) => (RANK.indexOf(g) < RANK.indexOf(best) ? g : best));
+}
 
 export type GrantRow = {
   userId: string;
@@ -51,6 +68,7 @@ export function GrantsEditor({
   const [checked, setChecked] = useState<Record<string, boolean>>(
     Object.fromEntries(programs.map((p) => [p.id, p.id in row.grants]))
   );
+  const fallback = startingLevel(row.grants);
 
   return (
     <RowActionMenu trigger="pencil" label={`Change ${row.name ?? row.email}'s access`} width="lg">
@@ -58,8 +76,8 @@ export function GrantsEditor({
         <form action={action} className="space-y-2">
           <input type="hidden" name="userId" value={row.userId} />
           <p className="mb-2 text-xs text-muted-fg">
-            Select the programs where this person should be a super admin. This
-            does not give them platform-wide access.
+            Tick the programs this person works in, and pick the level for
+            each. None of this gives platform-wide access.
           </p>
           {programs.map((p) => (
             <div key={p.id} className="flex flex-wrap items-center gap-2">
@@ -81,7 +99,7 @@ export function GrantsEditor({
                   program from the boxes that came back. */}
               <select
                 name={`level:${p.id}`}
-                defaultValue={row.grants[p.id] ?? "ADMIN"}
+                defaultValue={row.grants[p.id] ?? fallback}
                 disabled={!checked[p.id]}
                 className="min-h-11 rounded-lg border border-line bg-surface px-2.5 text-sm text-ink disabled:opacity-50"
               >
@@ -94,8 +112,19 @@ export function GrantsEditor({
             </div>
           ))}
           <p className="text-xs text-muted-fg">
-            Unticking a program removes that access. Program admins manage that
-            program&apos;s students, mentors and time.
+            Unticking a program removes that access.
+          </p>
+          <dl className="space-y-1 text-xs text-muted-fg">
+            {LEVELS.map((l) => (
+              <div key={l.value} className="flex gap-1">
+                <dt className="font-medium text-ink">{l.label}:</dt>
+                <dd>{l.hint}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="text-xs text-muted-fg">
+            Leader and Sales decide which pages a person is shown. Give any
+            level only to somebody you trust with the program.
           </p>
           <SubmitButton size="sm">Save access</SubmitButton>
           <SaveState state={save} />

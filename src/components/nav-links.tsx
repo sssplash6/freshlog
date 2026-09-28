@@ -35,8 +35,10 @@ const NAV_ICONS: [string, (p: { className?: string }) => React.ReactNode][] = [
   ["/student/book", PlusIcon],
   ["/student/feedback", StarIcon],
   ["/student", HomeIcon],
-  ["/admin", InboxIcon],
-  ["/mentor", InboxIcon],
+  // Both homes are HomeIcon now that their pages are titled "Home" — the
+  // inbox glyph stays with /notifications, the page that actually is one.
+  ["/admin", HomeIcon],
+  ["/mentor", HomeIcon],
   ["/students", UsersIcon],
   ["/mentors", UserIcon],
   ["/programs", LayersIcon],
@@ -58,7 +60,7 @@ export function NavIcon({ href, className }: { href: string; className?: string 
  * Which item the reader is standing on.
  *
  * Longest matching href wins, so `/admin/students/[id]` lights Students rather
- * than Inbox — `/admin` is a prefix of every admin route and would otherwise
+ * than Home — `/admin` is a prefix of every admin route and would otherwise
  * claim all of them. Shared by all three renderings below and by the tab bar,
  * because a sidebar and a bottom bar that disagreed about where you are would
  * be worse than either alone.
@@ -75,7 +77,7 @@ export function useCurrentNavItem(items: NavItem[]): NavItem | null {
 }
 
 /**
- * The count beside Inbox and Notifications, and nowhere else.
+ * The count beside Home and Notifications, and nowhere else.
  *
  * Brand blue, not red. Unread mail is not a problem — red in this app means
  * hours are gone or a balance is negative (DESIGN.md), and spending it on a

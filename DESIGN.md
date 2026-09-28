@@ -143,8 +143,12 @@ no longer have.
 
 ## Type and numbers
 
-Geist is the single product typeface; Geist Mono appears once, on the error
-digest. Numbers use tabular figures.
+The type is the platform's own: `-apple-system` gives SF on an iPhone or a Mac,
+and Inter (with `cv11` and `ss01`, the two features that move it closest to SF)
+is the face everywhere else — SF itself cannot be served as a web font. Geist
+Mono appears once, on the error digest. Numbers use tabular figures, and every
+`Table` sets them for the whole grid so a column of balances aligns by digit.
+(Amended September 2026, from Geist, when the visual layer moved toward iOS.)
 
 Durations are minutes until minutes stop being readable. One meeting or one
 task budget is a plain minute count ("90 min"); a roll-up — a total, a
@@ -312,6 +316,40 @@ The legend swatches therefore differ in **shape** as well as fill: filled dot,
 striped square, hollow ring. Hours logged out of plan sit outside the bar; they
 were never part of what was bought.
 
+### The surface: fills, corners, depth (September 2026)
+
+The visual layer moved toward iOS's grouped style without changing a single
+colour's meaning:
+
+- **Fields are fills, not boxes.** `inputClasses`/`fieldChrome` in `ui/field.tsx`
+  paint every input, textarea, `Select` trigger and `DateField` in `fill` — a
+  translucent grey that reads on the card and on the canvas alike — with no
+  border at rest. Focus is where the edge appears: brand border, a soft 4px
+  halo, and the fill turns white. A secondary button wears the same fill, so a
+  form's inputs and its secondary action read as one family under the one blue
+  button.
+- **Four corners.** `rounded-md` 8px (tags, small controls), `rounded-lg` 12px
+  (buttons, inputs, rows), `rounded-xl` 18px (cards, tables, sections),
+  `rounded-2xl` 24px (sheets, modals, the sign-in card), `rounded-full` for
+  chips and avatars. Tailwind's names, re-stepped in `@theme`; nested corners
+  follow outer minus padding.
+- **Table headers stick** under the top bar (`--sticky-top`: the bar's height,
+  or 0 where the rail replaced it), in sentence case on a frosted tint. Sticky
+  needs no scroll container in between, which is why `Section` clips with
+  `overflow-clip` rather than `overflow-hidden`, and why the table wrapper no
+  longer scrolls sideways at all.
+- **Density is the reader's.** Compact / Default / Comfortable, in the account
+  menu and on Settings, stored per browser beside the theme and applied before
+  first paint. It moves the root size (87.5 / 94 / 100%) and a table's row
+  padding, from `sm` up only — a phone's 44px targets are not a preference.
+- **Toasts** are a dark translucent capsule at the bottom centre: 4 seconds, 6
+  when they carry an action, held while a pointer or focus is on them. The one
+  action a toast offers is Undo, and only for an action with an exact inverse
+  (REDESIGN §5.8).
+- **Status explanations can be printed.** `StatusChip explain` puts the ≤12-word
+  why on a sibling line, for the places a phone reader needs it — a student's
+  session history, their home — where a `title` tooltip never appears.
+
 ### Rules a component has to keep
 
 Use native controls unless a custom interaction offers a demonstrated benefit,
@@ -334,7 +372,7 @@ is a sibling line, not chip content. `truncate` on a flex child without
 and that is why names in table cells blew their column open.
 
 Every table is capped at **six columns**, a row stacks into labelled lines below
-`sm`, and no table scrolls sideways: nine columns do not fit a phone, and a
+`sm`, its header row sticks, and no table scrolls sideways at any width: nine columns do not fit a phone, and a
 swipe nothing on screen suggests is not navigation. Any list that can grow
 without bound is paged, and the narrowing — search, filter, date range —
 belongs in the query, never in a `.filter()` over everything.
@@ -350,7 +388,11 @@ One vocabulary throughout: mentor · student · **session** (logged) · **meetin
 
 ## Motion
 
-Motion is brief and eases out; interaction feedback is 150–180ms. Entrances are
+Motion is brief and eases out; interaction feedback is 150–180ms. Things that
+move in space ride springs, sampled into CSS `linear()` so no library is needed:
+`--ease-spring` (critically damped — menus, popovers, the press rebound) and
+`--ease-spring-soft` (one ~2% overshoot — sheets and modals, the things with
+mass). A pressed button drops to 97% instantly and springs back on release. Entrances are
 choreographed rather than simultaneous: rows `deal-in` with a ~24ms stagger,
 panels `lift-in`, `HoursRing` draws its arc once with `ring-draw`, and `Meter`
 grows its fill from empty on mount, so spending hours is something you watch

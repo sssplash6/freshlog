@@ -17,18 +17,25 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowLink } from "@/components/ui/link";
 import { Meter } from "@/components/ui/meter";
 import { PageTitle, Section } from "@/components/ui/section";
-import { StatusChip } from "@/components/ui/status-chip";
+import { StatusSummary } from "@/components/status-summary";
+import { DeadlineText, StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
 import { ASSIGNMENT_PROGRESS, ROLES, USER_STATUS } from "@/lib/constants";
 import { withoutMentorNotes } from "@/lib/authz";
 import { requireRole } from "@/lib/dal";
-import { formatDate, formatMinutes } from "@/lib/format";
+import { formatDate, formatDuration, formatMinutes } from "@/lib/format";
 import { enrollmentsLabel } from "@/lib/enrollments";
 import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
+import { studentRows } from "@/lib/attention";
 import { studentLedger, type LedgerAssignment } from "@/lib/queries";
 import { taskIsOpen } from "@/lib/student-tasks";
-import { taskStatuses, type Status, type ViewerContext } from "@/lib/status";
+import {
+  EXPIRY_WINDOW_DAYS,
+  taskStatuses,
+  type Status,
+  type ViewerContext,
+} from "@/lib/status";
 
 /**
  * One line of the AGENDA — a piece of work the student's hours were budgeted
@@ -207,6 +214,21 @@ export default async function StudentHomePage() {
     ...tasks.filter((t) => t.task.progress === ASSIGNMENT_PROGRESS.NOT_STARTED),
   ];
 
+  // What is true of the ACCOUNT, said to its owner — the same rows the bell
+  // lists on /notifications: no time, no mentor, a deadline coming or one
+  // that ate a balance, a mentor with no booking link, meetings to confirm,
+  // overdue work. A student with nothing yet used to land on a 0m ring and
+  // three empty sections and be told nothing. The balance and the ledger are
+  // handed over rather than read again.
+  const account = await studentRows(user, profile, hours, ledger, now);
+  // The soonest use-by, stated even outside the month the expiry row warns
+  // in: a deadline is the one date on this page that costs time, and a
+  // student should be able to see it before it becomes a warning.
+  const useBy =
+    hours.expiring && !account.some((s) => s.type === "ALLOCATION_EXPIRING")
+      ? hours.expiring
+      : null;
+
   // What their mentors set them to go away and do — already soonest-deadline
   // first from the query, because that is the order a to-do list is read in.
   const myTasks = toStudentTaskEntries(ledger.tasks, {
@@ -244,6 +266,10 @@ export default async function StudentHomePage() {
         }
       />
 
+      {/* Account truth, between the greeting and the figures: a chip, and
+          the sentence that goes with it, most urgent first. */}
+      <StatusSummary statuses={account} title="Things to check" />
+
       {(hours.allotted > 0 || hours.used > 0 || hours.extra > 0) && (
         <Section title="Your time">
           <div className="px-4 py-2 sm:px-5">
@@ -258,6 +284,16 @@ export default async function StudentHomePage() {
               // that cannot show an overdraw is a bar that lies about it.
               remaining={Math.min(0, hours.remaining)}
             />
+            {useBy && (
+              <p className="mt-2 text-xs text-muted-fg">
+                {formatDuration(useBy.minutes)} to use by{" "}
+                <DeadlineText
+                  deadline={useBy.date}
+                  now={now}
+                  within={EXPIRY_WINDOW_DAYS.student}
+                />
+              </p>
+            )}
           </div>
         </Section>
       )}

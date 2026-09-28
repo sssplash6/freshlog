@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 
 import { ChevronDownIcon, SearchIcon } from "@/components/icons";
+import { fieldChrome } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
 import type { ProgramOption } from "@/lib/queries";
 
@@ -186,7 +187,7 @@ export function ProgramTargetsPicker({
       </div>
 
       {withSearch && (
-        <div className="mt-2 flex items-center gap-2 rounded-lg border border-line bg-surface px-3">
+        <div className={cn(fieldChrome, "mt-2 flex items-center gap-2 px-3 focus-within:border-brand focus-within:bg-surface")}>
           <SearchIcon className="h-4 w-4 shrink-0 text-muted-fg" />
           <input
             type="text"

@@ -15,13 +15,14 @@ export type ButtonSize = "xs" | "sm" | "md";
  * reserved for hours/progress. Red only for destructive. */
 const VARIANTS: Record<ButtonVariant, string> = {
   primary: "bg-brand text-on-brand shadow-sm hover:bg-brand-dark",
-  // A white chip with a hairline, not an outlined brand button that INVERTS to
-  // solid blue on hover. The inverting version shouted: a secondary action that
-  // turns into the loudest thing on the row when the cursor crosses it is a
-  // secondary action pretending to be the primary one. This is the shape the
-  // cards around it already have.
-  secondary:
-    "border border-line bg-surface text-brand shadow-sm hover:bg-canvas hover:border-brand/40",
+  // A grey tinted fill with brand text — iOS's secondary button — not an
+  // outlined brand button that INVERTS to solid blue on hover. The inverting
+  // version shouted: a secondary action that turns into the loudest thing on
+  // the row when the cursor crosses it is a secondary action pretending to be
+  // the primary one. The fill is the same one fields sit in, so a form's
+  // secondary action and its inputs read as one family, below the one blue
+  // button that is the point of the screen.
+  secondary: "bg-fill text-brand hover:bg-fill-strong",
   ghost: "text-brand hover:bg-brand-soft",
   danger: "border border-danger-line text-danger-ink hover:bg-danger-soft",
   // The second half of a two-step confirm: by then the destructive choice IS
@@ -47,14 +48,15 @@ export function buttonClasses(
   className?: string,
 ): string {
   return cn(
-    // rounded-xl, not rounded-lg: at 44px tall an 8px corner reads as a
-    // rectangle with the corners knocked off. 12px softens it without becoming
-    // a pill — a pill reads as a status, and these are the things you press.
+    // rounded-lg — 12px on this app's scale (globals.css): at 44px tall an 8px
+    // corner reads as a rectangle with the corners knocked off, and 12px
+    // softens it without becoming a pill — a pill reads as a status, and these
+    // are the things you press.
     //
     // `transition`, not `transition-colors`: the buttons carry a shadow and a
     // border that changes on hover now, and `transition-colors` animates
     // neither — so the colour eased while the elevation snapped.
-    "inline-flex items-center justify-center whitespace-nowrap rounded-xl font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
+    "inline-flex items-center justify-center whitespace-nowrap rounded-lg font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
     VARIANTS[variant],
     SIZES[size],
     className,

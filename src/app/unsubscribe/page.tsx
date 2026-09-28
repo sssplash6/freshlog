@@ -35,7 +35,7 @@ export default async function UnsubscribePage({
       {
         title: "This link isn't valid",
         blurb:
-          "It may have been broken by your email client, or it may be from before a security change. Sign in and use the toggle on your notifications page instead.",
+          "It may have been broken by your email client, or it may be from before a security change. Sign in and use the weekly summary toggle on your settings page instead.",
       }
     ) : (
       { title: "Turn off weekly summary emails?", blurb: "" }

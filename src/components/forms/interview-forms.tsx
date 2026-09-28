@@ -134,6 +134,10 @@ export function BookInterviewForm({
                         className="peer sr-only"
                       />
                       <span className="inline-flex h-11 cursor-pointer items-center rounded-xl border border-line bg-surface px-3.5 text-sm font-medium tabular-nums text-ink transition hover:border-brand/40 peer-checked:border-brand peer-checked:bg-brand-soft peer-checked:text-brand peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand">
+                        {/* The day and its zone are the heading above, which a
+                            screen reader does not attach to the radio — so the
+                            radio's own name carries them. */}
+                        <span className="sr-only">{day}, </span>
                         {s.span}
                       </span>
                     </label>
@@ -202,11 +206,22 @@ export function CancelInterviewButton({ interviewId }: { interviewId: string }) 
 export function MarkDoneButton({ interviewId }: { interviewId: string }) {
   const [, action, save] = useSaveState(markInterviewDone);
   return (
-    <form action={action} className="flex flex-wrap items-center gap-3">
-      <input type="hidden" name="interviewId" value={interviewId} />
-      <SubmitButton pendingText="Saving…">Mark as done</SubmitButton>
+    <div className="flex flex-wrap items-center gap-3">
+      {/* One tap ends the interview for both students, so it is a two-step
+          claim rather than a bare submit — but not a destructive one, which
+          is what the primary tone says. */}
+      <ConfirmInline
+        tone="primary"
+        label="Mark as done"
+        question="Mark it done? This can't be undone — the notes step opens."
+        confirmLabel="Yes, it happened"
+        action={action}
+        values={{ interviewId }}
+        pending={save.kind === "saving"}
+        pendingLabel="Saving…"
+      />
       <SaveState state={save} />
-    </form>
+    </div>
   );
 }
 

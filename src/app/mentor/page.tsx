@@ -17,7 +17,7 @@ import { formatDate, formatDuration, formatRough } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { applySort, readSort } from "@/lib/sort";
 import { mentorCaseload } from "@/lib/queries";
-import { type ViewerContext } from "@/lib/status";
+import { EXPIRY_WINDOW_DAYS, type ViewerContext } from "@/lib/status";
 
 /** Students shown before the table offers to unfold the rest. */
 const CASELOAD_ROWS = 8;
@@ -179,7 +179,7 @@ export default async function MentorHomePage({
     <div className="space-y-4">
       <PageTitle
         eyebrow="Mentor"
-        title="Inbox"
+        title="Home"
         subtitle={
           // The programs, and only when there is no figure strip below to say
           // more than they do. A mentor holding no time at all is the one
@@ -300,7 +300,7 @@ export default async function MentorHomePage({
                       name: s.profile.user.name,
                       email: s.profile.user.email,
                     }}
-                    href={`/mentor/students/${s.profile.id}`}
+                    href={`/students/${s.profile.id}`}
                     secondary={false}
                   >
                     {s.profile.user.status !== USER_STATUS.ACTIVE && (
@@ -330,7 +330,13 @@ export default async function MentorHomePage({
                   </span>
                 </Td>
                 <Td label="Use by">
-                  <DeadlineText deadline={s.deadline} now={viewer.now} />
+                  <DeadlineText
+                    deadline={s.deadline}
+                    now={viewer.now}
+                    // A mentor's own window: they schedule a week out, so
+                    // amber a fortnight early is a warning they cannot use.
+                    within={EXPIRY_WINDOW_DAYS.mentor}
+                  />
                 </Td>
                 <Td label="Last session" className="text-muted-fg">
                   {lastSeen.get(s.profile.id)
@@ -339,7 +345,7 @@ export default async function MentorHomePage({
                 </Td>
                 <Td align="right">
                   <ArrowLink
-                    href={`/mentor/students/${s.profile.id}`}
+                    href={`/students/${s.profile.id}`}
                     className="text-[0.8125rem]"
                   >
                     Open

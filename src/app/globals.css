@@ -116,7 +116,32 @@
   --shadow-lg: 0 4px 20px -6px rgb(18 75 132 / 0.18), 0 2px 6px rgb(18 75 132 / 0.07);
   --shadow-xl: 0 16px 48px -12px rgb(18 75 132 / 0.28), 0 4px 12px rgb(18 75 132 / 0.10);
 
-  --font-sans: var(--font-geist-sans);
+  /* The fill a control sits in — iOS's tertiary system fill. Translucent grey
+     rather than a solid, so an input reads as a field on the white card AND on
+     the grey canvas without a border drawing a box around it. */
+  --color-fill: rgb(118 118 128 / 0.12);
+  --color-fill-strong: rgb(118 118 128 / 0.2); /* hover */
+
+  /* Corners. Tailwind's names, re-stepped to a four-rung scale so a call site
+     keeps meaning what it meant — the thing a `rounded-lg` sat on is still the
+     thing it sits on — while the curve softens toward iOS:
+
+       rounded-md    8px   tags, small inline controls
+       rounded-lg   12px   buttons, inputs, menu items, list rows
+       rounded-xl   18px   cards, tables, panels
+       rounded-2xl  24px   sheets, modals, the one card on a sign-in page
+       rounded-full        chips, avatars, segmented tracks
+
+     Nested corners follow outer − padding: an 18px card with 6px of padding
+     holds 12px controls, which is why `lg` and `xl` sit where they do. */
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 1.75rem;
+
+  /* The system face on Apple devices, Inter everywhere else (see layout.tsx). */
+  --font-sans: -apple-system, BlinkMacSystemFont, var(--font-inter), "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-geist-mono);
 
   /* Motion: strong ease-out on everything interactive (default curves feel
@@ -126,6 +151,13 @@
   /* The UIKit page-push curve: a slow-in, fast-out profile with a long soft
      landing. Sharper in-outs read as a wipe; this reads as a slide. */
   --ease-nav: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Springs, sampled into linear() so CSS can play them without a library.
+     `spring` is critically damped — it arrives fast and settles without
+     crossing the line — for anything small: a menu, a tooltip, a tab.
+     `spring-soft` overshoots by ~2% once, for things with mass: a sheet, a
+     modal. Browsers without linear() fall back to the declaration before. */
+  --ease-spring: linear(0, 0.063 2.1%, 0.25 5.1%, 0.5 9.4%, 0.73 14.6%, 0.87 20.2%, 0.95 27%, 0.985 36%, 0.997 48%, 1);
+  --ease-spring-soft: linear(0, 0.05 2%, 0.2 5%, 0.45 9.5%, 0.72 15%, 0.9 21%, 1.005 28%, 1.02 35%, 1.012 44%, 1.002 58%, 1);
   --default-transition-duration: 150ms;
   --default-transition-timing-function: var(--ease-out-strong);
 }
@@ -221,6 +253,14 @@
   --shadow-xl: 0 16px 48px -12px rgb(0 0 0 / 0.76), 0 4px 12px rgb(0 0 0 / 0.50);
 }
 
+/* DensityToggle's labels, keyed off the same attribute the boot script sets.
+   No attribute means the default. */
+:root:not([data-density="compact"]) .density-compact-only,
+:root:not([data-density="comfortable"]) .density-comfortable-only,
+:root[data-density] .density-default-only {
+  display: none;
+}
+
 /* The one pair of classes that reads the theme directly, so `ThemeToggle` can
    say which theme it is in without holding a copy of the answer in React. See
    the note in that file. */
@@ -251,6 +291,41 @@
   :root {
     font-size: 94%;
   }
+  /* DENSITY. A person's own choice (the account menu), stored beside the theme
+     and applied before first paint by the same script. It moves the one number
+     above, so every row, chip and gap follows — compact for the admin working
+     a roster all day, comfortable for somebody who would rather read than
+     scan. Still `sm` and up: a phone's 44px targets are not a preference. */
+  :root[data-density="compact"] {
+    font-size: 87.5%;
+  }
+  :root[data-density="comfortable"] {
+    font-size: 100%;
+  }
+}
+
+/* Where sticky things inside the page stop: under the top bar (56px plus the
+   standalone clock strip), or at the very top where the staff rail replaced
+   the bar. Table headers read it (ui/table.tsx). The rail is found by its
+   view-transition class, so no shell has to set this by hand. */
+:root {
+  --sticky-top: calc(3.5rem + env(safe-area-inset-top));
+}
+@media (min-width: 64rem) {
+  :root:has(.vt-rail) {
+    --sticky-top: 0px;
+  }
+}
+
+/* Table rows follow the density choice too, past the root size alone: the
+   row height is where compact and comfortable are actually felt. */
+@media (min-width: 40rem) {
+  :root[data-density="compact"] .data-table td {
+    padding-block: 0.25rem;
+  }
+  :root[data-density="comfortable"] .data-table td {
+    padding-block: 0.75rem;
+  }
 }
 
 html {
@@ -278,7 +353,10 @@ html {
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  /* Inter's single-storey a and open digits — the two features that move it
+     closest to SF. Harmless on the system face, which ignores them. */
+  font-feature-settings: "cv11", "ss01";
   /* The dynamic viewport: the bar is exactly as tall as what is on screen,
      tracking iOS's collapsing URL bar instead of overshooting past it. */
   min-height: 100vh;
@@ -307,10 +385,13 @@ body {
      Button HEIGHT is set per size (see ui/button.tsx) — never forced globally,
      so small inline actions stay small. */
   button:not(:disabled) {
-    transition: transform 160ms var(--ease-out-strong);
+    transition: transform 240ms var(--ease-spring);
   }
   button:not(:disabled):active {
-    transform: scale(0.98);
+    transform: scale(0.97);
+    /* Instant down, sprung back up on release — the press lands under the
+       finger and the return is what reads as physical. */
+    transition-duration: 0ms;
   }
 
   /* Text fields ease into their focus border; text links ease their color. */
@@ -345,7 +426,7 @@ body {
   transform-origin: var(--pop-origin, top center);
   transition:
     opacity 150ms var(--ease-out-strong),
-    transform 150ms var(--ease-out-strong);
+    transform 240ms var(--ease-spring);
   @starting-style {
     opacity: 0;
     transform: scale(0.97) translateY(-2px);
@@ -356,7 +437,7 @@ body {
 @utility modal-in {
   transition:
     opacity 200ms var(--ease-out-strong),
-    transform 200ms var(--ease-out-strong);
+    transform 360ms var(--ease-spring-soft);
   @starting-style {
     opacity: 0;
     transform: scale(0.97);
@@ -390,10 +471,12 @@ body {
 
 /* Bottom sheets — the phone form of a popover. On a small screen a floating
    dropdown is a web tell: iOS presents pickers and menus as a rounded sheet
-   sliding up over a dimmed page. The panel slides on the nav curve; the
+   sliding up over a dimmed page. The panel rides the soft spring (the nav
+   curve where linear() is unsupported); the
    scrim just fades. */
 @utility sheet-up {
-  animation: sheet-up 340ms var(--ease-nav) both;
+  animation: sheet-up 380ms var(--ease-nav) both;
+  animation-timing-function: var(--ease-spring-soft);
 }
 @keyframes sheet-up {
   from {

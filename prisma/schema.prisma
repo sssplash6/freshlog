@@ -146,8 +146,8 @@ model ProgramStaff {
   userId      String
   programId   String
   // ADMIN | LEADER | SALES — what this person may do inside this program.
-  // ADMIN is the only level the UI grants today; the other two are the old
-  // roles, kept as values so the grant can express them when they return.
+  // Every level reads (adminScope); only ADMIN writes (adminWriteScope —
+  // LEADER and SALES are the old roles kept as read-only membership).
   role        String
   createdById String? // the platform admin who made the grant; null for the migration backfill
   createdAt   DateTime @default(now())

@@ -71,9 +71,13 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+  // The recorder stops itself at two minutes, and two minutes of 16 kHz mono
+  // 16-bit WAV is 3.84 MB plus a 44-byte header — inside the 5 MiB cap with
+  // room for the second or so a stop can overshoot. The copy says the limit
+  // the reader actually met; it said "a minute" while the button allowed two.
   if (audio.size > MAX_AUDIO_BYTES) {
     return Response.json(
-      { ok: false, error: "That recording is too long. Keep it under a minute." },
+      { ok: false, error: "That recording is too long. Keep it under two minutes." },
       { status: 413 }
     );
   }

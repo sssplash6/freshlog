@@ -288,11 +288,12 @@ export default async function ProgramPage({
                         tone={programTone(program.id)}
                       />
                       {superAdminIds.has(mentor.id) && (
-                        <span title="Super admin" className="text-warn-ink">
+                        <span title="Admin" className="text-warn-ink">
                           <CrownIcon className="h-4 w-4" />
+                          <span className="sr-only">Admin</span>
                         </span>
                       )}
-                      {/* The crown cannot say this: it marks a super admin
+                      {/* The crown cannot say this: it marks an admin
                           whether or not they teach here, and half the names on
                           a program's list wear one. This says the other thing
                           — that no session can be logged against them here,

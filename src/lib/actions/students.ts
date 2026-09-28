@@ -1530,11 +1530,12 @@ export async function setMentorAllocation(
 }
 
 /**
- * Remove a mentor from a student — deletes that per-mentor allocation, the tasks
- * those hours bought, and the audit rows (admin only, student notified). Blocked
- * once a session has been logged with the mentor: those hours were delivered and
- * are history, not a mistake to erase. The mentor keeps their program
- * assignment.
+ * Remove a mentor from a student — deletes that per-mentor allocation and the
+ * tasks those hours bought, and appends a terminal change row to the audit
+ * trail so History still says where the hours went (admin only, student
+ * notified). Blocked once a session has been logged with the mentor: those
+ * hours were delivered and are history, not a mistake to erase. The mentor
+ * keeps their program assignment.
  */
 export async function removeMentorAllocation(
   _prev: ActionState,
@@ -1601,7 +1602,22 @@ export async function removeMentorAllocation(
     : null;
   const scoped = { studentId: profileId, programId: allocation.programId, mentorId };
   await prisma.$transaction(async (tx) => {
-    await tx.hourAllotmentChange.deleteMany({ where: scoped });
+    // The grant goes; its history does not. Removal is a change like any
+    // other, so it is written as one — a terminal row down to zero keeps the
+    // History disclosure honest about where the hours went instead of
+    // quietly dropping every row that mentioned them.
+    if (allocation.minutes > 0) {
+      await tx.hourAllotmentChange.create({
+        data: {
+          studentId: profileId,
+          programId: allocation.programId,
+          mentorId,
+          changedById: actor.id,
+          oldMinutes: allocation.minutes,
+          newMinutes: 0,
+        },
+      });
+    }
     // Their tasks go with their time: nothing was logged against them (no
     // sessions, checked above), and a task nobody holds hours for is a line the
     // mentor can't act on. Only this program's — the same mentor may hold

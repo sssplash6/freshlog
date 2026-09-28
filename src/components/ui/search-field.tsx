@@ -109,8 +109,8 @@ export function SearchField({
         onKeyDown={(e) => {
           if (e.key === "Enter" && timer.current) clearTimeout(timer.current);
         }}
-        // Below sm the iOS shape: grey fill, no border, the glyph inside.
-        className="max-sm:rounded-xl max-sm:border-transparent max-sm:bg-canvas max-sm:pl-9 [&::-webkit-search-cancel-button]:hidden"
+        // Every field is a grey fill now; below sm the glyph moves inside too.
+        className="max-sm:pl-9 [&::-webkit-search-cancel-button]:hidden"
       />
     </label>
   );

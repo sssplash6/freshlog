@@ -36,8 +36,11 @@ import { EXPIRY_WINDOW_DAYS, type ViewerContext } from "@/lib/status";
  * the date now lives in the row's ⋮ menu, where it is also edited, and an
  * expiry that matters reaches the reader through `ALLOCATION_EXPIRING` /
  * `ALLOCATION_EXPIRED` in their bell rather than by being spotted in a column.
- * The card shape below keeps the date, because a student booking a session has
- * no bell to fall back on.
+ * What a column's removal may NOT take is the difference between a spent
+ * balance and a lost one — "Remaining 0" used to say both, so the forfeited
+ * figure is named under Remaining whenever it is not zero. The card shape
+ * below keeps the date, because a student booking a session has no bell to
+ * fall back on.
  */
 
 /** A person on a row, with the page this reader may open for them. */
@@ -247,7 +250,7 @@ export function AllocationMeter({
   className?: string;
 }) {
   if (entry.allocated <= 0) return null;
-  const { used, gone } = spent(entry);
+  const { gone } = spent(entry);
   const overdrawn = entry.remaining < 0;
 
   // A month, because that is the window a student can act inside — the same
@@ -260,7 +263,10 @@ export function AllocationMeter({
       <Meter
         pct={overdrawn ? 100 : Math.round((gone / entry.allocated) * 100)}
         tone={overdrawn ? "danger" : "accent"}
-        ariaValueNow={used}
+        // The bar paints gone — spent plus forfeited — so that is what the
+        // reader's technology must hear too. Announcing `used` alone told
+        // assistive tech a smaller spend than the bar shows.
+        ariaValueNow={gone}
         ariaValueMax={entry.allocated}
         ariaLabel={label}
       />
@@ -359,6 +365,13 @@ export function AllocationRow({
         )}
       >
         {formatDuration(entry.remaining)}
+        {entry.forfeited > 0 && (
+          // "3h expired unused" — the status model's own words, so a spent
+          // balance and a forfeited one stop wearing the same 0m.
+          <span className="block text-xs font-normal text-muted-fg">
+            {formatDuration(entry.forfeited)} expired unused
+          </span>
+        )}
       </Td>
       {/* Last, and muted: the commitment (the grant, or the plan past it) is
           context for the three delivery figures before it. */}

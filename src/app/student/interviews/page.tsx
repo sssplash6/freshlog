@@ -173,7 +173,7 @@ export default async function StudentInterviewsPage() {
               >
                 <span className="text-sm">
                   <span className="font-medium text-ink">{formatSlotDay(s.startsAt)}</span>{" "}
-                  <span className="tabular-nums text-muted-fg">{formatSlotSpan(s)}</span>
+                  <span className="tabular-nums text-muted-fg">{formatSlotSpan(s, { zone: true })}</span>
                 </span>
                 {s.interview ? (
                   <Link

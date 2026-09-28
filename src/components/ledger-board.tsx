@@ -67,7 +67,19 @@ import type { ViewerContext } from "@/lib/status";
  * what a hand already expects — and this pane is a viewport onto a list, not a
  * modal that has to hold the reader inside it.
  */
-const PANE = "max-h-[40svh] overflow-y-auto";
+const PANE =
+  "max-h-[40svh] overflow-y-auto rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+
+/**
+ * The attributes that make a pane reachable without a pointer. A scroll box
+ * with nothing focusable inside it — a list of past meetings is plain text —
+ * cannot be scrolled from the keyboard at all unless the box itself takes
+ * focus, and a focusable box needs a name so the reader hears what they
+ * landed in.
+ */
+function paneProps(label: string) {
+  return { tabIndex: 0, role: "region", "aria-label": label } as const;
+}
 
 /**
  * A column heading inside the board — smaller than a panel's, same grammar.
@@ -208,7 +220,7 @@ export function LedgerBoard({
               No meetings logged yet.
             </p>
           ) : (
-            <div className={PANE}>
+            <div className={PANE} {...paneProps("Meetings")}>
               {/* The inset goes on the ROWS, not on this list: `divide-y` draws
                   its hairline on the child's border box, so padding the list
                   would pull every rule 20px short of the edges while the
@@ -266,7 +278,7 @@ export function LedgerBoard({
             // The one pane with a gutter at the end of it: when this column is
             // the taller of the two, the "+" sits over the bottom of this list,
             // and a row has to be able to scroll clear of it.
-            <div className={`${PANE} pb-14`}>
+            <div className={`${PANE} pb-14`} {...paneProps("Tasks")}>
               <ul className="divide-y divide-line">
                 {openTasks.map((t, i) => (
                   <StudentTaskRow
@@ -327,7 +339,7 @@ export function LedgerBoard({
             No agenda yet.
           </p>
         ) : (
-          <div className={PANE}>
+          <div className={PANE} {...paneProps("Agenda")}>
             <ul className="divide-y divide-line">
               {toTaskEntries(planned, { mentorBase }).map((t, i) => (
                 <TaskRow

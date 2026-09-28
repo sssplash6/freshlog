@@ -154,7 +154,12 @@ export function StudentTaskRow({
             the MENTOR is what gives way — a long name truncates inside its own
             chip rather than pushing the work this row is about onto a line of
             its own. */}
-        <div className="flex min-w-0 flex-1 items-center gap-x-2">
+        {/* Below `sm` the title takes a line of its own, above the date and
+            the mentor: at 390px the one-line layout left the title a column
+            one word wide ("Draft / the / activities / section"), which is the
+            wrap this row was built to avoid, arrived at from the other side.
+            From `sm` up the line is exactly as described above. */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap">
           {/* WHEN. First, because a to-do list is read by what is next, and
               the overdue chip replaces the plain date rather than sitting
               beside a second copy of it — its own label already carries the
@@ -188,7 +193,7 @@ export function StudentTaskRow({
 
           {/* WHAT. The flexible middle, so progress lands against the right
               edge however short the title is. */}
-          <span className="min-w-0 flex-1 text-[0.9375rem] font-medium leading-snug text-ink">
+          <span className="min-w-0 flex-1 text-[0.9375rem] font-medium leading-snug text-ink max-sm:order-first max-sm:basis-full">
             {task.title}
           </span>
         </div>

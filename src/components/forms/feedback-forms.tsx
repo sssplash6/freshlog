@@ -5,11 +5,14 @@ import { useState } from "react";
 import { submitMentorFeedback } from "@/lib/actions/feedback";
 import { StarIcon } from "@/components/icons";
 import { Select } from "@/components/select";
+import { inputClasses } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { cn } from "@/lib/cn";
 
-const inputClass =
-  "w-full rounded-lg border border-line px-3.5 py-2.5 text-[0.9375rem] focus:border-brand focus:outline-none";
+// The shared field chrome — `text-base` under `sm`, so iOS does not zoom the
+// page when the comment box takes focus (it did, at the old 15px).
+const inputClass = cn(inputClasses, "resize-y leading-relaxed");
 
 /** Native radio inputs retain expected keyboard behavior while labels render
  * as a large, tap-friendly star picker. */

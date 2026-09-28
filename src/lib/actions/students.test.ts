@@ -64,5 +64,18 @@ describe("an admin's own hours", () => {
     );
     expect(removed).toMatchObject({ ok: true });
     await expect(prisma.hourAllocation.count()).resolves.toBe(0);
+
+    // The grant is gone; its history is not. Removal is written as a
+    // terminal change down to zero, so the History disclosure can still
+    // explain where the hours went.
+    const trail = await prisma.hourAllotmentChange.findMany({
+      where: { studentId: malika.id },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(trail.map((t) => [t.oldMinutes, t.newMinutes])).toEqual([
+      [0, 240],
+      [240, 0],
+    ]);
+    expect(trail[1].changedById).toBe(boss.id);
   });
 });

@@ -7,6 +7,7 @@ import {
   SESSION_STATUS,
   canActAsMentor,
 } from "@/lib/constants";
+import { deadlinePassed } from "@/lib/deadlines";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import type { User } from "@/generated/prisma/client";
@@ -31,6 +32,8 @@ import type { User } from "@/generated/prisma/client";
 type CountableAllocation = {
   mentorId: string | null;
   minutes: number;
+  /** The grant's own use-by — expiry forfeits what is left on it. */
+  deadline: Date;
 };
 
 /** The least a session has to carry to be drawn down from one. */
@@ -55,18 +58,30 @@ export type ExchangeFigures = {
   missed: number;
   /** Logged out of plan: real work, charged to nothing, outside every total. */
   extra: number;
-  /** Allocated and not yet spent. Negative is an overdraw, as everywhere. */
+  /** Unused minutes lost to a passed deadline — the same rule `allocationSummary` applies. */
+  forfeited: number;
+  /**
+   * Allocated and not yet spent — and not yet lost. Expired grants write this
+   * down to their overdraw, so a placement that ran out never claims the
+   * minutes it is no longer holding are still spendable. Negative is an
+   * overdraw, as everywhere.
+   */
   remaining: number;
 };
 
 /**
- * The five figures, from the rows. Pure, so both ends read the same arithmetic
+ * The figures, from the rows. Pure, so both ends read the same arithmetic
  * and a test can state it without a database.
+ *
+ * `now` arrives rather than being read from the clock — the same rule
+ * `ViewerContext` holds everywhere else, so a page's figures cannot disagree
+ * with each other about what today is.
  */
 export function exchangeFigures(
   cap: number,
   allocations: readonly CountableAllocation[],
-  sessions: readonly CountableSession[]
+  sessions: readonly CountableSession[],
+  now: number = Date.now()
 ): ExchangeFigures {
   const allocated = allocations.reduce((sum, a) => sum + a.minutes, 0);
   const charged = sessions.filter(
@@ -79,6 +94,21 @@ export function exchangeFigures(
   const extra = sessions
     .filter((s) => s.status === SESSION_STATUS.ACTIVE && !s.withinPlan)
     .reduce((sum, s) => sum + s.minutes, 0);
+
+  // Forfeiture is per grant, against ITS deadline — an allocation is unique
+  // per (student, program, mentor), so each row's unused minutes lapse on
+  // their own date, exactly as `allocationSummary` computes it.
+  const usedByMentor = new Map<string, number>();
+  for (const s of charged) {
+    usedByMentor.set(s.mentorId, (usedByMentor.get(s.mentorId) ?? 0) + s.minutes);
+  }
+  let forfeited = 0;
+  for (const a of allocations) {
+    if (!deadlinePassed(a.deadline, now)) continue;
+    const spentByMentor = a.mentorId ? (usedByMentor.get(a.mentorId) ?? 0) : 0;
+    forfeited += Math.max(0, a.minutes - spentByMentor);
+  }
+
   return {
     cap,
     allocated,
@@ -88,7 +118,8 @@ export function exchangeFigures(
     used,
     missed,
     extra,
-    remaining: allocated - used,
+    forfeited,
+    remaining: allocated - used - forfeited,
   };
 }
 
@@ -126,8 +157,9 @@ async function loadExchanges(where: Prisma.ProgramExchangeWhereInput) {
     orderBy: { createdAt: "desc" },
   });
 
+  const now = Date.now();
   return rows.map((e) => {
-    const figures = exchangeFigures(e.minutes, e.allocations, e.sessions);
+    const figures = exchangeFigures(e.minutes, e.allocations, e.sessions, now);
     // Who in the host program holds the time, and what each of them has spent.
     // The host's own page reads this off `allocationSummary`; the SENDING
     // program cannot, because that would mean asking about a student inside a

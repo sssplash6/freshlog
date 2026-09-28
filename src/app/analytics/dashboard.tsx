@@ -42,8 +42,34 @@ const colorOf = (program: number) => SLOTS[program] ?? "var(--other)";
 type Today = { year: number; month: number; day: number };
 type View = { year: number; month: number | null; program: number | null; mentor: number | null };
 
-export function Dashboard({ data, today }: { data: AnalyticsData; today: Today }) {
-  const [view, go] = useView(data, today);
+export function Dashboard({
+  data,
+  today,
+  audience = "staff",
+  selfMentorId,
+}: {
+  data: AnalyticsData;
+  today: Today;
+  /**
+   * Who is reading — lens, not authority. The rows are the same either way;
+   * what changes is whether the page leads with a school-wide ranking (staff,
+   * whose job is comparing mentors) or with the reader's own year (a mentor,
+   * for whom that ranking is a podium they did not ask for).
+   */
+  audience?: "staff" | "mentor";
+  /** The reader's own row in `data.mentors`, when they have one. */
+  selfMentorId?: string;
+}) {
+  const selfIndex = useMemo(
+    () => {
+      const i = selfMentorId
+        ? data.mentors.findIndex((m) => m.id === selfMentorId)
+        : -1;
+      return i >= 0 ? i : null;
+    },
+    [data.mentors, selfMentorId]
+  );
+  const [view, go] = useView(data, today, audience === "mentor" ? selfIndex : null);
   const { year, month, program, mentor } = view;
   const accent = program != null ? colorOf(program) : "var(--s1)";
 
@@ -167,7 +193,7 @@ export function Dashboard({ data, today }: { data: AnalyticsData; today: Today }
         </section>
       ) : (
         <div key={`${level}`} className={s.enter} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {mentor != null && <MentorScope data={data} view={view} go={go} />}
+          {mentor != null && <MentorScope data={data} view={view} go={go} ranked={audience === "staff"} />}
           <Hero data={data} view={view} today={today} yearRows={yearRows} periodRows={periodRows} />
           <MonthsCard data={data} view={view} go={go} yearRows={yearRows} />
           {program == null && mentor == null && (
@@ -177,7 +203,12 @@ export function Dashboard({ data, today }: { data: AnalyticsData; today: Today }
                 data={data}
                 view={view}
                 go={go}
-                title="Top mentors across the school"
+                title={
+                  audience === "mentor"
+                    ? "Mentors across the school"
+                    : "Top mentors across the school"
+                }
+                ranked={audience === "staff"}
                 periodRows={periodRows}
                 yearRows={yearRows}
                 limit={8}
@@ -190,7 +221,12 @@ export function Dashboard({ data, today }: { data: AnalyticsData; today: Today }
               data={data}
               view={view}
               go={go}
-              title="Who delivered the most"
+              title={
+                audience === "mentor"
+                  ? "Mentors in this program"
+                  : "Who delivered the most"
+              }
+              ranked={audience === "staff"}
               periodRows={periodRows}
               yearRows={yearRows}
               last={last}
@@ -210,8 +246,16 @@ export function Dashboard({ data, today }: { data: AnalyticsData; today: Today }
  * waits on the server — Next keeps `useSearchParams` in step with it — while
  * the back button still walks back up the levels and a view can be shared.
  */
-function useView(data: AnalyticsData, today: Today): [View, (next: Partial<View>) => void] {
+function useView(
+  data: AnalyticsData,
+  today: Today,
+  selfIndex: number | null
+): [View, (next: Partial<View>) => void] {
   const params = useSearchParams();
+  // The self-default applies only to the landing — once the reader navigates,
+  // "All programs" must actually reach it rather than snapping back to them.
+  // State, not a ref: the memo below reads it during render.
+  const [navigated, setNavigated] = useState(false);
 
   const view = useMemo<View>(() => {
     const y = Number(params.get("y"));
@@ -222,12 +266,18 @@ function useView(data: AnalyticsData, today: Today): [View, (next: Partial<View>
       year: Number.isInteger(y) && y > 2000 && y <= today.year ? y : today.year,
       month: Number.isInteger(m) && m >= 1 && m <= 12 ? m - 1 : null,
       program: p >= 0 ? p : null,
-      mentor: u >= 0 ? u : null,
+      mentor:
+        u >= 0
+          ? u
+          : p < 0 && selfIndex != null && !navigated
+            ? selfIndex
+            : null,
     };
-  }, [params, data.programs, data.mentors, today.year]);
+  }, [params, data.programs, data.mentors, today.year, selfIndex, navigated]);
 
   const go = useCallback(
     (next: Partial<View>) => {
+      setNavigated(true);
       const v = { ...view, ...next };
       const q = new URLSearchParams();
       if (v.year !== today.year) q.set("y", String(v.year));
@@ -762,6 +812,7 @@ function Leaderboard({
   view,
   go,
   title,
+  ranked: withRank = true,
   periodRows,
   yearRows,
   limit,
@@ -771,6 +822,13 @@ function Leaderboard({
   view: View;
   go: (next: Partial<View>) => void;
   title: string;
+  /**
+   * Whether the order is stated as a podium. Off for a mentor reading it:
+   * the rows still sort by hours — the list is the school's, and hiding
+   * positions would only pretend it is not — but nobody's own work needs a
+   * medal count against their colleagues'.
+   */
+  ranked?: boolean;
   periodRows: AnalyticsRow[];
   yearRows: AnalyticsRow[];
   limit?: number;
@@ -789,7 +847,7 @@ function Leaderboard({
         <div>
           <h2 className={s.cardTitle}>{title}</h2>
           <p className={s.cardSub}>
-            Ranked by hours with students in {period}. Open a mentor to see every month.
+            {withRank ? "Ranked by" : "Most"} hours with students in {period}. Open a mentor to see every month.
           </p>
         </div>
         <div className={s.legend}>
@@ -813,6 +871,7 @@ function Leaderboard({
               r={r}
               last={last}
               rank={n + 1}
+              showRank={withRank}
               top={top}
               mentor={data.mentors[r.index]}
               color={color}
@@ -836,6 +895,7 @@ function MentorRow({
   r,
   last,
   rank,
+  showRank = true,
   top,
   mentor,
   color,
@@ -846,6 +906,8 @@ function MentorRow({
   r: Ranked;
   last: number;
   rank: number;
+  /** Medals and numbers are for staff; a mentor gets the list, not a podium. */
+  showRank?: boolean;
   top: number;
   mentor: AnalyticsMentor;
   color: string;
@@ -858,7 +920,8 @@ function MentorRow({
   return (
     <button type="button" className={s.row} onClick={onOpen} style={{ ["--delay" as string]: `${delay}ms` }}>
       <span className={s.rank}>
-        {rank <= 3 ? <span className={`${s.medal} ${[s.medal1, s.medal2, s.medal3][rank - 1]}`}>{rank}</span> : rank}
+        {showRank &&
+          (rank <= 3 ? <span className={`${s.medal} ${[s.medal1, s.medal2, s.medal3][rank - 1]}`}>{rank}</span> : rank)}
       </span>
       <Avatar mentor={mentor} color={color} />
       <span className={s.who}>
@@ -979,8 +1042,19 @@ function MentorDetail({
   );
 }
 
-/** Which of the mentor's programs to read, and where they stand in it. */
-function MentorScope({ data, view, go }: { data: AnalyticsData; view: View; go: (next: Partial<View>) => void }) {
+/** Which of the mentor's programs to read, and — for staff — where they stand in it. */
+function MentorScope({
+  data,
+  view,
+  go,
+  ranked = true,
+}: {
+  data: AnalyticsData;
+  view: View;
+  go: (next: Partial<View>) => void;
+  /** Staff see "#n of m mentors"; a mentor looking at a colleague needs no podium. */
+  ranked?: boolean;
+}) {
   const { year, month, program, mentor } = view;
 
   // Every program this mentor has hours in this year, for the switcher.
@@ -1022,7 +1096,7 @@ function MentorScope({ data, view, go }: { data: AnalyticsData; view: View; go: 
             Works in {data.programs[theirPrograms[0]]?.name}
           </span>
         )}
-        {standing && (
+        {ranked && standing && (
           <span className={s.cardSub} style={{ margin: 0 }}>
             <b style={{ color: "var(--ink)" }}>#{standing.rank}</b> of {standing.of} mentors
             {program != null ? ` in ${data.programs[program].name}` : ""} ·{" "}

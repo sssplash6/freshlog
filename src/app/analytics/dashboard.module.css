@@ -32,7 +32,7 @@
 
   color-scheme: light;
   color: var(--ink);
-  font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
   display: flex;
   flex-direction: column;
   gap: 16px;

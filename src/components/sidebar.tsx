@@ -1,6 +1,6 @@
 import pkg from "../../package.json";
 import { BrandWordmark } from "@/components/brand-wordmark";
-import { SearchIcon } from "@/components/icons";
+import { NavSearch } from "@/components/nav-search";
 import { SidebarNav } from "@/components/nav-links";
 import { RailToggle } from "@/components/rail-toggle";
 import type { NavItem } from "@/lib/nav";
@@ -71,41 +71,5 @@ export function Sidebar({
         {account}
       </div>
     </aside>
-  );
-}
-
-/**
- * One field, one destination, no JavaScript.
- *
- * It offered two — "Students" and "Mentors" as tiny submits under the box —
- * and they sat directly above nav items reading Students and Mentors. The same
- * two words twice in eight vertical pixels, once as a destination picker and
- * once as navigation, is a question the reader has to stop and answer.
- *
- * So the field goes to the students list, which is the one people search: it is
- * an order of magnitude longer, and it is what somebody typing a person's name
- * into a sidebar almost always means. Mentors are one click below with their
- * own search at the top of the page, which is where searching a list of
- * fourteen belongs anyway.
- */
-function NavSearch({ mentors }: { mentors: boolean }) {
-  // `mentors` still decides the wording: somebody who cannot see the mentors
-  // list should not be told this box could find one.
-  return (
-    <form method="get" action="/students" role="search">
-      <label htmlFor="nav-search" className="sr-only">
-        {mentors ? "Find a student or mentor" : "Find a student"}
-      </label>
-      <div className="relative">
-        <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
-        <input
-          id="nav-search"
-          name="q"
-          type="search"
-          placeholder={mentors ? "Find a student or mentor…" : "Find a student…"}
-          className="w-full rounded-lg border border-line bg-canvas py-2 pl-8 pr-2 text-sm text-ink placeholder:text-muted-fg focus:border-brand focus:outline-none"
-        />
-      </div>
-    </form>
   );
 }

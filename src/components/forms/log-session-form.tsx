@@ -10,7 +10,7 @@ import { DictateButton } from "@/components/forms/dictate-button";
 import { TimeKindPicker } from "@/components/forms/time-kind-picker";
 import { Select } from "@/components/select";
 import { DateField } from "@/components/ui/date-field";
-import { GrowingField } from "@/components/ui/field";
+import { GrowingField, inputClasses } from "@/components/ui/field";
 import { Receipt } from "@/components/ui/receipt";
 import { SaveState, saveStateFrom } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -23,8 +23,7 @@ import { programToday } from "@/lib/when";
  * from padding and an inherited line-height, so the pair agreed only by
  * arithmetic that nobody was checking.
  */
-const inputClass =
-  "min-h-11 w-full rounded-lg border border-line px-3.5 py-2.5 text-[0.9375rem] focus:border-brand focus:outline-none";
+const inputClass = inputClasses;
 /**
  * Label above control, and the ONE gap between them.
  *

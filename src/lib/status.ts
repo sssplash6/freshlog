@@ -420,7 +420,10 @@ const META: Record<StatusType, Meta> = {
       student: {
         kind: "informational",
         label: () => "No time yet",
-        explanation: () => "Your team is still arranging it.",
+        // The next step is waiting, and saying so is the step: without the
+        // second sentence a student with a 0m ring has no way to tell "being
+        // arranged" from "forgotten".
+        explanation: () => "Your team is still arranging it. You'll hear when it's ready.",
       },
     },
     many: (n) => `${n} students have no time allocated`,
@@ -439,7 +442,13 @@ const META: Record<StatusType, Meta> = {
         label: (d) => `${dur(d)} unassigned`,
         explanation: () => "Any mentor here may log against it; logging claims it.",
       },
-      student: { kind: "informational", label: (d) => `${dur(d)} unassigned` },
+      // "Unassigned" is ledger-speak for a pool row; to the student it is time
+      // they have, waiting on a name.
+      student: {
+        kind: "informational",
+        label: (d) => `${dur(d)} awaiting a mentor`,
+        explanation: () => "Your team is choosing who you'll spend it with.",
+      },
     },
   },
 
@@ -451,7 +460,11 @@ const META: Record<StatusType, Meta> = {
         label: () => "No mentor yet",
         explanation: () => "Allocate their time from a mentor to pair them.",
       },
-      student: { kind: "informational", label: () => "No mentor yet" },
+      student: {
+        kind: "informational",
+        label: () => "No mentor yet",
+        explanation: () => "Your program pairs you with one first.",
+      },
     },
     many: (n) => `${n} students have no mentor`,
   },
@@ -706,9 +719,10 @@ const META: Record<StatusType, Meta> = {
         label: () => "No booking link",
         explanation: () => "Students cannot book you until you add one.",
       },
-            student: {
+      student: {
         kind: "informational",
         label: () => "No booking link yet",
+        explanation: () => "Email them to find a time instead.",
         many: (n) => `${n} mentors have not shared a calendar`,
       },
     },
@@ -1342,4 +1356,23 @@ export function attentionList(
 /** How many rows in a list actually ask something of the viewer. */
 export function actionableCount(list: Status[]): number {
   return list.filter((s) => s.kind === "actionable").length;
+}
+
+/**
+ * A row about the reader themself, addressed to the reader.
+ *
+ * `studentStatuses` names its subject and links it at `/students/<id>`, which
+ * is right for the staff and mentor lists it also feeds and wrong twice over
+ * for a student reading their own: the subject is the person holding the
+ * phone, and the link leads to a page that redirects a student straight back
+ * to their own. The one destination that helps is the page where the time can
+ * actually be spent, so an expiry points there and everything else points
+ * nowhere.
+ */
+export function aboutMe(s: Status): Status {
+  return {
+    ...s,
+    subject: undefined,
+    href: s.type === "ALLOCATION_EXPIRING" ? "/student/book" : undefined,
+  };
 }

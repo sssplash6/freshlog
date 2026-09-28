@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
 
@@ -34,6 +34,7 @@ export function ExpandableText({
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const id = useId();
   const [open, setOpen] = useState(false);
   const [clipped, setClipped] = useState(false);
 
@@ -50,6 +51,7 @@ export function ExpandableText({
     <div className={tight ? "flex min-w-0 items-baseline gap-1.5" : undefined}>
       <div
         ref={ref}
+        id={id}
         className={cn(
           "whitespace-pre-line",
           className,
@@ -63,6 +65,8 @@ export function ExpandableText({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-controls={id}
           className={cn(
             "shrink-0 text-xs font-medium text-brand hover:underline",
             tight ? "" : "mt-1"

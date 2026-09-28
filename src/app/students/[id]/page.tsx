@@ -49,6 +49,8 @@ import {
 } from "@/lib/constants";
 import {
   adminScope,
+  adminWriteScope,
+  canAdministerStudent,
   canManageStudent,
   mentorReaches,
   scopeCovers,
@@ -114,8 +116,12 @@ export default async function StudentWorkspacePage({
   // The two rights, asked before anything is fetched. A student outside an
   // admin's programs and outside a mentor's reach reads exactly like a student
   // who does not exist — and their own page is their home, not this.
-  const [manages, reaches] = await Promise.all([
+  const [manages, writes, reaches] = await Promise.all([
     canManageStudent(me, profile),
+    // The change affordances, separately: a LEADER/SALES grant opens the page
+    // and its figures (`manages`) but must not draw a control whose action
+    // would refuse it.
+    canAdministerStudent(me, profile),
     canActAsMentor(me) ? mentorReaches(me, profile) : Promise.resolve(false),
   ]);
   if (!manages && !reaches) notFound();
@@ -245,7 +251,10 @@ export default async function StudentWorkspacePage({
    * exactly what the action will take. A visit is never in this list: a student
    * somebody else lent us is not ours to lend onward.
    */
-  const scope = await adminScope(me);
+  // The legs below build write affordances (send, set a task, row menus), so
+  // they ask the write scope — the read scope `adminScope(me)` would offer a
+  // LEADER controls the actions then refuse.
+  const scope = await adminWriteScope(me);
   const pairedIn = new Set(myPairings.map((p) => p.programId));
   const sendableFrom = studiesIn(profile.enrollments).filter(
     (e) => scopeCovers(scope, e.programId) || pairedIn.has(e.programId)
@@ -365,7 +374,7 @@ export default async function StudentWorkspacePage({
             {name}
             {/* The pencil is on the fact, not in a panel below it. Both
                 readers of this page own this one — see `StudentNameChange`. */}
-            {(manages || reaches) && (
+            {(writes || reaches) && (
               <StudentNameChange
                 studentProfileId={profile.id}
                 currentName={profile.user.name}
@@ -428,12 +437,12 @@ export default async function StudentWorkspacePage({
                 Log a session
               </LinkButton>
             )}
-            {manages && mentorOptions.length > 0 && (
+            {writes && mentorOptions.length > 0 && (
               <LinkButton href={`/students/${profile.id}/allocate`} variant="secondary" size="md">
                 Allocate time
               </LinkButton>
             )}
-            {isPending && manages && (
+            {isPending && writes && (
               <ApproveStudentButtons studentProfileId={profile.id} />
             )}
           </div>
@@ -472,7 +481,7 @@ export default async function StudentWorkspacePage({
         // `assertTaskScope`; the menu is not the gate, it is the affordance
         // for a gate that will agree with it.
         renderSessionActions={(session) =>
-          manages || session.mentorId === me.id ? (
+          writes || session.mentorId === me.id ? (
             <SessionRowActions
               session={{
                 id: session.id,
@@ -485,12 +494,12 @@ export default async function StudentWorkspacePage({
               }}
               goals={sessionTasks[session.id] ?? []}
               canEdit={session.status !== SESSION_STATUS.VOIDED}
-              canDelete={manages}
+              canDelete={writes}
             />
           ) : null
         }
         renderAgendaActions={(task) =>
-          manages || task.mentorId === me.id ? (
+          writes || task.mentorId === me.id ? (
             <TaskRowActions
               task={{
                 id: task.id,
@@ -504,7 +513,7 @@ export default async function StudentWorkspacePage({
                 progressManual: task.progressManual,
               }}
               mentors={mentorOptions}
-              canDelete={manages}
+              canDelete={writes}
             />
           ) : null
         }
@@ -626,7 +635,7 @@ export default async function StudentWorkspacePage({
             framed={false}
             showAmountPaid={tracksPayment && manages}
             renderActions={
-              manages
+              writes
                 ? (entry) =>
                     entry.deadline ? (
                       <AllocationRowActions
@@ -658,7 +667,7 @@ export default async function StudentWorkspacePage({
                 : undefined
             }
             renderAssignedActions={
-              manages
+              writes
                 ? (entry) =>
                     entry.deadline ? (
                       <AllocationMinutesEditor
@@ -713,17 +722,17 @@ export default async function StudentWorkspacePage({
                 {
                   label: "Sign-in email",
                   value: profile.user.email,
-                  change: (
+                  change: writes ? (
                     <StudentEmailChange
                       studentProfileId={profile.id}
                       currentEmail={profile.user.email}
                     />
-                  ),
+                  ) : undefined,
                 },
                 {
                   label: enrollments.length === 1 ? "Program" : "Programs",
                   value: enrollmentsLabel(enrollments, "Not in any program"),
-                  change: (
+                  change: writes ? (
                     <StudentPrograms
                       studentProfileId={profile.id}
                       programs={toProgramOptions(programs)}
@@ -734,29 +743,29 @@ export default async function StudentWorkspacePage({
                         label: enrollmentLabel(e),
                       }))}
                     />
-                  ),
+                  ) : undefined,
                 },
                 {
                   label: "Folder",
                   value: profile.folderUrl ?? "Not set",
-                  change: (
+                  change: writes ? (
                     <StudentFolderChange
                       studentProfileId={profile.id}
                       currentFolderUrl={profile.folderUrl}
                     />
-                  ),
+                  ) : undefined,
                 },
                 {
                   label: "Telegram",
                   value: handle
                     ? `@${handle}`
                     : "Not set — they add it on first sign-in",
-                  change: (
+                  change: writes ? (
                     <StudentTelegramChange
                       studentProfileId={profile.id}
                       currentHandle={handle}
                     />
-                  ),
+                  ) : undefined,
                 },
                 { label: "Registered", value: formatDate(profile.createdAt) },
                 {
@@ -766,13 +775,15 @@ export default async function StudentWorkspacePage({
               ]}
             />
           </div>
-          <div className="border-t border-line px-4 py-2 sm:px-5">
-            <RemoveStudentButton
-              studentProfileId={profile.id}
-              name={name}
-              hasSessions={ledger.sessions.length > 0}
-            />
-          </div>
+          {writes && (
+            <div className="border-t border-line px-4 py-2 sm:px-5">
+              <RemoveStudentButton
+                studentProfileId={profile.id}
+                name={name}
+                hasSessions={ledger.sessions.length > 0}
+              />
+            </div>
+          )}
         </Section>
       )}
     </div>

@@ -206,7 +206,7 @@ export function FilterBar({
   return (
     <div
       className={cn(
-        framed && "rounded-2xl border border-line bg-surface shadow-sm",
+        framed && "rounded-xl border border-line bg-surface shadow-sm",
         className
       )}
     >

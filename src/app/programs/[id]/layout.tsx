@@ -71,7 +71,7 @@ export default async function ProgramLayout({
     <div className="space-y-4">
       <PageTitle
         backHref={toIndex ? "/programs" : "/admin"}
-        backLabel={toIndex ? "Programs" : "Inbox"}
+        backLabel={toIndex ? "Programs" : "Home"}
         // No eyebrow. "PROGRAM" sat in grey capitals directly under a back
         // link reading "Programs", above a title that is a program's name
         // beside its own coloured dot — the same fact three times in forty
@@ -105,6 +105,38 @@ export default async function ProgramLayout({
               value={shortHours(formatRough(totals.remaining))}
               tone={totals.remaining < 0 ? "danger" : "hours"}
             />
+            {/* The three below exist only when nonzero — a healthy program's
+                masthead is unchanged, and the numbers `programTotals` already
+                computes stop being invisible precisely where they matter. */}
+            {totals.missed > 0 && (
+              <ProgramMetric
+                label="Missed"
+                value={shortHours(formatRough(totals.missed))}
+                tone="warn"
+              />
+            )}
+            {totals.forfeited > 0 && (
+              <ProgramMetric
+                label="Expired unused"
+                value={shortHours(formatRough(totals.forfeited))}
+                tone="warn"
+              />
+            )}
+            {totals.extra > 0 && (
+              <ProgramMetric
+                label="Extra"
+                value={shortHours(formatRough(totals.extra))}
+                tone="neutral"
+              />
+            )}
+            {totals.overdrawn > 0 && (
+              // A count of students, not minutes — the value has to say which.
+              <ProgramMetric
+                label="Overdrawn"
+                value={`${totals.overdrawn} ${totals.overdrawn === 1 ? "student" : "students"}`}
+                tone="danger"
+              />
+            )}
             {/* The column decides, never the program's name — renaming the
                 Master's Program used to switch the money off across the app
                 (`Program.tracksPayment`, schema). */}
@@ -152,13 +184,14 @@ function ProgramMetric({
 }: {
   label: string;
   value: string;
-  tone: "hours" | "danger" | "neutral";
+  tone: "hours" | "warn" | "danger" | "neutral";
 }) {
   return (
     <span
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 py-1 text-xs",
         tone === "hours" && "border-line bg-surface text-ink",
+        tone === "warn" && "border-warn-line bg-warn-soft text-warn-ink",
         tone === "danger" && "border-danger-line bg-danger-soft text-danger-ink",
         tone === "neutral" && "border-line bg-surface text-muted-fg",
       )}

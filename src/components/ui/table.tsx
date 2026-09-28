@@ -34,6 +34,19 @@ export type Column = {
  * That is why `Td` takes a `label`: it is the column heading, repeated per cell,
  * which is the only way a stacked row can say what its values mean once the
  * header row is gone.
+ *
+ * The header row is STICKY. A forty-row roster scrolled to its middle is a
+ * column of numbers nobody can name, so the headings ride under the top bar
+ * (`--sticky-top`, set in globals.css: the bar's height, or 0 where the rail
+ * replaced the bar). Sticky needs no overflow container between it and the page,
+ * which is why the wrapper no longer scrolls sideways: at six columns the
+ * table fits, and the old `sm:overflow-x-auto` escape hatch contradicted the
+ * "no table scrolls sideways" rule it sat under while silently disabling this.
+ * The first and last heading cells carry the frame's top corners so the tinted
+ * row does not poke square corners out of the rounded border.
+ *
+ * Figures use tabular numerals so a column of balances lines up digit by
+ * digit.
  */
 export function Table({
   columns,
@@ -49,19 +62,22 @@ export function Table({
   return (
     <div
       className={cn(
-        "sm:overflow-x-auto",
         framed && "rounded-xl border border-line bg-surface shadow-sm",
         className,
       )}
     >
-      <table className="block w-full text-left text-sm sm:table">
-        <thead className="hidden border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted-fg sm:table-header-group">
+      <table className="data-table block w-full text-left text-sm tabular-nums sm:table">
+        <thead className="hidden text-xs font-medium text-muted-fg sm:table-header-group">
           <tr>
             {columns.map((c, i) => (
               <th
                 key={i}
                 className={cn(
-                  "px-4 py-2 font-medium",
+                  // The tint and hairline live on the cells, not the <thead>:
+                  // a sticky cell paints its own background, a sticky group's
+                  // background stays behind at the top of the table.
+                  "sticky top-(--sticky-top) z-10 border-b border-line bg-canvas/85 px-4 py-2 font-medium backdrop-blur-md",
+                  framed && "first:rounded-tl-xl last:rounded-tr-xl",
                   c.align === "right" && "text-right",
                 )}
               >

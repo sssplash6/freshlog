@@ -157,6 +157,10 @@ export default async function FeedbackPage({
 
 /* ------------------------------------------------- the mentor's own shape --- */
 
+/** The promise the rating form made the student, repeated where it is kept. */
+const ANONYMOUS =
+  "Ratings of you are anonymous. Students' names are never shown to you.";
+
 /**
  * A mentor reading their own: an average, a count, and the comments.
  *
@@ -208,7 +212,10 @@ async function OwnRatings({
         </EmptyState>
       ) : (
         <>
-          <Section title="Ratings" count={stats._count}>
+          {/* Said on the page, not only in a tooltip: the promise the rating
+              form made the student is the thing a mentor most needs to trust
+              here, and a `title` is invisible on a phone. */}
+          <Section title="Ratings" count={stats._count} caption={ANONYMOUS}>
             <ul className="divide-y divide-line">
               {rows.map((f) => (
                 <li key={f.id} className="px-4 py-2 sm:px-5">
@@ -475,7 +482,13 @@ async function AllRatings({
         </Section>
       )}
 
-      <Section title="Ratings" count={stats._count}>
+      <Section
+        title="Ratings"
+        count={stats._count}
+        // Only when the page holds ratings of the reader: the anonymous rows
+        // would otherwise be the one unexplained gap in a list of names.
+        caption={list.some((f) => !f.student) ? ANONYMOUS : undefined}
+      >
         {list.length === 0 ? (
           filtered ? (
             <EmptyState framed={false} variant="no-results">

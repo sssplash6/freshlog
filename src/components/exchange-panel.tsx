@@ -45,7 +45,8 @@ export function ExchangeList({
     <ul className="divide-y divide-line/60">
       {exchanges.map((e) => {
         const open = e.status === EXCHANGE_STATUS.OPEN;
-        const { cap, allocated, unallocated, used, remaining, extra } = e.figures;
+        const { cap, allocated, unallocated, used, missed, remaining, forfeited, extra } =
+          e.figures;
         const sessions = toSessionEntries(e.sessions, { mentorBase: "/mentors" });
 
         return (
@@ -101,7 +102,15 @@ export function ExchangeList({
                       .map((m) => m.mentor?.name ?? m.mentor?.email ?? "nobody yet")
                       .join(", ")}`
                   : "Nobody here holds it yet"}
-                {` · ${formatDuration(used)} completed · ${formatDuration(remaining)} remaining`}
+                {/* Completed excludes no-shows — the ledger's own definition,
+                    now that the line names the missed subset beside it. */}
+                {` · ${formatDuration(used - missed)} completed`}
+                {missed > 0 && ` · ${formatDuration(missed)} missed`}
+                {` · ${formatDuration(remaining)} remaining`}
+                {/* Forfeited minutes are named, in the ledger's own words — a
+                    "Ran out" placement that still claimed a spendable balance
+                    was the lie this line used to tell. */}
+                {forfeited > 0 && ` · ${formatDuration(forfeited)} expired unused`}
                 {extra > 0 && ` · ${formatDuration(extra)} extra`}
               </p>
             )}

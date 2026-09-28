@@ -25,7 +25,7 @@ import type { User } from "@/generated/prisma/client";
  *   person who only ever works in one, naming it is the whole of the context
  *   they need.
  *
- *   An admin with NO grants gets a single item. Their inbox is where they are
+ *   An admin with NO grants gets a single item. Their home is where they are
  *   told they hold nothing, and a sidebar offering them four lists that would
  *   all be empty is a sidebar that argues with the page.
  *
@@ -41,10 +41,11 @@ export type NavItem = {
   /**
    * A number beside the label.
    *
-   * ONLY Inbox carries one in the rail; the bell in the corner carries the
-   * other. A count is a claim that something is waiting; put one on Students
-   * and it reads as a queue rather than a roster, and a reader who learns that
-   * one badge is decorative stops believing the two that are not.
+   * ONLY the home item may carry one in the rail; the bell in the corner
+   * carries the other. A count is a claim that something is waiting; put one
+   * on Students and it reads as a queue rather than a roster, and a reader
+   * who learns that one badge is decorative stops believing the two that are
+   * not.
    */
   count?: number;
 };
@@ -87,7 +88,10 @@ function widest(levels: readonly (StaffLevel | null)[]): StaffLevel {
  */
 async function staffNav(viewer: User, inbox?: number): Promise<NavItem[]> {
   const scope = await adminScope(viewer);
-  const inboxItem: NavItem = { href: "/admin", label: "Inbox", count: inbox };
+  // "Home", not "Inbox": the attention rows this used to promise live behind
+  // the bell at /notifications — a label that named them on a page that no
+  // longer holds them sent readers looking for a list that is not there.
+  const inboxItem: NavItem = { href: "/admin", label: "Home", count: inbox };
   if (scopeIsEmpty(scope)) return [inboxItem, analytics];
 
   const ids = scope === "ALL" ? [] : [...scope];
@@ -139,7 +143,11 @@ async function staffNav(viewer: User, inbox?: number): Promise<NavItem[]> {
  */
 function mentorNav(inbox?: number): NavItem[] {
   return [
-    { href: "/mentor", label: "Inbox", count: inbox },
+    // Same rename as the staff rail: the page is the mentor's home and
+    // caseload, and the inbox it promised is the bell's now. Not "Students" —
+    // mentors can open the real /students too, and two items named the same
+    // thing going to different places is the confusion this rename removes.
+    { href: "/mentor", label: "Home", count: inbox },
     // Always "Programs", never collapsed to a single program's name the way
     // the staff rail does: the name in that rail is a link into the program's
     // own ledger, and a mentor cannot read one. This item goes to their own

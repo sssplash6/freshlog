@@ -24,7 +24,18 @@ import { cn } from "@/lib/cn";
  * offering "system" as a third option makes a reader think about a setting
  * they came here to stop thinking about.
  */
-export function ThemeToggle({ className }: { className?: string }) {
+export function ThemeToggle({
+  className,
+  inline = false,
+}: {
+  className?: string;
+  /**
+   * On a settings row, where the row's own label already says "Theme": the
+   * word inside the button goes screen-reader-only and the button takes the
+   * field fill, so it reads as a control rather than a second label.
+   */
+  inline?: boolean;
+}) {
   const flip = () => {
     const root = document.documentElement;
     const next = root.dataset.theme === "dark" ? "light" : "dark";
@@ -58,11 +69,14 @@ export function ThemeToggle({ className }: { className?: string }) {
       type="button"
       onClick={flip}
       className={cn(
-        "flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-3 text-left text-sm font-medium text-muted-fg transition-colors hover:bg-canvas hover:text-ink",
+        "flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-3 text-left text-sm font-medium transition-colors",
+        inline
+          ? "bg-fill text-ink hover:bg-fill-strong"
+          : "text-muted-fg hover:bg-canvas hover:text-ink",
         className
       )}
     >
-      <span>Theme</span>
+      <span className={cn(inline && "sr-only")}>Theme</span>
       {/* The state, and what pressing this does to it, in the one word each.
           Only one is ever in the accessibility tree: the other is `display:
           none`, not `opacity: 0`. */}
