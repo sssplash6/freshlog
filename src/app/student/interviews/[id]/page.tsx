@@ -68,7 +68,11 @@ export default async function InterviewPage({
         select: { questionIndex: true, question: true, text: true },
         orderBy: { questionIndex: "asc" },
       },
+      // A partner's still-drafting feedback is never fetched, not just never
+      // rendered: `feedbackVisibleTo` below would already keep it out of
+      // `theirs`, but this query filters it out first.
       feedback: {
+        where: { OR: [{ fromId: me.id }, { submittedAt: { not: null } }] },
         select: { fromId: true, summary: true, wentWell: true, toImprove: true, submittedAt: true },
       },
     },
