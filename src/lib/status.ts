@@ -615,7 +615,7 @@ const META: Record<StatusType, Meta> = {
       student: {
         kind: "actionable",
         label: () => "Not marked done",
-        explanation: () => "Mark it done to write your notes.",
+        explanation: () => "Start the interview, or mark it done to write your notes.",
       },
     },
   },

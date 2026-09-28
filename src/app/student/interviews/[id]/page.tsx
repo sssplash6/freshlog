@@ -6,7 +6,8 @@ import {
   MarkDoneButton,
 } from "@/components/forms/interview-forms";
 import { PersonChip } from "@/components/person-chip";
-import { buttonClasses } from "@/components/ui/button";
+import { buttonClasses, LinkButton } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { ROLES, USER_STATUS } from "@/lib/constants";
@@ -16,8 +17,10 @@ import { formatDate } from "@/lib/format";
 import { templateById } from "@/lib/interview-templates";
 import {
   PHASE_STATUS,
+  feedbackVisibleTo,
   formatSlotSpan,
   formatSlotWhen,
+  guideOpen,
   interviewPhase,
   sideOf,
 } from "@/lib/peer-interviews";
@@ -60,6 +63,14 @@ export default async function InterviewPage({
       slot: { select: { startsAt: true, minutes: true, meetingUrl: true } },
       host: { select: { user: { select: { id: true, name: true, avatarUpdatedAt: true } } } },
       guest: { select: { user: { select: { id: true, name: true, avatarUpdatedAt: true } } } },
+      answers: {
+        where: { studentId: me.id },
+        select: { questionIndex: true, question: true, text: true },
+        orderBy: { questionIndex: "asc" },
+      },
+      feedback: {
+        select: { fromId: true, summary: true, wentWell: true, toImprove: true, submittedAt: true },
+      },
     },
   });
   const side = interview ? sideOf(interview, me.id) : null;
@@ -70,6 +81,11 @@ export default async function InterviewPage({
   const template = templateById(interview.template);
   const phase = interviewPhase(interview, now);
   const chip = status(PHASE_STATUS[phase], viewer);
+  const myFeedback = interview.feedback.find((f) => f.fromId === me.id) ?? null;
+  const theirs = interview.feedback.find(
+    (f) => f.fromId !== me.id && feedbackVisibleTo(f, me.id)
+  ) ?? null;
+  const canGuide = guideOpen(interview.slot, myFeedback?.submittedAt ?? null, now);
 
   return (
     <div className="space-y-4">
@@ -95,6 +111,11 @@ export default async function InterviewPage({
               Join meeting
             </a>
           )}
+          {canGuide && (
+            <LinkButton href={`/student/interviews/${interview.id}/live`}>
+              {interview.answers.length || myFeedback ? "Continue interview" : "Start interview"}
+            </LinkButton>
+          )}
           {phase === "booked" && (
             <p className="text-sm text-muted-fg">
               {interview.slot.meetingUrl
@@ -105,7 +126,7 @@ export default async function InterviewPage({
         </div>
       </Section>
 
-      {template && (
+      {template && !interview.answers.length && !myFeedback?.submittedAt && (
         <Section title="Questions" count={template.questions.length} caption={template.summary}>
           <ol className="list-decimal space-y-1 py-2 pl-9 pr-4 text-sm text-ink sm:pl-10 sm:pr-5">
             {template.questions.map((q) => (
@@ -114,6 +135,35 @@ export default async function InterviewPage({
           </ol>
         </Section>
       )}
+
+      {interview.answers.length > 0 && (
+        <Section title="Your answers" caption="Only you can see these.">
+          <dl className="divide-y divide-line">
+            {interview.answers.map((a) => (
+              <div key={a.questionIndex} className="px-4 py-2 sm:px-5">
+                <dt className="text-sm font-semibold text-ink">{a.question}</dt>
+                <dd className="mt-1 whitespace-pre-wrap text-sm text-ink">{a.text || "—"}</dd>
+              </div>
+            ))}
+          </dl>
+        </Section>
+      )}
+
+      {phase === "completed" || myFeedback?.submittedAt ? (
+        <Section title={`Feedback from ${other.name ?? "your partner"}`}>
+          {theirs?.submittedAt ? (
+            <dl className="space-y-3 px-4 py-2 text-sm sm:px-5">
+              <div><dt className="font-semibold text-ink">Summary</dt><dd className="whitespace-pre-wrap">{theirs.summary}</dd></div>
+              <div><dt className="font-semibold text-ink">What went well</dt><dd className="whitespace-pre-wrap">{theirs.wentWell}</dd></div>
+              <div><dt className="font-semibold text-ink">What to improve</dt><dd className="whitespace-pre-wrap">{theirs.toImprove}</dd></div>
+            </dl>
+          ) : (
+            <EmptyState framed={false} title="Not sent yet">
+              {other.name ?? "Your partner"} hasn&apos;t sent their feedback.
+            </EmptyState>
+          )}
+        </Section>
+      ) : null}
 
       {phase === "completed" ? (
         <Section
