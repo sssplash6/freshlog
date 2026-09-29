@@ -14,6 +14,7 @@ import {
   deleteCohort,
   deleteProgram,
   renameProgram,
+  setProgramHourBank,
   setProgramTracksPayment,
 } from "@/lib/actions/programs";
 
@@ -219,6 +220,38 @@ export function TrackPaymentToggle({
           />
           <SubmitButton variant="secondary" pendingText="Saving…">
             {tracksPayment ? "Stop asking for amounts" : "Ask for amounts"}
+          </SubmitButton>
+        </form>
+      }
+      state={<SaveState state={save} />}
+    />
+  );
+}
+
+/** Does each student here hold one hour bank that every meeting draws? */
+export function HourBankToggle({
+  programId,
+  hourBank,
+}: {
+  programId: string;
+  hourBank: boolean;
+}) {
+  const [, action, save] = useSaveState(setProgramHourBank);
+
+  return (
+    <SettingsRow
+      label="Hour banks"
+      description={
+        hourBank
+          ? "Each student's hours are one bank that every mentor's meeting draws from. Only admins change it."
+          : "Hours are held per mentor. Turn this on for Full Support or the Master's Program."
+      }
+      control={
+        <form action={action}>
+          <input type="hidden" name="programId" value={programId} />
+          <input type="hidden" name="hourBank" value={hourBank ? "off" : "on"} />
+          <SubmitButton variant="secondary" pendingText="Saving…">
+            {hourBank ? "Stop offering banks" : "Offer hour banks"}
           </SubmitButton>
         </form>
       }

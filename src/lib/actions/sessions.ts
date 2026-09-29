@@ -92,6 +92,23 @@ async function remainingWith(
   return allocatedHours - (sum._sum.minutes ?? 0);
 }
 
+/** Minutes left in a student's hour bank: what it holds less what its meetings drew. */
+async function bankRemaining(
+  db: Pick<typeof prisma, "session">,
+  bank: { studentId: string; programId: string; minutes: number }
+): Promise<number> {
+  const sum = await db.session.aggregate({
+    where: {
+      studentId: bank.studentId,
+      programId: bank.programId,
+      fromBank: true,
+      ...CHARGED_SESSION,
+    },
+    _sum: { minutes: true },
+  });
+  return bank.minutes - (sum._sum.minutes ?? 0);
+}
+
 /**
  * Why a session held on `date` cannot charge hours that expire on `deadline`,
  * or null when it can. Shared by logging and by correcting a log, so the two
@@ -344,20 +361,33 @@ export async function logSession(
   // that decides one. The logged hours are carved out of the pool into this
   // mentor's own allocation inside the transaction below, so every number
   // afterwards reads the same as if an admin had granted them directly.
-  const allocation = await prisma.hourAllocation.findUnique({
-    where: {
-      studentId_programId_mentorId: {
-        studentId: profile.id,
-        programId,
-        mentorId: mentor.id,
-      },
-    },
-  });
-  const pool = allocation
+  //
+  // A student with an HOUR BANK in this program is the exception: every
+  // meeting in-plan draws the bank, whoever delivers it, so the mentor's own
+  // grant and the pool are not looked at. Only in-plan hours draw it — extra
+  // time charges nothing, bank or not.
+  const bank = withinPlan
+    ? await prisma.hourAllocation.findFirst({
+        where: { studentId: profile.id, programId, isBank: true },
+      })
+    : null;
+  const allocation = bank
     ? null
-    : await prisma.hourAllocation.findFirst({
-        where: { studentId: profile.id, programId, mentorId: null },
+    : await prisma.hourAllocation.findUnique({
+        where: {
+          studentId_programId_mentorId: {
+            studentId: profile.id,
+            programId,
+            mentorId: mentor.id,
+          },
+        },
       });
+  const pool =
+    bank || allocation
+      ? null
+      : await prisma.hourAllocation.findFirst({
+          where: { studentId: profile.id, programId, mentorId: null, isBank: false },
+        });
 
   // Whether the hours charge is the mentor's own answer to "Whose hours?", and
   // nothing else: it is NOT inferred from what the student happens to hold.
@@ -385,7 +415,7 @@ export async function logSession(
   // allocation is a positive statement that the time is over, where an absent
   // one is only an absence. The first closes in-plan logging; the second
   // overdraws.
-  const source = withinPlan ? (allocation ?? pool) : null;
+  const source = withinPlan ? (bank ?? allocation ?? pool) : null;
   if (source) {
     const refusal = lateLogRefusal(source.deadline, dateParsed.value);
     if (refusal) return bad(refusal.error, refusal.field);
@@ -447,6 +477,7 @@ export async function logSession(
         date: dateParsed.value,
         note,
         exchangeId,
+        fromBank: bank !== null,
         ...fields,
         ...timeKindFields(kind),
       },
@@ -647,7 +678,9 @@ export async function logSession(
     notes.push(`On top of the plan, so their balance is unchanged.`);
   } else if (rescheduled) {
     headline = `Rescheduled meeting with ${studentName}${inProgram} recorded — no time charged.`;
-    if (pool) {
+    if (bank) {
+      notes.push("Their hour bank is untouched.");
+    } else if (pool) {
       notes.push("Their unassigned pool is untouched.");
     } else if (allocation) {
       const left = await remainingWith(
@@ -660,6 +693,14 @@ export async function logSession(
     }
     // Nothing allocated means no balance to reassure anyone about — "0h
     // remaining with you" would read as a loss.
+  } else if (bank) {
+    const left = await bankRemaining(prisma, bank);
+    headline = `Logged ${formatMinutes(minutesParsed.value)} with ${studentName}${inProgram}.`;
+    notes.push(
+      left >= 0
+        ? `${formatDuration(left)} left in their hour bank.`
+        : `Heads up: their hour bank is now overdrawn by ${formatDuration(-left)}. Ask an admin to add to it, or correct this session to extra time.`
+    );
   } else if (pool) {
     // What the carve just did, in the mentor's terms: these hours are theirs
     // now, and here is what the pool still holds for whoever meets them next.
@@ -933,16 +974,26 @@ export async function editSession(
   const charges = timeKindFields(kind).withinPlan;
   const nowCharges = charges && !session.withinPlan;
   const moved = dateParsed.value.getTime() !== session.date.getTime();
+  // Becoming in-plan is a new charge, and against a bank when the student has
+  // one; a session that was already in-plan stays on whatever it was drawing.
+  const bankRow = charges
+    ? await prisma.hourAllocation.findFirst({
+        where: { studentId: session.studentId, programId: session.programId, isBank: true },
+      })
+    : null;
+  const fromBank = !charges ? false : session.withinPlan ? session.fromBank : bankRow !== null;
   if (charges && (nowCharges || moved)) {
-    const allocation = await prisma.hourAllocation.findUnique({
-      where: {
-        studentId_programId_mentorId: {
-          studentId: session.studentId,
-          programId: session.programId,
-          mentorId: session.mentorId,
-        },
-      },
-    });
+    const allocation = fromBank
+      ? bankRow
+      : await prisma.hourAllocation.findUnique({
+          where: {
+            studentId_programId_mentorId: {
+              studentId: session.studentId,
+              programId: session.programId,
+              mentorId: session.mentorId,
+            },
+          },
+        });
     if (allocation) {
       const refusal = lateLogRefusal(allocation.deadline, dateParsed.value);
       if (refusal && (nowCharges || refusal.field === "date")) {
@@ -978,6 +1029,7 @@ export async function editSession(
         minutes: minutesParsed.value,
         date: dateParsed.value,
         note,
+        fromBank,
         ...fields,
         ...timeKindFields(kind),
       },

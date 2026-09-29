@@ -110,6 +110,11 @@ model Program {
   // its own settings page offers — would have switched the money fields off
   // across the app, silently.
   tracksPayment     Boolean               @default(false)
+  // Does each student here hold ONE bank of hours that every mentor's meeting
+  // draws down, instead of separate time per mentor? A column for the same
+  // reason as `tracksPayment`: Full Support and the Master's Program are
+  // identified by a setting an admin can read, not by what they are called.
+  hourBank          Boolean               @default(false)
   cohorts           Cohort[]
   enrollments       StudentEnrollment[]
   mentorAssignments MentorAssignment[]
@@ -483,6 +488,11 @@ model HourAllocation {
   // what keeps their total under the cap, and what lets the sending program
   // read them without being given the student's whole record here.
   exchangeId    String?
+  // The student's HOUR BANK in this program: no mentor, and the row every
+  // `Session.fromBank` meeting draws down. One per (student, program). Not the
+  // unassigned pool, which is also mentor-less but is carved into a mentor's own
+  // allocation by the first meeting; nothing is ever carved out of a bank.
+  isBank        Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -568,6 +578,13 @@ model Session {
   // its own exchange's sessions, not for "this student, in that program",
   // which would be a question about a program it does not administer.
   exchangeId String?
+
+  // Does this meeting draw down the student's hour bank rather than the time
+  // held with its mentor? Stored, like `exchangeId`, because the answer changes
+  // when a bank is created "including previous hours": the meetings already
+  // logged are re-pointed at it, and nothing derived from a date could say
+  // which ones.
+  fromBank Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 
+import { CrownIcon } from "@/components/icons";
 import { Select } from "@/components/select";
 import { Input } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
-import { MAX_TASK_LENGTH, TASK_OTHER, TASK_PRESETS } from "@/lib/tasks";
+import { MAX_TASK_LENGTH, TASK_BANK, TASK_OTHER, TASK_PRESETS } from "@/lib/tasks";
 
 /** An open agenda item this pairing already has, offered so it can be topped up. */
 export type OpenTask = { purpose: string; hint?: string };
@@ -29,7 +30,13 @@ export function TaskPicker({
   optional = false,
   className,
   hint,
+  bankOption = false,
+  onPick,
 }: {
+  /** Lead with the student's hour bank. Admins of a bank program only. */
+  bankOption?: boolean;
+  /** Told what was picked, for a form that changes shape around it. */
+  onPick?: (value: string) => void;
   openTasks?: OpenTask[];
   /** Field names, for actions that call this field something else (`purpose`). */
   name?: string;
@@ -49,6 +56,17 @@ export function TaskPicker({
   // admin would have to clean up later.
   const openPurposes = new Set(openTasks.map((t) => t.purpose));
   const options = [
+    // Pinned first: it is not a piece of work but the balance all of it is
+    // drawn from, and the crown is how the rest of the app marks it.
+    ...(bankOption
+      ? [
+          {
+            value: TASK_BANK,
+            label: "Hour bank",
+            icon: <CrownIcon className="h-4 w-4 shrink-0 text-accent-ink" />,
+          },
+        ]
+      : []),
     ...openTasks.map((t) => ({
       value: t.purpose,
       label: t.hint ? `${t.purpose} · ${t.hint}` : t.purpose,
@@ -81,7 +99,10 @@ export function TaskPicker({
             optional ? "Nothing named yet — decide later" : "What is this time for?"
           }
           required={!optional}
-          onChange={setPicked}
+          onChange={(value) => {
+            setPicked(value);
+            onPick?.(value);
+          }}
         />
       </div>
       {picked === TASK_OTHER && (

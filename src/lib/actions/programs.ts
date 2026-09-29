@@ -234,6 +234,42 @@ export async function setProgramTracksPayment(
 }
 
 /**
+ * Does each student here hold one HOUR BANK that every mentor's meeting draws?
+ *
+ * A column, like `tracksPayment`, so Full Support and the Master's Program are
+ * the programs an admin switched it on for and not the ones with a particular
+ * name. Turning it off changes what the allocate form OFFERS; a bank a student
+ * already holds keeps being drawn by their meetings until it is removed, so no
+ * hour is orphaned by a setting.
+ */
+export async function setProgramHourBank(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+
+  const programId = String(formData.get("programId") ?? "");
+  const denied = await assertProgramScope(actor, programId);
+  if (denied) return denied;
+
+  const program = await prisma.program.findUnique({ where: { id: programId } });
+  if (!program) return { ok: false, error: "Program not found." };
+
+  const hourBank = String(formData.get("hourBank") ?? "") === "on";
+  if (hourBank === program.hourBank) return { ok: true, message: "No change." };
+
+  await prisma.program.update({ where: { id: programId }, data: { hourBank } });
+
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: hourBank
+      ? `${program.name} now has hour banks. Add one from Allocate time by choosing Hour bank as the agenda.`
+      : `${program.name} no longer offers hour banks. Banks students already hold keep working.`,
+  };
+}
+
+/**
  * Delete a whole program, once it is empty. Anything with history in it —
  * students, staff scoped to it — blocks the delete rather than being swept up:
  * a program is closed by emptying it, and only then removed.

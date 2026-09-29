@@ -2,7 +2,12 @@ import { notFound } from "next/navigation";
 
 import { AssignTaskForm } from "@/components/forms/assign-task-form";
 import { PageTitle, Section } from "@/components/ui/section";
-import { adminWriteScope, canAdministerStudent, scopeProgramFilter } from "@/lib/authz";
+import {
+  adminWriteScope,
+  canAdministerStudent,
+  scopeProgramFilter,
+  staffLevel,
+} from "@/lib/authz";
 import { enrollmentLabel } from "@/lib/enrollments";
 import { requireUser } from "@/lib/dal";
 import { formatMinutes } from "@/lib/format";
@@ -67,9 +72,27 @@ export default async function AllocateStudentTimePage({
     value: mentor.id,
     label: mentor.name ?? mentor.email,
   }));
+  // A bank program asks for no payment: its hours are one balance.
   const paymentPrograms = enrollments
-    .filter((e) => e.program.tracksPayment)
+    .filter((e) => e.program.tracksPayment && !e.program.hourBank)
     .map((e) => e.programId);
+  // "Hour bank" is on the Agenda list only where the program has one and the
+  // reader is an admin of it, who alone may change it.
+  const bankPrograms = (
+    await Promise.all(
+      enrollments
+        .filter((e) => e.program.hourBank)
+        .map(async (e) =>
+          (await staffLevel(me, e.programId)) === "ADMIN" ? e.programId : null
+        )
+    )
+  ).filter((id): id is string => id !== null);
+  const bankedPrograms = (
+    await prisma.hourAllocation.findMany({
+      where: { studentId: profile.id, isBank: true, programId: { in: visible } },
+      select: { programId: true },
+    })
+  ).map((b) => b.programId);
 
   return (
     <div className="max-w-4xl space-y-4">
@@ -90,6 +113,8 @@ export default async function AllocateStudentTimePage({
             mentors={mentorOptions}
             openTasksByMentor={openTasksByMentor}
             paymentPrograms={paymentPrograms}
+            bankPrograms={bankPrograms}
+            bankedPrograms={bankedPrograms}
           />
         </div>
       </Section>

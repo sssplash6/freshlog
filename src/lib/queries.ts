@@ -7,6 +7,7 @@ import {
   CHARGED_SESSION,
   SESSION_STATUS,
   USER_STATUS,
+  drawKey,
 } from "@/lib/constants";
 import { formatDate, formatDuration } from "@/lib/format";
 import { deadlinePassed, lateLogCloses, lateLogLastDay } from "@/lib/deadlines";
@@ -94,13 +95,14 @@ export async function studentsWithHours(
         studentId: true,
         programId: true,
         mentorId: true,
+        isBank: true,
         minutes: true,
         deadline: true,
         amountPaid: true,
       },
     }),
     prisma.session.groupBy({
-      by: ["studentId", "programId", "mentorId", "attended", "withinPlan"],
+      by: ["studentId", "programId", "mentorId", "attended", "withinPlan", "fromBank"],
       where: { status: SESSION_STATUS.ACTIVE, studentId: { in: ids }, ...inScope },
       _sum: { minutes: true },
       // The last time anybody met them. On the list this is the column that
@@ -160,7 +162,7 @@ export async function studentsWithHours(
       continue;
     }
     for (const k of keys(s)) add(used, k, mins);
-    add(usedByAllocation, `${s.studentId}:${s.programId}:${s.mentorId}`, mins);
+    add(usedByAllocation, `${s.studentId}:${s.programId}:${drawKey(s)}`, mins);
     if (!s.attended) for (const k of keys(s)) add(missed, k, mins);
   }
 
@@ -181,7 +183,7 @@ export async function studentsWithHours(
       if (a.amountPaid != null) add(paid, k, a.amountPaid);
     }
     const drawn =
-      usedByAllocation.get(`${a.studentId}:${a.programId}:${a.mentorId}`) ?? 0;
+      usedByAllocation.get(`${a.studentId}:${a.programId}:${drawKey(a)}`) ?? 0;
     if (deadlinePassed(a.deadline, at)) {
       const lost = Math.max(0, a.minutes - drawn);
       if (lost > 0) for (const k of keys(a)) add(forfeited, k, lost);
@@ -547,7 +549,7 @@ export async function mentorOverview(
     // hours out of another's grant.
     prisma.session.groupBy({
       by: ["studentId", "programId", "attended"],
-      where: { mentorId, ...CHARGED_SESSION },
+      where: { mentorId, fromBank: false, ...CHARGED_SESSION },
       _sum: { minutes: true },
     }),
     prisma.session.findMany({
@@ -997,6 +999,8 @@ export type CaseloadStudent = {
   approved: boolean;
   /** Unassigned hours this student holds; only when the mentor has no grant. */
   pool?: number;
+  /** `pool` is the student's hour bank, which every meeting draws: what is LEFT in it. */
+  bank?: boolean;
   /** How this mentor reaches them, for a list that sorts by closeness. */
   reach: "allocation" | "pool" | "met" | "task";
 };
@@ -1036,7 +1040,7 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
       // mentor has met — including students they only ever gave extra time to.
       // Grouped by program too, since a balance is per (student, program).
       prisma.session.groupBy({
-        by: ["studentId", "programId", "attended", "withinPlan"],
+        by: ["studentId", "programId", "attended", "withinPlan", "fromBank"],
         where: { mentorId, status: SESSION_STATUS.ACTIVE },
         _sum: { minutes: true },
       }),
@@ -1098,11 +1102,33 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
       extraBy.set(k, (extraBy.get(k) ?? 0) + minutes);
       continue;
     }
+    // Drawn from the student's bank, not from this mentor's grant.
+    if (s.fromBank) continue;
     used.set(k, (used.get(k) ?? 0) + minutes);
     if (!s.attended) missedBy.set(k, (missedBy.get(k) ?? 0) + minutes);
   }
 
-  const students: CaseloadStudent[] = allocations.map((a) => {
+  // A student with a bank in a program is logged against the bank, so a grant
+  // the mentor also holds there (kept from before the bank) is not a second
+  // choice for the same (student, program).
+  const banked = new Set(poolAllocations.filter((p) => p.isBank).map((p) => key(p)));
+  const bankDrawn = new Map<string, number>();
+  if (banked.size > 0) {
+    const sums = await prisma.session.groupBy({
+      by: ["studentId", "programId"],
+      where: {
+        fromBank: true,
+        ...CHARGED_SESSION,
+        studentId: { in: poolAllocations.filter((p) => p.isBank).map((p) => p.studentId) },
+      },
+      _sum: { minutes: true },
+    });
+    for (const s of sums) bankDrawn.set(key(s), s._sum.minutes ?? 0);
+  }
+
+  const students: CaseloadStudent[] = allocations
+    .filter((a) => !banked.has(key(a)))
+    .map((a) => {
     const drawn = used.get(key(a)) ?? 0;
     const missed = missedBy.get(key(a)) ?? 0;
     const expired = deadlinePassed(a.deadline);
@@ -1145,8 +1171,11 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
   // meetings held before the deadline can still be logged against it.
   const mine = new Set(allocations.map((a) => key(a)));
   for (const p of poolAllocations) {
-    if (mine.has(key(p))) continue;
-    if (p.minutes <= 0 || Date.now() >= lateLogCloses(p.deadline)) continue;
+    if (!p.isBank && mine.has(key(p))) continue;
+    // A bank is left to be overdrawn (warned, never blocked); only the pool,
+    // which is a stock to claim from, is dropped once it is empty.
+    const left = p.isBank ? p.minutes - (bankDrawn.get(key(p)) ?? 0) : p.minutes;
+    if ((!p.isBank && p.minutes <= 0) || Date.now() >= lateLogCloses(p.deadline)) continue;
     if (!inScope(p.student, p.programId)) continue;
     students.push({
       profile: p.student,
@@ -1159,7 +1188,8 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
       deadline: p.deadline,
       expired: deadlinePassed(p.deadline),
       approved: p.student.user.status === USER_STATUS.ACTIVE,
-      pool: p.minutes,
+      pool: left,
+      bank: p.isBank,
       reach: "pool",
     });
   }
@@ -1389,7 +1419,9 @@ export function logSessionOptions(
         ? s.deadline && Date.now() < lateLogCloses(s.deadline)
           ? `Hours expired ${formatDate(s.deadline)} — sessions held by then can be logged until ${formatDate(lateLogLastDay(s.deadline))}`
           : `Hours expired${s.deadline ? ` ${formatDate(s.deadline)}` : ""} — extra hours only`
-        : s.pool != null
+        : s.bank
+          ? `${formatDuration(s.pool ?? 0)} left in their hour bank`
+          : s.pool != null
           ? `${formatDuration(s.pool)} unassigned — ${claims}`
           : s.allocated > 0
             ? `${formatDuration(s.remaining)} remaining with ${whose}`

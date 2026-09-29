@@ -74,6 +74,7 @@ export function StudentsTable({
   viewer,
   showProgram = true,
   href = "/students",
+  from,
   sorts = [],
   framed = true,
   empty,
@@ -85,6 +86,8 @@ export function StudentsTable({
   showProgram?: boolean;
   /** Base path for a row's link. */
   href?: string;
+  /** The program this list sits in, so the student's page can lead back to it. */
+  from?: string;
   /**
    * Which headings this page can honour, from `STUDENT_SORTS`. Only a page
    * that reads `?sort=`/`?dir=` back into its own order may name one — a
@@ -200,7 +203,7 @@ export function StudentsTable({
                     email: s.user.email,
                     avatarUpdatedAt: s.user.avatarUpdatedAt,
                   }}
-                  href={`${href}/${s.id}`}
+                  href={`${href}/${s.id}${from ? `?from=${from}` : ""}`}
                 >
                   {top && <StatusChip status={top} />}
                   {/* A visitor, where the Program column is not there to say

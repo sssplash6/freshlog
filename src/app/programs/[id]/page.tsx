@@ -212,6 +212,7 @@ export default async function ProgramPage({
                 students={students}
                 viewer={viewer}
                 showProgram={false}
+                from={id}
                 sorts={STUDENT_SORTS}
               />
               <Pagination

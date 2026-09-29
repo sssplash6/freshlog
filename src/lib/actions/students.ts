@@ -7,6 +7,7 @@ import {
   assertProgramScope,
   assertStudentReach,
   assertStudentScope,
+  staffLevel,
 } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
@@ -23,7 +24,7 @@ import {
 } from "@/lib/constants";
 import { formatDate, formatDuration, formatMoney } from "@/lib/format";
 import { syncGoalProgress } from "@/lib/goal-progress";
-import { parseOptionalTaskField } from "@/lib/tasks";
+import { parseOptionalTaskField, TASK_BANK } from "@/lib/tasks";
 import {
   EMAIL_RE,
   normalizeEmail,
@@ -1122,8 +1123,13 @@ export async function setMentorAllocation(
   if (!actor) return { ok: false, error: "Sign in to do that." };
 
   const profileId = String(formData.get("studentProfileId") ?? "");
+  // The hour bank is picked as the agenda ("Hour bank", with a crown), but it
+  // is not a piece of work: one balance per student per program that every
+  // mentor's meeting draws, so it names no mentor and creates no task.
+  const isBank =
+    String(formData.get("task") ?? "") === TASK_BANK || formData.get("bank") === "1";
   // Empty = the unassigned pool: hours granted before a mentor is chosen.
-  const mentorId = String(formData.get("mentorId") ?? "").trim() || null;
+  const mentorId = isBank ? null : String(formData.get("mentorId") ?? "").trim() || null;
   // "set" replaces the allocation (a correction); "add" grants more hours on top
   // of whatever the student already holds with this mentor.
   const mode = String(formData.get("mode") ?? "set");
@@ -1176,10 +1182,25 @@ export async function setMentorAllocation(
   const denied = await assertProgramScope(actor, program.id);
   if (denied) return denied;
 
+  if (isBank) {
+    if (!program.hourBank) {
+      return { ok: false, error: `${program.name} doesn't use an hour bank.` };
+    }
+    // Admins only — the same reading of "admin" the rest of the app has:
+    // leaders and sales staff of a program may see it, and may not change it.
+    if ((await staffLevel(actor, program.id)) !== "ADMIN") {
+      return { ok: false, error: "Only an admin of this program can change an hour bank." };
+    }
+  }
+  // Only meaningful on the grant that CREATES the bank: is what was already
+  // logged in this program taken out of it? Asked once, then it is history.
+  const includePrevious = formData.get("includePrevious");
+
   // Programs that bill per student also record what was paid. A column on the
   // program, not a comparison against its name: renaming a program must not
-  // change what the app collects.
-  const tracksPayment = program.tracksPayment;
+  // change what the app collects. A bank program is the exception: its hours
+  // are one balance, and nobody is asked what was paid for them.
+  const tracksPayment = program.tracksPayment && !program.hourBank;
   let enteredPaid: number | null = null;
   if (tracksPayment) {
     const raw = String(formData.get("amountPaid") ?? "").trim();
@@ -1212,19 +1233,47 @@ export async function setMentorAllocation(
   // The compound unique can't address the pool row (SQLite NULLs are distinct
   // there), so the pool is found by filter and kept single here — single PER
   // PROGRAM, since a student may hold unassigned time in each of theirs.
-  const existing = mentorId
-    ? await prisma.hourAllocation.findUnique({
-        where: {
-          studentId_programId_mentorId: {
+  // Time granted beside a bank would sit unspent: meetings draw the bank, not
+  // the mentor's grant. Refuse it rather than strand the hours.
+  if (
+    !isBank &&
+    (await prisma.hourAllocation.count({
+      where: { studentId: profile.id, programId: program.id, isBank: true },
+    })) > 0
+  ) {
+    return {
+      ok: false,
+      error: `This student's hours in ${program.name} are in an hour bank, which every meeting draws. Add to the bank instead.`,
+    };
+  }
+  const existing = isBank
+    ? await prisma.hourAllocation.findFirst({
+        where: { studentId: profile.id, programId: program.id, isBank: true },
+      })
+    : mentorId
+      ? await prisma.hourAllocation.findUnique({
+          where: {
+            studentId_programId_mentorId: {
+              studentId: profile.id,
+              programId: program.id,
+              mentorId,
+            },
+          },
+        })
+      : await prisma.hourAllocation.findFirst({
+          where: {
             studentId: profile.id,
             programId: program.id,
-            mentorId,
+            mentorId: null,
+            isBank: false,
           },
-        },
-      })
-    : await prisma.hourAllocation.findFirst({
-        where: { studentId: profile.id, programId: program.id, mentorId: null },
-      });
+        });
+  if (isBank && !existing && includePrevious !== "yes" && includePrevious !== "no") {
+    return {
+      ok: false,
+      error: "Say whether the hours already logged for this student come out of the bank.",
+    };
+  }
   const oldMinutes = existing?.minutes ?? 0;
   const newMinutes =
     mode === "add" ? Number((oldMinutes + enteredHours).toFixed(2)) : enteredHours;
@@ -1293,7 +1342,7 @@ export async function setMentorAllocation(
   // the work can wait, just like naming the mentor.
   let task: string | null = null;
   let taskNote: string | null = null;
-  if (granted > 0) {
+  if (granted > 0 && !isBank) {
     const parsedTask = parseOptionalTaskField(
       formData.get("task"),
       formData.get("taskCustom")
@@ -1375,12 +1424,46 @@ export async function setMentorAllocation(
             studentId: profile.id,
             programId: program.id,
             mentorId,
+            isBank,
             minutes: newMinutes,
             deadline,
             ...(tracksPayment ? { amountPaid: newPaid } : {}),
             ...(exchange ? { exchangeId: exchange.id } : {}),
           },
         });
+        // A NEW bank that includes what was logged before: those meetings now
+        // draw it, and the per-mentor time they drew is folded in, since the
+        // bank is stated as the student's whole balance and leaving both would
+        // count the same hours twice. Each fold is audited; the money on those
+        // rows is left where it was. A bank made without it starts full, and
+        // the earlier meetings stay on the time they were logged against.
+        if (isBank && includePrevious === "yes") {
+          await tx.session.updateMany({
+            where: { studentId: profile.id, programId: program.id, withinPlan: true },
+            data: { fromBank: true },
+          });
+          const folded = await tx.hourAllocation.findMany({
+            where: {
+              studentId: profile.id,
+              programId: program.id,
+              isBank: false,
+              minutes: { gt: 0 },
+            },
+          });
+          for (const row of folded) {
+            await tx.hourAllocation.update({ where: { id: row.id }, data: { minutes: 0 } });
+            await tx.hourAllotmentChange.create({
+              data: {
+                studentId: profile.id,
+                programId: program.id,
+                mentorId: row.mentorId,
+                changedById: actor.id,
+                oldMinutes: row.minutes,
+                newMinutes: 0,
+              },
+            });
+          }
+        }
       }
 
       // The task these hours bought. Topping up an open one keeps the plan honest:
@@ -1480,7 +1563,7 @@ export async function setMentorAllocation(
             type: NOTIFICATION_TYPES.EXCHANGE_ALLOCATED,
             actorId: actor.id,
             href: notificationHref.adminStudent(profile.id),
-            message: `${program.name} put ${formatDuration(newMinutes)} of ${studentName}'s exchange on ${mentorLabel ?? "nobody yet"} — ${formatDuration(held)} of ${formatDuration(exchange.minutes)} allocated.`,
+            message: `${program.name} put ${formatDuration(newMinutes)} of ${studentName}'s exchange on ${mentorLabel ?? (isBank ? "their hour bank" : "nobody yet")} — ${formatDuration(held)} of ${formatDuration(exchange.minutes)} allocated.`,
           });
         }
       }
@@ -1495,7 +1578,9 @@ export async function setMentorAllocation(
         href: notificationHref.studentHome(),
         message:
           granted > 0
-            ? `You were granted ${formatDuration(granted)} more hours${programNote}${withMentor}${task ? ` for "${task}"` : ""} (now ${formatDuration(newMinutes)}${mentorLabel ? " with them" : ""}).${deadlineNote}`
+            ? isBank
+              ? `${formatDuration(granted)} were added to your hour bank${programNote} (now ${formatDuration(newMinutes)}).${deadlineNote}`
+              : `You were granted ${formatDuration(granted)} more hours${programNote}${withMentor}${task ? ` for "${task}"` : ""} (now ${formatDuration(newMinutes)}${mentorLabel ? " with them" : ""}).${deadlineNote}`
             : granted < 0
               ? `Your time${programNote}${withMentor} was adjusted from ${formatDuration(oldMinutes)} to ${formatDuration(newMinutes)}.${deadlineNote}`
               : `The deadline for your time${programNote}${withMentor} was updated to ${formatDate(deadline)}.`,
@@ -1525,7 +1610,7 @@ export async function setMentorAllocation(
     : "";
   return {
     ok: true,
-    message: `${profile.user.email} now has ${formatDuration(newMinutes)} ${mentorLabel ? `with ${mentorLabel}` : "unassigned"}${programNote}, to use by ${formatDate(deadline)}${paidNote}.${taskSummary}`,
+    message: `${profile.user.email} now has ${formatDuration(newMinutes)} ${mentorLabel ? `with ${mentorLabel}` : isBank ? "in their hour bank" : "unassigned"}${programNote}, to use by ${formatDate(deadline)}${paidNote}.${taskSummary}`,
   };
 }
 
@@ -1551,9 +1636,13 @@ export async function removeMentorAllocation(
   // allocation cannot be addressed without it once the student is in two.
   const programId = String(formData.get("programId") ?? "").trim();
 
+  // The hour bank is removed the same way but is its own row: it has no mentor
+  // like the pool, and must never be found by "the pool" or take it with it.
+  const removingBank = formData.get("bank") === "1";
   const where = {
     studentId: profileId,
     mentorId,
+    isBank: removingBank,
     ...(programId ? { programId } : {}),
   };
   const matches = await prisma.hourAllocation.findMany({
@@ -1583,6 +1672,21 @@ export async function removeMentorAllocation(
   const denied = await assertProgramScope(actor, allocation.programId);
   if (denied) return denied;
 
+  if (removingBank) {
+    if ((await staffLevel(actor, allocation.programId)) !== "ADMIN") {
+      return { ok: false, error: "Only an admin of this program can change an hour bank." };
+    }
+    const drawn = await prisma.session.count({
+      where: { studentId: profileId, programId: allocation.programId, fromBank: true },
+    });
+    if (drawn > 0) {
+      return {
+        ok: false,
+        error:
+          "Meetings have been logged against this hour bank, so it can't be removed. Void them first if it must go.",
+      };
+    }
+  }
   // The pool has no sessions by construction — only mentors log them.
   if (mentorId) {
     const sessionCount = await prisma.session.count({
@@ -1621,8 +1725,9 @@ export async function removeMentorAllocation(
     // Their tasks go with their time: nothing was logged against them (no
     // sessions, checked above), and a task nobody holds hours for is a line the
     // mentor can't act on. Only this program's — the same mentor may hold
-    // separate work for the same student elsewhere.
-    await tx.assignment.deleteMany({ where: scoped });
+    // separate work for the same student elsewhere. A bank bought no tasks, and
+    // "mentor null" here would be every unassigned task the student has.
+    if (!removingBank) await tx.assignment.deleteMany({ where: scoped });
     await tx.hourAllocation.delete({ where: { id: allocation.id } });
     await notify(tx, {
       to: [allocation.student.userId],
@@ -1631,7 +1736,9 @@ export async function removeMentorAllocation(
       href: notificationHref.studentHome(),
       message: mentorLabel
         ? `Your time with ${mentorLabel} in ${allocation.program.name} was removed. They're no longer one of your mentors there.`
-        : `Your unassigned time in ${allocation.program.name} was removed.`,
+        : removingBank
+          ? `Your hour bank in ${allocation.program.name} was removed.`
+          : `Your unassigned time in ${allocation.program.name} was removed.`,
     });
   });
 
@@ -1640,7 +1747,9 @@ export async function removeMentorAllocation(
     ok: true,
     message: mentorLabel
       ? `${mentorLabel} removed from this student in ${allocation.program.name}, along with the tasks their time was for.`
-      : `The unassigned time in ${allocation.program.name} was removed, along with the tasks it was for.`,
+      : removingBank
+        ? `The hour bank in ${allocation.program.name} was removed.`
+        : `The unassigned time in ${allocation.program.name} was removed, along with the tasks it was for.`,
   };
 }
 
@@ -1698,7 +1807,7 @@ export async function transferMentorAllocation(
   }
 
   const source = await prisma.hourAllocation.findFirst({
-    where: { studentId: profileId, programId, mentorId: fromMentorId },
+    where: { studentId: profileId, programId, mentorId: fromMentorId, isBank: false },
     include: { program: true, student: { include: { user: true } }, mentor: true },
   });
   // "Not yours" and "does not exist" answer the same, before the gate as after.

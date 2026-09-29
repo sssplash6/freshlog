@@ -4,6 +4,7 @@ import {
   AssignMentorForm,
   DeleteCohortButton,
   DeleteProgramButton,
+  HourBankToggle,
   RemoveMentorButton,
   RenameProgramForm,
   TrackPaymentToggle,
@@ -223,6 +224,7 @@ export default async function ProgramSettingsPage({
             programId={program.id}
             tracksPayment={program.tracksPayment}
           />
+          <HourBankToggle programId={program.id} hourBank={program.hourBank} />
           <SettingsRow
             label={archived ? "Archived" : "Archive this program"}
             description={

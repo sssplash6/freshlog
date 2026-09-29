@@ -468,7 +468,8 @@ async function mentorAttention(user: User): Promise<Attention> {
           forfeitedMinutes: s.expired
             ? Math.max(0, s.allocated - s.completed - s.missed)
             : 0,
-          poolMinutes: s.pool ?? 0,
+          // A bank is not unassigned time: every meeting draws it, whoever holds it.
+          poolMinutes: s.bank ? 0 : (s.pool ?? 0),
           // Already one grant, so the pair is this row's own remaining and its
           // own date — the aggregate confusion cannot arise here.
           expiring: soonestExpiry([s], viewer.now),
@@ -564,7 +565,7 @@ export async function studentRows(
   // Time granted before a mentor was chosen. An expired pool has nothing left
   // to assign, and `allocationSummary` has already written it down to zero.
   const pool = hours.perMentor
-    .filter((m) => !m.mentor)
+    .filter((m) => !m.mentor && !m.bank)
     .reduce((total, m) => total + Math.max(0, m.remaining), 0);
   const mine = studentStatuses(
     {
@@ -580,8 +581,10 @@ export async function studentRows(
       expiring: hours.expiring,
       // Paired mentors, not mentors who have logged something: a mentor with
       // no grant of their own is not the pairing NO_MENTOR asks an admin for.
-      mentorCount: hours.perMentor.filter((m) => m.mentor && m.allocated > 0)
-        .length,
+      // A bank is held for every mentor in the program, so it is not a lack of one.
+      mentorCount: hours.perMentor.filter(
+        (m) => (m.mentor || m.bank) && m.allocated > 0
+      ).length,
     },
     viewer
   ).map(aboutMe);

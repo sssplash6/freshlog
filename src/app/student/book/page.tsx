@@ -146,7 +146,7 @@ export default async function StudentBookPage() {
   // Time granted before a mentor was chosen: it is inside the balance on the
   // home page and belongs to no row here, so the difference has to be stated.
   const pooled = hours.perMentor
-    .filter((m) => !m.mentor)
+    .filter((m) => !m.mentor && !m.bank)
     .reduce((sum, m) => sum + Math.max(0, m.remaining), 0);
   if (pooled > 0) {
     const s = status("POOL_UNASSIGNED", viewer, { minutes: pooled });

@@ -251,6 +251,23 @@ export const CHARGED_SESSION = {
   withinPlan: true,
 } as const;
 
+/**
+ * What stands in for the mentor in the key `(student, program, mentor)` when
+ * the draw is the HOUR BANK's. Every total keyed on that triple takes the
+ * mentor from `drawKey`, so a bank meeting never lands on whichever mentor
+ * happened to deliver it, and a mentor's own grant is never drawn by it.
+ */
+const BANK_DRAW = "bank";
+
+/** The mentor slot of an allocation-shaped key, for a session or an allocation. */
+export function drawKey(row: {
+  mentorId: string | null;
+  fromBank?: boolean;
+  isBank?: boolean;
+}): string | null {
+  return row.fromBank || row.isBank ? BANK_DRAW : row.mentorId;
+}
+
 /** How far along one planned piece of work is. Admin-set, never derived. */
 export const ASSIGNMENT_PROGRESS = {
   NOT_STARTED: "NOT_STARTED",

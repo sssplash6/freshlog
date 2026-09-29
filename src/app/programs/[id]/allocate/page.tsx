@@ -1,9 +1,11 @@
 import { AssignTaskForm } from "@/components/forms/assign-task-form";
 import { ParamSelect } from "@/components/param-select";
 import { Section } from "@/components/ui/section";
+import { staffLevel } from "@/lib/authz";
 import { requireProgramScope } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
 import { formatDuration, formatMinutes } from "@/lib/format";
+import { prisma } from "@/lib/prisma";
 import { studentLedger } from "@/lib/queries";
 
 import { programOf, programPairings, programStudents, studentsOf } from "../../reads";
@@ -30,7 +32,7 @@ export default async function AllocateInProgramPage({
   searchParams: Promise<SearchParams>;
 }) {
   const { id } = await params;
-  await requireProgramScope(id);
+  const me = await requireProgramScope(id);
   const query = await searchParams;
 
   const [program, roster, pairings] = await Promise.all([
@@ -53,6 +55,14 @@ export default async function AllocateInProgramPage({
     .sort((a, b) => a.label.localeCompare(b.label));
 
   const ledger = chosen ? await studentLedger(chosen.id, [id]) : null;
+  // "Hour bank" leads the Agenda list only for an admin of a program that has
+  // one — the only people who may change it.
+  const bankOn = program.hourBank && (await staffLevel(me, id)) === "ADMIN";
+  const banked = chosen
+    ? (await prisma.hourAllocation.count({
+        where: { studentId: chosen.id, programId: id, isBank: true },
+      })) > 0
+    : false;
   const openTasksByMentor: Record<string, { purpose: string; hint?: string }[]> = {};
   for (const task of ledger?.assignments ?? []) {
     if (task.progress === "DONE") continue;
@@ -103,7 +113,9 @@ export default async function AllocateInProgramPage({
               programs={[{ value: id, label: program.name }]}
               mentors={mentors}
               openTasksByMentor={openTasksByMentor}
-              paymentPrograms={program.tracksPayment ? [id] : []}
+              paymentPrograms={program.tracksPayment && !program.hourBank ? [id] : []}
+              bankPrograms={bankOn ? [id] : []}
+              bankedPrograms={banked ? [id] : []}
             />
           </div>
         )}

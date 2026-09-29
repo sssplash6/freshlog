@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { CHARGED_SESSION, SESSION_STATUS } from "@/lib/constants";
+import { CHARGED_SESSION, SESSION_STATUS, drawKey } from "@/lib/constants";
 import { deadlinePassed, soonestExpiry } from "@/lib/deadlines";
 
 /**
@@ -57,7 +57,7 @@ export async function allocationSummary(
     // Grouped by withinPlan as well as attendance, so one query answers both
     // "what did this draw down?" and "what was given on top?".
     prisma.session.groupBy({
-      by: ["programId", "mentorId", "attended", "withinPlan"],
+      by: ["programId", "mentorId", "attended", "withinPlan", "fromBank"],
       where: { studentId: studentProfileId, status: SESSION_STATUS.ACTIVE, ...inScope },
       _sum: { minutes: true },
     }),
@@ -73,7 +73,8 @@ export async function allocationSummary(
   const pair = (programId: string, mentorId: string) => `${programId}:${mentorId}`;
   for (const s of sessionSums) {
     const mins = s._sum.minutes ?? 0;
-    const k = pair(s.programId, s.mentorId);
+    // A bank meeting draws the bank, whoever delivered it.
+    const k = pair(s.programId, drawKey(s)!);
     if (!s.withinPlan) {
       extraByMentor.set(k, (extraByMentor.get(k) ?? 0) + mins);
       continue;
@@ -89,6 +90,8 @@ export async function allocationSummary(
   const now = Date.now();
   const perMentor: {
     mentor: (typeof allocations)[number]["mentor"];
+    /** The student's hour bank in this program: no mentor, drawn by every meeting. */
+    bank: boolean;
     /** The program the grant was made in — a row is one of these per mentor. */
     program: { id: string; name: string };
     allocated: number;
@@ -103,7 +106,7 @@ export async function allocationSummary(
   }[] = allocations.map((a) => {
     // The unassigned pool (mentor null) can never have sessions against it —
     // sessions are logged by a mentor — so its used/missed are always 0.
-    const k = a.mentorId ? pair(a.programId, a.mentorId) : null;
+    const k = a.mentorId || a.isBank ? pair(a.programId, drawKey(a)!) : null;
     const used = (k && usedByMentor.get(k)) || 0;
     const missed = (k && missedByMentor.get(k)) || 0;
     const extra = (k && extraByMentor.get(k)) || 0;
@@ -111,6 +114,7 @@ export async function allocationSummary(
     const forfeited = expired ? Math.max(0, a.minutes - used) : 0;
     return {
       mentor: a.mentor,
+      bank: a.isBank,
       program: a.program,
       allocated: a.minutes,
       completed: used - missed,
@@ -134,10 +138,12 @@ export async function allocationSummary(
   // A derived row, so: nothing allotted, no deadline to be past, and whatever
   // was charged showing as the overdraw it is.
   const granted = new Set(
-    allocations.flatMap((a) => (a.mentorId ? [pair(a.programId, a.mentorId)] : []))
+    allocations.flatMap((a) =>
+      a.mentorId || a.isBank ? [pair(a.programId, drawKey(a)!)] : []
+    )
   );
   const ungranted = [
-    ...new Set(sessionSums.map((s) => pair(s.programId, s.mentorId))),
+    ...new Set(sessionSums.map((s) => pair(s.programId, drawKey(s)!))),
   ].filter((k) => !granted.has(k));
   if (ungranted.length > 0) {
     const [mentors, programs] = await Promise.all([
@@ -160,6 +166,7 @@ export async function allocationSummary(
       const missed = missedByMentor.get(k) ?? 0;
       perMentor.push({
         mentor,
+        bank: false,
         program,
         allocated: 0,
         completed: used - missed,

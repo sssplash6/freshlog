@@ -1,3 +1,4 @@
+import { CrownIcon } from "@/components/icons";
 import { PersonChip } from "@/components/person-chip";
 import { ProgramChip } from "@/components/program-chip";
 import { Meter } from "@/components/ui/meter";
@@ -60,6 +61,8 @@ type RowPerson = {
 export type AllocationEntry = {
   /** Null = granted before a mentor was chosen: the unassigned pool. */
   mentor: RowPerson | null;
+  /** The student's hour bank: no mentor either, but drawn by every meeting. */
+  bank?: boolean;
   /**
    * The program the time was granted in.
    *
@@ -113,8 +116,8 @@ export function timeByMentorEntries(
   assignments: readonly PlannedAssignment[],
   links: { mentorBase?: string } = {},
 ): AllocationEntry[] {
-  const key = (programId: string, mentorId: string | null) =>
-    `${programId}:${mentorId ?? ""}`;
+  const key = (programId: string, mentorId: string | null, bank = false) =>
+    `${programId}:${bank ? "bank" : (mentorId ?? "")}`;
   const plans = new Map<
     string,
     { planned: number; mentor: PlannedAssignment["mentor"]; program: PlannedAssignment["program"] }
@@ -133,11 +136,11 @@ export function timeByMentorEntries(
   }
 
   const existing = new Set(
-    entries.map((entry) => key(entry.program.id, entry.mentor?.id ?? null)),
+    entries.map((entry) => key(entry.program.id, entry.mentor?.id ?? null, entry.bank)),
   );
   const rows = entries.map((entry) => {
     const planned = plans.get(
-      key(entry.program.id, entry.mentor?.id ?? null),
+      key(entry.program.id, entry.mentor?.id ?? null, entry.bank),
     )?.planned ?? 0;
     return { ...entry, assigned: Math.max(entry.allocated, planned) };
   });
@@ -177,6 +180,7 @@ function spent(entry: AllocationEntry) {
 
 export function toAllocationEntries(
   rows: readonly {
+    bank?: boolean;
     mentor: {
       id: string;
       name: string | null;
@@ -299,6 +303,15 @@ export function AllocationMeter({
  * own row is what makes it correctable like any other.
  */
 function AllocationPerson({ entry }: { entry: AllocationEntry }) {
+  // Crowned, as it is in the agenda: the balance the rest is drawn from.
+  if (entry.bank) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
+        <CrownIcon className="h-4 w-4 shrink-0 text-accent-ink" />
+        Hour bank
+      </span>
+    );
+  }
   if (entry.mentor) {
     return <PersonChip person={entry.mentor} size="sm" href={entry.mentor.href} />;
   }
@@ -427,7 +440,7 @@ export function AllocationsTable({
     <Table framed={framed} columns={columns} className={className}>
       {entries.map((entry, i) => (
         <AllocationRow
-          key={`${entry.program.id}:${entry.mentor?.id ?? "unassigned"}`}
+          key={`${entry.program.id}:${entry.bank ? "bank" : (entry.mentor?.id ?? "unassigned")}`}
           entry={entry}
           showProgram={showProgram}
           showAmountPaid={showAmountPaid}

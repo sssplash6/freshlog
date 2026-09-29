@@ -8,6 +8,7 @@ import { Input, Textarea } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { setMentorAllocation } from "@/lib/actions/students";
+import { TASK_BANK } from "@/lib/tasks";
 
 const labelClass =
   "block text-xs font-medium text-muted-fg";
@@ -30,6 +31,8 @@ export function AssignTaskForm({
   mentors,
   openTasksByMentor = {},
   paymentPrograms = [],
+  bankPrograms = [],
+  bankedPrograms = [],
 }: {
   studentProfileId: string;
   /**
@@ -46,6 +49,13 @@ export function AssignTaskForm({
   openTasksByMentor?: Record<string, OpenTask[]>;
   /** The programs that also record what was paid. */
   paymentPrograms?: readonly string[];
+  /**
+   * The programs where "Hour bank" is on the Agenda list — those with a bank
+   * AND where the reader is an admin, who alone may change one.
+   */
+  bankPrograms?: readonly string[];
+  /** The programs where this student already holds a bank: topped up, not created. */
+  bankedPrograms?: readonly string[];
 }) {
   const [, action, save] = useSaveState(setMentorAllocation);
   const [mentorId, setMentorId] = useState("");
@@ -55,7 +65,12 @@ export function AssignTaskForm({
   // The money fields belong to the grant, so they follow the program picked
   // rather than the student: a student in the Master's Program and in Global
   // Admissions is asked what they paid for one and not for the other.
-  const showAmountPaid = paymentPrograms.includes(programId);
+  const [agenda, setAgenda] = useState("");
+  // The bank is picked as the agenda, and takes the mentor, the note and the
+  // money with it: it is one balance for every mentor, and nobody is asked what
+  // was paid for it.
+  const isBank = agenda === TASK_BANK && bankPrograms.includes(programId);
+  const showAmountPaid = !isBank && paymentPrograms.includes(programId);
   const openTasks = openTasksByMentor[`${programId}:${mentorId}`] ?? [];
 
   return (
@@ -86,19 +101,21 @@ export function AssignTaskForm({
             </div>
           </div>
         )}
-        <div className="min-w-0">
-          <span className={labelClass}>Mentor</span>
-          <div className="mt-1">
-            <Select
-              name="mentorId"
-              ariaLabel="Mentor"
-              options={mentors}
-              placeholder="No one yet — decide later"
-              required={false}
-              onChange={setMentorId}
-            />
+        {!isBank && (
+          <div className="min-w-0">
+            <span className={labelClass}>Mentor</span>
+            <div className="mt-1">
+              <Select
+                name="mentorId"
+                ariaLabel="Mentor"
+                options={mentors}
+                placeholder="No one yet — decide later"
+                required={false}
+                onChange={setMentorId}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Remounted per mentor: their open tasks lead the list, and a task
             picked for one mentor must never be left selected under another's.
@@ -108,6 +125,8 @@ export function AssignTaskForm({
           className="lg:col-span-2"
           optional
           openTasks={openTasks}
+          bankOption={bankPrograms.includes(programId)}
+          onPick={setAgenda}
         />
 
       </div>
@@ -124,15 +143,19 @@ export function AssignTaskForm({
           money field had an empty cell under its deadline and its own action
           orphaned below the form. */}
       <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_16rem]">
-        <label className="flex min-w-0 flex-col">
-          <span className={labelClass}>Note</span>
-          <Textarea
-            name="taskNote"
-            maxLength={500}
-            placeholder="Optional — e.g. review the intro of each essay"
-            className="mt-1 min-h-32 flex-1"
-          />
-        </label>
+        {isBank ? (
+          <BankChoice created={!bankedPrograms.includes(programId)} />
+        ) : (
+          <label className="flex min-w-0 flex-col">
+            <span className={labelClass}>Note</span>
+            <Textarea
+              name="taskNote"
+              maxLength={500}
+              placeholder="Optional — e.g. review the intro of each essay"
+              className="mt-1 min-h-32 flex-1"
+            />
+          </label>
+        )}
 
         <div className="grid content-start gap-3">
           <label className="min-w-0">
@@ -194,5 +217,65 @@ export function AssignTaskForm({
       )}
       <SaveState state={save} />
     </form>
+  );
+}
+
+/**
+ * What the hour bank asks that a mentor's grant does not: whether meetings
+ * already logged for this student come out of it. Asked once, when the bank is
+ * created; after that it is only topped up and there is nothing to decide.
+ */
+function BankChoice({ created }: { created: boolean }) {
+  if (!created) {
+    return (
+      <p className="self-center text-sm text-muted-fg">
+        These minutes are added to their hour bank. Every meeting draws from it.
+      </p>
+    );
+  }
+  return (
+    <fieldset className="min-w-0">
+      <legend className={labelClass}>
+        Meetings already logged <span className="text-accent-ink">*</span>
+      </legend>
+      <div className="mt-1 space-y-2">
+        <BankRadio
+          value="yes"
+          title="Take them out of the bank"
+          detail="Earlier meetings are subtracted from these minutes, and time held with individual mentors is folded into the bank."
+        />
+        <BankRadio
+          value="no"
+          title="Start the bank full"
+          detail="Earlier meetings stay on the time they were logged against."
+        />
+      </div>
+    </fieldset>
+  );
+}
+
+function BankRadio({
+  value,
+  title,
+  detail,
+}: {
+  value: "yes" | "no";
+  title: string;
+  detail: string;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-line bg-surface px-3 py-2.5 has-[:checked]:border-brand has-[:checked]:bg-brand-soft">
+      <input
+        type="radio"
+        name="includePrevious"
+        value={value}
+        required
+        className="mt-1 accent-brand"
+      />
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-ink">{title}</span>
+        <span className="block text-xs text-muted-fg">{detail}</span>
+      </span>
+    </label>
   );
 }

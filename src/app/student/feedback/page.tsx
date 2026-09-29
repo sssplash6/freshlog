@@ -43,17 +43,27 @@ export default async function StudentFeedbackPage({
   });
   if (!profile) redirect("/onboarding");
 
-  const [hours, given] = await Promise.all([
+  const [hours, given, met] = await Promise.all([
     allocationSummary(profile.id),
     prisma.mentorFeedback.findMany({
       where: { studentId: profile.id },
       include: { mentor: true },
       orderBy: { createdAt: "desc" },
     }),
+    // Mentors met through an hour bank hold no allocation of their own, so the
+    // ledger alone would leave them off the list of people to rate.
+    prisma.session.findMany({
+      where: { studentId: profile.id, fromBank: true },
+      distinct: ["mentorId"],
+      select: { mentor: true },
+    }),
   ]);
 
-  const mentors = hours.perMentor
-    .flatMap((m) => (m.mentor ? [m.mentor] : []))
+  const mentors = [
+    ...hours.perMentor.flatMap((m) => (m.mentor ? [m.mentor] : [])),
+    ...met.map((s) => s.mentor),
+  ]
+    .filter((m, i, all) => all.findIndex((x) => x.id === m.id) === i)
     .map((m) => ({ id: m.id, label: m.name ?? m.email }))
     .sort((a, b) => a.label.localeCompare(b.label));
 

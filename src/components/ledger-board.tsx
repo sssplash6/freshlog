@@ -1,4 +1,10 @@
+import {
+  AllocationBalance,
+  AllocationMeter,
+  type AllocationEntry,
+} from "@/components/allocation-row";
 import { HoursBreakdown } from "@/components/hours-breakdown";
+import { CrownIcon } from "@/components/icons";
 import { SessionRow } from "@/components/session-row";
 import { toSessionEntries } from "@/lib/session-entries";
 import {
@@ -62,9 +68,17 @@ export function LedgerBoard({
   renderTaskActions,
   renderTaskProgress,
   renderAgendaActions,
+  banks = [],
+  renderBankActions,
   taskForm,
   viewer,
 }: {
+  /**
+   * The student's hour banks, pinned at the top of the agenda. Not a piece of
+   * work but the balance every meeting draws, so it leads the list it funds.
+   */
+  banks?: AllocationEntry[];
+  renderBankActions?: (bank: AllocationEntry) => React.ReactNode;
   sessions: LedgerSession[];
   /** Work a mentor set the student — the top-right column. */
   tasks: StudentTaskEntry[];
@@ -250,10 +264,41 @@ export function LedgerBoard({
               )
         }
       >
+        {banks.length > 0 && (
+          <ul className="divide-y divide-line border-y border-line">
+            {banks.map((bank) => (
+              <li key={bank.program.id} className="px-4 py-2.5 sm:px-5">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+                    <CrownIcon className="h-4 w-4 shrink-0 text-accent-ink" />
+                    Hour bank
+                    {banks.length > 1 && (
+                      <span className="font-normal text-muted-fg">
+                        · {bank.program.name}
+                      </span>
+                    )}
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <AllocationBalance entry={bank} />
+                    {renderBankActions?.(bank)}
+                  </span>
+                </div>
+                <AllocationMeter
+                  entry={bank}
+                  viewer={viewer}
+                  label={`Hour bank, ${bank.program.name}`}
+                  className="mt-2"
+                />
+              </li>
+            ))}
+          </ul>
+        )}
         {assignments.length === 0 ? (
-          <p className="px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">
-            No agenda yet.
-          </p>
+          banks.length === 0 && (
+            <p className="px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">
+              No agenda yet.
+            </p>
+          )
         ) : (
           <ShowMoreList rows={agendaRows} noun="agenda items" />
         )}

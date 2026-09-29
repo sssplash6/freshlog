@@ -54,6 +54,7 @@ import {
   canManageStudent,
   mentorReaches,
   scopeCovers,
+  staffLevel,
   scopeProgramFilter,
   studentScope,
 } from "@/lib/authz";
@@ -68,6 +69,7 @@ import {
   formatMoney,
   toDateInputValue,
 } from "@/lib/format";
+import { readParam, type SearchParams } from "@/lib/filters";
 import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { profileOf } from "@/lib/profile";
@@ -95,11 +97,14 @@ import {
  */
 export default async function StudentWorkspacePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<SearchParams>;
 }) {
   const me = await requireUser();
   const { id } = await params;
+  const from = readParam(await searchParams, "from");
 
   const profile = await prisma.studentProfile.findUnique({
     where: { id },
@@ -339,9 +344,36 @@ export default async function StudentWorkspacePage({
   // belong to the grant, and the grant names its program, so the form asks
   // per program rather than once for the whole student.
   const paymentPrograms = new Set(
-    enrollments.filter((e) => e.program.tracksPayment).map((e) => e.programId)
+    enrollments
+      .filter((e) => e.program.tracksPayment && !e.program.hourBank)
+      .map((e) => e.programId)
   );
   const tracksPayment = paymentPrograms.size > 0;
+  // A bank is changed by admins only: leaders and sales staff of the program
+  // read it, and get no controls on it.
+  const bankAdmin = new Set(
+    (
+      await Promise.all(
+        enrollments
+          .filter((e) => e.program.hourBank)
+          .map(async (e) =>
+            manages && (await staffLevel(me, e.programId)) === "ADMIN" ? e.programId : null
+          )
+      )
+    ).filter((v): v is string => v !== null)
+  );
+  // Back to the program the reader came from — named by the roster's link — or,
+  // when the student is in just one program they administer, to that one. A
+  // student in several, reached from somewhere else, has no single "respective
+  // program" to return to, and the list of students is the honest answer.
+  const backProgram =
+    enrollments.find((e) => e.programId === from && scopeCovers(scope, e.programId)) ??
+    (enrollments.length === 1 && scopeCovers(scope, enrollments[0].programId)
+      ? enrollments[0]
+      : null);
+  const back = backProgram
+    ? { href: `/programs/${backProgram.programId}`, label: backProgram.program.name }
+    : { href: "/students", label: "Students" };
   // Two primary actions at most, in either lens — the admin's power lives in
   // the ⋮ menus on the rows it belongs to.
   const primaryIsLog = lens === "mentor";
@@ -349,8 +381,8 @@ export default async function StudentWorkspacePage({
   return (
     <div className="space-y-4">
       <PageTitle
-        backHref="/students"
-        backLabel="Students"
+        backHref={back.href}
+        backLabel={back.label}
         // The programs, and nothing else. "Student ·" in front of them said
         // what the back-link two lines above already says, on a page whose
         // subject is a person with their face beside their name.
@@ -475,6 +507,7 @@ export default async function StudentWorkspacePage({
           showProgram: enrollments.length > 1,
         })}
         assignments={ledger.assignments}
+        banks={timeByMentor.filter((entry) => entry.bank)}
         totals={hours}
         mentorBase="/mentors"
         // The board is where these rows are READ, so it is where they have to
@@ -647,8 +680,9 @@ export default async function StudentWorkspacePage({
             renderActions={
               writes
                 ? (entry) =>
-                    entry.deadline ? (
+                    entry.deadline && (!entry.bank || bankAdmin.has(entry.program.id)) ? (
                       <AllocationRowActions
+                        bank={entry.bank}
                         studentProfileId={profile.id}
                         programId={entry.program.id}
                         mentorId={entry.mentor?.id ?? ""}
@@ -679,8 +713,9 @@ export default async function StudentWorkspacePage({
             renderAssignedActions={
               writes
                 ? (entry) =>
-                    entry.deadline ? (
+                    entry.deadline && (!entry.bank || bankAdmin.has(entry.program.id)) ? (
                       <AllocationMinutesEditor
+                        bank={entry.bank}
                         studentProfileId={profile.id}
                         programId={entry.program.id}
                         mentorId={entry.mentor?.id ?? ""}
@@ -710,6 +745,8 @@ export default async function StudentWorkspacePage({
                       {c.changedBy.name ?? c.changedBy.email} set{" "}
                       {c.mentor ? (
                         <PersonChip person={c.mentor} size="sm" href={`/mentors/${c.mentor.id}`} />
+                      ) : enrollments.some((e) => e.programId === c.programId && e.program.hourBank) ? (
+                        "the hour bank"
                       ) : (
                         "unassigned time"
                       )}

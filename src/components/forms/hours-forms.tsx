@@ -65,7 +65,10 @@ export function AllocationRowActions({
   currentAmountPaid = null,
   unusedMinutes = 0,
   transferTo = [],
+  bank = false,
 }: {
+  /** This row is the student's hour bank: no mentor, no tasks, no transfer. */
+  bank?: boolean;
   studentProfileId: string;
   /** Which program's grant this row is. An allocation cannot be addressed
    *  without it: the same mentor may hold separate time with the same student
@@ -106,6 +109,7 @@ export function AllocationRowActions({
           />
           <input type="hidden" name="programId" value={programId} />
           <input type="hidden" name="mentorId" value={mentorId} />
+          {bank && <input type="hidden" name="bank" value="1" />}
           <input type="hidden" name="mode" value="set" />
 
           <Field label="Total minutes">
@@ -142,7 +146,7 @@ export function AllocationRowActions({
             </Field>
           )}
 
-          {granting && (
+          {granting && !bank && (
             <div className="rise-in">
               <TaskPicker compact optional openTasks={openTasks} />
               <p className="mt-1.5 text-[0.6875rem] text-muted-fg">
@@ -158,7 +162,7 @@ export function AllocationRowActions({
         <SaveState state={setSave} />
       </RowActionGroup>
 
-      {unusedMinutes > 0 && transferTo.length > 0 && (
+      {!bank && unusedMinutes > 0 && transferTo.length > 0 && (
         <TransferGroup
           studentProfileId={studentProfileId}
           programId={programId}
@@ -173,18 +177,20 @@ export function AllocationRowActions({
         <ConfirmInline
           variant="quiet"
           action={delAction}
-          values={{ studentProfileId, programId, mentorId }}
+          values={{ studentProfileId, programId, mentorId, ...(bank ? { bank: "1" } : {}) }}
           pending={delSave.kind === "saving"}
-          label={mentorId ? "Remove mentor" : "Remove time"}
+          label={bank ? "Remove hour bank" : mentorId ? "Remove mentor" : "Remove time"}
           // Naming the consequence, because it is wider than the row: the
           // action deletes this pairing's open tasks and its allocation
           // history along with the hours. A mentor who has logged a session is
           // refused by the action itself, which is the one case this cannot
           // know from here.
           question={
-            mentorId
-              ? "Their hours and their open agenda with this student go."
-              : "The unallocated hours go. Nothing is logged against them."
+            bank
+              ? "The bank goes. It can only be removed while no meeting has drawn from it."
+              : mentorId
+                ? "Their hours and their open agenda with this student go."
+                : "The unallocated hours go. Nothing is logged against them."
           }
           confirmLabel="Yes, remove"
           pendingLabel="Removing…"
@@ -282,7 +288,9 @@ export function AllocationMinutesEditor({
   currentDeadline,
   currentAmountPaid = null,
   showAmountPaid = false,
+  bank = false,
 }: {
+  bank?: boolean;
   studentProfileId: string;
   programId: string;
   mentorId: string;
@@ -305,6 +313,7 @@ export function AllocationMinutesEditor({
           <input type="hidden" name="studentProfileId" value={studentProfileId} />
           <input type="hidden" name="programId" value={programId} />
           <input type="hidden" name="mentorId" value={mentorId} />
+          {bank && <input type="hidden" name="bank" value="1" />}
           <input type="hidden" name="mode" value="set" />
           <input type="hidden" name="deadline" value={currentDeadline ?? ""} />
           {showAmountPaid && (

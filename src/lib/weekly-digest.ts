@@ -7,6 +7,7 @@ import {
   WEEKLY_SUMMARY_PREF,
   SESSION_STATUS,
   USER_STATUS,
+  drawKey,
 } from "@/lib/constants";
 import { notify } from "@/lib/notify";
 
@@ -97,6 +98,7 @@ async function loadPairings(now: Date): Promise<Pairing[]> {
         studentId: true,
         programId: true,
         mentorId: true,
+        fromBank: true,
         minutes: true,
         attended: true,
         withinPlan: true,
@@ -118,7 +120,7 @@ async function loadPairings(now: Date): Promise<Pairing[]> {
     map.set(k, (map.get(k) ?? 0) + n);
 
   for (const s of sessions) {
-    const k = key(s.studentId, s.programId, s.mentorId);
+    const k = key(s.studentId, s.programId, drawKey(s));
     // Out-of-plan hours draw nothing down, so they stay out of `used` — the
     // digest's whole subject is hours at risk of expiring unused.
     if (s.withinPlan) bump(used, k, s.minutes);
@@ -130,7 +132,7 @@ async function loadPairings(now: Date): Promise<Pairing[]> {
   }
 
   return allocations.map((a) => {
-    const k = key(a.studentId, a.programId, a.mentorId);
+    const k = key(a.studentId, a.programId, drawKey(a));
     const drawn = used.get(k) ?? 0;
     const expired = deadlinePassed(a.deadline, now.getTime());
     return {

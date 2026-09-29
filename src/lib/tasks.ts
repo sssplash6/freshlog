@@ -19,6 +19,12 @@ import { TASK_PRESETS } from "../../config/app-config";
 
 export { TASK_PRESETS };
 
+/**
+ * What the Agenda picker submits for the student's HOUR BANK. Not a piece of
+ * work: it grants no task, names no mentor, and is drawn by every meeting.
+ */
+export const TASK_BANK = "__bank__";
+
 /** What the picker submits for "none of these — I'll type it". */
 export const TASK_OTHER = "__other__";
 

@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 
@@ -25,6 +26,8 @@ export type SelectOption = {
    * searchable but never the identity, so a long list stays scannable by name.
    */
   hint?: string;
+  /** A mark before the label, in the list and in the closed control. */
+  icon?: ReactNode;
 };
 
 /** A row in the popover: either something to pick, or a heading over a group. */
@@ -480,8 +483,11 @@ export function Select({
             this the longest option name makes the whole control wider than its
             column — and on a phone, wider than the screen. truncate can only do
             its job once the item is allowed to shrink. */}
-        <span className="min-w-0 truncate">
-          {selected ? selected.label : placeholder}
+        <span className="flex min-w-0 items-center gap-2">
+          {selected?.icon}
+          <span className="min-w-0 truncate">
+            {selected ? selected.label : placeholder}
+          </span>
         </span>
         <ChevronDownIcon
           className={cn(
@@ -639,7 +645,10 @@ function SelectItem({
       )}
     >
       <span className="min-w-0">
-        <span className="block min-w-0 truncate">{option.label}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          {option.icon}
+          <span className="block min-w-0 truncate">{option.label}</span>
+        </span>
         {option.hint && (
           <span
             className={cn(

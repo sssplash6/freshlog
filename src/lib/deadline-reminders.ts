@@ -2,7 +2,7 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { notify, notificationHref } from "@/lib/notify";
-import { CHARGED_SESSION, NOTIFICATION_TYPES } from "@/lib/constants";
+import { CHARGED_SESSION, NOTIFICATION_TYPES, drawKey } from "@/lib/constants";
 import { deadlinePassed } from "@/lib/deadlines";
 import { formatDate, formatDuration } from "@/lib/format";
 import { programDayEnds } from "@/lib/when";
@@ -54,18 +54,24 @@ export async function ensureDeadlineReminders() {
   // without the program would let the hours a mentor delivered in one program
   // count against the deadline of the grant they hold with the same student in
   // another, and silence the reminder for time that really is about to expire.
+  // A bank is drawn by every mentor's meetings, so its pair names no mentor.
   const pairs = due
-    .filter((a) => a.mentorId)
-    .map((a) => ({
-      studentId: a.studentId,
-      programId: a.programId,
-      mentorId: a.mentorId as string,
-    }));
+    .filter((a) => a.mentorId || a.isBank)
+    .map((a) =>
+      a.isBank
+        ? { studentId: a.studentId, programId: a.programId, fromBank: true }
+        : {
+            studentId: a.studentId,
+            programId: a.programId,
+            mentorId: a.mentorId as string,
+            fromBank: false,
+          }
+    );
   const sums =
     pairs.length === 0
       ? []
       : await prisma.session.groupBy({
-          by: ["studentId", "programId", "mentorId"],
+          by: ["studentId", "programId", "mentorId", "fromBank"],
           // Charging sessions only: hours given out of plan never drew this
           // allocation down, so counting them would understate what is at risk
           // of expiring and silence a reminder that should have gone out.
@@ -74,7 +80,7 @@ export async function ensureDeadlineReminders() {
         });
   const usedBy = new Map(
     sums.map((s) => [
-      `${s.studentId}:${s.programId}:${s.mentorId}`,
+      `${s.studentId}:${s.programId}:${drawKey(s)}`,
       s._sum.minutes ?? 0,
     ])
   );
@@ -83,7 +89,7 @@ export async function ensureDeadlineReminders() {
     const deadline = a.deadline;
     const passed = deadlinePassed(deadline, now.getTime());
     const remaining =
-      a.minutes - (usedBy.get(`${a.studentId}:${a.programId}:${a.mentorId}`) ?? 0);
+      a.minutes - (usedBy.get(`${a.studentId}:${a.programId}:${drawKey(a)}`) ?? 0);
     // Unassigned pool: nothing draws it down and there is no mentor to tell,
     // but the student's reminder still has to go out — those hours expire too.
     const mentorLabel = a.mentor ? (a.mentor.name ?? a.mentor.email) : null;
