@@ -126,7 +126,7 @@ export function StudentTaskRow({
   return (
     <li
       id={`student-task-${task.id}`}
-      className={cn("px-4 py-3 sm:px-5", index != null && "deal-in")}
+      className={cn("@container px-4 py-3 sm:px-5", index != null && "deal-in")}
       style={
         index == null
           ? undefined
@@ -146,7 +146,7 @@ export function StudentTaskRow({
       {/* One axis — see the meeting row. The ⋮ is a 36px target, so the row
           is 36px tall regardless, and top-aligning the rest of it only moved
           the text seven pixels off the icon beside it. */}
-      <div className="flex items-center gap-x-2">
+      <div className="flex items-start gap-x-2 @xl:items-center">
         {/* NO WRAPPING, for the reason the meeting row's line carries: with
             `flex-wrap` the title dropped to a line of its own or did not,
             depending on how long that row's mentor happened to be called. The
@@ -159,7 +159,13 @@ export function StudentTaskRow({
             one word wide ("Draft / the / activities / section"), which is the
             wrap this row was built to avoid, arrived at from the other side.
             From `sm` up the line is exactly as described above. */}
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap">
+        {/* And the width that matters is the ROW's, not the screen's: in the
+            board's half-width column a desktop still left the title a narrow
+            two-line block wedged between the mentor and the figure. Under
+            36rem of row the title takes the line below the date and the
+            mentor, full width, so the order reads the same and nothing is
+            squeezed; with the room, it is one line as described above. */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5 @xl:flex-nowrap">
           {/* WHEN. First, because a to-do list is read by what is next, and
               the overdue chip replaces the plain date rather than sitting
               beside a second copy of it — its own label already carries the
@@ -193,7 +199,7 @@ export function StudentTaskRow({
 
           {/* WHAT. The flexible middle, so progress lands against the right
               edge however short the title is. */}
-          <span className="min-w-0 flex-1 text-[0.9375rem] font-medium leading-snug text-ink max-sm:order-first max-sm:basis-full">
+          <span className="min-w-0 flex-1 basis-full text-[0.9375rem] font-medium leading-snug text-ink max-sm:order-first @xl:basis-0">
             {task.title}
           </span>
         </div>
@@ -207,7 +213,10 @@ export function StudentTaskRow({
             a half-width column the 48px it wanted came straight out of the
             title beside it — which is the one thing on the line that cannot
             be read in less space than it takes. */}
-        <span className="flex shrink-0 items-center gap-1.5">
+        {/* On the FIRST line when the title has wrapped under it: centred on
+            the pair of lines it read as belonging to neither. The ⋮ is taller
+            than the chips, and would otherwise sit a pixel low. */}
+        <span className="-mt-px flex shrink-0 items-center gap-1.5 @xl:mt-0">
           {done ? (
             progressStatus && (
               <StatusChip
@@ -230,7 +239,7 @@ export function StudentTaskRow({
       {/* The description, directly under the line it belongs to. */}
       {task.note && <ExpandableNote text={task.note} className="mt-1" />}
 
-      {footer && <div className="mt-2.5">{footer}</div>}
+      {footer && <div className="mt-3">{footer}</div>}
     </li>
   );
 }
