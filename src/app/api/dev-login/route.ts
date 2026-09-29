@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
+
 import { encode } from "next-auth/jwt";
 
 import { prisma } from "@/lib/prisma";
@@ -29,6 +31,12 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
  *                 forward it — a public deploy sits behind one, and a spoofed
  *                 Host header on a server that somehow had the flag still
  *                 carries the proxy's X-Forwarded-Host.
+ *
+ * SHARING through a tunnel is the one exception, and it needs a secret:
+ * start the server with DEV_LOGIN_KEY=<random> as well, and a request from
+ * anywhere is let in only when it carries `?key=<that value>`. The key rides
+ * every link on the list page, so a friend given one URL can move between
+ * accounts. Without the variable, the localhost rule above is the only door.
  */
 export async function GET(request: Request) {
   if (!enabled(request)) {
@@ -37,13 +45,14 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const email = url.searchParams.get("email")?.trim().toLowerCase();
+  const key = url.searchParams.get("key");
 
   if (!email) {
     const users = await prisma.user.findMany({
       orderBy: [{ role: "asc" }, { email: "asc" }],
       select: { email: true, name: true, role: true, status: true },
     });
-    return new Response(page(users), {
+    return new Response(page(users, key), {
       headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
     });
   }
@@ -71,11 +80,20 @@ export async function GET(request: Request) {
 
 function enabled(request: Request): boolean {
   if (process.env.DEV_LOGIN !== "1") return false;
+  const shared = process.env.DEV_LOGIN_KEY;
+  const given = new URL(request.url).searchParams.get("key");
+  if (shared && shared.length >= 16 && given && sameSecret(given, shared)) return true;
   const headers = request.headers;
   if (headers.get("x-forwarded-host") && !isLocal(headers.get("x-forwarded-host")!)) {
     return false;
   }
   return isLocal(headers.get("host") ?? new URL(request.url).host);
+}
+
+function sameSecret(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
 }
 
 function isLocal(host: string): boolean {
@@ -88,12 +106,14 @@ function escape(s: string): string {
 }
 
 function page(
-  users: { email: string; name: string | null; role: string; status: string }[]
+  users: { email: string; name: string | null; role: string; status: string }[],
+  key: string | null
 ): string {
+  const carry = key ? `&key=${encodeURIComponent(key)}` : "";
   const rows = users
     .map(
       (u) =>
-        `<li><a href="/api/dev-login?email=${encodeURIComponent(u.email)}">${escape(
+        `<li><a href="/api/dev-login?email=${encodeURIComponent(u.email)}${carry}">${escape(
           u.name ?? u.email
         )}</a> <span>${escape(u.email)} · ${u.role.toLowerCase()}${
           u.status === "ACTIVE" ? "" : ` · ${u.status.toLowerCase()}`
