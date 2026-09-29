@@ -6,6 +6,7 @@ import { requireProgramScope } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
 import { formatDuration, formatMinutes } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { pastHours } from "@/lib/hours";
 import { studentLedger } from "@/lib/queries";
 
 import { programOf, programPairings, programStudents, studentsOf } from "../../reads";
@@ -63,6 +64,7 @@ export default async function AllocateInProgramPage({
         where: { studentId: chosen.id, programId: id, isBank: true },
       })) > 0
     : false;
+  const past = chosen && bankOn && !banked ? await pastHours(prisma, chosen.id, id) : null;
   const openTasksByMentor: Record<string, { purpose: string; hint?: string }[]> = {};
   for (const task of ledger?.assignments ?? []) {
     if (task.progress === "DONE") continue;
@@ -116,6 +118,7 @@ export default async function AllocateInProgramPage({
               paymentPrograms={program.tracksPayment && !program.hourBank ? [id] : []}
               bankPrograms={bankOn ? [id] : []}
               bankedPrograms={banked ? [id] : []}
+              pastByProgram={past ? { [id]: past } : {}}
             />
           </div>
         )}

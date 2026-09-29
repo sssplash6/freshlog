@@ -340,3 +340,29 @@ export type ProgramTotals = {
   /** How many of these students are past their allocation. */
   overdrawn: number;
 };
+
+/**
+ * The hours a student already has in a program before it gets an hour bank:
+ * what was allocated to mentors, and what has been logged against it.
+ *
+ * Both sides of one question — "how much of the bank is already gone?" — whose
+ * answer is the GREATER of the two: hours logged beyond what was allocated are
+ * gone too, and allocated hours nobody has used yet are promised to somebody.
+ */
+export async function pastHours(
+  db: Pick<typeof prisma, "hourAllocation" | "session">,
+  studentProfileId: string,
+  programId: string
+): Promise<{ allocated: number; logged: number }> {
+  const [allocated, logged] = await Promise.all([
+    db.hourAllocation.aggregate({
+      where: { studentId: studentProfileId, programId, isBank: false },
+      _sum: { minutes: true },
+    }),
+    db.session.aggregate({
+      where: { studentId: studentProfileId, programId, fromBank: false, ...CHARGED_SESSION },
+      _sum: { minutes: true },
+    }),
+  ]);
+  return { allocated: allocated._sum.minutes ?? 0, logged: logged._sum.minutes ?? 0 };
+}

@@ -8,6 +8,7 @@ import { Input, Textarea } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { setMentorAllocation } from "@/lib/actions/students";
+import { formatDuration } from "@/lib/format";
 import { TASK_BANK } from "@/lib/tasks";
 
 const labelClass =
@@ -33,6 +34,7 @@ export function AssignTaskForm({
   paymentPrograms = [],
   bankPrograms = [],
   bankedPrograms = [],
+  pastByProgram = {},
 }: {
   studentProfileId: string;
   /**
@@ -56,6 +58,8 @@ export function AssignTaskForm({
   bankPrograms?: readonly string[];
   /** The programs where this student already holds a bank: topped up, not created. */
   bankedPrograms?: readonly string[];
+  /** Per program: what the student was allocated and has logged before any bank. */
+  pastByProgram?: Record<string, { allocated: number; logged: number }>;
 }) {
   const [, action, save] = useSaveState(setMentorAllocation);
   const [mentorId, setMentorId] = useState("");
@@ -144,7 +148,10 @@ export function AssignTaskForm({
           orphaned below the form. */}
       <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_16rem]">
         {isBank ? (
-          <BankChoice created={!bankedPrograms.includes(programId)} />
+          <BankChoice
+            created={!bankedPrograms.includes(programId)}
+            past={pastByProgram[programId]}
+          />
         ) : (
           <label className="flex min-w-0 flex-col">
             <span className={labelClass}>Note</span>
@@ -221,39 +228,50 @@ export function AssignTaskForm({
 }
 
 /**
- * What the hour bank asks that a mentor's grant does not: whether meetings
- * already logged for this student come out of it. Asked once, when the bank is
- * created; after that it is only topped up and there is nothing to decide.
+ * What the hour bank asks that a mentor's grant does not: do we include the
+ * hours already spent in this program? Asked once, when the bank is created,
+ * and only when there ARE past hours; after that it is only topped up.
  */
-function BankChoice({ created }: { created: boolean }) {
-  if (!created) {
+function BankChoice({
+  created,
+  past,
+}: {
+  created: boolean;
+  past?: { allocated: number; logged: number };
+}) {
+  if (!created || !past || (past.allocated === 0 && past.logged === 0)) {
     return (
       <p className="self-center text-sm text-muted-fg">
         These minutes are added to their hour bank. Every meeting draws from it.
       </p>
     );
   }
+  const out = Math.max(past.allocated, past.logged);
   return (
     <fieldset className="min-w-0">
       <legend className={labelClass}>
-        Meetings already logged <span className="text-accent-ink">*</span>
+        Do we include past hours in this hour bank?{" "}
+        <span className="text-accent-ink">*</span>
       </legend>
-      <div className="mt-1 space-y-2">
+      <p className="mt-1 text-xs text-muted-fg">
+        Allocated to mentors {formatDuration(past.allocated)} · logged so far{" "}
+        {formatDuration(past.logged)}
+      </p>
+      <div className="mt-2 space-y-2">
         <BankRadio
           value="yes"
-          title="Take them out of the bank"
-          detail="Earlier meetings are subtracted from these minutes, and time held with individual mentors is folded into the bank."
+          title="Yes, include them"
+          detail={`The greater of the two, ${formatDuration(out)}, comes out of the bank. Time held with individual mentors is folded into it.`}
         />
         <BankRadio
           value="no"
-          title="Start the bank full"
-          detail="Earlier meetings stay on the time they were logged against."
+          title="No, start the bank full"
+          detail="Past meetings stay on the time they were logged against."
         />
       </div>
     </fieldset>
   );
 }
-
 function BankRadio({
   value,
   title,

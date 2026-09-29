@@ -12,6 +12,7 @@ import { enrollmentLabel } from "@/lib/enrollments";
 import { requireUser } from "@/lib/dal";
 import { formatMinutes } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { pastHours } from "@/lib/hours";
 import { studentLedger } from "@/lib/queries";
 
 export default async function AllocateStudentTimePage({
@@ -93,6 +94,13 @@ export default async function AllocateStudentTimePage({
       select: { programId: true },
     })
   ).map((b) => b.programId);
+  const pastByProgram = Object.fromEntries(
+    await Promise.all(
+      bankPrograms
+        .filter((id) => !bankedPrograms.includes(id))
+        .map(async (id) => [id, await pastHours(prisma, profile.id, id)] as const)
+    )
+  );
 
   return (
     <div className="max-w-4xl space-y-4">
@@ -115,6 +123,7 @@ export default async function AllocateStudentTimePage({
             paymentPrograms={paymentPrograms}
             bankPrograms={bankPrograms}
             bankedPrograms={bankedPrograms}
+            pastByProgram={pastByProgram}
           />
         </div>
       </Section>
