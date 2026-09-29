@@ -174,9 +174,9 @@ phone this product is read on.
 
 Push scale contrast: the `h1` and the one lead figure are unmistakably larger
 than everything around them — `lead` is 42px, `normal` 30px, `inline` 16px, and
-there is exactly one `lead` per page. Eyebrows are 11px small-caps, one size
-everywhere; the nine 10px variants they replace were sub-readable on a phone,
-which is where students are. Data stays dense enough for staff work without
+there is exactly one `lead` per page. Eyebrows are 13px sentence case, one
+size everywhere (they were 11px small-caps until the September 2026 iOS pass,
+and 10px in nine variants before that). Data stays dense enough for staff work without
 turning every statistic into a card. Reach for a rule and whitespace before a
 container.
 
@@ -315,6 +315,29 @@ diagonal stripe, expired and overdrawn are `danger`, and the remainder is
 The legend swatches therefore differ in **shape** as well as fill: filled dot,
 striped square, hollow ring. Hours logged out of plan sit outside the bar; they
 were never part of what was bought.
+
+### Grouped lists (September 2026, second pass)
+
+The owner's verdict on the first pass was "not polished, not consistent, not
+calm". The answer was subtraction, in iOS's grouped-list grammar, applied by the
+shared components so no page can opt out:
+
+- **The ground is iOS grouped grey** (`canvas` #f2f2f7; in dark a blue-grey #121417, never pure black — see the dark block in globals.css) and a
+  card is plain white (`surface`), `rounded-xl`, no border, a shadow you have to
+  look for. A hairline goes *between rows*, never around a card.
+- **A section's title sits on the page**, above its card — `Section` renders it
+  so. There are no header bands inside cards and cards never nest.
+- **Sentence case everywhere.** Eyebrows, table headers, fact labels,
+  notification tags: no capitals, no letter-spacing. Labels are 13px muted,
+  values are ink.
+- **Colour is rare.** A person's hue lives in their avatar and nowhere else —
+  `PersonChip` is a face and a name in ink. Brand blue is for things you press;
+  orange is hours; amber and red are status. No gradients, no medals, no
+  coloured card edges, analytics included.
+- **Rows are iOS-height**: `py-3` list rows (the spacing lint allows it), 15px
+  primary line, 13px secondary, a trailing value or chevron.
+- **Type scale**: 32 large title · 20 section · 17 card headline · 15 body ·
+  13 secondary · 12 caption.
 
 ### The surface: fills, corners, depth (September 2026)
 

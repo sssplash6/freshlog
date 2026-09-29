@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 
+import { Suspense } from "react";
+
+import { NavProgress } from "@/components/nav-progress";
 import { Toaster } from "@/components/toaster";
 import { STARTUP_IMAGES } from "@/lib/generated/startup-images";
 import "./globals.css";
@@ -88,7 +91,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#161d26" },
+    { media: "(prefers-color-scheme: dark)", color: "#121417" },
   ],
   /*
    * `cover` lets the page run edge to edge behind the notch and the home
@@ -139,6 +142,11 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">
+        {/* Suspense: it reads the search params, which a static render
+            cannot know — without a boundary that bails the whole root out. */}
+        <Suspense fallback={null}>
+          <NavProgress />
+        </Suspense>
         {children}
         <Toaster />
       </body>

@@ -194,7 +194,15 @@ export default async function StudentsPage({
         // the Last session column each say the same thing in place. The program
         // is the one narrowing a reader cannot do with their eyes, because the
         // rows they want are simply not on the page.
-        summary={filterSummary(total, { one: "student", many: "students" }, params)}
+        //
+        // The count only once a filter is on: unfiltered it is the pager's,
+        // and the same "8 students" above and below the table was one fact
+        // said twice.
+        summary={
+          activeFilterCount(params) > 0
+            ? filterSummary(total, { one: "student", many: "students" }, params)
+            : undefined
+        }
       />
 
       {total === 0 ? (
@@ -234,6 +242,7 @@ export default async function StudentsPage({
             page={page}
             total={total}
             unit="students"
+            className="px-1"
           />
         </>
       )}

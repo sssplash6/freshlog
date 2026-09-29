@@ -46,7 +46,7 @@ export function Sidebar({
     // shadow under it. Widening the page instead would reflow a table under the
     // reader's cursor every time they crossed the left edge of the window.
     <aside className="vt-rail group/rail fixed inset-y-0 left-0 z-30 hidden w-[13.75rem] flex-col border-r border-line bg-surface/80 backdrop-blur-xl backdrop-saturate-150 transition-[width] duration-200 lg:flex rail-collapsed:w-16 rail-collapsed:hover:w-[13.75rem] rail-collapsed:hover:shadow-lg">
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-5 rail-collapsed:px-2 rail-collapsed:group-hover/rail:px-3">
+      <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-5 rail-collapsed:px-2 rail-collapsed:group-hover/rail:px-3">
         <div className="flex flex-col gap-3 px-1 rail-collapsed:px-0 rail-collapsed:group-hover/rail:px-1">
           {/* The wordmark and the toggle share the top line, and the wordmark
               is what gives way when the rail shuts: the control that reopens
@@ -67,7 +67,7 @@ export function Sidebar({
         </div>
         <SidebarNav items={items} utility={utility} />
       </div>
-      <div className="border-t border-line p-2 rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
+      <div className="border-t border-line/60 p-2 rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
         {account}
       </div>
     </aside>

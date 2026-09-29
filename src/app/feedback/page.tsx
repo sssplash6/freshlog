@@ -218,19 +218,19 @@ async function OwnRatings({
           <Section title="Ratings" count={stats._count} caption={ANONYMOUS}>
             <ul className="divide-y divide-line">
               {rows.map((f) => (
-                <li key={f.id} className="px-4 py-2 sm:px-5">
+                <li key={f.id} className="px-4 py-3 sm:px-5">
                   <div className="flex items-center justify-between gap-3">
                     <Rating value={f.rating} />
-                    <span className="text-xs text-muted-fg">
+                    <span className="text-[0.8125rem] tabular-nums text-muted-fg">
                       {formatDate(f.createdAt)}
                     </span>
                   </div>
                   {f.comment && (
-                    <div className="mt-1.5 text-sm">
+                    <div className="mt-1 text-[0.9375rem]">
                       <ExpandableText
                         text={f.comment}
                         lines={2}
-                        className="text-muted-fg"
+                        className="text-ink"
                       />
                     </div>
                   )}
@@ -244,6 +244,7 @@ async function OwnRatings({
             page={page}
             total={stats._count}
             unit="ratings"
+            className="px-1"
           />
         </>
       )}
@@ -502,8 +503,11 @@ async function AllRatings({
         ) : (
           <ul className="divide-y divide-line">
             {list.map((f) => (
-              <li key={f.id} className="px-4 py-2 sm:px-5">
-                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+              <li key={f.id} className="px-4 py-3 sm:px-5">
+                {/* Who it is about and the score on one line; what was said
+                    as the body, in ink, because the words are the point of
+                    the row; who said it and when as the quiet line under it. */}
+                <div className="flex items-center justify-between gap-3">
                   <PersonChip
                     person={f.mentor}
                     size="sm"
@@ -512,15 +516,15 @@ async function AllRatings({
                   <Rating value={f.rating} />
                 </div>
                 {f.comment && (
-                  <div className="mt-1.5 text-sm">
+                  <div className="mt-1 text-[0.9375rem]">
                     <ExpandableText
                       text={f.comment}
                       lines={2}
-                      className="text-muted-fg"
+                      className="text-ink"
                     />
                   </div>
                 )}
-                <p className="mt-1 text-xs text-muted-fg">
+                <p className="mt-0.5 text-[0.8125rem] text-muted-fg">
                   {f.student ? (
                     (f.student.name ?? f.student.email)
                   ) : (
@@ -543,6 +547,7 @@ async function AllRatings({
         page={page}
         total={stats._count}
         unit="ratings"
+        className="px-1"
       />
     </div>
   );
@@ -607,7 +612,7 @@ function AverageStars({ value }: { value: number }) {
       className="ml-1.5 align-middle text-[0.625rem] tracking-tight text-ink"
     >
       {"★".repeat(filled)}
-      <span className="text-line">{"★".repeat(5 - filled)}</span>
+      <span className="text-fill-strong">{"★".repeat(5 - filled)}</span>
     </span>
   );
 }

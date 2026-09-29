@@ -82,10 +82,10 @@ export default async function InterviewPage({
       />
 
       <Section title="With">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
           <PersonChip person={{ ...other, email: "" }} />
           {phase === "booked" && (
-            <p className="text-sm text-muted-fg">
+            <p className="text-[0.8125rem] text-muted-fg">
               Arrange where to meet between you. You can mark it done once it starts.
             </p>
           )}
@@ -94,7 +94,7 @@ export default async function InterviewPage({
 
       {template && (
         <Section title="Questions" count={template.questions.length} caption={template.summary}>
-          <ol className="list-decimal space-y-1 py-2 pl-9 pr-4 text-sm text-ink sm:pl-10 sm:pr-5">
+          <ol className="list-decimal space-y-2 py-3 pl-9 pr-4 text-[0.9375rem] text-ink marker:text-muted-fg sm:pl-10 sm:pr-5">
             {template.questions.map((q) => (
               <li key={q}>{q}</li>
             ))}

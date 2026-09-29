@@ -69,10 +69,10 @@ export function ThemeToggle({
       type="button"
       onClick={flip}
       className={cn(
-        "flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-3 text-left text-sm font-medium transition-colors",
+        "flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-3 text-left text-[0.9375rem] transition-colors",
         inline
           ? "bg-fill text-ink hover:bg-fill-strong"
-          : "text-muted-fg hover:bg-canvas hover:text-ink",
+          : "text-ink hover:bg-fill",
         className
       )}
     >
@@ -80,11 +80,11 @@ export function ThemeToggle({
       {/* The state, and what pressing this does to it, in the one word each.
           Only one is ever in the accessibility tree: the other is `display:
           none`, not `opacity: 0`. */}
-      <span className="theme-light-only flex items-center gap-1.5 text-xs">
+      <span className="theme-light-only flex items-center gap-1.5 text-[0.8125rem] text-muted-fg">
         <SunIcon className="h-4 w-4" />
         Light
       </span>
-      <span className="theme-dark-only flex items-center gap-1.5 text-xs">
+      <span className="theme-dark-only flex items-center gap-1.5 text-[0.8125rem] text-muted-fg">
         <MoonIcon className="h-4 w-4" />
         Dark
       </span>

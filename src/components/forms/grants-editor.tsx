@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { setPlatformAdmin, setProgramAccess } from "@/lib/actions/grants";
 import { Button } from "@/components/ui/button";
+import { fieldChrome } from "@/components/ui/field";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -75,13 +76,13 @@ export function GrantsEditor({
       <RowActionGroup label="Program-specific access">
         <form action={action} className="space-y-2">
           <input type="hidden" name="userId" value={row.userId} />
-          <p className="mb-2 text-xs text-muted-fg">
+          <p className="mb-2 text-[0.8125rem] text-muted-fg">
             Tick the programs this person works in, and pick the level for
             each. None of this gives platform-wide access.
           </p>
           {programs.map((p) => (
             <div key={p.id} className="flex flex-wrap items-center gap-2">
-              <label className="flex min-h-11 flex-1 items-center gap-2 text-sm text-ink">
+              <label className="flex min-h-11 flex-1 items-center gap-2 text-[0.9375rem] text-ink">
                 <input
                   type="checkbox"
                   name="program"
@@ -101,7 +102,9 @@ export function GrantsEditor({
                 name={`level:${p.id}`}
                 defaultValue={row.grants[p.id] ?? fallback}
                 disabled={!checked[p.id]}
-                className="min-h-11 rounded-lg border border-line bg-surface px-2.5 text-sm text-ink disabled:opacity-50"
+                // The app's field chrome — a grey fill — rather than the one
+                // bordered white box left in the panel.
+                className={`${fieldChrome} min-h-11 px-2.5 text-base disabled:opacity-50 sm:text-[0.9375rem]`}
               >
                 {LEVELS.map((l) => (
                   <option key={l.value} value={l.value}>

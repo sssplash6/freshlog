@@ -74,6 +74,7 @@ export function WeeklyDigestForm({ defaultOn }: { defaultOn: boolean }) {
     <SettingsRow
       label="Weekly summary"
       htmlFor={id}
+      trailing
       control={
         <form action={setWeeklyDigest} className="flex items-center gap-2">
           {/* Flip is the whole interaction: the switch submits itself, the way
@@ -148,10 +149,10 @@ function CategoryRow({
     >
       <input type="hidden" name="category" value={category.key} />
       <div className="min-w-0">
-        <span className="text-sm font-medium text-ink">{category.label}</span>
+        <span className="text-[0.9375rem] font-medium text-ink">{category.label}</span>
       </div>
       <div className="flex items-center gap-4">
-        <label className="flex min-h-11 items-center gap-2 text-sm text-muted-fg">
+        <label className="flex min-h-11 items-center gap-2 text-[0.8125rem] text-muted-fg">
           <Switch
             name="inApp"
             checked={inApp}
@@ -160,7 +161,7 @@ function CategoryRow({
           />
           In the app
         </label>
-        <label className="flex min-h-11 items-center gap-2 text-sm text-muted-fg">
+        <label className="flex min-h-11 items-center gap-2 text-[0.8125rem] text-muted-fg">
           <Switch
             name="email"
             checked={email}

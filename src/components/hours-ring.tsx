@@ -14,7 +14,7 @@ import { formatDuration } from "@/lib/format";
 export function HoursRing({
   used,
   allotted,
-    forfeited = 0,
+  forfeited = 0,
   remaining,
   size = 132,
   className,
@@ -31,7 +31,7 @@ export function HoursRing({
    * `allotted - used - forfeited`, so any student with an expired allocation
    * read a bigger number inside the ring than in the sentence beside it.
    */
-    remaining: number;
+  remaining: number;
   /**
    * Diameter in pixels.
    *
@@ -75,7 +75,7 @@ export function HoursRing({
           r={radius}
           fill="none"
           strokeWidth={stroke}
-          className="stroke-line"
+          className="stroke-fill"
         />
         <circle
           cx={size / 2}
@@ -95,8 +95,8 @@ export function HoursRing({
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div
-                    className={cn(
-            "font-bold leading-none tracking-tight tabular-nums",
+          className={cn(
+            "font-semibold leading-none tracking-tight tabular-nums",
             overdrawn ? "text-danger-ink" : "text-ink",
           )}
           // Scaled with the ring rather than fixed, so a 96px ring does not
@@ -106,7 +106,12 @@ export function HoursRing({
         >
           {formatDuration(overdrawn ? -remaining : remaining)}
         </div>
-        <div className="mt-1 text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-muted-fg">
+        <div
+          className="mt-1 font-medium text-muted-fg"
+          // Scaled with the figure, so a 96px ring's caption is not the 12px a
+          // 132px one wears — it crowded the stroke.
+          style={{ fontSize: Math.max(10, Math.round(size * 0.1)) }}
+        >
           {overdrawn ? "over" : "remaining"}
         </div>
       </div>

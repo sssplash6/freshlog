@@ -72,7 +72,7 @@ export default async function AllocateStudentTimePage({
     .map((e) => e.programId);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="max-w-4xl space-y-4">
       <PageTitle
         backHref={`/students/${profile.id}`}
         backLabel="Student"

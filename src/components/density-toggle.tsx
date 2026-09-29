@@ -51,17 +51,17 @@ export function DensityToggle({
       type="button"
       onClick={cycle}
       className={cn(
-        "hidden min-h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-3 text-left text-sm font-medium transition-colors sm:flex",
+        "hidden min-h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-3 text-left text-[0.9375rem] transition-colors sm:flex",
         inline
           ? "bg-fill text-ink hover:bg-fill-strong"
-          : "text-muted-fg hover:bg-canvas hover:text-ink",
+          : "text-ink hover:bg-fill",
         className
       )}
     >
       <span className={cn(inline && "sr-only")}>Density</span>
-      <span className="density-compact-only text-xs">Compact</span>
-      <span className="density-default-only text-xs">Default</span>
-      <span className="density-comfortable-only text-xs">Comfortable</span>
+      <span className="density-compact-only text-[0.8125rem] text-muted-fg">Compact</span>
+      <span className="density-default-only text-[0.8125rem] text-muted-fg">Default</span>
+      <span className="density-comfortable-only text-[0.8125rem] text-muted-fg">Comfortable</span>
     </button>
   );
 }

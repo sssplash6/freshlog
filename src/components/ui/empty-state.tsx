@@ -11,11 +11,12 @@ import { cn } from "@/lib/cn";
  * So: `title` names what is absent, `children` says why in one clause, and the
  * `variant` decides whether that absence is normal.
  *
- * There is deliberately no `action` slot. Every empty state that carried a
- * button was a page teaching its own layout — "log a session at the bottom of
- * this page and it appears here" — and pointing at a form that is either
- * already on screen or belongs somewhere else entirely. An empty state
- * explains; the page's own primary action acts.
+ * `action` is ONE way out, and only when it goes somewhere the page does not
+ * already show. The empty states that carried buttons before were pages
+ * teaching their own layout — "log a session at the bottom of this page and it
+ * appears here" — pointing at a form already on screen. That is still wrong.
+ * What is right is the iOS shape: one sentence, and the one link that fills
+ * the list when the thing that fills it lives on another page.
  */
 export type EmptyVariant =
   /** Nothing is wrong; this is simply what "not yet" looks like. */
@@ -31,6 +32,7 @@ export function EmptyState({
   children,
   variant = "healthy",
   framed = true,
+  action,
   className,
 }: {
   icon?: React.ReactNode;
@@ -40,13 +42,15 @@ export function EmptyState({
   children?: React.ReactNode;
   variant?: EmptyVariant;
   framed?: boolean;
+  /** One link or button, to where this list gets filled. Never a second. */
+  action?: React.ReactNode;
   className?: string;
 }) {
   return (
     <div
       className={cn(
-        "rise-in flex flex-col items-center gap-2 px-6 py-10 text-center",
-        framed && "rounded-xl border border-line bg-surface shadow-sm",
+        "rise-in flex flex-col items-center gap-1 px-6 py-8 text-center",
+        framed && "rounded-xl bg-surface shadow-sm",
         className
       )}
     >
@@ -66,7 +70,10 @@ export function EmptyState({
           {title}
         </p>
       )}
-      {children && <div className="max-w-sm text-sm text-muted-fg">{children}</div>}
+      {children && (
+        <div className="max-w-sm text-[0.8125rem] text-muted-fg">{children}</div>
+      )}
+      {action && <div className="mt-2">{action}</div>}
     </div>
   );
 }

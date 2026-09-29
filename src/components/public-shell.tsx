@@ -38,7 +38,7 @@ export function PublicShell({
 }) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="border-b border-line bg-surface">
+      <header className="border-b border-line/60 bg-surface/80 backdrop-blur-xl backdrop-saturate-150">
         <div className="mx-auto flex min-h-16 max-w-2xl items-center justify-between gap-3 px-4 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]">
           <BrandWordmark version={pkg.version} />
           {user && (
@@ -48,7 +48,7 @@ export function PublicShell({
               </span>
               <button
                 type="submit"
-                className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
+                className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 text-[0.9375rem] font-medium text-brand transition-colors hover:bg-fill"
               >
                 <LogOutIcon className="h-4 w-4" />
                 Sign out

@@ -90,7 +90,7 @@ export function SearchField({
           wider widths, so the in-box one stays phone-only. */}
       <SearchIcon
         aria-hidden="true"
-        className="pointer-events-none absolute left-3.5 top-1/2 hidden h-4 w-4 -translate-y-1/2 text-muted-fg max-sm:block"
+        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg"
       />
       <Input
         type="search"
@@ -110,7 +110,7 @@ export function SearchField({
           if (e.key === "Enter" && timer.current) clearTimeout(timer.current);
         }}
         // Every field is a grey fill now; below sm the glyph moves inside too.
-        className="max-sm:pl-9 [&::-webkit-search-cancel-button]:hidden"
+        className="pl-9 [&::-webkit-search-cancel-button]:hidden"
       />
     </label>
   );

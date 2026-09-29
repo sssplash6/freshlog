@@ -79,6 +79,10 @@ export function Pagination({
   // of the words — `label === "Newer" || label === "Previous"` — so renaming a
   // button silently reversed what it told a crawler and a screen reader about
   // which way it went, and "Newer" had already been renamed away.
+  //
+  // Grey fills, the secondary button's shape: a pager is the quietest control
+  // on a list, and the bordered boxes it used to be were the only outlined
+  // buttons left in the app.
   const step = (
     to: number,
     label: string,
@@ -88,7 +92,7 @@ export function Pagination({
     disabled ? (
       <span
         aria-disabled="true"
-        className="inline-flex min-h-11 items-center rounded-lg border border-line px-3 text-sm text-muted-fg/60"
+        className="inline-flex min-h-11 items-center rounded-lg bg-fill px-3.5 text-[0.8125rem] font-medium text-muted-fg/60 sm:min-h-8"
       >
         {label}
       </span>
@@ -96,7 +100,7 @@ export function Pagination({
       <Link
         href={pageHref(basePath, params, to, param)}
         rel={rel}
-        className="inline-flex min-h-11 items-center rounded-lg border border-line px-3 text-sm text-ink transition-colors hover:border-brand/40 hover:text-brand"
+        className="inline-flex min-h-11 items-center rounded-lg bg-fill px-3.5 text-[0.8125rem] font-medium text-brand transition-colors hover:bg-fill-strong sm:min-h-8"
       >
         {label}
       </Link>
@@ -110,7 +114,7 @@ export function Pagination({
         className,
       )}
     >
-      <p className="text-xs text-muted-fg" aria-live="polite">
+      <p className="text-xs tabular-nums text-muted-fg" aria-live="polite">
         {total <= pageSize ? (
           <>
             {total} {total === 1 ? unit.replace(/s$/, "") : unit}

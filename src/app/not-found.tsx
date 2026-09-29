@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 
 /**
@@ -18,14 +19,13 @@ export default function NotFound() {
         title="No such page"
         framed
         className="w-full max-w-md"
+        action={
+          <Link href="/" className={buttonClasses("secondary", "md", "mt-2")}>
+            Go home
+          </Link>
+        }
       >
         It doesn&apos;t exist — or isn&apos;t yours to see.
-        <Link
-          href="/"
-          className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-line px-4 text-sm font-medium text-ink transition-colors hover:border-brand/40 hover:text-brand"
-        >
-          Go home
-        </Link>
       </EmptyState>
     </div>
   );

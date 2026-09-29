@@ -39,16 +39,28 @@ export function FactList({
       {items.map((fact, i) => (
         // The index is the key: a fact list is a fixed run written out at the
         // call site, never a reordered or filtered collection.
+        //
+        // iOS Settings' row: label muted on the left, value in ink, the edit
+        // control trailing on the right edge. A grid rather than flex so the
+        // pencil stays on the row's right at every width — stacked below `sm`
+        // it used to drop to a line of its own under the value, where it read
+        // as belonging to the next fact. Below `sm` the label sits over the
+        // value (an email address does not fit beside a label at 390px); from
+        // `sm` up the three share one line.
         <div
           key={i}
-          className="flex flex-col gap-x-6 gap-y-1 py-2 sm:flex-row sm:items-baseline"
+          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-0.5 py-3 sm:grid-cols-[10rem_minmax(0,1fr)_auto]"
         >
-          <dt className="text-xs font-semibold uppercase tracking-[0.07em] text-muted-fg sm:w-40 sm:shrink-0">
+          <dt className="col-start-1 row-start-1 text-[0.8125rem] text-muted-fg sm:text-[0.9375rem]">
             {fact.label}
           </dt>
-          <dd className="min-w-0 flex-1 text-[0.9375rem] text-ink">{fact.value}</dd>
+          <dd className="col-start-1 row-start-2 min-w-0 break-words text-[0.9375rem] text-ink sm:col-start-2 sm:row-start-1">
+            {fact.value}
+          </dd>
           {fact.change && (
-            <dd className="shrink-0 text-sm sm:text-right">{fact.change}</dd>
+            <dd className="col-start-2 row-span-2 row-start-1 justify-self-end text-sm sm:col-start-3 sm:row-span-1">
+              {fact.change}
+            </dd>
           )}
         </div>
       ))}

@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 
+import { ChevronDownIcon } from "@/components/icons";
 import { Input } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SettingsRow } from "@/components/ui/settings-row";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { setBookingLink } from "@/lib/actions/mentors";
+import { cn } from "@/lib/cn";
 
 /** One row per assignment: the mentor sets the booking link students in
  * that program (or cohort) use to book them. */
@@ -57,21 +59,27 @@ function BookingLinkRow({
  */
 export function BookingLinksForm({
   assignments,
+  bare = false,
 }: {
   assignments: { id: string; label: string; calendlyUrl: string | null }[];
+  /**
+   * Already inside a card (Settings' "Booking links" group): drop this
+   * component's own surface, so the page does not show a card in a card.
+   */
+  bare?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const missing = assignments.filter((a) => !a.calendlyUrl).length;
 
   return (
-    <section className="rounded-xl border border-line bg-surface shadow-sm p-4">
+    <section className={bare ? undefined : "rounded-xl bg-surface px-4 py-3 shadow-sm sm:px-5"}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 text-left"
+        className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 text-left"
       >
-        <span className="flex items-center gap-2 text-base font-semibold text-ink">
+        <span className="flex items-center gap-2 text-[1.0625rem] font-semibold text-ink">
           Your booking links
           {missing > 0 && (
             <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-medium text-warn-ink">
@@ -79,13 +87,19 @@ export function BookingLinksForm({
             </span>
           )}
         </span>
-        <span className="text-sm text-muted-fg">
-          {open ? "Hide ▴" : "Show ▾"}
+        {/* A chevron that turns, not "Show ▾" / "Hide ▴" typed as text —
+            the same fold every Disclosure in the app draws. */}
+        <span className="flex items-center gap-1 text-[0.9375rem] font-medium text-brand">
+          {open ? "Hide" : "Show"}
+          <ChevronDownIcon
+            aria-hidden="true"
+            className={cn("h-4 w-4 transition-transform", open && "rotate-180")}
+          />
         </span>
       </button>
       {open && (
         <div className="rise-in">
-          <p className="mt-1 text-xs text-muted-fg">
+          <p className="mt-1 text-[0.8125rem] text-muted-fg">
             Students book sessions through these links (e.g. your Calendly),
             one per program you&apos;re assigned to.
           </p>

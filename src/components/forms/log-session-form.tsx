@@ -401,7 +401,10 @@ export function LogSessionForm({
       action={action}
       onChange={() => touched()}
       onInvalidCapture={() => setBlocked(true)}
-      className={cn(!page && "rounded-xl border border-line bg-surface shadow-sm p-4")}
+      // Both shapes sit on a white card. The fields are grey fills, and grey
+      // fills straight on the grey page ground were outlines of nothing —
+      // the form only read as a form once it had a surface to be on.
+      className={cn("rounded-xl bg-surface p-4 shadow-sm", page && "sm:p-5")}
     >
       {!page && (
         <h2 className="text-base font-semibold text-ink">Log a completed session</h2>
@@ -544,8 +547,12 @@ export function LogSessionForm({
               <TimeKindPicker key={`kind-${attempt}`} defaultValue={opening.timeKind} />
             </div>
           </div>
-          <div className="mt-5">
-            <SubmitButton pendingText="Logging…" className="w-full">
+          {/* The one primary action, at the end of the reading order: full
+              width under a thumb, its own width against the right edge on a
+              desktop, where a bar the width of the form was the loudest thing
+              on the page. */}
+          <div className="mt-5 flex sm:justify-end">
+            <SubmitButton pendingText="Logging…" className="w-full sm:w-auto sm:min-w-40">
               Log session
             </SubmitButton>
           </div>

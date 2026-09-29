@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-import type { AnalyticsData, AnalyticsMentor, AnalyticsRow } from "@/lib/analytics";
+import { ChartIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from "@/components/icons";
+import { Button, buttonClasses } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageTitle, Section } from "@/components/ui/section";
+import type { AnalyticsData, AnalyticsMentor, AnalyticsProgram, AnalyticsRow } from "@/lib/analytics";
 import {
   byDay,
   byMonth,
@@ -24,7 +28,10 @@ import {
   type Ranked,
   type Tally,
 } from "@/lib/analytics-math";
+import { cn } from "@/lib/cn";
 import { formatDuration } from "@/lib/format";
+import { initials, personTone } from "@/lib/person-tone";
+import { programTone } from "@/lib/program-tone";
 
 import s from "./dashboard.module.css";
 
@@ -35,9 +42,51 @@ const MONTHS_LONG = [
 ];
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-/** Fixed slot per program, by its place in the name-sorted list — never by rank. */
-const SLOTS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)", "var(--s6)", "var(--s7)", "var(--s8)"];
-const colorOf = (program: number) => SLOTS[program] ?? "var(--other)";
+/** The colour of a figure that belongs to no one program. */
+const DEFAULT = "var(--color-brand)";
+/** Extra time is the same hue, lighter — never a second colour. */
+const EXTRA_OPACITY = 0.35;
+
+/**
+ * A program's colour here is the colour it wears everywhere else: the dot
+ * `programTone` gives it, read as a CSS variable so an SVG path can use it.
+ *
+ * Four hues and a hash can put two programs on the same one, which a stacked
+ * column cannot survive — so a program whose hue an earlier program already
+ * holds takes the next free one, and once all four are held the rest are
+ * neutral grey. Live programs choose before archived ones, so an old program
+ * never takes a current one's usual colour. Cached per `data.programs`: the
+ * order is fixed for the life of the page, so a program keeps its colour when
+ * a filter removes its neighbours.
+ */
+const HUES = ["indigo", "cyan", "violet", "slate"] as const;
+const hueCache = new WeakMap<AnalyticsProgram[], string[]>();
+function colorOf(data: AnalyticsData, program: number): string {
+  let hues = hueCache.get(data.programs);
+  if (!hues) {
+    const out: string[] = [];
+    const held = new Set<number>();
+    const order = data.programs
+      .map((p, i) => ({ p, i }))
+      .sort((a, b) => Number(a.p.archived) - Number(b.p.archived));
+    for (const { p, i } of order) {
+      const own = HUES.findIndex((h) => programTone(p.id).badge === `bg-prog-${h}-dot`);
+      let k = -1;
+      for (let step = 0; step < HUES.length; step++) {
+        const at = (Math.max(0, own) + step) % HUES.length;
+        if (!held.has(at)) {
+          k = at;
+          break;
+        }
+      }
+      if (k >= 0) held.add(k);
+      out[i] = k >= 0 ? `var(--color-prog-${HUES[k]}-dot)` : "var(--color-muted-fg)";
+    }
+    hues = out;
+    hueCache.set(data.programs, hues);
+  }
+  return hues[program] ?? "var(--color-muted-fg)";
+}
 
 type Today = { year: number; month: number; day: number };
 type View = { year: number; month: number | null; program: number | null; mentor: number | null };
@@ -71,7 +120,7 @@ export function Dashboard({
   );
   const [view, go] = useView(data, today, audience === "mentor" ? selfIndex : null);
   const { year, month, program, mentor } = view;
-  const accent = program != null ? colorOf(program) : "var(--s1)";
+  const accent = program != null ? colorOf(data, program) : DEFAULT;
 
   // The scope of the current level for the whole year, and narrowed to the month.
   const yearRows = useMemo(
@@ -101,98 +150,107 @@ export function Dashboard({
   const mentorRow = mentor != null ? data.mentors[mentor] : null;
   const programRow = program != null ? data.programs[program] : null;
 
+  const crumbs = (programRow || mentorRow) && (
+    <nav className="flex flex-wrap items-center gap-1" aria-label="Where you are">
+      <Crumb current={program == null && mentor == null} onClick={() => go({ program: null, mentor: null })}>
+        All programs
+      </Crumb>
+      {programRow && (
+        <>
+          <span className="text-muted-fg/50" aria-hidden>/</span>
+          <Crumb current={mentor == null} onClick={() => go({ mentor: null })}>
+            <Dot color={accent} />
+            {programRow.name}
+          </Crumb>
+        </>
+      )}
+      {mentorRow && (
+        <>
+          <span className="text-muted-fg/50" aria-hidden>/</span>
+          <Crumb current onClick={() => undefined}>{mentorRow.name}</Crumb>
+        </>
+      )}
+    </nav>
+  );
+
   return (
-    <div className={s.root} style={{ ["--accent" as string]: accent }}>
-      <header className={s.header}>
-        <div style={{ minWidth: 0 }}>
-          <p className={s.eyebrow}>Analytics · hours delivered</p>
-          <h1 className={s.title}>
-            {mentorRow ? (
-              <Avatar mentor={mentorRow} color={accent} large />
-            ) : programRow ? (
-              <span className={s.dot} style={{ background: accent, width: 14, height: 14 }} />
-            ) : null}
-            <span className={s.titleText}>
-              {mentorRow?.name ?? programRow?.name ?? "All programs"}
+    <div className={cn(s.root, "space-y-4")}>
+      <PageTitle
+        eyebrow={programRow || mentorRow ? "Analytics" : undefined}
+        leading={mentorRow ? <MentorAvatar mentor={mentorRow} large /> : undefined}
+        title={
+          programRow && !mentorRow ? (
+            <span className="inline-flex max-w-full items-center gap-3">
+              <Dot color={accent} className="h-3 w-3" />
+              <span className="min-w-0 truncate">{programRow.name}</span>
             </span>
-          </h1>
-          {(programRow || mentorRow) && (
-          <nav className={s.crumbs} aria-label="Where you are">
-            <Crumb current={program == null && mentor == null} onClick={() => go({ program: null, mentor: null })}>
-              All programs
-            </Crumb>
-            {programRow && (
-              <>
-                <span className={s.crumbSep}>/</span>
-                <Crumb current={mentor == null} onClick={() => go({ mentor: null })}>
-                  <span className={s.swatch} style={{ background: accent }} />
-                  {programRow.name}
-                </Crumb>
-              </>
+          ) : (
+            mentorRow?.name ?? "Analytics"
+          )
+        }
+        subtitle={crumbs || "Hours mentors spent with students, across every program."}
+        actions={
+          <>
+            {month != null && (
+              <button
+                type="button"
+                className={buttonClasses("secondary", "sm")}
+                onClick={() => go({ month: null })}
+                aria-label="Show the whole year"
+              >
+                {MONTHS_LONG[month]}
+                <XIcon className="h-3.5 w-3.5" />
+              </button>
             )}
-            {mentorRow && (
-              <>
-                <span className={s.crumbSep}>/</span>
-                <Crumb current onClick={() => undefined}>{mentorRow.name}</Crumb>
-              </>
-            )}
-          </nav>
-          )}
-        </div>
-        <div className={s.controls}>
-          {month != null && (
-            <button type="button" className={s.pill} onClick={() => go({ month: null })} aria-label="Show the whole year">
-              {MONTHS_LONG[month]}
-              <span className={s.pillX} aria-hidden>×</span>
-            </button>
-          )}
-          <div className={s.stepper}>
-            <button
-              type="button"
-              className={s.stepBtn}
-              aria-label="Previous year"
-              disabled={year <= years[years.length - 1]}
-              onClick={() => go({ year: year - 1, month: null })}
-            >
-              <Chevron dir="left" />
-            </button>
-            <span className={s.stepValue}>{year}</span>
-            <button
-              type="button"
-              className={s.stepBtn}
-              aria-label="Next year"
-              disabled={year >= today.year}
-              onClick={() => go({ year: year + 1, month: null })}
-            >
-              <Chevron dir="right" />
-            </button>
-          </div>
-        </div>
-      </header>
+            <div className="inline-flex items-center rounded-lg bg-fill p-0.5">
+              <button
+                type="button"
+                className="grid h-7 w-7 place-items-center rounded-md text-muted-fg transition-colors hover:bg-surface hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"
+                aria-label="Previous year"
+                disabled={year <= years[years.length - 1]}
+                onClick={() => go({ year: year - 1, month: null })}
+              >
+                <ChevronLeftIcon className="h-4 w-4" />
+              </button>
+              <span className="min-w-12 text-center text-[0.9375rem] font-semibold tabular-nums text-ink">
+                {year}
+              </span>
+              <button
+                type="button"
+                className="grid h-7 w-7 place-items-center rounded-md text-muted-fg transition-colors hover:bg-surface hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"
+                aria-label="Next year"
+                disabled={year >= today.year}
+                onClick={() => go({ year: year + 1, month: null })}
+              >
+                <ChevronRightIcon className="h-4 w-4" />
+              </button>
+            </div>
+          </>
+        }
+      />
 
       {yearRows.length === 0 ? (
-        <section className={`${s.card} ${s.enter}`} key={`empty-${level}-${year}`}>
-          <div className={s.empty}>
-            <div className={s.emptyArt}>
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M4 20h16M7 16v-3M12 16V9M17 16v-6" />
-              </svg>
-            </div>
-            <p className={s.emptyTitle}>No sessions logged in {year}</p>
-            <p style={{ margin: 0 }}>
+        <div className={cn(s.enter, "rounded-xl bg-surface shadow-sm")} key={`empty-${level}-${year}`}>
+          <EmptyState framed={false} icon={<ChartIcon />} title={`No sessions logged in ${year}`}>
+            <p>
               {mentorRow
                 ? `${mentorRow.name} has no meetings on record here for this year.`
                 : "Hours show up on this page once mentors log their meetings."}
             </p>
             {latestWithData != null && latestWithData !== year && (
-              <button type="button" className={s.linkBtn} onClick={() => go({ year: latestWithData, month: null })}>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="mt-3"
+                onClick={() => go({ year: latestWithData, month: null })}
+              >
                 Jump to {latestWithData}
-              </button>
+              </Button>
             )}
-          </div>
-        </section>
+          </EmptyState>
+        </div>
       ) : (
-        <div key={`${level}`} className={s.enter} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div key={`${level}`} className={cn(s.enter, "space-y-4")}>
           {mentor != null && <MentorScope data={data} view={view} go={go} ranked={audience === "staff"} />}
           <Hero data={data} view={view} today={today} yearRows={yearRows} periodRows={periodRows} />
           <MonthsCard data={data} view={view} go={go} yearRows={yearRows} />
@@ -232,7 +290,7 @@ export function Dashboard({
               last={last}
             />
           )}
-          {mentor != null && <MentorDetail view={view} today={today} go={go} yearRows={yearRows} />}
+          {mentor != null && <MentorDetail view={view} today={today} go={go} yearRows={yearRows} accent={accent} />}
         </div>
       )}
     </div>
@@ -389,28 +447,29 @@ function Hero({
   const period = month != null ? `${MONTHS_LONG[month]} ${year}` : String(year);
 
   return (
-    <section className={`${s.card} ${s.hero}`}>
-      <div className={s.heroMain}>
-        <span className={s.heroLabel}>Hours with students · {period}</span>
-        <div className={s.heroValue} aria-label={formatDuration(t.hours)}>
-          {hours < 100 ? hours.toFixed(1) : Math.round(hours).toLocaleString("en-US")}
-          <span className={s.heroUnit}>hours</span>
+    <Section title="Hours with students" caption={period}>
+      {/* ONE lead figure, in the orange that means hours everywhere else, and
+          the six supporting figures under a hairline at a third of its size —
+          they used to be six tinted tiles beside it, which read as seven
+          numbers of equal weight. */}
+      <div className="px-4 py-3 sm:px-5">
+        <div className="flex items-baseline gap-1.5 tabular-nums" aria-label={formatDuration(t.hours)}>
+          <span className="text-[2.625rem] font-semibold leading-none tracking-tight text-accent-ink">
+            {hours < 100 ? hours.toFixed(1) : Math.round(hours).toLocaleString("en-US")}
+          </span>
+          <span className="text-[1.0625rem] font-medium text-muted-fg">hours</span>
         </div>
-        <div className={s.heroFoot}>
+        <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted-fg">
           <Delta value={delta} />
           <span>{delta == null ? (compare.before === 0 ? `none ${compare.label.slice(3)}` : "") : compare.label}</span>
-        </div>
-        <div className={s.heroFoot} style={{ marginTop: 4 }}>
-          <span>
-            <b style={{ color: "var(--ink-2)" }}>{formatDuration(t.completed)}</b> in plan
-          </span>
-          <span>·</span>
-          <span>
-            <b style={{ color: "var(--ink-2)" }}>{formatDuration(t.extra)}</b> extra
-          </span>
-        </div>
+        </p>
+        <p className="mt-0.5 text-[0.8125rem] text-muted-fg">
+          <span className="font-medium tabular-nums text-ink">{formatDuration(t.completed)}</span> in plan
+          {" · "}
+          <span className="font-medium tabular-nums text-ink">{formatDuration(t.extra)}</span> extra
+        </p>
       </div>
-      <div className={s.stats}>
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-line px-4 py-3 sm:grid-cols-3 sm:px-5 lg:grid-cols-6">
         <Stat label="Sessions" value={t.sessions.toLocaleString("en-US")} hint={`${shortHours(avg)} on average`} />
         <Stat label="Students met" value={t.students.toLocaleString("en-US")} hint={t.students ? `${shortHours(t.hours / t.students)} each` : "—"} />
         {mentor == null ? (
@@ -425,8 +484,8 @@ function Hero({
         <Stat label="Extra time" value={shortHours(t.extra)} hint="out of plan" />
         <Stat label="No-shows" value={t.noShows.toLocaleString("en-US")} hint={`${Math.round(noShowRate * 100)}% of sessions`} />
         <Stat label="Per week" value={shortHours(t.hours / weeksSpanned(year, month, today))} hint="average" />
-      </div>
-    </section>
+      </dl>
+    </Section>
   );
 }
 
@@ -441,20 +500,24 @@ function weeksSpanned(year: number, month: number | null, today: Today): number 
 
 function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className={s.stat}>
-      <div className={s.statLabel}>{label}</div>
-      <div className={s.statValue}>{value}</div>
-      <div className={s.statHint}>{hint}</div>
+    <div className="min-w-0">
+      <dt className="min-w-0 truncate text-[0.8125rem] text-muted-fg">{label}</dt>
+      <dd className="mt-0.5 text-[1.375rem] font-semibold leading-tight tabular-nums text-ink">{value}</dd>
+      <dd className="min-w-0 truncate text-xs text-muted-fg">{hint}</dd>
     </div>
   );
 }
 
+/**
+ * The change against the last period, as a glyph and a number in ink. It was
+ * a green or red pill, but a quieter month is not a problem and red is for
+ * problems — the arrow already says which way it went.
+ */
 function Delta({ value }: { value: number | null }) {
-  if (value == null) return <span className={`${s.delta} ${s.deltaFlat}`}>new</span>;
+  if (value == null) return <span className="font-medium text-ink">New</span>;
   const pct = Math.round(value * 100);
-  const cls = pct > 0 ? s.deltaUp : pct < 0 ? s.deltaDown : s.deltaFlat;
   return (
-    <span className={`${s.delta} ${cls}`}>
+    <span className="font-medium tabular-nums text-ink">
       {pct > 0 ? "▲" : pct < 0 ? "▼" : "•"} {Math.abs(pct)}%
     </span>
   );
@@ -464,12 +527,18 @@ function Delta({ value }: { value: number | null }) {
 
 type Segment = { key: string; label: string; value: number; color: string; opacity?: number };
 type Column = { key: string; label: string; title: string; segments: Segment[]; tally: Tally; weekend?: boolean };
+type LegendItem = { label: string; color: string; opacity: number };
 
 /** How one level stacks its hours: by program, or in plan against extra. */
 function seriesFor(data: AnalyticsData, view: View, rows: AnalyticsRow[]) {
   const programsHere = new Set(rows.filter((r) => r[5] !== 2).map((r) => r[0]));
   const byProgram = view.program == null && programsHere.size > 1;
-  const color = view.program != null ? colorOf(view.program) : programsHere.size === 1 ? colorOf([...programsHere][0]) : "var(--s1)";
+  const color =
+    view.program != null
+      ? colorOf(data, view.program)
+      : programsHere.size === 1
+        ? colorOf(data, [...programsHere][0])
+        : DEFAULT;
   const programs = [...programsHere].sort((a, b) => a - b);
 
   const segments = (bucket: AnalyticsRow[], tally: Tally): Segment[] =>
@@ -477,19 +546,19 @@ function seriesFor(data: AnalyticsData, view: View, rows: AnalyticsRow[]) {
       ? programs.map((p) => ({
           key: String(p),
           label: data.programs[p].name,
-          color: colorOf(p),
+          color: colorOf(data, p),
           value: bucket.reduce((sum, r) => (r[0] === p && r[5] !== 2 ? sum + r[4] : sum), 0),
         }))
       : [
           { key: "plan", label: "In plan", color, value: tally.completed },
-          { key: "extra", label: "Extra", color, value: tally.extra, opacity: 0.4 },
+          { key: "extra", label: "Extra", color, value: tally.extra, opacity: EXTRA_OPACITY },
         ];
 
-  const legend = byProgram
-    ? programs.map((p) => ({ label: data.programs[p].name, color: colorOf(p), opacity: 1 }))
+  const legend: LegendItem[] = byProgram
+    ? programs.map((p) => ({ label: data.programs[p].name, color: colorOf(data, p), opacity: 1 }))
     : [
         { label: "In plan", color, opacity: 1 },
-        { label: "Extra, out of plan", color, opacity: 0.4 },
+        { label: "Extra, out of plan", color, opacity: EXTRA_OPACITY },
       ];
 
   return { segments, legend };
@@ -545,47 +614,37 @@ function MonthsCard({
   const bestDay = days?.reduce<Column | null>((best, d) => (!best || hoursOf(d.tally) > hoursOf(best.tally) ? d : best), null);
 
   return (
-    <section className={s.card}>
-      <div className={s.cardHead}>
-        <div>
-          <h2 className={s.cardTitle}>Month by month</h2>
-          <p className={s.cardSub}>
-            {month == null ? "Pick a month to open it day by day." : "Pick the month again, or another, to switch."}
-          </p>
-        </div>
-        {legend.length > 1 && (
-          <div className={s.legend}>
-            {legend.map((l) => (
-              <span key={l.label} className={s.legendItem}>
-                <span className={s.swatch} style={{ background: l.color, opacity: l.opacity }} />
-                {l.label}
-              </span>
-            ))}
-          </div>
-        )}
+    <Section
+      title="Month by month"
+      eyebrow={month == null ? "Pick a month to open it day by day." : "Pick the month again, or another, to switch."}
+      // The column tooltip rises above the tallest bar, past the card's edge.
+      className="overflow-visible!"
+    >
+      {legend.length > 1 && <Legend items={legend} className="px-4 pt-3 sm:px-5" />}
+      <div className="px-4 py-3 sm:px-5">
+        <Columns
+          key={`${year}`}
+          columns={columns}
+          height={220}
+          selected={month}
+          onSelect={(i) => go({ month: month === i ? null : i })}
+          hint="Click to open this month"
+        />
       </div>
-      <Columns
-        key={`${year}`}
-        columns={columns}
-        height={220}
-        selected={month}
-        onSelect={(i) => go({ month: month === i ? null : i })}
-        hint="Click to open this month"
-      />
       {days && month != null && monthTally && (
-        <div className={s.drawer} key={`${year}-${month}`}>
-          <div className={s.drawerHead}>
-            <h3 className={s.cardTitle}>Inside {MONTHS_LONG[month]}</h3>
-            <div className={s.drawerFacts}>
+        <div className={cn(s.enter, "border-t border-line px-4 py-3 sm:px-5")} key={`${year}-${month}`}>
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h3 className="text-[1.0625rem] font-semibold text-ink">Inside {MONTHS_LONG[month]}</h3>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[0.8125rem] text-muted-fg">
               <span>
-                <b>{formatDuration(hoursOf(monthTally))}</b> total
+                <span className="font-medium tabular-nums text-ink">{formatDuration(hoursOf(monthTally))}</span> total
               </span>
               <span>
-                <b>{activeDays}</b> active {activeDays === 1 ? "day" : "days"}
+                <span className="font-medium tabular-nums text-ink">{activeDays}</span> active {activeDays === 1 ? "day" : "days"}
               </span>
               {bestDay && hoursOf(bestDay.tally) > 0 && (
                 <span>
-                  busiest <b>{bestDay.title.split(",")[1].trim()}</b> · {shortHours(hoursOf(bestDay.tally))}
+                  busiest <span className="font-medium text-ink">{bestDay.title.split(",")[1].trim()}</span> · {shortHours(hoursOf(bestDay.tally))}
                 </span>
               )}
             </div>
@@ -593,7 +652,20 @@ function MonthsCard({
           <Columns columns={days} height={140} thin labelEvery={days.length > 20 ? 5 : 1} />
         </div>
       )}
-    </section>
+    </Section>
+  );
+}
+
+function Legend({ items, className }: { items: LegendItem[]; className?: string }) {
+  return (
+    <div className={cn("flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-fg", className)}>
+      {items.map((l) => (
+        <span key={l.label} className="inline-flex items-center gap-1.5">
+          <Dot color={l.color} opacity={l.opacity} />
+          {l.label}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -622,7 +694,7 @@ function Columns({
   for (let v = 0; v <= axis.top + 1; v += axis.step) ticks.push(v);
 
   return (
-    <div className={`${s.chart} ${thin ? s.thin : ""}`}>
+    <div className={cn(s.chart, thin && s.thin)}>
       <div className={s.yAxis} style={{ height }}>
         {ticks.map((v) => (
           <span key={v} className={s.yTick} style={{ bottom: `${(v / axis.top) * 100}%` }}>
@@ -643,14 +715,12 @@ function Columns({
               <Tag
                 key={c.key}
                 type={onSelect ? "button" : undefined}
-                className={[
+                className={cn(
                   s.col,
                   !onSelect && s.colStatic,
                   selected === i && s.colActive,
-                  selected != null && selected !== i && s.dim,
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                  selected != null && selected !== i && s.dim
+                )}
                 onClick={onSelect ? () => onSelect(i) : undefined}
                 onMouseEnter={() => setHover(i)}
                 onMouseLeave={() => setHover(null)}
@@ -659,16 +729,16 @@ function Columns({
                 aria-pressed={onSelect ? selected === i : undefined}
                 aria-label={`${c.title}: ${formatDuration(total)}`}
               >
-                <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+                <div className="relative flex w-full flex-col items-center">
                   {hover === i && (
-                    <div className={`${s.tooltip} ${edge}`} role="tooltip">
+                    <div className={cn(s.tooltip, edge)} role="tooltip">
                       <div className={s.tipTitle}>{c.title}</div>
                       {c.segments
                         .filter((x) => x.value > 0)
                         .map((x) => (
                           <div key={x.key} className={s.tipRow}>
                             <span className={s.tipKey}>
-                              <span className={s.swatch} style={{ background: x.color, opacity: x.opacity ?? 1 }} />
+                              <Dot color={x.color} opacity={x.opacity} />
                               {x.label}
                             </span>
                             <span className={s.tipVal}>{formatDuration(x.value)}</span>
@@ -684,7 +754,7 @@ function Columns({
                           <span className={s.tipVal}>{c.tally.noShows}</span>
                         </div>
                       )}
-                      {total === 0 && c.tally.noShows === 0 && <div style={{ opacity: 0.7 }}>No sessions</div>}
+                      {total === 0 && c.tally.noShows === 0 && <div className="text-muted-fg">No sessions</div>}
                       {hint && onSelect && selected !== i && <div className={s.tipHint}>{hint}</div>}
                     </div>
                   )}
@@ -715,7 +785,7 @@ function Columns({
         {columns.map((c, i) => (
           <span
             key={c.key}
-            className={[s.xLabel, selected === i && s.xLabelActive, c.weekend && s.xLabelWeekend].filter(Boolean).join(" ")}
+            className={cn(s.xLabel, selected === i && s.xLabelActive, c.weekend && s.xLabelWeekend)}
           >
             {i % labelEvery === 0 || i === columns.length - 1 ? c.label : ""}
           </span>
@@ -752,51 +822,49 @@ function ProgramCards({
     .sort((a, b) => (b.r?.hours ?? 0) - (a.r?.hours ?? 0));
 
   return (
-    <section>
-      <div className={s.cardHead} style={{ marginBottom: 12 }}>
-        <div>
-          <h2 className={s.cardTitle}>Programs</h2>
-          <p className={s.cardSub}>Open one to see which mentors carry it.</p>
-        </div>
+    <section className="min-w-0">
+      {/* Section's own header, by hand: this group is a grid of cards rather
+          than one card, and Section's body is always exactly one. */}
+      <div className="px-1 pb-2 pt-2">
+        <h2 className="text-[1.25rem] font-semibold tracking-[-0.01em] text-ink">Programs</h2>
+        <div className="mt-0.5 text-[0.8125rem] font-medium text-muted-fg">Open one to see which mentors carry it.</div>
       </div>
-      <div className={s.programGrid}>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
         {order.map(({ p, i, r }, n) => {
           const share = all ? (r?.hours ?? 0) / all : 0;
+          const color = colorOf(data, i);
           return (
             <button
               key={p.id}
               type="button"
-              className={s.programCard}
-              style={{ ["--c" as string]: colorOf(i), ["--delay" as string]: `${n * 60}ms` }}
+              className={cn(
+                s.rise,
+                "group flex min-w-0 flex-col gap-3 rounded-xl bg-surface p-4 text-left shadow-sm transition-shadow hover:shadow-lg"
+              )}
+              style={{ ["--delay" as string]: `${n * 60}ms` }}
               onClick={() => go({ program: i, mentor: null })}
             >
-              <div className={s.programTop}>
-                <span className={s.programName}>
-                  <span className={s.dot} style={{ background: colorOf(i) }} />
-                  <span className={s.programNameText}>{p.name}</span>
-                  {p.archived && <span className={s.tag}>Archived</span>}
+              <span className="flex items-center gap-2">
+                <Dot color={color} />
+                <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-medium text-ink">{p.name}</span>
+                {p.archived && (
+                  <span className="shrink-0 rounded-full bg-fill px-2 py-0.5 text-xs font-medium text-muted-fg">Archived</span>
+                )}
+                <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg/60 transition-transform group-hover:translate-x-0.5" />
+              </span>
+              <span className="flex items-baseline gap-2">
+                <span className="text-[1.75rem] font-semibold leading-none tracking-tight tabular-nums text-ink">
+                  {shortHours(r?.hours ?? 0)}
                 </span>
-                <Chevron dir="right" className={s.chev} />
-              </div>
-              <div className={s.programFigure}>
-                <span className={s.programHours}>{shortHours(r?.hours ?? 0)}</span>
-                <span className={s.programShare}>{Math.round(share * 100)}% of all hours</span>
-              </div>
-              <div className={s.shareTrack}>
-                <div className={s.shareFill} style={{ width: `${share * 100}%` }} />
-              </div>
-              <Sparkline values={trends[i].slice(0, last + 1)} color={colorOf(i)} width={220} height={40} highlight={month} fluid />
-              <div className={s.programMeta}>
-                <span>
-                  <b>{r?.mentors ?? 0}</b> mentors
-                </span>
-                <span>
-                  <b>{r?.students ?? 0}</b> students
-                </span>
-                <span>
-                  <b>{r?.sessions ?? 0}</b> sessions
-                </span>
-              </div>
+                <span className="text-[0.8125rem] tabular-nums text-muted-fg">{Math.round(share * 100)}% of all hours</span>
+              </span>
+              <span className="block h-1 overflow-hidden rounded-full bg-fill" aria-hidden>
+                <span className={cn(s.shareFill, "block h-full rounded-full")} style={{ width: `${share * 100}%`, background: color }} />
+              </span>
+              <Sparkline values={trends[i].slice(0, last + 1)} color={color} width={220} height={36} highlight={month} fluid />
+              <span className="text-[0.8125rem] tabular-nums text-muted-fg">
+                {r?.mentors ?? 0} mentors · {r?.students ?? 0} students · {r?.sessions ?? 0} sessions
+              </span>
             </button>
           );
         })}
@@ -823,10 +891,10 @@ function Leaderboard({
   go: (next: Partial<View>) => void;
   title: string;
   /**
-   * Whether the order is stated as a podium. Off for a mentor reading it:
+   * Whether the order is stated as a ranking. Off for a mentor reading it:
    * the rows still sort by hours — the list is the school's, and hiding
    * positions would only pretend it is not — but nobody's own work needs a
-   * medal count against their colleagues'.
+   * place number against their colleagues'.
    */
   ranked?: boolean;
   periodRows: AnalyticsRow[];
@@ -838,33 +906,25 @@ function Leaderboard({
   const ranked = useMemo(() => rankBy(periodRows, yearRows, 1), [periodRows, yearRows]);
   const shown = limit && !expanded ? ranked.slice(0, limit) : ranked;
   const top = ranked[0]?.hours ?? 0;
-  const color = view.program != null ? colorOf(view.program) : "var(--s1)";
   const period = view.month != null ? MONTHS_LONG[view.month] : String(view.year);
 
   return (
-    <section className={s.card}>
-      <div className={s.cardHead}>
-        <div>
-          <h2 className={s.cardTitle}>{title}</h2>
-          <p className={s.cardSub}>
-            {withRank ? "Ranked by" : "Most"} hours with students in {period}. Open a mentor to see every month.
-          </p>
-        </div>
-        <div className={s.legend}>
-          <span className={s.legendItem}>
-            <span className={s.swatch} style={{ background: color }} />
-            In plan
-          </span>
-          <span className={s.legendItem}>
-            <span className={s.swatch} style={{ background: color, opacity: 0.4 }} />
-            Extra
-          </span>
-        </div>
-      </div>
+    <Section
+      title={title}
+      eyebrow={`${withRank ? "Ranked by" : "Most"} hours with students in ${period}. Open a mentor to see every month.`}
+      action={
+        <Legend
+          items={[
+            { label: "In plan", color: DEFAULT, opacity: 1 },
+            { label: "Extra", color: DEFAULT, opacity: EXTRA_OPACITY },
+          ]}
+        />
+      }
+    >
       {ranked.length === 0 ? (
-        <p className={s.cardSub}>No mentor logged a session in {period}.</p>
+        <p className="px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">No mentor logged a session in {period}.</p>
       ) : (
-        <div className={s.board}>
+        <div className="divide-y divide-line">
           {shown.map((r, n) => (
             <MentorRow
               key={r.index}
@@ -874,7 +934,6 @@ function Leaderboard({
               showRank={withRank}
               top={top}
               mentor={data.mentors[r.index]}
-              color={color}
               highlight={view.month}
               delay={n * 40}
               onOpen={() => go({ mentor: r.index })}
@@ -883,11 +942,15 @@ function Leaderboard({
         </div>
       )}
       {limit && ranked.length > limit && (
-        <button type="button" className={s.linkBtn} onClick={() => setExpanded((e) => !e)}>
+        <button
+          type="button"
+          className="block w-full border-t border-line px-4 py-3 text-left text-[0.9375rem] font-medium text-brand transition-colors hover:bg-fill sm:px-5"
+          onClick={() => setExpanded((e) => !e)}
+        >
           {expanded ? "Show the top " + limit : `Show all ${ranked.length} mentors`}
         </button>
       )}
-    </section>
+    </Section>
   );
 }
 
@@ -898,7 +961,6 @@ function MentorRow({
   showRank = true,
   top,
   mentor,
-  color,
   highlight,
   delay,
   onOpen,
@@ -906,11 +968,10 @@ function MentorRow({
   r: Ranked;
   last: number;
   rank: number;
-  /** Medals and numbers are for staff; a mentor gets the list, not a podium. */
+  /** Place numbers are for staff; a mentor gets the list, not a ranking. */
   showRank?: boolean;
   top: number;
   mentor: AnalyticsMentor;
-  color: string;
   highlight: number | null;
   delay: number;
   onOpen: () => void;
@@ -918,32 +979,52 @@ function MentorRow({
   const grown = useGrown();
   const scale = top ? 100 / top : 0;
   return (
-    <button type="button" className={s.row} onClick={onOpen} style={{ ["--delay" as string]: `${delay}ms` }}>
-      <span className={s.rank}>
-        {showRank &&
-          (rank <= 3 ? <span className={`${s.medal} ${[s.medal1, s.medal2, s.medal3][rank - 1]}`}>{rank}</span> : rank)}
-      </span>
-      <Avatar mentor={mentor} color={color} />
-      <span className={s.who}>
-        <span className={s.whoName}>{mentor.name}</span>
-        <span className={s.bar} aria-hidden>
-          <span className={s.barSeg} style={{ width: grown ? `${r.completed * scale}%` : 0, background: color }} />
+    <button
+      type="button"
+      className={cn(
+        s.rise,
+        "group grid min-h-11 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-fill sm:px-5",
+        showRank
+          ? "grid-cols-[1.25rem_auto_minmax(0,1fr)_auto_auto]"
+          : "grid-cols-[auto_minmax(0,1fr)_auto_auto]"
+      )}
+      onClick={onOpen}
+      style={{ ["--delay" as string]: `${delay}ms` }}
+    >
+      {showRank && (
+        <span className="text-center text-[0.8125rem] tabular-nums text-muted-fg">{rank}</span>
+      )}
+      <MentorAvatar mentor={mentor} />
+      <span className="flex min-w-0 flex-col">
+        <span className="min-w-0 truncate text-[0.9375rem] font-medium text-ink">{mentor.name}</span>
+        <span className="mt-1.5 flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-fill" aria-hidden>
+          <span className={s.barSeg} style={{ width: grown ? `${r.completed * scale}%` : 0, background: DEFAULT }} />
           {r.extra > 0 && (
-            <span className={s.barSeg} style={{ width: grown ? `${r.extra * scale}%` : 0, background: color, opacity: 0.4 }} />
+            <span
+              className={s.barSeg}
+              style={{ width: grown ? `${r.extra * scale}%` : 0, background: DEFAULT, opacity: EXTRA_OPACITY }}
+            />
           )}
         </span>
-        <span className={s.whoMeta}>
+        <span className="mt-1 min-w-0 truncate text-[0.8125rem] text-muted-fg">
           {r.sessions} {r.sessions === 1 ? "session" : "sessions"} · {r.students} {r.students === 1 ? "student" : "students"}
           {r.sessions ? ` · ${shortHours(r.hours / r.sessions)} avg` : ""}
         </span>
       </span>
-      <span className={s.figure}>
-        <span className={s.sparkHide}>
-          <Sparkline values={r.trend.slice(0, last + 1)} color={color} width={84} height={28} highlight={highlight} />
+      <span className="flex items-center gap-3">
+        <span className="max-sm:hidden">
+          <Sparkline
+            values={r.trend.slice(0, last + 1)}
+            color="var(--color-muted-fg)"
+            dotColor={DEFAULT}
+            width={72}
+            height={24}
+            highlight={highlight}
+          />
         </span>
-        <span className={s.figureValue}>{shortHours(r.hours)}</span>
+        <span className="min-w-12 text-right text-[0.9375rem] font-semibold tabular-nums text-ink">{shortHours(r.hours)}</span>
       </span>
-      <Chevron dir="right" className={s.chev} />
+      <ChevronRightIcon className="h-4 w-4 text-muted-fg/60 transition-transform group-hover:translate-x-0.5" />
     </button>
   );
 }
@@ -955,14 +1036,15 @@ function MentorDetail({
   today,
   go,
   yearRows,
+  accent,
 }: {
   view: View;
   today: Today;
   go: (next: Partial<View>) => void;
   yearRows: AnalyticsRow[];
+  accent: string;
 }) {
-  const { year, month, program } = view;
-  const accent = program != null ? colorOf(program) : "var(--s1)";
+  const { year, month } = view;
 
   const months = useMemo(() => byMonth(yearRows), [yearRows]);
   const students = useMemo(() => {
@@ -975,23 +1057,13 @@ function MentorDetail({
 
   return (
     <>
-      <section className={s.card}>
-        <div className={s.cardHead}>
-          <div>
-            <h2 className={s.cardTitle}>Every day of {year}</h2>
-            <p className={s.cardSub}>Darker means more hours that day.</p>
-          </div>
+      <Section title={`Every day of ${year}`} eyebrow="Darker means more hours that day.">
+        <div className="px-4 py-3 sm:px-5">
+          <Heatmap rows={yearRows} year={year} color={accent} selected={month} onPick={(m) => go({ month: m })} />
         </div>
-        <Heatmap rows={yearRows} year={year} color={accent} selected={month} onPick={(m) => go({ month: m })} />
-      </section>
-      <section className={s.card}>
-        <div className={s.cardHead}>
-          <div>
-            <h2 className={s.cardTitle}>What they logged each month</h2>
-            <p className={s.cardSub}>Pick a row to open that month.</p>
-          </div>
-        </div>
-        <div className={s.tableWrap}>
+      </Section>
+      <Section title="What they logged each month" eyebrow="Pick a row to open that month.">
+        <div className="overflow-x-auto px-4 py-2 sm:px-5">
           <table className={s.table}>
             <thead>
               <tr>
@@ -1012,7 +1084,7 @@ function MentorDetail({
                 return (
                   <tr
                     key={i}
-                    className={[month === i && s.rowOn, h === 0 && s.rowEmpty].filter(Boolean).join(" ")}
+                    className={cn(month === i && s.rowOn, h === 0 && s.rowEmpty)}
                     onClick={() => go({ month: month === i ? null : i })}
                     tabIndex={0}
                     onKeyDown={(e) => {
@@ -1025,19 +1097,19 @@ function MentorDetail({
                     <td>{MONTHS_LONG[i]}</td>
                     <td>
                       <span className={s.inlineBar} style={{ width: (h / maxMonth) * 48, background: accent }} />
-                      <b>{h ? formatDuration(h) : "—"}</b>
+                      <span className="font-medium">{h ? formatDuration(h) : "—"}</span>
                     </td>
                     <td>{m.sessions || "—"}</td>
                     <td>{students[i] || "—"}</td>
                     <td>{m.sessions ? formatDuration(h / m.sessions) : "—"}</td>
-                    <td>{i === 0 || (h === 0 && prev === 0) ? "" : <Delta value={d} />}</td>
+                    <td className="text-[0.8125rem]">{i === 0 || (h === 0 && prev === 0) ? "" : <Delta value={d} />}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
-      </section>
+      </Section>
     </>
   );
 }
@@ -1052,7 +1124,7 @@ function MentorScope({
   data: AnalyticsData;
   view: View;
   go: (next: Partial<View>) => void;
-  /** Staff see "#n of m mentors"; a mentor looking at a colleague needs no podium. */
+  /** Staff see "#n of m mentors"; a mentor looking at a colleague needs no ranking. */
   ranked?: boolean;
 }) {
   const { year, month, program, mentor } = view;
@@ -1072,38 +1144,46 @@ function MentorScope({
   }, [data.rows, year, month, program, mentor]);
 
   if (theirPrograms.length === 0) return null;
+  // Filter chips on the page ground, the way every other filter in the app
+  // sits — a card around two chips was a box with nothing to hold.
+  const chip = (on: boolean) =>
+    cn(
+      "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] font-medium transition-colors",
+      on ? "bg-brand text-on-brand" : "bg-fill text-ink hover:bg-fill-strong"
+    );
   return (
-    <section className={s.card} style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
-        {theirPrograms.length > 1 ? (
-          <div className={s.chips} role="group" aria-label="Program">
-            <button type="button" className={`${s.chip} ${program == null ? s.chipOn : ""}`} onClick={() => go({ program: null })}>
-              All programs
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      {theirPrograms.length > 1 ? (
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Program">
+          <button type="button" className={chip(program == null)} aria-pressed={program == null} onClick={() => go({ program: null })}>
+            All programs
+          </button>
+          {theirPrograms.map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={chip(program === p)}
+              aria-pressed={program === p}
+              onClick={() => go({ program: p })}
+            >
+              <Dot color={colorOf(data, p)} />
+              {data.programs[p].name}
             </button>
-            {theirPrograms.map((p) => (
-              <button
-                key={p}
-                type="button"
-                className={`${s.chip} ${program === p ? s.chipOn : ""}`}
-                onClick={() => go({ program: p })}
-              >
-                <span className={s.swatch} style={{ background: colorOf(p) }} />
-                {data.programs[p].name}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <span className={s.cardSub} style={{ margin: 0 }}>
-            Works in {data.programs[theirPrograms[0]]?.name}
-          </span>
-        )}
-        {ranked && standing && (
-          <span className={s.cardSub} style={{ margin: 0 }}>
-            <b style={{ color: "var(--ink)" }}>#{standing.rank}</b> of {standing.of} mentors
-            {program != null ? ` in ${data.programs[program].name}` : ""} ·{" "}
-            {month != null ? MONTHS_LONG[month] : year}
-          </span>
-        )}
-      </section>
+          ))}
+        </div>
+      ) : (
+        <span className="text-[0.8125rem] text-muted-fg">
+          Works in {data.programs[theirPrograms[0]]?.name}
+        </span>
+      )}
+      {ranked && standing && (
+        <span className="text-[0.8125rem] text-muted-fg">
+          <span className="font-medium tabular-nums text-ink">#{standing.rank}</span> of {standing.of} mentors
+          {program != null ? ` in ${data.programs[program].name}` : ""} ·{" "}
+          {month != null ? MONTHS_LONG[month] : year}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -1126,7 +1206,7 @@ function Heatmap({
   const level = (m: number) => (m <= 0 ? 0 : m / max <= 0.25 ? 1 : m / max <= 0.5 ? 2 : m / max <= 0.75 ? 3 : 4);
   const mix = [0, 28, 52, 76, 100];
   const fill = (lv: number) =>
-    lv === 0 ? undefined : `color-mix(in oklab, ${color} ${mix[lv]}%, var(--grid))`;
+    lv === 0 ? undefined : `color-mix(in oklab, ${color} ${mix[lv]}%, var(--color-surface))`;
 
   return (
     <>
@@ -1141,7 +1221,7 @@ function Heatmap({
                 {labelMonth != null ? MONTHS[labelMonth] : ""}
               </span>,
               ...week.map((d, k) => {
-                if (d == null) return <span key={`${w}-${k}`} className={`${s.heatCell} ${s.heatVoid}`} />;
+                if (d == null) return <span key={`${w}-${k}`} className={cn(s.heatCell, s.heatVoid)} />;
                 const m = hours.get(d) ?? 0;
                 const mo = monthOf(d);
                 const date = new Date(Date.UTC(year, mo, dateOf(d)));
@@ -1166,7 +1246,7 @@ function Heatmap({
           })}
         </div>
       </div>
-      <div className={s.heatScale}>
+      <div className="mt-2 flex items-center justify-end gap-1 text-xs text-muted-fg">
         Less
         {[0, 1, 2, 3, 4].map((lv) => (
           <span key={lv} className={s.heatCell} style={{ background: fill(lv) }} />
@@ -1182,6 +1262,7 @@ function Heatmap({
 function Sparkline({
   values,
   color,
+  dotColor = color,
   width,
   height,
   highlight,
@@ -1189,6 +1270,8 @@ function Sparkline({
 }: {
   values: number[];
   color: string;
+  /** The current-month marker, when the line itself is a quiet grey. */
+  dotColor?: string;
   width: number;
   height: number;
   highlight: number | null;
@@ -1212,10 +1295,10 @@ function Sparkline({
       preserveAspectRatio="none"
       aria-hidden
     >
-      <path d={area} fill={color} opacity={0.12} />
-      <path d={line} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <path d={area} fill={color} opacity={0.08} />
+      <path d={line} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
       {dot != null && !fluid && (
-        <circle cx={x(dot)} cy={y(values[dot])} r={3.5} fill={color} stroke="var(--card)" strokeWidth={2} />
+        <circle cx={x(dot)} cy={y(values[dot])} r={3} fill={dotColor} stroke="var(--color-surface)" strokeWidth={1.5} />
       )}
       {dot != null && fluid && highlight != null && (
         <line x1={x(dot)} x2={x(dot)} y1={pad} y2={height - pad} stroke={color} strokeWidth={1} opacity={0.5} vectorEffect="non-scaling-stroke" />
@@ -1224,21 +1307,36 @@ function Sparkline({
   );
 }
 
-function Avatar({ mentor, color, large = false }: { mentor: AnalyticsMentor; color: string; large?: boolean }) {
-  const cls = `${s.avatar} ${large ? s.avatarLg : ""}`;
+/** A small round mark in a series colour — the app's program dot, any hue. */
+function Dot({ color, opacity, className }: { color: string; opacity?: number; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn("h-2 w-2 shrink-0 rounded-full", className)}
+      style={{ background: color, opacity }}
+    />
+  );
+}
+
+/**
+ * The app's avatar, drawn from what the analytics read carries. `Avatar`
+ * wants the upload timestamp to build its URL; the read already hands over
+ * the built URL, so this renders the same two shapes — a photo ringed in the
+ * person's hue, or their initials on it — without rebuilding it.
+ */
+function MentorAvatar({ mentor, large = false }: { mentor: AnalyticsMentor; large?: boolean }) {
+  const size = large ? "h-12 w-12 text-base" : "h-9 w-9 text-[0.8125rem]";
+  const tone = personTone(mentor.id);
   if (mentor.avatar) {
     // eslint-disable-next-line @next/next/no-img-element -- a served avatar, already sized
-    return <img src={mentor.avatar} alt="" className={cls} />;
+    return <img src={mentor.avatar} alt="" aria-hidden className={cn("shrink-0 rounded-full bg-canvas object-cover ring-2", tone.ring, size)} />;
   }
-  const initials = mentor.name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("");
   return (
-    <span className={cls} style={{ ["--c" as string]: color }} aria-hidden>
-      {initials}
+    <span
+      aria-hidden
+      className={cn("flex shrink-0 items-center justify-center rounded-full font-semibold text-white", tone.badge, size)}
+    >
+      {initials(mentor.name, "")}
     </span>
   );
 }
@@ -1247,19 +1345,14 @@ function Crumb({ current, onClick, children }: { current: boolean; onClick: () =
   return (
     <button
       type="button"
-      className={`${s.crumb} ${current ? s.crumbCurrent : ""}`}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors",
+        current ? "cursor-default font-medium text-ink" : "text-muted-fg hover:bg-fill hover:text-ink"
+      )}
       onClick={current ? undefined : onClick}
       aria-current={current ? "page" : undefined}
     >
       {children}
     </button>
-  );
-}
-
-function Chevron({ dir, className }: { dir: "left" | "right"; className?: string }) {
-  return (
-    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d={dir === "left" ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"} />
-    </svg>
   );
 }

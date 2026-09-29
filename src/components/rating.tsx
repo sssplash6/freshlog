@@ -1,12 +1,12 @@
-/** Read-only star rating (filled accent stars out of 5). */
+/** Read-only star rating: filled stars in ink out of 5 — orange is hours. */
 export function Rating({ value }: { value: number }) {
   return (
     <span
-      className="tabular-nums text-accent"
+      className="whitespace-nowrap text-[0.9375rem] leading-none tabular-nums text-ink"
       aria-label={`${value} out of 5 stars`}
     >
       {"★".repeat(value)}
-      <span className="text-line">{"★".repeat(5 - value)}</span>
+      <span className="text-fill-strong">{"★".repeat(5 - value)}</span>
     </span>
   );
 }

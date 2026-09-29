@@ -188,10 +188,12 @@ export default async function StudentBookPage() {
             {nothingToShow.explanation}
           </EmptyState>
         ) : (
-          // Two up. A mentor's card is a name, a balance, a bar and a link —
-          // it never fills a row, and one per line turned five mentors into a
-          // page of scrolling with the right half empty the whole way down.
-          <ul className="grid border-t border-line sm:grid-cols-2">
+          // One grouped list, hairlines between. The two-up grid it replaces
+          // drew a vertical rule down the card and a rule across its top — a
+          // table's grid laid over a list of three people, with a hole in it
+          // whenever the count was odd. A student has two or three mentors;
+          // the page is short either way.
+          <ul className="divide-y divide-line">
             {open.map((row) => (
               <MentorRow
                 key={row.mentor.id}
@@ -207,9 +209,9 @@ export default async function StudentBookPage() {
           <Disclosure
             label="Mentors with no time remaining"
             count={folded.length}
-            className="border-t border-line px-4 sm:px-5"
+            className="border-t border-line px-4 py-2 sm:px-5"
           >
-            <ul className="-mx-4 grid border-t border-line sm:-mx-5 sm:grid-cols-2">
+            <ul className="-mx-4 divide-y divide-line border-t border-line sm:-mx-5">
               {folded.map((row) => (
                 <MentorRow
                   key={row.mentor.id}
@@ -256,7 +258,7 @@ function MentorRow({
         : null;
 
   return (
-    <li className="border-b border-line bg-surface px-4 py-2 sm:px-5 sm:[&:nth-child(odd)]:border-r">
+    <li className="px-4 py-3 sm:px-5">
       {/* Name and balance hold one line: the name truncates, the figure never
           does. As tinted pills the long names wrapped and pushed the balance
           onto a second row, so two cards side by side disagreed about where
@@ -282,25 +284,31 @@ function MentorRow({
         className="mt-2"
       />
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+      {/* The foot: what stands in the way on the left, the one way forward on
+          the right — the calendar as this card's single filled button, or,
+          with no calendar, the mentor's address as a plain text link. Every
+          row ends at the same edge, so a list of three reads as one column. */}
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         {bookable && bookingUrl ? (
           <ExternalLink
             variant="action"
+            size="sm"
             href={bookingUrl}
             title={`Book with ${name}`}
+            className="ml-auto px-4 max-sm:h-11"
           >
             Book
           </ExternalLink>
         ) : (
           <>
-            {blocked && <StatusChip status={blocked} />}
+            {blocked ? <StatusChip status={blocked} /> : <span />}
             {/* The fallback that makes this page an answer rather than a dead
                 end: no calendar, but a person, and a way to write to them. */}
             <ExternalLink
               variant="quiet"
               href={`mailto:${mentor.email}`}
               title={`Email ${name}`}
-              className="max-w-full break-all"
+              className="ml-auto max-w-full break-all"
             >
               {mentor.email}
             </ExternalLink>

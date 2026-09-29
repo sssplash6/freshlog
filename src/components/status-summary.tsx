@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ChevronRightIcon } from "@/components/icons";
+import { Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
 import type { Status } from "@/lib/status";
@@ -34,27 +35,31 @@ export function StatusSummary({
   if (statuses.length === 0) return null;
   const many = statuses.length > 1;
 
+  const rows = (
+    <ul className="divide-y divide-line">
+      {statuses.map((s, i) => (
+        <SummaryRow key={`${s.type}-${s.subject?.id ?? i}`} status={s} />
+      ))}
+    </ul>
+  );
+
+  // A list is named the way every group is: title on the page ground, one
+  // white card under it. It drew its own bold header band inside the card,
+  // the one lid left on the student home after the rest were taken off.
+  if (many) {
+    return (
+      <Section title={title} count={statuses.length} className={className}>
+        {rows}
+      </Section>
+    );
+  }
+
   return (
     <section
-      aria-label={many ? undefined : title}
-      className={cn(
-        "overflow-clip rounded-xl border border-line bg-surface shadow-sm",
-        className
-      )}
+      aria-label={title}
+      className={cn("overflow-clip rounded-xl bg-surface shadow-sm", className)}
     >
-      {many && (
-        <h2 className="flex items-baseline gap-1.5 border-b border-line px-4 py-2.5 text-[1.0625rem] font-bold tracking-tight text-ink sm:px-5">
-          {title}
-          <span className="text-sm font-semibold tabular-nums text-muted-fg">
-            {statuses.length}
-          </span>
-        </h2>
-      )}
-      <ul className="divide-y divide-line">
-        {statuses.map((s, i) => (
-          <SummaryRow key={`${s.type}-${s.subject?.id ?? i}`} status={s} />
-        ))}
-      </ul>
+      {rows}
     </section>
   );
 }
@@ -71,13 +76,13 @@ function SummaryRow({ status }: { status: Status }) {
       <span className="flex flex-col items-start gap-y-1">
         <StatusChip status={{ ...status, explanation: undefined }} />
         {subject && (
-          <span className="min-w-0 max-w-full truncate text-sm font-medium text-ink">
+          <span className="min-w-0 max-w-full truncate text-[0.9375rem] font-medium text-ink">
             {subject.name}
           </span>
         )}
       </span>
       {explanation && (
-        <span className="mt-1 block text-[0.8125rem] text-muted-fg">
+        <span className="mt-0.5 block text-[0.8125rem] text-muted-fg">
           {explanation}
         </span>
       )}
@@ -85,7 +90,7 @@ function SummaryRow({ status }: { status: Status }) {
   );
 
   return (
-    <li className="px-4 py-2 sm:px-5">
+    <li className="px-4 py-3 sm:px-5">
       {href ? (
         // The whole row is the target, so a thumb has the full width.
         <Link
@@ -94,7 +99,7 @@ function SummaryRow({ status }: { status: Status }) {
           className="group -my-1 flex min-h-11 items-center justify-between gap-3 py-1"
         >
           {body}
-          <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg/70 transition-colors group-hover:text-brand" />
+          <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg/60 transition-colors group-hover:text-brand" />
         </Link>
       ) : (
         body

@@ -183,15 +183,11 @@ export default async function MentorsPage({
 
   return (
     <div className="space-y-4">
+      {/* The roster's size as the eyebrow, not a grey "· 5" set in the 32px
+          title, where a count read as part of the name. */}
       <PageTitle
-        title={
-          <>
-            Mentors{" "}
-            <span className="font-semibold tabular-nums text-muted-fg">
-              · {roster}
-            </span>
-          </>
-        }
+        eyebrow={`${roster} ${roster === 1 ? "mentor" : "mentors"}`}
+        title="Mentors"
       />
 
       {/* Under the title rather than in its actions row: the fold opens into a
@@ -219,7 +215,13 @@ export default async function MentorsPage({
             : []
         }
         presets={MENTOR_PRESETS}
-        summary={filterSummary(total, { one: "mentor", many: "mentors" }, params)}
+        // Only once a filter is on: unfiltered, the count is the eyebrow's and
+        // the pager's, and a third copy of it under the bar was noise.
+        summary={
+          activeFilterCount(params) > 0
+            ? filterSummary(total, { one: "mentor", many: "mentors" }, params)
+            : undefined
+        }
       />
 
       <MentorsTable
@@ -242,6 +244,7 @@ export default async function MentorsPage({
         page={page}
         total={total}
         unit="mentors"
+        className="px-1"
       />
     </div>
   );

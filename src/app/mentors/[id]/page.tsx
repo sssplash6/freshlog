@@ -315,7 +315,7 @@ async function MentorRecord({
             defaultOpen={allPairings.some((a) => !a.calendlyUrl)}
           >
             <div className="mt-2 space-y-4">
-              <Section eyebrow="Yours" title="Picture and name">
+              <Section title="Picture and name">
                 <div className="space-y-4 p-4 sm:p-5">
                   <AvatarForm
                     person={{
@@ -349,13 +349,13 @@ async function MentorRecord({
         )}
       </div>
 
+      {/* "Time", not "Completed" over a "Completed" eyebrow-and-figure: the
+          lead figure's own label already says what it counts. */}
       <Section
-        eyebrow="Time"
-        title="Completed"
+        title="Time"
         action={
           <TabLinks
             label="Period"
-            className="text-xs"
             items={[
               { href: `${base}?period=30d`, label: "30 days" },
               // The bare address IS ninety days, so a link to this page and the
@@ -367,7 +367,7 @@ async function MentorRecord({
         }
       >
         <div className="px-4 sm:px-5">
-          <FigureRow framed={false} className="pt-4">
+          <FigureRow framed={false} className="py-3">
             <Figure
               label={`Completed · ${win.label}`}
               value={formatDuration(delivered)}
@@ -466,9 +466,9 @@ async function MentorRecord({
       </Section>
 
       <Section
-        eyebrow="Holding time from them"
         title="Students"
         count={holders.length || undefined}
+        caption="Holding time from them"
       >
         {holders.length === 0 ? (
           <EmptyState framed={false} title="Nobody holds their time">
@@ -559,8 +559,7 @@ async function MentorRecord({
         viewer={context}
         title="Recent sessions"
         // No eyebrow: the component's default is "Logged by mentors", one of
-        // the provenance labels §5.7 retires, and "Time" is already the eyebrow
-        // on the section above.
+        // the provenance labels §5.7 retires.
         eyebrow={null}
         moreHref={`/sessions?mentor=${mentor.id}`}
         moreLabel="All sessions"
@@ -582,29 +581,35 @@ async function MentorRecord({
         }
       />
 
-      {rated ? (
-        <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-muted-fg">
-          <span className="text-lg font-bold tabular-nums text-ink">
-            {feedback._avg.rating!.toFixed(1)}
-          </span>
-          <span>
-            from {feedback._count}{" "}
-            {feedback._count === 1 ? "rating" : "ratings"}
-          </span>
-          {/* A mentor's own address for this is the bare page — /feedback
-              already answers with their ratings and nobody else's. */}
-          <ArrowLink
-            href={isSelf ? "/feedback" : `/feedback?mentor=${mentor.id}`}
-            className="text-[0.8125rem]"
-          >
-            Read them
-          </ArrowLink>
-        </p>
-      ) : (
-        <p className="text-sm text-muted-fg">
-          No ratings written{isSelf ? " about you" : ""} so far.
-        </p>
-      )}
+      {/* A group like every other, rather than a loose line under the last
+          card: one row, the figure leading and the way to the words trailing. */}
+      <Section title="Ratings" count={rated ? feedback._count : undefined}>
+        {rated ? (
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 sm:px-5">
+            <p className="flex items-baseline gap-x-2 text-[0.9375rem] text-muted-fg">
+              <span className="text-[1.25rem] font-semibold tabular-nums text-ink">
+                {feedback._avg.rating!.toFixed(1)}
+              </span>
+              <span>
+                from {feedback._count}{" "}
+                {feedback._count === 1 ? "rating" : "ratings"}
+              </span>
+            </p>
+            {/* A mentor's own address for this is the bare page — /feedback
+                already answers with their ratings and nobody else's. */}
+            <ArrowLink
+              href={isSelf ? "/feedback" : `/feedback?mentor=${mentor.id}`}
+              className="text-[0.9375rem]"
+            >
+              Read them
+            </ArrowLink>
+          </div>
+        ) : (
+          <p className="px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">
+            No ratings written{isSelf ? " about you" : ""} so far.
+          </p>
+        )}
+      </Section>
     </div>
   );
 }
@@ -696,17 +701,18 @@ async function MentorCard({
         }
       />
 
-      <ul className="space-y-2">
+      {/* One grouped card with a row per pairing, not a stack of cards. */}
+      <ul className="divide-y divide-line overflow-clip rounded-xl bg-surface shadow-sm">
         {visible.map((a) => (
           <li
             key={a.id}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface shadow-sm px-4 py-2"
+            className="flex min-h-11 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
           >
             {/* Named only when there is a choice to make. One pairing is
                 already named in the line under the h1, and a page of twenty
                 words cannot afford to say "Master's Program" twice. */}
             {visible.length > 1 && (
-              <span className="min-w-0 text-sm font-medium text-ink">
+              <span className="min-w-0 text-[0.9375rem] font-medium text-ink">
                 {labelOf(a)}
               </span>
             )}

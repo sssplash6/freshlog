@@ -438,7 +438,14 @@ export default async function StudentWorkspacePage({
               </LinkButton>
             )}
             {writes && mentorOptions.length > 0 && (
-              <LinkButton href={`/students/${profile.id}/allocate`} variant="secondary" size="md">
+              // The admin lens's one primary action, as logging is the
+              // mentor's: a masthead of two grey buttons had no answer to
+              // "what is this page for".
+              <LinkButton
+                href={`/students/${profile.id}/allocate`}
+                variant={primaryIsLog ? "secondary" : "primary"}
+                size="md"
+              >
                 Allocate time
               </LinkButton>
             )}
@@ -579,7 +586,7 @@ export default async function StudentWorkspacePage({
                 canReturn={isParty}
               />
               {sendForm && (
-                <div className="border-t border-line px-4 py-2 sm:px-5">
+                <div className="border-t border-line px-4 py-3 sm:px-5">
                   {sendForm}
                 </div>
               )}
@@ -590,8 +597,11 @@ export default async function StudentWorkspacePage({
             // say that nothing has happened yet. `justify-between` with wrap,
             // so the form drops to a line of its own when it is opened and
             // needs the width.
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 sm:px-5">
-              <p className="min-w-0 text-sm text-muted-fg">
+            // The group's empty state: one sentence and the one action, on one
+            // line, wrapping so the form drops below it when it is opened and
+            // needs the width.
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-5">
+              <p className="min-w-0 text-[0.9375rem] text-muted-fg">
                 Nobody has lent {name} to another program.
               </p>
               {sendForm}
@@ -616,7 +626,7 @@ export default async function StudentWorkspacePage({
         // the heading it totals, the way every other card here reads.
         action={
           tracksPayment && manages ? (
-            <span className="text-xs text-muted-fg">
+            <span className="text-[0.8125rem] text-muted-fg">
               <span className="font-semibold tabular-nums text-ink">
                 {formatMoney(hours.paid)}
               </span>{" "}
@@ -686,11 +696,13 @@ export default async function StudentWorkspacePage({
         )}
 
         {manages && changes.length > 0 && (
-          <div className="border-t border-line px-4 py-2 sm:px-5">
+          <div className="border-t border-line px-4 sm:px-5">
+            {/* The last row of the group, folded: who changed a grant and to
+                what is asked after something looks wrong, not on every visit. */}
             <Disclosure label="History" count={changes.length}>
-              <ul className="divide-y divide-line/60 text-sm">
+              <ul className="divide-y divide-line text-[0.8125rem]">
                 {changes.map((c) => (
-                  <li key={c.id} className="flex flex-wrap gap-x-2 py-2.5">
+                  <li key={c.id} className="flex flex-wrap gap-x-2 py-2">
                     <span className="tabular-nums text-muted-fg">
                       {formatDate(c.createdAt)}
                     </span>
@@ -715,8 +727,10 @@ export default async function StudentWorkspacePage({
       </Section>
 
       {manages && (
-        <Section eyebrow="Admin only" title="Details">
-          <div className="px-4 py-2 sm:px-5">
+        // No "Admin only" eyebrow: a reader who is not an admin never sees
+        // this group, so the label only ever told an admin what they are.
+        <Section title="Details">
+          <div className="px-4 sm:px-5">
             <FactList
               items={[
                 {
@@ -777,6 +791,8 @@ export default async function StudentWorkspacePage({
           </div>
           {writes && (
             <div className="border-t border-line px-4 py-2 sm:px-5">
+              {/* Last, and quiet: a red word with its reason beside it, not an
+                  outlined red box at the foot of the page's calmest group. */}
               <RemoveStudentButton
                 studentProfileId={profile.id}
                 name={name}

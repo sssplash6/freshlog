@@ -62,7 +62,7 @@ export function Table({
   return (
     <div
       className={cn(
-        framed && "rounded-xl border border-line bg-surface shadow-sm",
+        framed && "rounded-xl bg-surface shadow-sm",
         className,
       )}
     >
@@ -76,7 +76,7 @@ export function Table({
                   // The tint and hairline live on the cells, not the <thead>:
                   // a sticky cell paints its own background, a sticky group's
                   // background stays behind at the top of the table.
-                  "sticky top-(--sticky-top) z-10 border-b border-line bg-canvas/85 px-4 py-2 font-medium backdrop-blur-md",
+                  "sticky top-(--sticky-top) z-10 border-b border-line bg-surface/90 px-4 pb-2 pt-3 text-[0.75rem] font-medium backdrop-blur-md",
                   framed && "first:rounded-tl-xl last:rounded-tr-xl",
                   c.align === "right" && "text-right",
                 )}
@@ -108,7 +108,7 @@ export function Tr({ className, ...props }: ComponentProps<"tr">) {
   return (
     <tr
       className={cn(
-        "block py-1.5 transition-colors hover:bg-canvas sm:table-row sm:py-0",
+        "block py-2 transition-colors hover:bg-canvas/60 sm:table-row sm:py-0",
         className,
       )}
       {...props}
@@ -137,7 +137,7 @@ export function Td({
       {...props}
     >
       {label && (
-        <span className="mr-2 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-fg sm:hidden">
+        <span className="mr-2 text-xs font-medium text-muted-fg sm:hidden">
           {label}
         </span>
       )}

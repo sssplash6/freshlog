@@ -67,7 +67,7 @@ export function TaskPicker({
           "block",
           compact
             ? "text-xs font-medium text-muted-fg"
-            : "text-xs font-semibold uppercase tracking-[0.06em] text-muted-fg",
+            : "text-xs font-medium text-muted-fg",
         )}
       >
         Agenda{!optional && <span className="text-accent-ink"> *</span>}

@@ -3,7 +3,6 @@ import { FolderIcon, SendIcon } from "@/components/icons";
 import { PersonCell } from "@/components/person-chip";
 import { ProgramChip } from "@/components/program-chip";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ExternalLink } from "@/components/ui/link";
 import { RowFold } from "@/components/ui/row-fold";
 import { StatusChip } from "@/components/ui/status-chip";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
@@ -41,6 +40,28 @@ import type { StudentWithHours } from "@/lib/queries";
  * it is on the student's own page, beside the grant it belongs to, and the
  * bell is what says whose is running out.
  */
+/**
+ * The href, only if it is a web address.
+ *
+ * A folder URL comes from whatever an admin typed or a spreadsheet imported,
+ * and a raw `<a href>` renders a `javascript:` URI as a link that runs it.
+ * Anything that does not parse as http(s) renders no link at all.
+ */
+function webHref(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:"
+      ? parsed.href
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A contact link: a ghost icon button, the glyph on nothing until hovered. */
+const ICON_LINK =
+  "inline-flex h-11 w-11 items-center justify-center rounded-lg text-brand transition-colors hover:bg-fill sm:h-8 sm:w-8";
+
 /**
  * What this table can be ordered by. The page says which of them it can
  * honour; `lib/sort.ts` does the ordering.
@@ -158,6 +179,11 @@ export function StudentsTable({
         const top = statuses.find((x) => x.type === "STUDENT_NOT_SIGNED_IN");
         const overdrawn = s.remainingMinutes < 0;
 
+        const telegramHref = s.telegramUsername
+          ? webHref(`https://t.me/${s.telegramUsername.replace(/^@/, "")}`)
+          : null;
+        const folderHref = s.folderUrl ? webHref(s.folderUrl) : null;
+
         return (
           <Tr
             key={s.id}
@@ -203,7 +229,7 @@ export function StudentsTable({
                       >
                         {formatDuration(s.remainingMinutes)}
                       </span>
-                      <span className="text-[0.625rem] font-medium uppercase tracking-wide text-muted-fg">
+                      <span className="text-xs font-medium text-muted-fg">
                         left
                       </span>
                     </span>
@@ -273,11 +299,6 @@ export function StudentsTable({
               >
                 {formatDuration(s.remainingMinutes)}
               </span>
-              {s.allottedMinutes > 0 && (
-                <span className="block text-xs text-muted-fg">
-                  /{formatDuration(s.allottedMinutes)}
-                </span>
-              )}
             </Td>
 
             <Td label="Last session" className="whitespace-nowrap text-muted-fg" data-fold>
@@ -285,38 +306,40 @@ export function StudentsTable({
             </Td>
 
             <Td label="Contact" data-fold>
-              {/* Two icon chips, as narrow as a 44px tap target allows on a
-                  phone and narrower than that on a pointer, where the column
-                  was spending more width on its two buttons than the dates
-                  beside it. */}
-              <span className="flex items-center gap-1">
-                {s.telegramUsername ? (
-                  <ExternalLink
-                    variant="chip"
-                    className="min-h-11 px-2 sm:min-h-9"
-                    href={`https://t.me/${s.telegramUsername.replace(/^@/, "")}`}
-                    icon={<SendIcon className="h-4 w-4" />}
+              {/* Two ghost icon buttons: the glyph on nothing, a fill only
+                  under the pointer. As filled or bordered chips they were a
+                  column of buttons down the roster, louder than the names
+                  they sit beside. 44px on a phone, 32px on a pointer. */}
+              <span className="-mx-1 flex items-center">
+                {s.telegramUsername && telegramHref ? (
+                  <a
+                    target="_blank"
+                    rel="noreferrer"
+                    className={ICON_LINK}
+                    href={telegramHref}
                     title={`Message @${s.telegramUsername.replace(/^@/, "")} on Telegram`}
                   >
+                    <SendIcon className="h-4 w-4" />
                     {/* The handle is in the tooltip, not the cell: two columns
                         of width went on saying "@name" beside a name. */}
                     <span className="sr-only">Telegram</span>
-                  </ExternalLink>
+                  </a>
                 ) : null}
-                {s.folderUrl ? (
-                  <ExternalLink
-                    variant="chip"
-                    className="min-h-11 px-2 sm:min-h-9"
-                    href={s.folderUrl}
-                    icon={<FolderIcon className="h-4 w-4" />}
+                {s.folderUrl && folderHref ? (
+                  <a
+                    target="_blank"
+                    rel="noreferrer"
+                    className={ICON_LINK}
+                    href={folderHref}
                     // The URL stays in the tooltip: staff could not otherwise
                     // see where a link points without clicking it.
                     title={`Open the student's folder (${s.folderUrl})`}
                   >
+                    <FolderIcon className="h-4 w-4" />
                     <span className="sr-only">Folder</span>
-                  </ExternalLink>
+                  </a>
                 ) : null}
-                {!s.telegramUsername && !s.folderUrl && (
+                {!telegramHref && !folderHref && (
                   <span className="text-muted-fg">—</span>
                 )}
               </span>

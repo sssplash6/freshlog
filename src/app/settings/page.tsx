@@ -54,7 +54,7 @@ export default async function SettingsPage() {
   const prefOf = new Map(prefs.map((p) => [p.category, p]));
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="max-w-3xl space-y-4">
       <PageTitle title="Settings" />
 
       <Section title="Profile">
@@ -75,7 +75,12 @@ export default async function SettingsPage() {
           <OwnNameForm defaultName={user.name ?? ""} />
           <SettingsRow
             label="Sign-in email"
-            control={<span className="text-sm text-ink">{user.email}</span>}
+            trailing
+            control={
+              <span className="break-all text-[0.9375rem] text-muted-fg">
+                {user.email}
+              </span>
+            }
           />
         </div>
       </Section>
@@ -92,6 +97,7 @@ export default async function SettingsPage() {
         <Section title="Booking links">
           <div className="px-4 py-2 sm:px-5">
             <BookingLinksForm
+              bare
               assignments={assignments.map((a) => ({
                 id: a.id,
                 label: a.cohort
@@ -124,10 +130,10 @@ export default async function SettingsPage() {
       </Section>
 
       <Section title="Notifications">
+        {/* One list: the Monday email, then a row per category, hairlines
+            between — not two blocks with a rule through the card. */}
         <div className="px-4 py-2 sm:px-5">
           <WeeklyDigestForm defaultOn={user.weeklyDigest} />
-        </div>
-        <div className="border-t border-line px-4 py-2 sm:px-5">
           <NotificationMatrix
             categories={(
               Object.keys(NOTIFICATION_CATEGORY_LABELS) as NotificationCategory[]

@@ -229,6 +229,8 @@ function Palette({
 
   function go(option: Option) {
     onClose();
+    // Tell NavProgress: a router.push is invisible to its click listener.
+    window.dispatchEvent(new CustomEvent("nav-start", { detail: option.href }));
     router.push(option.href);
   }
 
@@ -318,7 +320,7 @@ function Palette({
         aria-labelledby={titleId}
         onKeyDown={onDialogKeyDown}
         className={cn(
-          "fixed z-50 flex flex-col overflow-hidden border border-line bg-surface text-left shadow-xl",
+          "fixed z-50 flex flex-col overflow-hidden bg-surface text-left shadow-xl",
           sheet
             ? "sheet-up inset-x-2 bottom-[calc(max(0.5rem,env(safe-area-inset-bottom))+var(--kb,0px))] max-h-[calc(80dvh-var(--kb,0px))] rounded-2xl"
             : "modal-in left-1/2 top-[12vh] max-h-[70vh] w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl"
@@ -380,7 +382,7 @@ function Palette({
               <p
                 id={`${listId}-${group}`}
                 role="presentation"
-                className="px-3 pb-1 pt-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-fg"
+                className="px-3 pb-1 pt-2 text-[0.8125rem] font-medium text-muted-fg"
               >
                 {group}
               </p>
@@ -402,7 +404,7 @@ function Palette({
                       if (!selected) setActive(index);
                     }}
                     className={cn(
-                      "flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors duration-150",
+                      "flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 py-1.5 text-[0.9375rem] transition-colors duration-150",
                       selected ? "bg-brand-soft text-ink" : "text-ink"
                     )}
                   >

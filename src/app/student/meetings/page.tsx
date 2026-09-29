@@ -135,7 +135,14 @@ export default async function StudentMeetingsPage({
       <Section
         title="Coming up"
         count={interviews.length || undefined}
-        action={<ArrowLink href="/student/interviews">Practice interviews</ArrowLink>}
+        action={
+          <ArrowLink
+            href="/student/interviews"
+            className="text-[0.9375rem] font-medium"
+          >
+            Practice interviews
+          </ArrowLink>
+        }
       >
         {interviews.length === 0 ? (
           <EmptyState framed={false} title="Nothing booked">
@@ -155,7 +162,7 @@ export default async function StudentMeetingsPage({
               return (
                 <li
                   key={i.id}
-                  className="flex items-center justify-between gap-3 px-4 py-2 sm:px-5"
+                  className="flex min-h-11 items-center justify-between gap-3 px-4 py-3 sm:px-5"
                 >
                   <PersonCell
                     person={{ ...other, email: "" }}
@@ -200,7 +207,7 @@ export default async function StudentMeetingsPage({
                       session.status !== SESSION_STATUS.VOIDED ? (
                         <Link
                           href={`/student/feedback?mentor=${session.mentor.id}`}
-                          className="text-xs text-muted-fg transition-colors hover:text-brand"
+                          className="text-[0.8125rem] font-medium text-brand hover:text-brand-dark"
                         >
                           Rate
                         </Link>

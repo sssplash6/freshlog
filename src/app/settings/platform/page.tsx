@@ -5,7 +5,6 @@ import { PersonCell } from "@/components/person-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FactList } from "@/components/ui/fact-list";
 import { PageTitle, Section } from "@/components/ui/section";
-import { StatusChip } from "@/components/ui/status-chip";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
 import { ALLOWED_MENTOR_DOMAIN } from "../../../../config/app-config";
 import { ROLES } from "@/lib/constants";
@@ -73,7 +72,7 @@ export default async function PlatformPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="max-w-5xl space-y-4">
       <PageTitle
         title="Platform"
         subtitle="Who administers which program, and how this deployment is set up."
@@ -96,8 +95,14 @@ export default async function PlatformPage() {
                   <PersonCell
                     person={{ id: row.userId, name: row.name, email: row.email }}
                   >
+                    {/* Muted words, not ✓ chips: a role is a fact about the
+                        account, and a ticked pill beside a name reads as a
+                        state somebody has to check — the same call the
+                        mentors roster makes for "Admin". */}
                     {row.platformAdmin && (
-                      <StatusChip severity="ok">Platform</StatusChip>
+                      <span className="shrink-0 text-xs font-normal text-muted-fg">
+                        Platform
+                      </span>
                     )}
                   </PersonCell>
                 </Td>

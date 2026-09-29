@@ -20,13 +20,18 @@ import type { Status } from "@/lib/status";
  * not need a coloured background to be read.
  *
  * Every tone carries an icon, so the tone is never the only signal.
+ *
+ * No border on any tone. A callout is a card on the grouped page like every
+ * other, and a card here is a fill and nothing around it: info is the white
+ * surface, warn and danger are their soft tints, and the tint alone separates
+ * them from the grey ground.
  */
 export type CalloutTone = "info" | "warn" | "danger";
 
 const SURFACE: Record<CalloutTone, string> = {
-  info: "border-line bg-surface",
-  warn: "border-warn-line bg-warn-soft",
-  danger: "border-danger-line bg-danger-soft",
+  info: "bg-surface shadow-sm",
+  warn: "bg-warn-soft",
+  danger: "bg-danger-soft",
 };
 
 const BODY: Record<CalloutTone, string> = {
@@ -75,7 +80,7 @@ export function Callout({
     return (
       <div
         className={cn(
-          "flex flex-wrap items-center justify-between gap-3 rounded-lg border px-5 py-2.5 text-[0.9375rem]",
+          "flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3 text-[0.9375rem] sm:px-5",
           SURFACE[tone],
           BODY[tone],
           className
@@ -94,14 +99,14 @@ export function Callout({
   }
 
   return (
-    <div className={cn("flex gap-2.5 rounded-lg border p-4", SURFACE[tone], className)}>
+    <div className={cn("flex gap-2.5 rounded-xl px-4 py-3 sm:px-5", SURFACE[tone], className)}>
       <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", ICON_COLOR[tone])} />
       <div className="min-w-0">
         {title && (
-          <div className={cn("text-sm font-semibold", TITLE[tone])}>{title}</div>
+          <div className={cn("text-[0.9375rem] font-semibold", TITLE[tone])}>{title}</div>
         )}
         {children && (
-          <div className={cn("text-sm", BODY[tone], title && "mt-1")}>{children}</div>
+          <div className={cn("text-[0.8125rem]", BODY[tone], title && "mt-0.5")}>{children}</div>
         )}
         {action && <div className="mt-3">{action}</div>}
       </div>

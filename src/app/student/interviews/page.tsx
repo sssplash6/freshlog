@@ -122,7 +122,7 @@ export default async function StudentInterviewsPage() {
     const other = side === "host" ? i.guest.user : i.host.user;
     const chip = status(PHASE_STATUS[interviewPhase(i, now)], viewer);
     return (
-      <li key={i.id} className="flex items-center justify-between gap-3 px-4 py-2 sm:px-5">
+      <li key={i.id} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
         <PersonCell
           person={{ ...other, email: "" }}
           href={`/student/interviews/${i.id}`}
@@ -154,7 +154,7 @@ export default async function StudentInterviewsPage() {
         <Disclosure
           label="Completed"
           count={completed.length}
-          className="border-t border-line px-4 sm:px-5"
+          className="border-t border-line px-4 py-2 sm:px-5"
         >
           <ul className="-mx-4 divide-y divide-line border-t border-line sm:-mx-5">
             {completed.map(row)}
@@ -169,16 +169,16 @@ export default async function StudentInterviewsPage() {
             {mySlots.map((s) => (
               <li
                 key={s.id}
-                className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2 sm:px-5"
+                className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-3 sm:px-5"
               >
-                <span className="text-sm">
+                <span className="text-[0.9375rem]">
                   <span className="font-medium text-ink">{formatSlotDay(s.startsAt)}</span>{" "}
                   <span className="tabular-nums text-muted-fg">{formatSlotSpan(s, { zone: true })}</span>
                 </span>
                 {s.interview ? (
                   <Link
                     href={`/student/interviews/${s.interview.id}`}
-                    className="text-sm font-medium text-brand hover:underline"
+                    className="text-[0.8125rem] font-medium text-brand hover:text-brand-dark"
                   >
                     Booked by {s.interview.guest.user.name ?? "a classmate"}
                   </Link>
@@ -212,7 +212,7 @@ export default async function StudentInterviewsPage() {
             <Disclosure
               label="Classmates with no times offered"
               count={quiet.length}
-              className="border-t border-line px-4 sm:px-5"
+              className="border-t border-line px-4 py-2 sm:px-5"
             >
               <ul className="-mx-4 divide-y divide-line border-t border-line sm:-mx-5">
                 {quiet.map((c) => (
@@ -239,7 +239,7 @@ function ClassmateRow({
 }) {
   const open = classmate.interviewSlots.length;
   return (
-    <li className="flex items-center justify-between gap-3 px-4 py-2 sm:px-5">
+    <li className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
       <PersonCell
         person={{ ...classmate.user, email: "" }}
         href={`/student/interviews/people/${classmate.id}`}
@@ -247,7 +247,7 @@ function ClassmateRow({
         className="min-w-0 flex-1"
       />
       {open > 0 && (
-        <span className="shrink-0 text-sm tabular-nums text-muted-fg">
+        <span className="shrink-0 text-[0.8125rem] tabular-nums text-muted-fg">
           {open} {open === 1 ? "time" : "times"} open
         </span>
       )}

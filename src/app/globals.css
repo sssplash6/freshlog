@@ -7,9 +7,9 @@
    Hex is duplicated in src/lib/brand.ts for the two consumers that never see
    this stylesheet (email, PDF guides) — edit the two together. */
 @theme {
-  --color-canvas: #f4f5f6; /* page background */
+  --color-canvas: #f2f2f7; /* page background — iOS grouped */
   --color-surface: #ffffff; /* cards */
-  --color-line: #e5e6e8; /* borders / tracks */
+  --color-line: #e5e5ea; /* hairlines / tracks */
 
   --color-brand: #124b84; /* deep blue — structural chrome + primary action */
   /* The ink that sits ON a saturated fill, rather than beside it. White here;
@@ -48,8 +48,8 @@
      brown — brand fidelity is preferred over the AA text-contrast bump. */
   --color-accent-ink: #f18d05;
 
-  --color-ink: #1a2733; /* primary text */
-  --color-muted-fg: #6b7480; /* secondary text */
+  --color-ink: #1c1c1e; /* primary text */
+  --color-muted-fg: #6e6e73; /* secondary text */
 
   /* ---- Person identity ------------------------------------------------ *
    * One stable colour per person, so the same mentor is the same colour in
@@ -112,9 +112,12 @@
      grey. Restored 8 September 2026 after reading it beside `freshbot/Weak`,
      where the same tokens carry a shadow and the difference is the whole
      difference between "built" and "wireframe". */
-  --shadow-sm: 0 1px 2px rgb(18 75 132 / 0.06), 0 1px 3px rgb(18 75 132 / 0.05);
-  --shadow-lg: 0 4px 20px -6px rgb(18 75 132 / 0.18), 0 2px 6px rgb(18 75 132 / 0.07);
-  --shadow-xl: 0 16px 48px -12px rgb(18 75 132 / 0.28), 0 4px 12px rgb(18 75 132 / 0.10);
+  /* September 2026, second pass: neutral and barely there. A white card on
+     the iOS grouped grey needs almost no shadow to read as lifted — the old
+     brand-tinted pair plus a hairline border drew every card twice. */
+  --shadow-sm: 0 0 0 0.5px rgb(0 0 0 / 0.04), 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 8px 30px rgb(0 0 0 / 0.12), 0 0 0 0.5px rgb(0 0 0 / 0.05);
+  --shadow-xl: 0 24px 60px rgb(0 0 0 / 0.18), 0 0 0 0.5px rgb(0 0 0 / 0.06);
 
   /* The fill a control sits in — iOS's tertiary system fill. Translucent grey
      rather than a solid, so an input reads as a field on the white card AND on
@@ -176,18 +179,16 @@
  *
  *   soft washes  deep versions of their own hue, held 1.10–1.20 against the
  *                card so a tint still reads as a band instead of a grey slab
- *   ink text     lightened until it is legible on #161d26, keeping the hue
+ *   ink text     lightened until it is legible on #1b1e23, keeping the hue
  *   dot fills    UNCHANGED. They carry white initials in a 20px badge and
  *                already clear 4.5:1 against white; lightening them would
  *                break the one contrast this palette guarantees.
- *   shadows      black, not brand blue. A blue-tinted shadow on a near-black
- *                canvas is invisible, so elevation is carried by alpha here
- *                and by hue in light.
+ *   shadows      a white hairline, not a drop. A shadow on a near-black
+ *                canvas is invisible, so a card's edge is drawn by light.
  *
- * The base six are taken verbatim from `freshbot/Weak`, which solved this
- * first and shares this palette — the two apps are meant to be readable as one
- * product, and re-deriving a slightly different navy would be the drift the
- * July lockstep exists to prevent. */
+ * September 2026: the ground moved off pure black (see below). The base six
+ * were taken from `freshbot/Weak`, which still has the black ground — port
+ * these there too, or the two apps stop reading as one product. */
 :root {
   color-scheme: light;
 }
@@ -195,62 +196,78 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --color-canvas: #0d1219;
-  --color-surface: #161d26;
-  --color-line: #29323d;
+  /* A blue-grey ground, not black. Pure #000 behind near-white text ran at
+     19:1 and made every line of type bloom — the halation that makes a dark
+     screen tiring to read, worst for anyone with astigmatism — and set each
+     #1c1c1e card off the page as a slab. Material's #121212, nudged toward the
+     brand navy the way its "branded surface" overlay does. Elevation is a
+     lighter surface, one step (~1.1:1) per layer, never a jump. */
+  --color-canvas: #121417;
+  --color-surface: #1b1e23;
+  --color-line: #2c3038;
+  --color-fill: rgb(255 255 255 / 0.06);
+  --color-fill-strong: rgb(255 255 255 / 0.1);
 
-  /* Brightened so white labels stay legible on `bg-brand` and `text-brand`
-     links stay legible on the card — one token serving both, as in light. */
-  --color-brand: #57a0e0;
-  --color-brand-dark: #74b3ec; /* hover — lighter than brand in dark */
-  --color-brand-soft: #17293d;
-  --color-on-brand: #0b1017;
+  /* Desaturated from the light theme's hue: a vivid blue on a dark ground
+     vibrates. Light enough to read as text on the card (6.7:1) and to carry
+     the near-black `on-brand` label (7.3:1). */
+  --color-brand: #6ea8e6;
+  --color-brand-dark: #8bbaed; /* hover — lighter than brand in dark */
+  --color-brand-soft: #253547;
+  --color-on-brand: #0c1522;
 
-  --color-accent: #f79a2e;
-  --color-accent-dark: #ffb057;
-  --color-accent-soft: #33240f;
+  --color-accent: #eb9d4b;
+  --color-accent-dark: #f2b06a;
+  --color-accent-soft: #3a3027;
   /* The one place light and dark genuinely disagree: light keeps the vivid
      #f18d05 for orange readouts as brand fidelity, accepting 2.46:1. On this
-     ground the same hue is already legible, so dark gets the contrast free. */
-  --color-accent-ink: #e0912f;
+     ground a softened orange is already legible, so dark gets the contrast free. */
+  --color-accent-ink: #eda154;
 
-  --color-ink: #e7ebf0;
-  --color-muted-fg: #98a2b0;
+  /* Off-white, not white: 13.2:1 on the card is past AAA with nothing to
+     spare glaring. Secondary text holds 6.4:1. */
+  --color-ink: #e3e5e8;
+  --color-muted-fg: #9ba1a9;
 
-  --color-warn-soft: #33280f;
-  --color-warn-line: #55431a;
-  --color-warn-ink: #e2a83c;
+  --color-warn-soft: #332f29;
+  --color-warn-line: #524631;
+  --color-warn-ink: #e0ad55;
 
-  --color-danger: #e5484d; /* fill: overdrawn meter, forfeited segment */
-  --color-on-danger: #2b0a0c;
-  --color-danger-soft: #3a1518;
-  --color-danger-line: #5d2126;
-  --color-danger-ink: #ff8085; /* the only red for text, on #161d26 */
+  --color-danger: #e0595d; /* fill: overdrawn meter, forfeited segment */
+  --color-on-danger: #1c0a0b;
+  --color-danger-soft: #37262b;
+  --color-danger-line: #5a3136;
+  --color-danger-ink: #f28f8f; /* the only red for text, on the card */
 
-  --color-tone-teal-soft: #102b2a;
-  --color-tone-teal-ink: #4ecec0;
+  /* Each soft is its own dot laid at 24% over the card, so every tint sits
+     the same distance above the surface; each ink clears 6:1 on it. */
+  --color-tone-teal-soft: #203634;
+  --color-tone-teal-ink: #6fd0bd;
 
-  --color-tone-plum-soft: #2d1c2b;
-  --color-tone-plum-ink: #d79ed0;
+  --color-tone-plum-soft: #37293b;
+  --color-tone-plum-ink: #dba6d4;
 
-  --color-tone-moss-soft: #1f2614;
-  --color-tone-moss-ink: #adc86e;
+  --color-tone-moss-soft: #2b3425;
+  --color-tone-moss-ink: #b3cb7c;
 
-  --color-prog-indigo-soft: #1e2342;
-  --color-prog-indigo-ink: #9aa2f6;
+  --color-prog-indigo-soft: #282c44;
+  --color-prog-indigo-ink: #a4abf4;
 
-  --color-prog-cyan-soft: #0f2932;
-  --color-prog-cyan-ink: #56c2df;
+  --color-prog-cyan-soft: #1c353e;
+  --color-prog-cyan-ink: #6cc7df;
 
-  --color-prog-violet-soft: #261741;
-  --color-prog-violet-ink: #c48af0;
+  --color-prog-violet-soft: #322943;
+  --color-prog-violet-ink: #c69af0;
 
-  --color-prog-slate-soft: #1c242e;
-  --color-prog-slate-ink: #aebccc;
+  --color-prog-slate-soft: #283039;
+  --color-prog-slate-ink: #b3c0cf;
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.40), 0 1px 3px rgb(0 0 0 / 0.30);
-  --shadow-lg: 0 4px 20px -6px rgb(0 0 0 / 0.62), 0 2px 6px rgb(0 0 0 / 0.42);
-  --shadow-xl: 0 16px 48px -12px rgb(0 0 0 / 0.76), 0 4px 12px rgb(0 0 0 / 0.50);
+  /* A shadow barely reads on a dark ground, so the edge does the work: a
+     faint white hairline and a top highlight, the way Linear and GitHub draw
+     a card, with the drop shadow kept only for things that float. */
+  --shadow-sm: 0 0 0 1px rgb(255 255 255 / 0.05), inset 0 1px 0 rgb(255 255 255 / 0.03);
+  --shadow-lg: 0 0 0 1px rgb(255 255 255 / 0.07), 0 12px 32px -8px rgb(0 0 0 / 0.55);
+  --shadow-xl: 0 0 0 1px rgb(255 255 255 / 0.08), 0 24px 60px -12px rgb(0 0 0 / 0.65);
 }
 
 /* DensityToggle's labels, keyed off the same attribute the boot script sets.
@@ -317,14 +334,23 @@
   }
 }
 
+/* A table row is 48px or so, iOS list height, rather than a spreadsheet's
+   36: `py-2` is the spacing scale's inside-a-section step, and the cell adds
+   its own breath here so the scale itself stays three values. */
+@media (min-width: 40rem) {
+  .data-table td {
+    padding-block: 0.75rem;
+  }
+}
+
 /* Table rows follow the density choice too, past the root size alone: the
    row height is where compact and comfortable are actually felt. */
 @media (min-width: 40rem) {
   :root[data-density="compact"] .data-table td {
-    padding-block: 0.25rem;
+    padding-block: 0.375rem;
   }
   :root[data-density="comfortable"] .data-table td {
-    padding-block: 0.75rem;
+    padding-block: 1rem;
   }
 }
 
@@ -825,30 +851,59 @@ a:active [data-chev],
   object-position: left top;
 }
 
+/* September 2026, speed pass: every transition got shorter, because while a
+   view transition runs the page is a picture and nothing on it answers a tap.
+   A 340ms slide on every click was 340ms of the app looking busy.
+
+   Phones keep the iOS push, at 260ms. Desktops — a mouse, a wide window, a
+   rail that holds still — do not slide at all: a drill-in there is a 180ms
+   lift (the new page rises 8px and fades in over the old one). A whole
+   1100px-wide page sweeping across a monitor is a lot of motion for a click. */
 ::view-transition-old(.vt-fwd) {
-  animation: vt-fwd-out 340ms var(--ease-nav) both;
+  animation: vt-fwd-out 260ms var(--ease-nav) both;
 }
 ::view-transition-new(.vt-fwd) {
   /* The shadow on the leading edge is what sells "arriving over" rather
      than "sliding in beside". */
   box-shadow: -20px 0 48px -16px rgb(0 0 0 / 0.35);
-  animation: vt-fwd-in 340ms var(--ease-nav) both;
+  animation: vt-fwd-in 260ms var(--ease-nav) both;
 }
 ::view-transition-old(.vt-back) {
   /* Pop runs over the page it reveals: the leaving page stays on top. */
   z-index: 1;
   box-shadow: -20px 0 48px -16px rgb(0 0 0 / 0.35);
-  animation: vt-back-out 340ms var(--ease-nav) both;
+  animation: vt-back-out 260ms var(--ease-nav) both;
 }
 ::view-transition-new(.vt-back) {
-  animation: vt-back-in 340ms var(--ease-nav) both;
+  animation: vt-back-in 260ms var(--ease-nav) both;
 }
 
+/* The old page leaves faster than the new one arrives, so the swap reads as
+   the new page appearing rather than the two dissolving through each other. */
 ::view-transition-old(.vt-fade) {
-  animation: vt-fade-out 140ms ease-out both;
+  animation: vt-fade-out 80ms ease-out both;
 }
 ::view-transition-new(.vt-fade) {
-  animation: vt-fade-in 140ms ease-out both;
+  animation: vt-fade-in 120ms ease-out both;
+}
+
+@media (min-width: 64rem) and (hover: hover) {
+  ::view-transition-old(.vt-fwd),
+  ::view-transition-old(.vt-back) {
+    box-shadow: none;
+    animation: vt-fade-out 90ms ease-out both;
+  }
+  ::view-transition-new(.vt-fwd),
+  ::view-transition-new(.vt-back) {
+    box-shadow: none;
+    animation: vt-lift-in 180ms var(--ease-out-strong) both;
+  }
+}
+@keyframes vt-lift-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }
 
 @keyframes vt-fwd-out {
@@ -941,4 +996,52 @@ html:active-view-transition-type(theme)::view-transition-new(app-rail) {
 
 @media (prefers-reduced-motion: reduce) {
   :target { animation: none; background-color: var(--color-brand-soft); }
+}
+
+/*
+ * NAV PROGRESS — the 2px line NavProgress draws while a navigation is on its
+ * way. It creeps to 80% over a few seconds (it cannot know the real progress,
+ * and a bar that fills before the page arrives is a lie), snaps to full on
+ * landing, then fades. The 120ms delay before it appears is the point: a
+ * prefetched page lands before the delay is up and the bar is never seen.
+ */
+.nav-progress {
+  transform: scaleX(0);
+  opacity: 0;
+}
+.nav-progress[data-state="going"] {
+  opacity: 1;
+  transform: scaleX(0.8);
+  transition:
+    opacity 120ms linear 120ms,
+    transform 4s cubic-bezier(0.1, 0.6, 0.2, 1) 120ms;
+}
+.nav-progress[data-state="done"] {
+  opacity: 0;
+  transform: scaleX(1);
+  transition:
+    transform 160ms var(--ease-out-strong),
+    opacity 200ms linear 120ms;
+}
+
+/*
+ * A skeleton that waits its turn. A loading screen that flashes for 60ms
+ * before the real page replaces it reads as a flicker — worse than nothing.
+ * So the skeleton fades in only once the wait has lasted 150ms; a fast
+ * navigation goes straight from one page to the next.
+ */
+@keyframes skeleton-in {
+  from {
+    opacity: 0;
+  }
+}
+.skeleton-in {
+  animation: skeleton-in 200ms ease-out 150ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress[data-state="going"] {
+    transition: opacity 120ms linear 120ms;
+    transform: scaleX(0.8);
+  }
 }

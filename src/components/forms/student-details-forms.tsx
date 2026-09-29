@@ -364,6 +364,7 @@ export function RemoveStudentButton({
   return (
     <div className="space-y-2">
       <ConfirmInline
+        variant="quiet"
         label="Remove student"
         question={`${name}'s record goes, with their agenda, their tasks and any time granted to them.`}
         confirmLabel="Yes, remove them"

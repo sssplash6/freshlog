@@ -26,8 +26,10 @@ import { daysAway } from "@/lib/when";
 const SURFACE: Record<Severity, string> = {
   // Grey is the absence of a signal, so it carries no glyph — a fact does not
   // need to announce itself, and "○" on every "Extra" chip is just noise.
-  neutral: "bg-canvas text-muted-fg",
-  ok: "bg-canvas text-ink",
+  // The control fill, not the page ground: on a dark theme the ground is
+  // black, and a chip painted in it read as a hole in the card.
+  neutral: "bg-fill text-muted-fg",
+  ok: "bg-fill text-ink",
   attention: "bg-warn-soft text-warn-ink",
   problem: "bg-danger-soft text-danger-ink",
 };

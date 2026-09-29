@@ -303,15 +303,15 @@ export function TaskRow({
       <li
         id={anchor}
         className={cn(
-          "flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 sm:px-5",
+          "flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 sm:px-5",
           index != null && "deal-in",
         )}
         style={stagger}
       >
         {progressChip}
-        <span className="min-w-0 flex-1 truncate text-sm text-ink">{purpose}</span>
+        <span className="min-w-0 flex-1 truncate text-[0.9375rem] text-ink">{purpose}</span>
         {mentor && <PersonChip person={mentor} size="sm" href={mentor.href} />}
-        <span className="text-xs tabular-nums text-muted-fg">
+        <span className="text-[0.8125rem] tabular-nums text-muted-fg">
           {formatMinutes(loggedMinutes)}
         </span>
         {actions && <span className="shrink-0">{actions}</span>}
@@ -323,7 +323,7 @@ export function TaskRow({
     return (
       <li
         id={anchor}
-        className={cn("px-4 py-2 sm:px-5", index != null && "deal-in")}
+        className={cn("px-4 py-3 sm:px-5", index != null && "deal-in")}
         style={stagger}
       >
         {/* Two columns from sm up, because the one-column version left the
@@ -344,7 +344,7 @@ export function TaskRow({
                 <StatusChip status={overdue} />
               ) : (
                 dueText && (
-                  <span className="shrink-0 text-xs text-muted-fg">Due {dueText}</span>
+                  <span className="shrink-0 text-[0.8125rem] text-muted-fg">Due {dueText}</span>
                 )
               )}
             </div>
@@ -360,12 +360,12 @@ export function TaskRow({
 
             {note && (
               <div className="mt-1.5">
-                <ExpandableText text={note} lines={2} className="text-xs text-muted-fg" />
+                <ExpandableText text={note} lines={2} className="text-[0.8125rem] text-muted-fg" />
               </div>
             )}
           </div>
 
-          <div className="w-full shrink-0 text-xs sm:w-64">
+          <div className="w-full shrink-0 text-[0.8125rem] sm:w-64">
             {/* The overspend BESIDE the figure it is about, and before it:
                 the hours then end at the row's right edge on every line, so
                 the column of figures stays a column. It was under the hours
@@ -664,7 +664,7 @@ export function TasksPanel({
             framed={false}
           />
 
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-line bg-canvas px-4 py-2 text-xs sm:px-5">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-line px-4 py-2 text-[0.8125rem] sm:px-5">
             <span className="text-muted-fg">
               <span className="font-semibold tabular-nums text-ink">
                 {formatDuration(logged)}

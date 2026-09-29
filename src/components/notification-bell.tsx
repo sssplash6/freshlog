@@ -47,7 +47,7 @@ export function NotificationBell({
       label={`Notifications (${unread} unread)`}
       origin="end"
       width="lg"
-      triggerClassName="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-muted-fg shadow-sm transition hover:bg-brand-soft hover:text-brand data-[open]:bg-brand-soft data-[open]:text-brand"
+      triggerClassName="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-fg transition hover:bg-fill hover:text-ink data-[open]:bg-fill data-[open]:text-ink"
       trigger={
         <>
           <BellIcon className="h-[1.125rem] w-[1.125rem]" />
@@ -62,7 +62,7 @@ export function NotificationBell({
       }
     >
       <div className="flex items-baseline justify-between gap-3 px-3 pb-2">
-        <span className="text-sm font-bold text-ink">Notifications</span>
+        <span className="text-[0.9375rem] font-semibold text-ink">Notifications</span>
         {unread > 0 && (
           <span className="text-xs tabular-nums text-muted-fg">{unread} unread</span>
         )}
@@ -71,27 +71,37 @@ export function NotificationBell({
       {recent.length === 0 ? (
         <p className="px-3 pb-2 text-sm text-muted-fg">No notices for you.</p>
       ) : (
-        <ul className="-mx-1 border-y border-line">
+        <ul className="-mx-1 divide-y divide-line border-y border-line">
           {recent.map((n) => (
             <li key={n.id}>
               <a
                 href={`/n/${n.id}`}
                 // The row's GET marks it read; warming it would read it early.
                 data-no-prefetch
-                className={`flex flex-col gap-0.5 px-4 py-2 transition-colors hover:bg-canvas ${
-                  n.read ? "" : "bg-brand-soft/40"
-                }`}
+                className="flex items-start gap-2.5 px-4 py-2 transition-colors hover:bg-fill"
               >
-                <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-muted-fg">
+                {/* Unread is the dot and the weight, as on the full feed — not a
+                    tinted ground, which made a fresh panel a blue slab. */}
+                <span
+                  aria-hidden="true"
+                  className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                    n.read ? "bg-transparent" : "bg-brand"
+                  }`}
+                />
+                {!n.read && <span className="sr-only">Unread, </span>}
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span
+                    className={`line-clamp-2 text-[0.8125rem] text-ink ${
+                      n.read ? "" : "font-semibold"
+                    }`}
+                  >
+                    {n.message}
+                  </span>
+                  <span className="text-xs text-muted-fg">
                     {NOTIFICATION_META[n.type]?.label ?? "Update"}
+                    {" · "}
+                    <span className="tabular-nums">{formatAgo(n.createdAt, now)}</span>
                   </span>
-                  <span className="shrink-0 text-[0.6875rem] tabular-nums text-muted-fg">
-                    {formatAgo(n.createdAt, now)}
-                  </span>
-                </span>
-                <span className="line-clamp-2 text-[0.8125rem] text-ink">
-                  {n.message}
                 </span>
               </a>
             </li>

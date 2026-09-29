@@ -14,7 +14,9 @@ export type ButtonSize = "xs" | "sm" | "md";
 /** Brand (blue) = actions (DESIGN.md). No accent-colored buttons — orange is
  * reserved for hours/progress. Red only for destructive. */
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-brand text-on-brand shadow-sm hover:bg-brand-dark",
+  // Flat. iOS's filled button has no drop shadow, and a shadow under the one
+  // blue thing on the screen was the web-button tell beside flat grey fills.
+  primary: "bg-brand text-on-brand hover:bg-brand-dark",
   // A grey tinted fill with brand text — iOS's secondary button — not an
   // outlined brand button that INVERTS to solid blue on hover. The inverting
   // version shouted: a secondary action that turns into the loudest thing on
@@ -23,11 +25,14 @@ const VARIANTS: Record<ButtonVariant, string> = {
   // secondary action and its inputs read as one family, below the one blue
   // button that is the point of the screen.
   secondary: "bg-fill text-brand hover:bg-fill-strong",
-  ghost: "text-brand hover:bg-brand-soft",
-  danger: "border border-danger-line text-danger-ink hover:bg-danger-soft",
+  ghost: "text-brand hover:bg-fill",
+  // Quiet: the secondary's grey fill with red words, iOS's destructive
+  // secondary. The outlined version was the only bordered button left, and a
+  // red outline read louder than the primary it sat beside.
+  danger: "bg-fill text-danger-ink hover:bg-fill-strong",
   // The second half of a two-step confirm: by then the destructive choice IS
   // the primary action, so it is filled, not outlined.
-  dangerSolid: "bg-danger text-on-danger shadow-sm hover:bg-danger/90",
+  dangerSolid: "bg-danger text-on-danger hover:bg-danger/90",
 };
 
 /** Fixed, proportionate heights — sm for inline/table actions, md for the
@@ -39,7 +44,8 @@ const SIZES: Record<ButtonSize, string> = {
   sm: "h-8 gap-1.5 px-3 text-[0.8125rem]",
   // 44px, the smallest reliable touch target. Students and mentors use
   // this app on a phone, and md is the size every primary action gets.
-  md: "h-11 gap-2 px-4 text-sm",
+  // 15px, iOS's body size — the label of the thing you press is body text.
+  md: "h-11 gap-2 px-4 text-[0.9375rem]",
 };
 
 export function buttonClasses(
@@ -53,10 +59,9 @@ export function buttonClasses(
     // softens it without becoming a pill — a pill reads as a status, and these
     // are the things you press.
     //
-    // `transition`, not `transition-colors`: the buttons carry a shadow and a
-    // border that changes on hover now, and `transition-colors` animates
-    // neither — so the colour eased while the elevation snapped.
-    "inline-flex items-center justify-center whitespace-nowrap rounded-lg font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
+    // `active:opacity-80`: the dim a UIButton gives under the finger, which a
+    // hover colour cannot — a phone has no hover.
+    "inline-flex items-center justify-center whitespace-nowrap rounded-lg font-semibold transition active:opacity-80 disabled:cursor-not-allowed disabled:opacity-50",
     VARIANTS[variant],
     SIZES[size],
     className,

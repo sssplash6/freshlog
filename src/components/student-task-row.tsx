@@ -126,7 +126,7 @@ export function StudentTaskRow({
   return (
     <li
       id={`student-task-${task.id}`}
-      className={cn("px-4 py-2 sm:px-5", index != null && "deal-in")}
+      className={cn("px-4 py-3 sm:px-5", index != null && "deal-in")}
       style={
         index == null
           ? undefined
@@ -217,7 +217,7 @@ export function StudentTaskRow({
             )
           ) : (
             <span
-              className="w-9 text-right text-xs font-semibold tabular-nums text-ink"
+              className="w-10 text-right text-[0.8125rem] font-medium tabular-nums text-muted-fg"
               aria-label={`${task.percent}% of the way through`}
             >
               {task.percent}%
@@ -230,7 +230,7 @@ export function StudentTaskRow({
       {/* The description, directly under the line it belongs to. */}
       {task.note && <ExpandableNote text={task.note} className="mt-1" />}
 
-      {footer && <div className="mt-2">{footer}</div>}
+      {footer && <div className="mt-2.5">{footer}</div>}
     </li>
   );
 }

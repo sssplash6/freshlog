@@ -52,6 +52,10 @@ async function signOutAction() {
  * 44px, up from 40. The smallest reliable touch target, and this is the only
  * control in the phone chrome that was under it.
  *
+ * A plain glyph in a nav bar, the way iOS draws a bar button: no circle, no
+ * ring, no tinted disc on hover — just the grey fill a pressed control shows.
+ * The ring it wore made the bell the one bordered object in a borderless bar.
+ *
  * The count is brand blue: unread notifications are not a problem, and red is
  * spent here on hours that are gone and balances that are negative. It appears
  * only below `lg` — at desktop widths the sidebar's Notifications row carries
@@ -66,7 +70,7 @@ function NotificationBell({ count }: { count: number }) {
       /* shrink-0 is load-bearing, and was measured: as a flex item beside the
          wordmark and the account button, the 44px box shrank to 27px wide at
          390px — the target this commit widened, quietly given back. */
-      className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-fg transition hover:bg-brand-soft hover:text-brand hover:ring-2 hover:ring-brand/15"
+      className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink/80 transition-colors hover:bg-fill hover:text-ink active:bg-fill-strong"
     >
       <svg
         aria-hidden="true"
@@ -74,7 +78,7 @@ function NotificationBell({ count }: { count: number }) {
         fill="none"
         stroke="currentColor"
         strokeWidth="1.8"
-        className="h-5 w-5"
+        className="h-[1.375rem] w-[1.375rem]"
       >
         <path
           strokeLinecap="round"
@@ -123,7 +127,7 @@ function AccountMenu({
       label="Account"
       origin="end"
       width="sm"
-      triggerClassName="group flex h-11 w-full cursor-pointer items-center gap-2 rounded-lg pl-1 pr-2 transition-colors hover:bg-canvas"
+      triggerClassName="group flex h-11 w-full cursor-pointer items-center gap-2 rounded-lg pl-1 pr-2 transition-colors hover:bg-fill"
       trigger={
         <>
           {user.avatarUpdatedAt ? (
@@ -139,7 +143,7 @@ function AccountMenu({
               {initial}
             </span>
           )}
-          <span className="hidden min-w-0 flex-1 truncate text-left text-sm font-medium text-ink lg:inline">
+          <span className="hidden min-w-0 flex-1 truncate text-left text-[0.9375rem] font-medium text-ink lg:inline">
             {label}
           </span>
           <ChevronDownIcon className="hidden h-4 w-4 shrink-0 text-muted-fg transition-transform group-data-[open]:rotate-180 lg:block" />
@@ -147,11 +151,11 @@ function AccountMenu({
       }
     >
       <div className="border-b border-line px-3 py-2.5">
-        <p className="min-w-0 truncate text-sm font-medium text-ink">
+        <p className="min-w-0 truncate text-[0.9375rem] font-semibold text-ink">
           {user.name ?? user.email}
         </p>
         {user.name && (
-          <p className="min-w-0 truncate text-xs text-muted-fg">{user.email}</p>
+          <p className="min-w-0 truncate text-[0.8125rem] text-muted-fg">{user.email}</p>
         )}
       </div>
 
@@ -168,7 +172,7 @@ function AccountMenu({
       <Link
         href="/settings"
         transitionTypes={["nav-forward"]}
-        className="mt-1 flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
+        className="mt-1 flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill"
       >
         Settings
       </Link>
@@ -177,7 +181,7 @@ function AccountMenu({
         <Link
           href="/settings/platform"
           transitionTypes={["nav-forward"]}
-          className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
+          className="flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill"
         >
           Platform
         </Link>
@@ -187,7 +191,7 @@ function AccountMenu({
         <Link
           href={`/mentors/${user.id}`}
           transitionTypes={["nav-forward"]}
-          className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
+          className="flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill"
         >
           My profile
         </Link>
@@ -203,9 +207,9 @@ function AccountMenu({
       <form action={signOutAction} className="mt-1 border-t border-line pt-1">
         <button
           type="submit"
-          className="flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-lg px-3 text-left text-sm font-medium text-muted-fg transition-colors hover:bg-danger-soft hover:text-danger-ink"
+          className="flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-lg px-3 text-left text-[0.9375rem] text-ink transition-colors hover:bg-fill"
         >
-          <LogOutIcon className="h-4 w-4" />
+          <LogOutIcon className="h-4 w-4 text-muted-fg" />
           Sign out
         </button>
       </form>
@@ -454,7 +458,7 @@ function StudentShell({
         links={
           <nav
             aria-label="Primary"
-            className="hidden flex-1 items-center gap-6 md:flex"
+            className="hidden flex-1 items-center gap-1 md:flex"
           >
             <NavLinks items={items} />
           </nav>

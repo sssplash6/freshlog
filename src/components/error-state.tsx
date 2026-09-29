@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonClasses } from "@/components/ui/button";
 
 /**
  * What a route shows when its render threw. The framework's own error page says
@@ -33,11 +33,15 @@ export function ErrorState({
   }, [error]);
 
   return (
-    <div className="rise-in mx-auto max-w-lg py-10 text-center">
-      <p className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted-fg">
+    // One centred card, like every other page a reader lands on with nothing
+    // else around it — sign in, a 404, an unsubscribe.
+    <div className="rise-in mx-auto w-full max-w-md rounded-2xl bg-surface px-6 py-8 text-center shadow-sm">
+      <p className="text-[0.8125rem] font-medium text-muted-fg">
         Something broke
       </p>
-      <h1 className="mt-1.5 text-2xl font-bold text-ink">{title}</h1>
+      <h1 className="mt-1 text-[1.5rem] font-bold leading-tight tracking-[-0.01em] text-ink">
+        {title}
+      </h1>
       <p className="mt-2 text-[0.9375rem] text-muted-fg">
         Nothing you did caused this, and nothing was lost. Most of the time it is
         a hiccup reading the data — try again first.
@@ -47,15 +51,15 @@ export function ErrorState({
         <Link
           href={home}
           transitionTypes={["nav-back"]}
-          className="inline-flex h-10 items-center rounded-lg px-4 text-sm font-medium text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
+          className={buttonClasses("ghost")}
         >
           Back to safety
         </Link>
       </div>
       {error.digest && (
-        <p className="mt-5 text-xs text-muted-fg">
+        <p className="mt-5 text-[0.8125rem] text-muted-fg">
           If it keeps happening, quote this code:{" "}
-          <code className="rounded bg-canvas px-1.5 py-0.5 font-mono text-[0.6875rem] text-ink">
+          <code className="rounded bg-fill px-1.5 py-0.5 font-mono text-[0.6875rem] text-ink">
             {error.digest}
           </code>
         </p>

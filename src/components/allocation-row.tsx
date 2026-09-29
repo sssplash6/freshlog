@@ -219,7 +219,7 @@ export function AllocationBalance({ entry }: { entry: AllocationEntry }) {
     <span className="text-sm text-muted-fg">
       <span
         className={cn(
-          "text-lg font-bold tabular-nums",
+          "text-lg font-semibold tabular-nums",
           overdrawn ? "text-danger-ink" : "text-ink"
         )}
       >
@@ -270,7 +270,7 @@ export function AllocationMeter({
         ariaValueMax={entry.allocated}
         ariaLabel={label}
       />
-      <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs text-muted-fg">
+      <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-[0.8125rem] text-muted-fg">
         <span className="tabular-nums">
           {formatDuration(entry.completed)}/{formatDuration(entry.allocated)}{" "}
           completed
@@ -368,7 +368,7 @@ export function AllocationRow({
         {entry.forfeited > 0 && (
           // "3h expired unused" — the status model's own words, so a spent
           // balance and a forfeited one stop wearing the same 0m.
-          <span className="block text-xs font-normal text-muted-fg">
+          <span className="block text-[0.8125rem] font-normal text-muted-fg">
             {formatDuration(entry.forfeited)} expired unused
           </span>
         )}

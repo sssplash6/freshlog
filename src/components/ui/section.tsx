@@ -36,17 +36,17 @@ import { cn } from "@/lib/cn";
  * use a rule and whitespace before reaching for a container.
  */
 
-/** Small-caps label above a title. One size, one colour, everywhere. */
+/**
+ * A quiet line of context above a title. One size, one colour, everywhere.
+ *
+ * Sentence case, not tracked small caps. The caps version was on every page
+ * heading and every section, and a label shouting in capitals above every
+ * block is the look of a template rather than of a calm product — iOS writes
+ * these the way it writes everything else, and so does this.
+ */
 export function Eyebrow({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    // 11px, not the 10px this replaces in nine variants: 10px uppercase with
-    // letter-spacing is sub-readable on a phone, which is where students are.
-    <div
-      className={cn(
-        "text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-muted-fg",
-        className
-      )}
-    >
+    <div className={cn("text-[0.8125rem] font-medium text-muted-fg", className)}>
       {children}
     </div>
   );
@@ -125,7 +125,10 @@ export function PageTitle({
                 once it scrolls under — the iOS large-title collapse. */}
             <h1
               data-large-title
-              className="mt-0.5 text-[1.75rem] font-bold leading-tight tracking-tight text-ink sm:text-[1.625rem]"
+              // iOS's large title: 32px bold with the tightening SF applies at
+              // display sizes. The one loud thing on the page, by design —
+              // everything under it is quiet so it can be.
+              className="mt-0.5 text-[2rem] font-bold leading-[1.15] tracking-[-0.02em] text-ink"
             >
               {title}
             </h1>
@@ -146,11 +149,21 @@ export function PageTitle({
 }
 
 /**
- * A titled region. A hairline header on the page's own card, and nothing else.
+ * A titled region, iOS grouped-list style: the heading sits ON THE PAGE above
+ * the card, and the card holds only content.
+ *
+ * It used to be a card with its own header band — title, a hairline, then the
+ * body — so every page was a stack of boxes each wearing a lid, and the eye
+ * read the lids before the content. Lifting the heading out onto the canvas
+ * does what the iOS Settings and Health apps do: one quiet title per group,
+ * then a single white surface with no border, lifted by the grey around it.
  *
  * `count` is a slot rather than part of the title because a count belongs to
  * the thing being counted: eight call sites concatenated their own — "3 logged
  * · 1 scheduled · 2 of 8 tasks open" — and each invented its own grammar.
+ *
+ * `className` lands on the CARD, which is what every caller that passes one
+ * means (a grid span, a height).
  */
 export function Section({
   eyebrow,
@@ -169,30 +182,28 @@ export function Section({
   action?: React.ReactNode;
 }) {
   return (
-    <section
-      className={cn("overflow-clip rounded-xl border border-line bg-surface shadow-sm", className)}
-      {...props}
-    >
-      {/* items-baseline, not items-end: the title is 17px and the action beside
-          it is 13-14px, so bottom-aligning the two boxes left their text sitting
-          on two different lines. Baselines are what the eye reads as level. */}
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1.5 border-b border-line px-4 py-2.5 sm:px-5">
+    <section className="min-w-0" {...props}>
+      {/* items-end: the title is 20px and an action beside it 13-14px, so the
+          two sit on the same last line rather than centred on each other. */}
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 px-1 pb-2 pt-2">
         <div className="min-w-0">
-          {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-          <h2 className="mt-0.5 flex items-baseline gap-1.5 text-[1.0625rem] font-bold tracking-tight text-ink">
+          <h2 className="flex items-baseline gap-2 text-[1.25rem] font-semibold tracking-[-0.01em] text-ink">
             {/* min-w-0 so the truncate actually truncates: on a flex child
                 without it the text sets the width and the row grows instead. */}
             <span className="min-w-0 truncate">{title}</span>
             {count != null && (
-              <span className="shrink-0 text-sm font-semibold tabular-nums text-muted-fg">
+              <span className="shrink-0 text-[0.9375rem] font-medium tabular-nums text-muted-fg">
                 {count}
               </span>
             )}
           </h2>
+          {eyebrow && <Eyebrow className="mt-0.5">{eyebrow}</Eyebrow>}
         </div>
-        {action ?? (caption ? <p className="text-xs text-muted-fg">{caption}</p> : null)}
+        {action ?? (caption ? <p className="text-[0.8125rem] text-muted-fg">{caption}</p> : null)}
       </div>
-      {children}
+      <div className={cn("overflow-clip rounded-xl bg-surface shadow-sm", className)}>
+        {children}
+      </div>
     </section>
   );
 }

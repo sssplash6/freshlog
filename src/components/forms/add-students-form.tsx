@@ -126,7 +126,7 @@ function StudentRows({
   return (
     <>
       {rows.length > 0 && (
-        <div className="space-y-2 rounded-xl border border-line bg-surface p-4 shadow-sm sm:p-5">
+        <div className="space-y-2 rounded-xl bg-surface p-4 shadow-sm sm:p-5">
           {rows.map((r, i) => (
             <div key={r.id} className="flex items-start gap-2">
               <div className="grid flex-1 gap-2 sm:grid-cols-4">

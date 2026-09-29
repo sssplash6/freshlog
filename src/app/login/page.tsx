@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 
+import pkg from "../../../package.json";
+import { BrandWordmark } from "@/components/brand-wordmark";
 import { Callout } from "@/components/ui/callout";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { signIn } from "@/lib/auth";
@@ -32,13 +34,18 @@ export default async function LoginPage({
 
   return (
     <main className="flex flex-1 items-center justify-center bg-canvas p-6">
-      <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-8 shadow-sm">
-        <div className="mb-8 text-center">
-          <div className="mb-3 text-sm font-semibold uppercase tracking-widest text-brand">
+      <div className="w-full max-w-sm rounded-2xl bg-surface p-8 shadow-sm">
+        {/* The product's name once, as the wordmark every other page wears,
+            and the school's once, as the quiet line above the greeting. */}
+        <div className="mb-8 flex flex-col items-center text-center">
+          <BrandWordmark version={pkg.version} />
+          <div className="mt-6 text-[0.8125rem] font-medium text-muted-fg">
             Freshman Academy
           </div>
-          <h1 className="text-2xl font-bold text-ink">Welcome back</h1>
-          <p className="mt-2 text-sm text-muted-fg">
+          <h1 className="mt-1 text-[1.75rem] font-bold leading-tight tracking-[-0.02em] text-ink">
+            Welcome back
+          </h1>
+          <p className="mt-2 text-[0.9375rem] text-muted-fg">
             Sign in to see your mentoring time and book your next session.
           </p>
         </div>
@@ -58,14 +65,14 @@ export default async function LoginPage({
           <SubmitButton
             variant="secondary"
             pendingText="Opening Google…"
-            className="w-full gap-3 py-3 text-[0.9375rem] text-ink"
+            className="w-full gap-3 text-ink"
           >
             <GoogleIcon />
             Continue with Google
           </SubmitButton>
         </form>
 
-        <p className="mt-4 text-center text-xs text-muted-fg">
+        <p className="mt-4 text-center text-[0.8125rem] text-muted-fg">
           Students: use the email your program registered. Mentors: use your
           @freshman.academy account.
         </p>
@@ -77,7 +84,7 @@ export default async function LoginPage({
         {process.env.DEV_LOGIN === "1" && (
           <a
             href="/api/dev-login"
-            className="mt-4 block text-center text-xs font-medium text-brand hover:underline"
+            className="mt-4 block text-center text-[0.8125rem] font-medium text-brand hover:underline"
           >
             Local sign-in (dev only)
           </a>

@@ -521,7 +521,7 @@ export function Select({
                 visibility: measured ? "visible" : "hidden",
               }}
               className={cn(
-                "z-50 flex flex-col overflow-hidden border border-line bg-surface shadow-lg",
+                "z-50 flex flex-col overflow-hidden bg-surface shadow-lg",
                 sheet
                   ? // `var(--kb)` lifts the sheet above an open keyboard —
                     // iOS overlays it rather than resizing the viewport.
@@ -581,7 +581,7 @@ export function Select({
                     <li
                       key={`h-${row.label}`}
                       role="presentation"
-                      className="px-2.5 pb-1 pt-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted-fg"
+                      className="px-2.5 pb-1 pt-2 text-xs font-medium text-muted-fg"
                     >
                       {row.label}
                     </li>

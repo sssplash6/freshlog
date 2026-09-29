@@ -4,6 +4,8 @@ import { useSyncExternalStore } from "react";
 
 import { openCommandPalette } from "@/components/command-palette";
 import { SearchIcon } from "@/components/icons";
+import { fieldChrome } from "@/components/ui/field";
+import { cn } from "@/lib/cn";
 
 /** A store that never emits: whether this page has hydrated does not change back. */
 function subscribeToNothing(): () => void {
@@ -47,11 +49,11 @@ export function NavSearch({ mentors }: { mentors: boolean }) {
         type="button"
         onClick={openCommandPalette}
         aria-keyshortcuts="Meta+K Control+K"
-        className="relative flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-lg border border-line bg-canvas py-2 pl-2.5 pr-2 text-left text-sm text-muted-fg transition-colors hover:border-brand/40 focus-visible:border-brand focus-visible:outline-none"
+        className="relative flex min-h-10 w-full cursor-pointer items-center gap-2 rounded-lg bg-fill py-2 pl-2.5 pr-2 text-left text-[0.9375rem] text-muted-fg transition-colors hover:bg-fill-strong"
       >
         <SearchIcon className="h-4 w-4 shrink-0" />
         <span className="min-w-0 flex-1 truncate">{placeholder}</span>
-        <kbd className="shrink-0 rounded border border-line bg-surface px-1.5 py-0.5 font-sans text-[0.6875rem] font-medium text-muted-fg">
+        <kbd className="shrink-0 rounded-md bg-surface/70 px-1.5 py-0.5 font-sans text-[0.6875rem] font-medium text-muted-fg">
           {shortcut}
         </kbd>
       </button>
@@ -70,7 +72,7 @@ export function NavSearch({ mentors }: { mentors: boolean }) {
           name="q"
           type="search"
           placeholder={placeholder}
-          className="min-h-11 w-full rounded-lg border border-line bg-canvas py-2 pl-8 pr-2 text-sm text-ink placeholder:text-muted-fg focus:border-brand focus:outline-none"
+          className={cn(fieldChrome, "min-h-10 w-full py-2 pl-8 pr-2 text-[0.9375rem] placeholder:text-muted-fg")}
         />
       </div>
     </form>

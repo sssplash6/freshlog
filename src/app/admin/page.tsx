@@ -39,9 +39,6 @@ import type { User } from "@/generated/prisma/client";
  * program's own hours.
  */
 
-/** "1 program", "3 programs" — the one place this page pluralises. */
-const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
-
 /**
  * "14:32", on the program's clock. §5.8 lets exactly this page claim
  * freshness: its figures are a snapshot of a ledger other people are writing
@@ -70,14 +67,16 @@ async function NeedsYou({ user, preload }: { user: User; preload: StaffPreload }
 
   if (n === 0) {
     return (
-      <p className="flex items-baseline gap-1.5 text-sm text-muted-fg">
-        <CheckIcon className="h-3.5 w-3.5 shrink-0 translate-y-0.5 text-ink/60" />
+      <p className="flex items-center gap-2 rounded-xl bg-surface px-4 py-3 text-[0.9375rem] text-muted-fg shadow-sm sm:px-5">
+        <CheckIcon className="h-4 w-4 shrink-0 text-ink/60" />
         Nothing needs you right now.
       </p>
     );
   }
   return (
-    <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-ink">
+    // One row in a card of its own — the grouped-list shape for a single
+    // fact with a way through it.
+    <p className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl bg-surface px-4 py-3 text-[0.9375rem] text-ink shadow-sm sm:px-5">
       <span>
         <span className="font-semibold tabular-nums">{n}</span>{" "}
         {n === 1 ? "thing needs" : "things need"} you
@@ -169,26 +168,44 @@ export default async function AdminHomePage() {
       <PageTitle
         title="Home"
         actions={
-          <span className="text-xs text-muted-fg">
+          <span className="text-[0.8125rem] text-muted-fg">
             Updated {clock(now)}{" "}
             <span className="sr-only">{PROGRAM_ZONE} time</span>
           </span>
         }
-        subtitle={
-          <span className="flex flex-wrap items-baseline gap-x-1.5">
-            <span>
-              {count(programs.length, "program")} ·{" "}
-              {count(overall.students, "student")} ·
-            </span>
-            <Figure
-              size="inline"
-              value={formatRough(overall.remaining)}
-              tone={overall.remaining < 0 ? "danger" : "hours"}
-            />
-            <span>remaining</span>
-          </span>
-        }
       />
+
+      {/* The school in three figures, as a stat row: label over value, space
+          between, no boxes. It was a sentence under the title with one bold
+          number in it, which made the reader parse prose to find a figure.
+          Remaining leads, in the hours orange, because it is the one of the
+          three anybody acts on. */}
+      <dl className="flex flex-wrap gap-x-10 gap-y-3 px-1">
+        <div>
+          <dt className="text-[0.8125rem] text-muted-fg">Programs</dt>
+          <dd className="mt-0.5 text-[1.5rem] font-semibold tabular-nums text-ink">
+            {programs.length}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[0.8125rem] text-muted-fg">Students</dt>
+          <dd className="mt-0.5 text-[1.5rem] font-semibold tabular-nums text-ink">
+            {overall.students}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[0.8125rem] text-muted-fg">Remaining</dt>
+          <dd
+            className={
+              overall.remaining < 0
+                ? "mt-0.5 text-[1.5rem] font-semibold tabular-nums text-danger-ink"
+                : "mt-0.5 text-[1.5rem] font-semibold tabular-nums text-accent-ink"
+            }
+          >
+            {formatRough(overall.remaining)}
+          </dd>
+        </div>
+      </dl>
 
       <Suspense fallback={null}>
         <NeedsYou user={user} preload={{ now, programs, students }} />
@@ -197,7 +214,7 @@ export default async function AdminHomePage() {
       {user.platformAdmin && <CreateProgramForm />}
 
       {/* One program is the whole scope, and a table of one row that repeats
-          the line under the title is furniture. */}
+          the figures above it is furniture. */}
       {programs.length > 1 && (
         <Section title="Programs">
           <Table columns={columns} framed={false}>
