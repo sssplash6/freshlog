@@ -846,7 +846,19 @@ export function mentorsWhere(
     and.push({ status: USER_STATUS.UNASSIGNED });
   }
   if (readParam(params, "link") === "missing") {
-    and.push({ mentorAssignments: { some: { calendlyUrl: null } } });
+    // Scoped like everything else: a bare `calendlyUrl: null` would count a
+    // missing link on a pairing in a program the reader doesn't administer —
+    // the row came here through a grant, and so does the absence it reports.
+    and.push({
+      mentorAssignments: {
+        some: {
+          calendlyUrl: null,
+          ...(scope.programIds
+            ? { programId: { in: [...scope.programIds] } }
+            : {}),
+        },
+      },
+    });
   }
 
   const search = searchWhere(MENTOR_SEARCH, readParam(params, "q"));

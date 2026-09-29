@@ -1,6 +1,6 @@
 "use client";
 
-import Link, { useLinkStatus } from "next/link";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { MoreHorizontalIcon } from "@/components/icons";
@@ -31,13 +31,13 @@ const SLOTS = 4;
 
 /**
  * An icon with its word. Tinted brand while the page loads, not only after:
- * `useLinkStatus` reports the tap's own navigation, so the bar answers a touch
- * the same instant a native one does instead of holding the old tab lit for
- * the length of a server round trip.
+ * the tapped tab lights the same instant a native one does (lib/nav-pending)
+ * instead of holding the old tab lit for the length of a server round trip.
  */
 function TabContent({ item, active }: { item: NavItem; active: boolean }) {
-  const { pending } = useLinkStatus();
-  const lit = active || pending;
+  // `active` already follows the tap: useCurrentNavItem reads the pending
+  // destination, so the tapped tab lights at once and the old one goes out.
+  const lit = active;
   return (
     <>
       <span className="relative transition-transform group-active:scale-90">
@@ -57,8 +57,8 @@ function TabContent({ item, active }: { item: NavItem; active: boolean }) {
       </span>
       <span
         className={cn(
-          "max-w-full truncate text-center text-[0.6875rem] leading-tight",
-          lit ? "font-semibold text-brand" : "font-medium text-muted-fg",
+          "max-w-full truncate text-center text-[0.6875rem] font-medium leading-tight",
+          lit ? "text-brand" : "text-muted-fg",
         )}
       >
         {item.label}
@@ -121,7 +121,9 @@ export function TabBar({
         // Translucent + blurred like the top bar — iOS tab bars are never a
         // solid slab. `vt-tabbar` names the capture so it holds still while
         // the page behind it pushes or pops.
-        "vt-tabbar fixed inset-x-0 bottom-0 z-30 select-none border-t border-line bg-surface/80 backdrop-blur-xl backdrop-saturate-150 pb-[env(safe-area-inset-bottom)] [-webkit-touch-callout:none] transition-transform duration-200",
+        // A hairline at half strength: the frost is what separates the bar
+        // from the page, and a full-strength rule read as a web footer.
+        "vt-tabbar fixed inset-x-0 bottom-0 z-30 select-none border-t border-line/60 bg-surface/80 backdrop-blur-xl backdrop-saturate-150 pb-[env(safe-area-inset-bottom)] [-webkit-touch-callout:none] transition-transform duration-200",
         keyboardOpen && "translate-y-full",
         className
       )}
@@ -133,6 +135,9 @@ export function TabBar({
             <li key={item.href} className="min-w-0 flex-1">
               <Link
                 href={item.href}
+                // Full prefetch: a handful of links on every page, so a tap renders
+                // from cache with no skeleton at all (see NativeGestures for rows).
+                prefetch
                 aria-current={active ? "page" : undefined}
                 /* The iOS reflex: a tap on the lit tab scrolls its page home
                    rather than navigating nowhere. */
@@ -163,13 +168,13 @@ export function TabBar({
               triggerClassName={cn(
                 "flex min-h-14 w-full cursor-pointer flex-col items-center justify-center gap-1 px-1 pt-1 transition-colors",
                 current && rest.includes(current)
-                  ? "font-semibold text-brand"
-                  : "font-medium text-muted-fg"
+                  ? "text-brand"
+                  : "text-muted-fg"
               )}
               trigger={
                 <>
                   <MoreHorizontalIcon className="h-6 w-6" />
-                  <span className="text-[0.6875rem] leading-tight">More</span>
+                  <span className="text-[0.6875rem] font-medium leading-tight">More</span>
                 </>
               }
             >
@@ -177,15 +182,24 @@ export function TabBar({
                 <Link
                   key={item.href}
                   href={item.href}
+                  // Full prefetch: a handful of links on every page, so a tap renders
+                  // from cache with no skeleton at all (see NativeGestures for rows).
+                  prefetch
                   aria-current={item === current ? "page" : undefined}
                   className={cn(
-                    "flex min-h-11 items-center gap-2.5 rounded-lg px-3 text-sm transition-colors",
+                    "flex min-h-11 items-center gap-3 rounded-lg px-3 text-[0.9375rem] transition-colors",
                     item === current
                       ? "bg-brand-soft font-semibold text-brand"
-                      : "font-medium text-muted-fg hover:bg-canvas hover:text-ink"
+                      : "text-ink hover:bg-fill"
                   )}
                 >
-                  <NavIcon href={item.href} className="h-4 w-4 shrink-0" />
+                  <NavIcon
+                    href={item.href}
+                    className={cn(
+                      "h-5 w-5 shrink-0",
+                      item === current ? "text-brand" : "text-muted-fg"
+                    )}
+                  />
                   {item.label}
                 </Link>
               ))}

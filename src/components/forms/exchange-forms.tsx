@@ -59,7 +59,7 @@ export function SendOnExchangeForm({
   if (!open) {
     return (
       <div>
-        <Button size="sm" onClick={() => setOpen(true)}>
+        <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
           Send on exchange
         </Button>
         {/* The last result outlives the form closing, so somebody who submits

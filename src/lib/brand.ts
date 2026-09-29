@@ -26,12 +26,12 @@ export const BRAND = {
   accent: "#f18d05",
 
   /** Text: primary, then secondary. */
-  ink: "#1a2733",
-  muted: "#6b7480",
+  ink: "#1c1c1e",
+  muted: "#6e6e73",
 
   /** Borders and the two grounds. */
-  line: "#e5e6e8",
-  canvas: "#f4f5f6",
+  line: "#e5e5ea",
+  canvas: "#f2f2f7",
   surface: "#ffffff",
 
   /**

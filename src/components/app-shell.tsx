@@ -3,6 +3,10 @@ import Link from "next/link";
 import pkg from "../../package.json";
 import { Avatar } from "@/components/avatar";
 import { BrandWordmark } from "@/components/brand-wordmark";
+import {
+  CommandPalette,
+  CommandPaletteButton,
+} from "@/components/command-palette";
 import { ChevronDownIcon, LogOutIcon } from "@/components/icons";
 import { NavLinks } from "@/components/nav-links";
 import {
@@ -16,6 +20,7 @@ import {
 } from "@/components/profile-switch";
 import { PublicShell } from "@/components/public-shell";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { DensityToggle } from "@/components/density-toggle";
 import { Sidebar } from "@/components/sidebar";
 import { TabBar } from "@/components/tab-bar";
 import { PageTransition } from "@/components/page-transition";
@@ -47,6 +52,10 @@ async function signOutAction() {
  * 44px, up from 40. The smallest reliable touch target, and this is the only
  * control in the phone chrome that was under it.
  *
+ * A plain glyph in a nav bar, the way iOS draws a bar button: no circle, no
+ * ring, no tinted disc on hover — just the grey fill a pressed control shows.
+ * The ring it wore made the bell the one bordered object in a borderless bar.
+ *
  * The count is brand blue: unread notifications are not a problem, and red is
  * spent here on hours that are gone and balances that are negative. It appears
  * only below `lg` — at desktop widths the sidebar's Notifications row carries
@@ -61,7 +70,7 @@ function NotificationBell({ count }: { count: number }) {
       /* shrink-0 is load-bearing, and was measured: as a flex item beside the
          wordmark and the account button, the 44px box shrank to 27px wide at
          390px — the target this commit widened, quietly given back. */
-      className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-fg transition hover:bg-brand-soft hover:text-brand hover:ring-2 hover:ring-brand/15"
+      className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink/80 transition-colors hover:bg-fill hover:text-ink active:bg-fill-strong"
     >
       <svg
         aria-hidden="true"
@@ -69,7 +78,7 @@ function NotificationBell({ count }: { count: number }) {
         fill="none"
         stroke="currentColor"
         strokeWidth="1.8"
-        className="h-5 w-5"
+        className="h-[1.375rem] w-[1.375rem]"
       >
         <path
           strokeLinecap="round"
@@ -118,7 +127,7 @@ function AccountMenu({
       label="Account"
       origin="end"
       width="sm"
-      triggerClassName="group flex h-11 w-full cursor-pointer items-center gap-2 rounded-lg pl-1 pr-2 transition-colors hover:bg-canvas"
+      triggerClassName="group flex h-11 w-full cursor-pointer items-center gap-2 rounded-lg pl-1 pr-2 transition-colors hover:bg-fill"
       trigger={
         <>
           {user.avatarUpdatedAt ? (
@@ -134,7 +143,7 @@ function AccountMenu({
               {initial}
             </span>
           )}
-          <span className="hidden min-w-0 flex-1 truncate text-left text-sm font-medium text-ink lg:inline">
+          <span className="hidden min-w-0 flex-1 truncate text-left text-[0.9375rem] font-medium text-ink lg:inline">
             {label}
           </span>
           <ChevronDownIcon className="hidden h-4 w-4 shrink-0 text-muted-fg transition-transform group-data-[open]:rotate-180 lg:block" />
@@ -142,11 +151,11 @@ function AccountMenu({
       }
     >
       <div className="border-b border-line px-3 py-2.5">
-        <p className="min-w-0 truncate text-sm font-medium text-ink">
+        <p className="min-w-0 truncate text-[0.9375rem] font-semibold text-ink">
           {user.name ?? user.email}
         </p>
         {user.name && (
-          <p className="min-w-0 truncate text-xs text-muted-fg">{user.email}</p>
+          <p className="min-w-0 truncate text-[0.8125rem] text-muted-fg">{user.email}</p>
         )}
       </div>
 
@@ -163,7 +172,7 @@ function AccountMenu({
       <Link
         href="/settings"
         transitionTypes={["nav-forward"]}
-        className="mt-1 flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
+        className="mt-1 flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill"
       >
         Settings
       </Link>
@@ -172,7 +181,7 @@ function AccountMenu({
         <Link
           href="/settings/platform"
           transitionTypes={["nav-forward"]}
-          className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
+          className="flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill"
         >
           Platform
         </Link>
@@ -182,7 +191,7 @@ function AccountMenu({
         <Link
           href={`/mentors/${user.id}`}
           transitionTypes={["nav-forward"]}
-          className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
+          className="flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill"
         >
           My profile
         </Link>
@@ -192,18 +201,40 @@ function AccountMenu({
           that changes nothing about where you are. */}
       <div className="mt-1 border-t border-line pt-1">
         <ThemeToggle />
+        <DensityToggle />
       </div>
 
       <form action={signOutAction} className="mt-1 border-t border-line pt-1">
         <button
           type="submit"
-          className="flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-lg px-3 text-left text-sm font-medium text-muted-fg transition-colors hover:bg-danger-soft hover:text-danger-ink"
+          className="flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-lg px-3 text-left text-[0.9375rem] text-ink transition-colors hover:bg-fill"
         >
-          <LogOutIcon className="h-4 w-4" />
+          <LogOutIcon className="h-4 w-4 text-muted-fg" />
           Sign out
         </button>
       </form>
     </Popover>
+  );
+}
+
+/**
+ * The first Tab stop on every signed-in page.
+ *
+ * Without it a keyboard reader crosses the wordmark, the whole rail and the
+ * account menu before reaching the page they came for — on every page, since
+ * the chrome is the same everywhere. Hidden until focused, then brand-filled
+ * over everything (`z-50`), because a skip link you cannot see when you land
+ * on it is one nobody learns is there. `#main` is `tabIndex={-1}` so focus
+ * actually moves, and the next Tab continues from inside the page.
+ */
+function SkipLink() {
+  return (
+    <a
+      href="#main"
+      className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-brand focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-on-brand focus:shadow-lg focus:outline-none focus:ring-4 focus:ring-brand/30"
+    >
+      Skip to content
+    </a>
   );
 }
 
@@ -225,12 +256,15 @@ function TopBar({
   account,
   unread,
   links,
+  search,
   width,
   className,
 }: {
   account: React.ReactNode;
   unread: number;
   links?: React.ReactNode;
+  /** The palette's opener, for a reader who has the palette. */
+  search?: React.ReactNode;
   width: string;
   className?: string;
 }) {
@@ -267,6 +301,7 @@ function TopBar({
         <PhoneChrome brand={<BrandWordmark version={pkg.version} />} />
         {links}
         <div className="ml-auto flex shrink-0 items-center gap-1">
+          {search}
           <NotificationBell count={unread} />
           {account}
         </div>
@@ -314,6 +349,18 @@ function StaffShell({
 
   return (
     <div className="flex min-h-full flex-1 flex-col lg:pl-[13.75rem] rail-collapsed:lg:pl-16">
+      <SkipLink />
+
+      {/* Once for the whole shell: ⌘K opens it from anywhere, and the rail's
+          field and the top bar's button fire its event. Only for a reader
+          with something to search — the same condition the rail's field has. */}
+      {search && (
+        <CommandPalette
+          places={[...items, { href: "/settings", label: "Settings" }]}
+          mentors={search.mentors}
+        />
+      )}
+
       {/* Once for the whole shell: the switch is in the DOM twice (one of them
           hidden by a breakpoint), so a listener on either would fire twice. */}
       {lens && <ProfileShortcut />}
@@ -355,13 +402,24 @@ function StaffShell({
       <TopBar
         account={account}
         unread={unread}
+        search={
+          search ? (
+            <CommandPaletteButton
+              label={search.mentors ? "Find a student, mentor or page" : "Find a student or page"}
+            />
+          ) : undefined
+        }
         width="max-w-6xl"
         className="lg:hidden"
       />
 
       {/* pb-24 clears the bottom bar (56px + the home-indicator inset);
           nothing sits under it at lg, where the bar is gone. */}
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:pb-10 lg:pt-8">
+      <main
+        id="main"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-6xl focus:outline-none flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:pb-10 lg:pt-8"
+      >
         <PageTransition>{children}</PageTransition>
       </main>
 
@@ -393,13 +451,14 @@ function StudentShell({
 }) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
+      <SkipLink />
       <TopBar
         width="max-w-2xl"
         unread={unread}
         links={
           <nav
             aria-label="Primary"
-            className="hidden flex-1 items-center gap-6 md:flex"
+            className="hidden flex-1 items-center gap-1 md:flex"
           >
             <NavLinks items={items} />
           </nav>
@@ -409,7 +468,11 @@ function StudentShell({
         }
       />
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:pb-10">
+      <main
+        id="main"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-2xl focus:outline-none flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:pb-10"
+      >
         <PageTransition>{children}</PageTransition>
       </main>
 
@@ -499,13 +562,16 @@ export async function AppShell({
     );
   }
 
-  // The search goes where the lists are. A person with no grants has no list to
-  // search, and only a full admin has a Mentors list to send the second submit
-  // to — both read off the items `navFor` just derived rather than off a role.
+  // The search goes where the lists are — the same two readers `/students`
+  // lets in: somebody with a grant, and somebody who mentors, whose roster is
+  // everyone they may log hours with. A person with neither has no list to
+  // search. Only a full admin has a Mentors item, and that is read off the
+  // items `navFor` just derived rather than off a role.
   const scope = await adminScope(user);
-  const search = scopeIsEmpty(scope)
-    ? undefined
-    : { mentors: items.some((i) => i.href === "/mentors") };
+  const search =
+    scopeIsEmpty(scope) && !canActAsMentor(user)
+      ? undefined
+      : { mentors: items.some((i) => i.href === "/mentors") };
 
   return (
     <StaffShell

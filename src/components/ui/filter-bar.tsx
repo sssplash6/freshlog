@@ -61,8 +61,8 @@ import {
  * ONE ROW BEFORE THE FOLD, at every width. Laid out flat, the feedback bar's
  * five controls stand 440px tall on a 390px screen — the whole phone, spent
  * before the first rated mentor. So only the search box and Apply are always
- * up: the selects and the date range live behind a `Disclosure` that names
- * them ("Mentor, program, rating and dates") and opens itself whenever one of
+ * up: the selects and the date range live behind a `Disclosure` labelled
+ * "Filters" (with a count when any is set) that opens itself whenever one of
  * them is set, which is every filtered URL a person arrives on or lands on
  * after pressing Apply. Not a breakpoint, because the admin reads this on a
  * phone too and a control that moves between widths cannot be described to
@@ -206,7 +206,10 @@ export function FilterBar({
   return (
     <div
       className={cn(
-        framed && "rounded-2xl border border-line bg-surface shadow-sm",
+        // No card. A search bar and its chips sit on the page ground, the
+        // way iOS puts a search field under a large title — a filter wrapped
+        // in its own white box read as one more card in a stack of them.
+        framed && "space-y-2",
         className
       )}
     >
@@ -216,7 +219,7 @@ export function FilterBar({
           action={basePath}
           role={q ? "search" : undefined}
           aria-label="Filters"
-          className="p-3 sm:p-4"
+          className="space-y-2"
         >
           {carried.map((key) => (
             <input key={key} type="hidden" name={key} value={readParam(params, key)} />
@@ -245,11 +248,15 @@ export function FilterBar({
                       box was, next to a button spelling "Apply" — a word for a
                       gesture every search field on earth draws as this icon.
                       Square and 44px, the same target the word had. */}
+                  {/* Visually hidden, still the form's submit: Enter in the
+                      box and the no-JavaScript path both need one, and the
+                      box already searches as you type, so a blue square
+                      beside it was a second button for the same act. */}
                   <Button
                     type="submit"
                     size="md"
                     title={SEARCH_LABEL[q]}
-                    className="w-11 shrink-0 px-0"
+                    className="sr-only focus:not-sr-only focus:w-11 focus:px-0"
                   >
                     <SearchIcon className="h-4 w-4" />
                     <span className="sr-only">{SEARCH_LABEL[q]}</span>
@@ -281,7 +288,12 @@ export function FilterBar({
 
           {folded.length > 0 && (
             <Disclosure
-              label={sentence(folded)}
+              // "Filters", not the sentence of every field behind it: that
+              // ("Program, attendance, kind, status and dates") was the
+              // longest label on the page and read as a paragraph beside
+              // one-word chips. The fields are named inside, and the count
+              // says when any of them is on.
+              label={count > 0 ? `Filters · ${count}` : "Filters"}
               defaultOpen={foldOpen}
               aside={chips}
               className={cn(q && "mt-1")}
@@ -367,7 +379,7 @@ export function FilterBar({
       {/* Only reached when there is no form to carry them — otherwise the
           chips sit on the controls row beside the selects they narrow. */}
       {presets.length > 0 && !showValues && (
-        <div className="scroll-x flex flex-nowrap gap-1.5 px-3 py-2 sm:px-4">
+        <div className="scroll-x flex flex-nowrap gap-1.5">
           {presets.map((preset) => (
             <Chip
               key={Object.entries(preset.params).map(([k, v]) => `${k}=${v}`).join("&")}
@@ -408,22 +420,6 @@ export function FilterBar({
 }
 
 /**
- * "Mentor, program, rating and dates" — what the fold holds, in one phrase.
- *
- * Named rather than "More filters", because a summary that does not say what
- * is behind it has to be opened to find out, which is the scrolling the fold
- * was there to save.
- */
-function sentence(words: readonly string[]): string {
-  const lower = words.map((word) => word.toLowerCase());
-  const joined =
-    lower.length < 2
-      ? lower.join("")
-      : `${lower.slice(0, -1).join(", ")} and ${lower[lower.length - 1]}`;
-  return joined.charAt(0).toUpperCase() + joined.slice(1);
-}
-
-/**
  * One chip: a filter you either want or do not.
  *
  * `aria-pressed` rather than `aria-current`: a lit chip is a toggle that is on,
@@ -460,10 +456,13 @@ function Chip({
         // height. `segmented.tsx` already states the distinction: a wrong tap
         // here shows the wrong list and you tap again, so the target does not
         // have to be bought with height.
-        "inline-flex min-h-8 shrink-0 items-center whitespace-nowrap rounded-lg border px-3 text-[0.8125rem] font-medium transition-colors",
+        // A pill on the grey fill, iOS's filter chip. (The note above was
+        // written against bordered 8px controls; the fields are fills now,
+        // and a fill chip beside a fill field is one family.)
+        "inline-flex min-h-8 shrink-0 items-center whitespace-nowrap rounded-full px-3.5 text-[0.8125rem] font-medium transition-colors",
         active
-          ? "border-brand bg-brand-soft font-semibold text-brand"
-          : "border-line bg-surface text-muted-fg hover:border-brand/40 hover:text-ink"
+          ? "bg-brand text-on-brand"
+          : "bg-fill text-ink hover:bg-fill-strong"
       )}
     >
       {label}

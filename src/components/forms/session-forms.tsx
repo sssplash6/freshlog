@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { AttendancePicker } from "@/components/forms/attendance-picker";
 import { TimeKindPicker } from "@/components/forms/time-kind-picker";
 import { useLiveSession } from "@/components/session-live-context";
+import { toast } from "@/components/toaster";
+import { Button } from "@/components/ui/button";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { Field, GrowingField, Input, inputClasses } from "@/components/ui/field";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
@@ -54,7 +56,7 @@ export function SessionRowActions({
   /** Admins only: remove the row outright rather than voiding it. */
   canDelete?: boolean;
 }) {
-  const [, voidAction, voidSave] = useSaveState(voidSession);
+  const [voiding, startVoid] = useTransition();
   const [, delAction, delSave] = useSaveState(deleteSession);
   const [, restoreAction, restoreSave] = useSaveState(restoreSession);
   const editFormRef = useRef<HTMLFormElement>(null);
@@ -233,17 +235,44 @@ export function SessionRowActions({
 
       {canEdit && (
         <RowActionGroup>
-          <ConfirmInline
-            variant="quiet"
-            action={voidAction}
-            values={{ sessionId: session.id }}
-            pending={voidSave.kind === "saving"}
-            label="Void session — keeps the row, returns the hours"
-            question="The hours return to the student's balance."
-            confirmLabel="Yes, void it"
-            pendingLabel="Voiding…"
-          />
-          <SaveState state={voidSave} />
+          {/* One tap, then Undo. Voiding has an exact inverse —
+              `restoreSession` charges the same row again — so it no longer
+              asks first; it does it, says so, and offers to take it back.
+              Delete below has no inverse and keeps its confirm. */}
+          <Button
+            type="button"
+            variant="danger"
+            size="sm"
+            disabled={voiding}
+            aria-busy={voiding || undefined}
+            className="h-auto min-h-8 w-full justify-start whitespace-normal py-1.5 text-left"
+            onClick={() => {
+              const formData = new FormData();
+              formData.set("sessionId", session.id);
+              startVoid(async () => {
+                const result = await voidSession(null, formData);
+                if (!result?.ok) {
+                  toast({
+                    tone: "error",
+                    message: result?.error ?? "That session could not be voided.",
+                  });
+                  return;
+                }
+                toast({
+                  message: result.message ?? "Session voided; hours returned.",
+                  action: {
+                    label: "Undo",
+                    run: async () => {
+                      const undone = await restoreSession(null, formData);
+                      if (!undone?.ok) throw new Error(undone?.error);
+                    },
+                  },
+                });
+              });
+            }}
+          >
+            {voiding ? "Voiding…" : "Void session — keeps the row, returns the hours"}
+          </Button>
         </RowActionGroup>
       )}
 

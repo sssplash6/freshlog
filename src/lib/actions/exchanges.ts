@@ -331,10 +331,28 @@ export async function returnExchange(
       studentId: exchange.studentId,
       programId: exchange.toProgramId,
     };
-    // Nothing was logged, so nothing here is history: the audit rows describe
-    // grants that were never spent, and the tasks were budgeted out of hours
-    // that are going back.
-    await tx.hourAllotmentChange.deleteMany({ where: scoped });
+    // The grants go back; their trail stays. Each allocation being deleted gets
+    // a terminal change row down to zero, so the host program's History keeps
+    // saying what was granted and when it was called off rather than losing
+    // every row that mentioned the visit.
+    const outgoing = await tx.hourAllocation.findMany({
+      where: { exchangeId: exchange.id },
+      select: { mentorId: true, minutes: true },
+    });
+    const removals = outgoing
+      .filter((a) => a.minutes > 0)
+      .map((a) => ({
+        studentId: exchange.studentId,
+        programId: exchange.toProgramId,
+        mentorId: a.mentorId,
+        changedById: actor.id,
+        oldMinutes: a.minutes,
+        newMinutes: 0,
+      }));
+    if (removals.length > 0) {
+      await tx.hourAllotmentChange.createMany({ data: removals });
+    }
+    // The tasks were budgeted out of hours that are going back.
     await tx.assignment.deleteMany({ where: scoped });
     await tx.hourAllocation.deleteMany({ where: { exchangeId: exchange.id } });
     if (exchange.enrollment) {

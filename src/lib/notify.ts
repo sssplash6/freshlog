@@ -97,7 +97,7 @@ export async function staffIdsFor(programId: string): Promise<string[]> {
  * Canonical destinations, so producers don't hand-build path strings.
  *
  * A notice names a SUBJECT; it does not name a role's view of one. Until now it
- * had to: `/admin/students/x` and `/mentor/students/x` are the same student
+ * had to: `/admin/students/x` and `/mentor/students/x` were the same student
  * twice, so the producer of a notice had to guess which of the two each reader
  * was entitled to, and one session logged sent admins to one address and
  * mentors to another. Whoever was handed the wrong one was bounced to their own

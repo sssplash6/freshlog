@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { usePendingHref } from "@/lib/nav-pending";
+
 import {
   CalendarIcon,
   ChartIcon,
@@ -35,8 +37,10 @@ const NAV_ICONS: [string, (p: { className?: string }) => React.ReactNode][] = [
   ["/student/book", PlusIcon],
   ["/student/feedback", StarIcon],
   ["/student", HomeIcon],
-  ["/admin", InboxIcon],
-  ["/mentor", InboxIcon],
+  // Both homes are HomeIcon now that their pages are titled "Home" — the
+  // inbox glyph stays with /notifications, the page that actually is one.
+  ["/admin", HomeIcon],
+  ["/mentor", HomeIcon],
   ["/students", UsersIcon],
   ["/mentors", UserIcon],
   ["/programs", LayersIcon],
@@ -58,13 +62,18 @@ export function NavIcon({ href, className }: { href: string; className?: string 
  * Which item the reader is standing on.
  *
  * Longest matching href wins, so `/admin/students/[id]` lights Students rather
- * than Inbox — `/admin` is a prefix of every admin route and would otherwise
+ * than Home — `/admin` is a prefix of every admin route and would otherwise
  * claim all of them. Shared by all three renderings below and by the tab bar,
  * because a sidebar and a bottom bar that disagreed about where you are would
  * be worse than either alone.
  */
 export function useCurrentNavItem(items: NavItem[]): NavItem | null {
-  const pathname = usePathname();
+  // Where a tap is heading wins over where the router still is, so the
+  // highlight moves on touch (see lib/nav-pending.ts) — one item lit, never
+  // the old one and the new one together.
+  const pending = usePendingHref();
+  const current = usePathname();
+  const pathname = pending ?? current;
   return items.reduce<NavItem | null>((best, item) => {
     const matches =
       pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -75,7 +84,7 @@ export function useCurrentNavItem(items: NavItem[]): NavItem | null {
 }
 
 /**
- * The count beside Inbox and Notifications, and nowhere else.
+ * The count beside Home and Notifications, and nowhere else.
  *
  * Brand blue, not red. Unread mail is not a problem — red in this app means
  * hours are gone or a balance is negative (DESIGN.md), and spending it on a
@@ -86,7 +95,7 @@ export function NavCount({ count, muted }: { count: number; muted?: boolean }) {
     <span
       className={cn(
         "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.6875rem] font-bold tabular-nums",
-        muted ? "bg-canvas text-muted-fg" : "bg-brand text-on-brand"
+        muted ? "bg-fill text-muted-fg" : "bg-brand text-on-brand"
       )}
     >
       <span key={count} className="badge-pop inline-flex">
@@ -110,12 +119,18 @@ export function NavLinks({ items }: { items: NavItem[] }) {
           <Link
             key={item.href}
             href={item.href}
+            // Full prefetch: a handful of links on every page, so a tap renders
+            // from cache with no skeleton at all (see NativeGestures for rows).
+            prefetch
             aria-current={active ? "page" : undefined}
             className={cn(
-              "inline-flex min-h-11 items-center border-b-2 px-1 text-sm transition-colors",
+              // The selected item is a tinted pill, the rail's own shape laid
+              // on its side — not a 2px underline, which is a web tab strip's
+              // tell and was the only underline in the chrome.
+              "inline-flex min-h-9 items-center rounded-full px-3 text-[0.9375rem] transition-colors",
               active
-                ? "border-brand font-semibold text-ink"
-                : "border-transparent text-muted-fg hover:text-ink"
+                ? "bg-brand-soft font-semibold text-brand"
+                : "font-medium text-muted-fg hover:bg-fill hover:text-ink"
             )}
           >
             {item.label}
@@ -152,21 +167,30 @@ export function SidebarNav({
       <Link
         key={item.href}
         href={item.href}
+        // Full prefetch: a handful of links on every page, so a tap renders
+        // from cache with no skeleton at all (see NativeGestures for rows).
+        prefetch
         aria-current={active ? "page" : undefined}
         // `title` is what a collapsed rail leaves a reader: the label is
         // display:none there, so the browser's own tooltip is the label.
         title={item.label}
         className={cn(
-          "flex min-h-11 items-center gap-2.5 rounded-lg px-3 text-sm transition-colors",
+          // 40px: the rail exists only at lg, under a pointer, where 44 is not
+          // the floor it is on a phone — and six 44px rows read as a list of
+          // buttons rather than a sidebar. 15px labels, a 20px glyph.
+          "flex min-h-10 items-center gap-3 rounded-lg px-3 text-[0.9375rem] transition-colors",
           // Shut: the mark alone, centred. Peeking: the row it always was.
           "rail-collapsed:justify-center rail-collapsed:px-0",
           "rail-collapsed:group-hover/rail:justify-start rail-collapsed:group-hover/rail:px-3",
           active
             ? "bg-brand-soft font-semibold text-brand"
-            : "font-medium text-muted-fg hover:bg-canvas hover:text-ink"
+            : "font-medium text-ink hover:bg-fill"
         )}
       >
-        <NavIcon href={item.href} className="h-4 w-4 shrink-0" />
+        <NavIcon
+          href={item.href}
+          className={cn("h-5 w-5 shrink-0", active ? "text-brand" : "text-muted-fg")}
+        />
         {/* A program's name is the one label that can be long, and it takes a
             second line rather than sliding out of view. */}
         <span className="min-w-0 flex-1 rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
@@ -186,7 +210,10 @@ export function SidebarNav({
       {items.map(row)}
       {utility.length > 0 && (
         <>
-          <hr className="my-2 border-line" />
+          {/* Space, not a rule: iOS separates a sidebar's sections with air,
+              and a hairline across the rail was a second border beside the
+              one on its edge. */}
+          <div aria-hidden="true" className="h-5" />
           {utility.map(row)}
         </>
       )}

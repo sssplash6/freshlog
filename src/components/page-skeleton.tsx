@@ -1,36 +1,147 @@
+import { cn } from "@/lib/cn";
+
 /**
- * A page's shape while the real one loads: eyebrow, title, subtitle, cards.
+ * A page's shape while the real one loads.
  *
- * Two consumers, two different jobs. `app/loading.tsx` paints it full-screen
- * for the shell-less routes (login, onboarding), where it has to centre
- * itself. The per-section `loading.tsx` files render it INSIDE AppShell's
- * `<main>` — a cold navigation then swaps only the page, not the chrome:
- * the top bar and tab bar hold still while the skeleton slides in, which is
- * the difference between an app fetching a screen and a website repainting.
+ * It has to look like the page that is coming, not like "a page": a skeleton
+ * whose title sits where no title will be, and whose cards are not the cards
+ * that arrive, makes the arrival a jump — and a jump is what the reader reads
+ * as slow. So there are four shapes, one per kind of page this app has, drawn
+ * in the grouped-list grammar every real page uses (large title, section title
+ * on the ground, white card of rows):
  *
- * The blocks are decoration and stay hidden from assistive tech — the live
- * status beside them says once, out loud, what the pulse says visually.
+ *   list        a roster or a log: title, a search field, one card of rows
+ *   detail      a person or program: avatar + title, a stat row, two groups
+ *   form        a form in a card
+ *   dashboard   a stat card and a chart card
+ *
+ * It fades in only after 150ms (`skeleton-in`, globals.css), so a navigation
+ * the prefetch already paid for never flashes it.
+ *
+ * Two consumers: `app/loading.tsx` for the shell-less routes, and the section
+ * `loading.tsx` files, which render it INSIDE AppShell's `<main>` so the chrome
+ * holds still and only the page swaps. The blocks are decoration and hidden
+ * from assistive tech; the status line says, once, what they say visually.
  */
-export function PageSkeleton() {
+export function PageSkeleton({
+  variant = "list",
+}: {
+  variant?: "list" | "detail" | "form" | "dashboard";
+}) {
   return (
     <>
       <p role="status" aria-live="polite" className="sr-only">
         Loading…
       </p>
-      <div className="animate-pulse" aria-hidden="true">
-        <div className="h-3 w-28 rounded bg-line" />
-        <div className="mt-2 h-7 w-56 rounded bg-line" />
-        <div className="mt-2 h-4 w-72 rounded bg-line/70" />
-        <div className="mt-8 flex flex-col gap-4">
-          {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} className="rounded-xl border border-line bg-surface shadow-sm p-5">
-              <div className="h-4 w-2/3 rounded bg-line" />
-              <div className="mt-3 h-3 w-1/3 rounded bg-line/70" />
-              <div className="mt-4 h-2.5 w-full rounded-full bg-line" />
+      <div className="skeleton-in space-y-4" aria-hidden="true">
+        {variant === "detail" ? (
+          <div className="flex items-center gap-4">
+            <Block className="h-16 w-16 rounded-full" />
+            <div className="space-y-2">
+              <Block className="h-3.5 w-32" />
+              <Block className="h-8 w-64 max-w-full rounded-lg" />
             </div>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <Block className="h-8 w-52 rounded-lg" />
+        )}
+
+        {variant === "list" && (
+          <>
+            <Block className="h-11 w-full rounded-lg" />
+            <Group rows={7} />
+          </>
+        )}
+
+        {variant === "detail" && (
+          <>
+            <StatRow />
+            <Group rows={3} />
+            <Group rows={4} />
+          </>
+        )}
+
+        {variant === "form" && (
+          <div className="rounded-xl bg-surface p-5 shadow-sm">
+            <div className="grid gap-4 sm:grid-cols-2">
+              {Array.from({ length: 6 }, (_, i) => (
+                <div key={i} className="space-y-2">
+                  <Block className="h-3 w-20" />
+                  <Block className="h-11 w-full rounded-lg" />
+                </div>
+              ))}
+            </div>
+            <Block className="mt-5 ml-auto h-11 w-36 rounded-lg" />
+          </div>
+        )}
+
+        {variant === "dashboard" && (
+          <>
+            <div className="rounded-xl bg-surface p-5 shadow-sm">
+              <Block className="h-10 w-40 rounded-lg" />
+              <div className="mt-5 grid grid-cols-3 gap-4 sm:grid-cols-6">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Block className="h-3 w-16" />
+                    <Block className="h-6 w-12 rounded-md" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-xl bg-surface p-5 shadow-sm">
+              <div className="flex h-48 items-end gap-3">
+                {[30, 55, 40, 70, 45, 85, 60, 35, 50, 65, 40, 55].map((h, i) => (
+                  <Block key={i} className="flex-1 rounded-md" style={{ height: `${h}%` }} />
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </>
+  );
+}
+
+function Block({
+  className,
+  style,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return <div className={cn("animate-pulse rounded bg-fill", className)} style={style} />;
+}
+
+function StatRow() {
+  return (
+    <div className="flex gap-8 px-1">
+      {Array.from({ length: 4 }, (_, i) => (
+        <div key={i} className="space-y-2">
+          <Block className="h-3 w-16" />
+          <Block className="h-6 w-14 rounded-md" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** A section title on the ground and a card of rows under it. */
+function Group({ rows }: { rows: number }) {
+  return (
+    <div className="space-y-2 pt-2">
+      <Block className="ml-1 h-5 w-32 rounded-md" />
+      <div className="divide-y divide-line overflow-clip rounded-xl bg-surface shadow-sm">
+        {Array.from({ length: rows }, (_, i) => (
+          <div key={i} className="flex items-center gap-3 px-4 py-3 sm:px-5">
+            <Block className="h-8 w-8 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Block className="h-3.5 w-2/5" />
+              <Block className="h-3 w-1/4" />
+            </div>
+            <Block className="h-4 w-12" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

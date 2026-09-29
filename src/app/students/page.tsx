@@ -1,4 +1,5 @@
 import { STUDENT_SORTS, StudentsTable } from "@/components/students-table";
+import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
@@ -85,8 +86,8 @@ export default async function StudentsPage({
   const now = new Date();
 
   // Reach, before anything the URL says. An admin sees their granted programs;
-  // somebody who only mentors sees the students they reach, and never more,
-  // whether or not the "Mine" chip is on. `undefined` is a platform admin.
+  // somebody who only mentors sees the students they reach, and never more.
+  // `undefined` is a platform admin.
   const lens = {
     audience: (administers ? "staff" : "mentor") as "staff" | "mentor",
     userId: user.id,
@@ -161,7 +162,10 @@ export default async function StudentsPage({
         subtitle={
           administers
             ? undefined
-            : "Everyone in your programs. Mine is the ones you hold time with."
+            : // Reach, said plainly: this list is everyone a mentor may log a
+              // meeting with, which is wider than the students whose time
+              // they hold — those are the caseload on their home page.
+              "Everyone in your programs, whoever holds their time."
         }
       />
 
@@ -190,7 +194,15 @@ export default async function StudentsPage({
         // the Last session column each say the same thing in place. The program
         // is the one narrowing a reader cannot do with their eyes, because the
         // rows they want are simply not on the page.
-        summary={filterSummary(total, { one: "student", many: "students" }, params)}
+        //
+        // The count only once a filter is on: unfiltered it is the pager's,
+        // and the same "8 students" above and below the table was one fact
+        // said twice.
+        summary={
+          activeFilterCount(params) > 0
+            ? filterSummary(total, { one: "student", many: "students" }, params)
+            : undefined
+        }
       />
 
       {total === 0 ? (
@@ -203,9 +215,22 @@ export default async function StudentsPage({
           </EmptyState>
         ) : (
           <EmptyState title="No students yet">
-            {administers
-              ? "Staff register them; each then confirms their name on first sign-in."
-              : "You hold time with nobody yet, and nobody's work is on your list."}
+            {administers ? (
+              <>
+                <p>Add them on a program; each confirms their name on first sign-in.</p>
+                {/* Registration lives on the program, where the cohort is
+                    chosen. One program is a direct link to its form; several
+                    is the list to pick from. */}
+                <LinkButton
+                  href={programs.length === 1 ? `/programs/${programs[0].id}` : "/programs"}
+                  className="mt-3"
+                >
+                  Add students
+                </LinkButton>
+              </>
+            ) : (
+              "You hold time with nobody yet, and nobody's work is on your list."
+            )}
           </EmptyState>
         )
       ) : (
@@ -217,6 +242,7 @@ export default async function StudentsPage({
             page={page}
             total={total}
             unit="students"
+            className="px-1"
           />
         </>
       )}

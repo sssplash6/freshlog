@@ -29,6 +29,11 @@ export function TimeKindPicker({
       legend="Whose hours?"
       required
       dense={compact}
+      // The same full-width, equal-cell track as the attendance picker above
+      // it. Sized to its labels it was a narrower control of a different
+      // shape under a wider one — two answers to one thought that did not
+      // look related.
+      columns={2}
       defaultValue={defaultValue}
       options={ORDER.map((kind) => ({
         value: kind,

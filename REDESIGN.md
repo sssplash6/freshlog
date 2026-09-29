@@ -669,7 +669,10 @@ under `src/`, with one allowlisted file for the Google logo (`login/page.tsx`).
 rendered `✓ Saved 12:04` in ink. Every `FactList` row, `SettingsRow`, booking link and inline editor
 owns one and saves independently; `useUnsavedChanges()` warns before navigation. Errors stay
 **inline beside the field**, `Toaster` only echoes, and after any mutation the page re-reads
-server-derived values — no client-side hour arithmetic, ever. Freshness is chrome: the admin inbox
+server-derived values — no client-side hour arithmetic, ever. The one exception to "only echoes"
+(amended September 2026): an action with an exact inverse — voiding a session (`restoreSession`),
+hiding an attention row (`restoreStatus`) — runs on one tap and the toast offers **Undo** instead of
+a confirm asking first. Anything without an inverse keeps `ConfirmInline`. Freshness is chrome: the admin inbox
 carries one muted `Updated 09:12` from the server render time, and no other page claims it, because
 no other page has the plumbing.
 

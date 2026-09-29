@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
-  adminScope,
+  adminWriteScope,
   assertPlatformAdmin,
   assertProgramScope,
   scopeCovers,
@@ -253,7 +253,7 @@ export async function updateMentor(
   // row and no chip — and yet "Clear" drops it from the submission with the
   // rest. Reading that absence as "remove it" is how one program's admin would
   // quietly pull a mentor out of a program they cannot even see.
-  const scope = await adminScope(actor);
+  const scope = await adminWriteScope(actor);
   const toDelete = mentor.mentorAssignments.filter(
     (a) =>
       !wanted.has(`${a.programId}:${a.cohortId ?? ""}`) &&

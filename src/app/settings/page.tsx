@@ -1,3 +1,5 @@
+import { DensityToggle } from "@/components/density-toggle";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { BookingLinksForm } from "@/components/forms/booking-link-form";
 import { AvatarForm, OwnNameForm } from "@/components/forms/profile-forms";
 import {
@@ -52,7 +54,7 @@ export default async function SettingsPage() {
   const prefOf = new Map(prefs.map((p) => [p.category, p]));
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="max-w-3xl space-y-4">
       <PageTitle title="Settings" />
 
       <Section title="Profile">
@@ -73,7 +75,12 @@ export default async function SettingsPage() {
           <OwnNameForm defaultName={user.name ?? ""} />
           <SettingsRow
             label="Sign-in email"
-            control={<span className="text-sm text-ink">{user.email}</span>}
+            trailing
+            control={
+              <span className="break-all text-[0.9375rem] text-muted-fg">
+                {user.email}
+              </span>
+            }
           />
         </div>
       </Section>
@@ -90,6 +97,7 @@ export default async function SettingsPage() {
         <Section title="Booking links">
           <div className="px-4 py-2 sm:px-5">
             <BookingLinksForm
+              bare
               assignments={assignments.map((a) => ({
                 id: a.id,
                 label: a.cohort
@@ -102,11 +110,30 @@ export default async function SettingsPage() {
         </Section>
       )}
 
+      {/* Kept in this browser rather than on the account: a laptop at a desk
+          and a phone on the bus want different answers, and neither choice is
+          worth a round trip. The account menu carries the same two rows. */}
+      <Section title="Display">
+        <div className="px-4 py-2 sm:px-5">
+          <SettingsRow
+            label="Theme"
+            description="Light or dark, for this browser."
+            control={<ThemeToggle inline className="sm:ml-auto sm:w-48" />}
+          />
+          <SettingsRow
+            label="Density"
+            description="How tightly tables and text pack on a larger screen. Phones always keep full-size controls."
+            className="max-sm:hidden"
+            control={<DensityToggle inline className="sm:ml-auto sm:w-48" />}
+          />
+        </div>
+      </Section>
+
       <Section title="Notifications">
+        {/* One list: the Monday email, then a row per category, hairlines
+            between — not two blocks with a rule through the card. */}
         <div className="px-4 py-2 sm:px-5">
           <WeeklyDigestForm defaultOn={user.weeklyDigest} />
-        </div>
-        <div className="border-t border-line px-4 py-2 sm:px-5">
           <NotificationMatrix
             categories={(
               Object.keys(NOTIFICATION_CATEGORY_LABELS) as NotificationCategory[]

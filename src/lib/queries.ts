@@ -758,8 +758,8 @@ export function toProgramOptions(
  * One mentor's caseload — the answer to "who are my students?", once.
  *
  * The rule was written four times, in four shapes, in four files
- * (`interviews.ts:46-74`, `sessions.ts:229-275`, `mentor/students/[id]`,
- * `admin/students/[id]`), and a fifth copy — 250 lines of it — lived inside the
+ * (`interviews.ts:46-74`, `sessions.ts:229-275`, and two deleted copies of
+ * `students/[id]`), and a fifth copy — 250 lines of it — lived inside the
  * `/mentor` page component, which is why `/sessions/new` could not exist: the
  * only place that knew which students a mentor may log for was a page body.
  *

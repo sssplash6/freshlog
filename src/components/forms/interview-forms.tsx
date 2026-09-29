@@ -39,7 +39,7 @@ export function OfferSlotForm({
   const [, action, save] = useSaveState(addInterviewSlot);
 
   return (
-    <form action={action} className="space-y-3 px-4 py-2 sm:px-5">
+    <form action={action} className="space-y-4 px-4 py-3 sm:px-5">
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <div className="text-sm">
           <span className="text-muted-fg">Day</span>
@@ -123,13 +123,13 @@ export function BookInterviewForm({
   const days = [...new Set(slots.map((s) => s.day))];
 
   return (
-    <form action={action} className="space-y-4 px-4 py-2 sm:px-5">
+    <form action={action} className="space-y-4 px-4 py-3 sm:px-5">
       <fieldset>
         <legend className="text-sm text-muted-fg">1. Pick a time</legend>
         <div className="mt-2 space-y-3">
           {days.map((day) => (
             <div key={day}>
-              <p className="text-xs font-semibold text-ink">{day}</p>
+              <p className="text-[0.8125rem] font-semibold text-ink">{day}</p>
               <div className="mt-1 flex flex-wrap gap-2">
                 {slots
                   .filter((s) => s.day === day)
@@ -144,7 +144,11 @@ export function BookInterviewForm({
                         onChange={() => setSlotId(s.id)}
                         className="peer sr-only"
                       />
-                      <span className="inline-flex h-11 cursor-pointer items-center rounded-xl border border-line bg-surface px-3.5 text-sm font-medium tabular-nums text-ink transition hover:border-brand/40 peer-checked:border-brand peer-checked:bg-brand-soft peer-checked:text-brand peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand">
+                      <span className="inline-flex h-11 cursor-pointer items-center rounded-full bg-fill px-4 text-[0.9375rem] font-medium tabular-nums text-ink transition-colors hover:bg-fill-strong peer-checked:bg-brand peer-checked:text-on-brand peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand">
+                        {/* The day and its zone are the heading above, which a
+                            screen reader does not attach to the radio — so the
+                            radio's own name carries them. */}
+                        <span className="sr-only">{day}, </span>
                         {s.span}
                       </span>
                     </label>
@@ -169,10 +173,10 @@ export function BookInterviewForm({
                 onChange={() => setTemplateId(t.id)}
                 className="peer sr-only"
               />
-              <span className="flex w-full cursor-pointer flex-col rounded-xl border border-line bg-surface px-3.5 py-2.5 transition hover:border-brand/40 peer-checked:border-brand peer-checked:bg-brand-soft peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand">
-                <span className="text-sm font-semibold text-ink">{t.name}</span>
-                <span className="mt-0.5 text-xs text-muted-fg">{t.summary}</span>
-                <span className="mt-1 text-xs text-muted-fg">
+              <span className="flex w-full cursor-pointer flex-col rounded-lg bg-fill px-3.5 py-2.5 transition-colors hover:bg-fill-strong peer-checked:bg-brand-soft peer-checked:ring-2 peer-checked:ring-brand peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand">
+                <span className="text-[0.9375rem] font-semibold text-ink">{t.name}</span>
+                <span className="mt-0.5 text-[0.8125rem] text-muted-fg">{t.summary}</span>
+                <span className="mt-1 text-[0.8125rem] text-muted-fg">
                   {t.questions.length} questions
                 </span>
               </span>
@@ -213,11 +217,22 @@ export function CancelInterviewButton({ interviewId }: { interviewId: string }) 
 export function MarkDoneButton({ interviewId }: { interviewId: string }) {
   const [, action, save] = useSaveState(markInterviewDone);
   return (
-    <form action={action} className="flex flex-wrap items-center gap-3">
-      <input type="hidden" name="interviewId" value={interviewId} />
-      <SubmitButton pendingText="Saving…">Mark as done</SubmitButton>
+    <div className="flex flex-wrap items-center gap-3">
+      {/* One tap ends the interview for both students, so it is a two-step
+          claim rather than a bare submit — but not a destructive one, which
+          is what the primary tone says. */}
+      <ConfirmInline
+        tone="primary"
+        label="Mark as done"
+        question="Mark it done? This can't be undone — the notes step opens."
+        confirmLabel="Yes, it happened"
+        action={action}
+        values={{ interviewId }}
+        pending={save.kind === "saving"}
+        pendingLabel="Saving…"
+      />
       <SaveState state={save} />
-    </form>
+    </div>
   );
 }
 
@@ -239,7 +254,7 @@ export function InterviewNotesForm({
   const [, action, save] = useSaveState(saveInterviewNotes, notes.trim() !== saved.trim());
 
   return (
-    <form action={action} className="space-y-3 px-4 py-2 sm:px-5">
+    <form action={action} className="space-y-3 px-4 py-3 sm:px-5">
       <input type="hidden" name="interviewId" value={interviewId} />
       {/* A div, not a label: a button inside a label steals the click. */}
       <div className="flex items-center justify-between gap-2 text-sm">
@@ -260,7 +275,7 @@ export function InterviewNotesForm({
         onChange={(event) => setNotes(event.target.value)}
         className={cn("min-h-32 px-2.5 py-2")}
       />
-      <p className="text-xs text-muted-fg">Only you can read these.</p>
+      <p className="text-[0.8125rem] text-muted-fg">Only you can read these.</p>
       <div className="flex flex-wrap items-center gap-3">
         <SubmitButton pendingText="Saving…">Save notes</SubmitButton>
         <SaveState state={save} />

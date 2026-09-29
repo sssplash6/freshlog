@@ -18,7 +18,7 @@ import {
 } from "@/lib/actions/programs";
 
 const labelClass =
-  "block text-xs font-semibold uppercase tracking-[0.06em] text-muted-fg";
+  "block text-[0.8125rem] text-muted-fg";
 
 /** Rename the program — one settings row, saved on its own. */
 export function RenameProgramForm({
@@ -53,7 +53,9 @@ export function RenameProgramForm({
             onChange={(event) => setName(event.target.value)}
             className="min-w-56 flex-1"
           />
-          <SubmitButton pendingText="Saving…">Save name</SubmitButton>
+          {/* Secondary: a settings page has no one action it exists for, and
+              the masthead above already carries the program's primary. */}
+          <SubmitButton variant="secondary" pendingText="Saving…">Save name</SubmitButton>
         </form>
       }
       state={<SaveState state={save} />}
@@ -84,7 +86,7 @@ export function AssignMentorForm({
           on one select and one button — and the caption said what assigning a
           mentor does, which the two controls already say. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <h3 className="text-sm font-semibold text-ink">Assign a mentor</h3>
+        <h3 className="text-[0.9375rem] font-medium text-ink">Assign a mentor</h3>
         <div className="min-w-56">
           <div>
             <Select
@@ -109,7 +111,7 @@ export function AssignMentorForm({
             </div>
           </div>
         )}
-        <SubmitButton pendingText="Assigning…">Assign</SubmitButton>
+        <SubmitButton variant="secondary" pendingText="Assigning…">Assign</SubmitButton>
       </div>
       <SaveState state={save} />
     </form>
@@ -136,7 +138,10 @@ export function RemoveMentorButton({
 
   return (
     <div className="flex flex-col items-end gap-1">
+      {/* Quiet: a red word per row, not a column of outlined red boxes down
+          a list of the program's own people. */}
       <ConfirmInline
+        variant="quiet"
         action={action}
         values={{ assignmentId }}
         pending={save.kind === "saving"}
@@ -163,6 +168,7 @@ export function DeleteCohortButton({
   return (
     <div className="flex flex-col items-end gap-1">
       <ConfirmInline
+        variant="quiet"
         action={action}
         values={{ cohortId }}
         pending={save.kind === "saving"}
@@ -242,7 +248,10 @@ export function ArchiveProgramButton({
 
   return (
     <div>
+      {/* Not red: archiving loses nothing, and every ledger page stays
+          reachable. A grey first step, a blue confirm. */}
       <ConfirmInline
+        tone="primary"
         action={action}
         values={{ programId, restore: archived ? "true" : "false" }}
         pending={save.kind === "saving"}
@@ -276,6 +285,7 @@ export function DeleteProgramButton({
   return (
     <div>
       <ConfirmInline
+        variant="quiet"
         action={action}
         values={{ programId }}
         pending={save.kind === "saving"}

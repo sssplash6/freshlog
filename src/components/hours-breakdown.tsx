@@ -74,7 +74,9 @@ export function HoursBreakdown({
       label: "Completed",
       minutes: completed,
       fill: "bg-accent",
-      ink: "text-accent-ink",
+      // Ink, not orange. The swatch carries the colour; a figure in the key
+      // is read, and orange text beside ink text made the key two voices.
+      ink: "text-ink",
     },
     {
       key: "missed",
@@ -104,9 +106,9 @@ export function HoursBreakdown({
 
   return (
     <div className={className}>
-      <div className="flex h-2.5 w-full items-stretch gap-1">
+      <div className="flex h-2 w-full items-stretch gap-1">
         <div
-          className="flex overflow-hidden rounded-full bg-line"
+          className="flex overflow-hidden rounded-full bg-fill"
           style={{ width: `${(track / span) * 100}%` }}
         >
           {shown.map((s, i) => (
@@ -127,10 +129,10 @@ export function HoursBreakdown({
 
       {/* The key is also the readout: a swatch is only useful next to the
           figure it stands for. */}
-      <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2.5">
+      <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2.5">
         {shown.map((s) => (
           <div key={s.key}>
-            <dt className="flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-muted-fg">
+            <dt className="flex items-center gap-1.5 text-[0.8125rem] text-muted-fg">
               <span
                 aria-hidden="true"
                 style={s.style}
@@ -143,27 +145,27 @@ export function HoursBreakdown({
               />
               {s.label}
             </dt>
-            <dd className={cn("mt-0.5 text-[0.9375rem] font-bold tabular-nums", s.ink)}>
+            <dd className={cn("mt-0.5 text-[1.0625rem] font-semibold tabular-nums", s.ink)}>
               {formatDuration(s.minutes)}
             </dd>
           </div>
         ))}
         {over > 0 && (
           <div>
-            <dt className="flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-muted-fg">
+            <dt className="flex items-center gap-1.5 text-[0.8125rem] text-muted-fg">
               <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-danger" />
               Overdrawn
             </dt>
-            <dd className="mt-0.5 text-[0.9375rem] font-bold tabular-nums text-danger-ink">
+            <dd className="mt-0.5 text-[1.0625rem] font-semibold tabular-nums text-danger-ink">
               {formatDuration(over)}
             </dd>
           </div>
         )}
         <div>
-          <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-muted-fg">
+          <dt className="text-[0.8125rem] text-muted-fg">
             Total
           </dt>
-          <dd className="mt-0.5 text-[0.9375rem] font-bold tabular-nums text-ink">
+          <dd className="mt-0.5 text-[1.0625rem] font-semibold tabular-nums text-ink">
             {formatDuration(allotted)}
           </dd>
         </div>

@@ -12,7 +12,7 @@ import { studiesIn } from "@/lib/enrollments";
 import { formatDate } from "@/lib/format";
 import type { InterviewTemplate } from "@/lib/interview-templates";
 import type { StatusType } from "@/lib/status";
-import { formatTimeOfDay, programWallClock } from "@/lib/when";
+import { PROGRAM_ZONE, formatTimeOfDay, programWallClock } from "@/lib/when";
 
 /** The lengths a student may offer. A practice round, not an afternoon. */
 export const SLOT_LENGTHS = [30, 45, 60] as const;
@@ -80,17 +80,31 @@ export function formatSlotWhen(startsAt: Date): string {
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-/** "Tue, Sep 30" — the heading over a day's times. */
-export function formatSlotDay(startsAt: Date): string {
-  return `${WEEKDAYS[startsAt.getUTCDay()]}, ${formatDate(startsAt)}`;
+/**
+ * "Tue, Sep 30" — the heading over a day's times. With `zone`, "Tue, Sep 30 ·
+ * Tashkent": the heading is the one place a group of bare times can name their
+ * clock once, instead of on every chip beneath it.
+ */
+export function formatSlotDay(startsAt: Date, { zone = false } = {}): string {
+  const day = `${WEEKDAYS[startsAt.getUTCDay()]}, ${formatDate(startsAt)}`;
+  return zone ? `${day} · ${PROGRAM_ZONE}` : day;
 }
 
-/** "15:00–15:45", for a row whose day is already its heading. */
-export function formatSlotSpan({ startsAt, minutes }: Timed): string {
+/**
+ * "15:00–15:45", for a row whose day is already its heading. With `zone`,
+ * "15:00–15:45 Tashkent" — as lib/when.ts asks of any time shown on its own.
+ * Leave it off only where the zone is already on screen beside it, as in a
+ * subtitle that opens with `formatSlotWhen`.
+ */
+export function formatSlotSpan(
+  { startsAt, minutes }: Timed,
+  { zone = false } = {}
+): string {
   const end = new Date(startsAt.getTime() + minutes * MINUTE);
   const hhmm = (d: Date) =>
     `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
-  return `${hhmm(startsAt)}–${hhmm(end)}`;
+  const span = `${hhmm(startsAt)}–${hhmm(end)}`;
+  return zone ? `${span} ${PROGRAM_ZONE}` : span;
 }
 
 /**

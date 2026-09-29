@@ -3,6 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
+// The enum is internal, but it is the only way to ask router.prefetch for the
+// page AND its data rather than the partial default (see "Prefetch on intent").
+import { PrefetchKind } from "next/dist/client/components/router-reducer/router-reducer-types";
 
 import { ArrowLeftIcon, CheckIcon } from "@/components/icons";
 
@@ -107,20 +110,39 @@ export function NativeGestures() {
       "freshlog — the mentoring-hours ledger. Found a rough edge? tech@freshman.academy",
     );
 
-    /* ---- Prefetch on touch-down ------------------------------------ *
-     * A tap is ~200ms of contact. Spend it warming the route so the click
-     * commits against a cache that is already filling. Capture phase: an
-     * inner handler's stopPropagation must not cost the warm-up. */
-    const onPointerDown = (e: PointerEvent) => {
-      const a = (e.target as HTMLElement | null)?.closest?.("a[href]");
-      if (!(a instanceof HTMLAnchorElement)) return;
-      if (a.dataset.noPrefetch !== undefined || a.target === "_blank") return;
+    /* ---- Prefetch on intent ---------------------------------------- *
+     * A tap is ~200ms of contact and a hover ~300ms before the click. Spend
+     * both warming the route — FULLY, page and data, not the default partial
+     * prefetch that stops at the loading skeleton. The partial one is why a
+     * click used to show a skeleton React then holds for its minimum ~300ms
+     * even when the page was ready in 10: with the whole page in the cache
+     * there is no fallback to show. Hover waits 80ms so a cursor crossing a
+     * table does not fetch every row it passes. Capture phase: an inner
+     * handler's stopPropagation must not cost the warm-up. */
+    const warmable = (target: EventTarget | null): string | null => {
+      const a = (target as HTMLElement | null)?.closest?.("a[href]");
+      if (!(a instanceof HTMLAnchorElement)) return null;
+      if (a.dataset.noPrefetch !== undefined || a.target === "_blank") return null;
       const href = a.getAttribute("href") ?? "";
-      if (!href.startsWith("/") || href.startsWith("//")) return;
-      if (href.startsWith("/n/")) return; // marks-read side effect — never warm
-      router.prefetch(href);
+      if (!href.startsWith("/") || href.startsWith("//")) return null;
+      if (href.startsWith("/n/")) return null; // marks-read side effect — never warm
+      if (href.startsWith("/api/")) return null;
+      return href;
+    };
+    const warm = (href: string) => router.prefetch(href, { kind: PrefetchKind.FULL });
+    let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+    const onPointerDown = (e: PointerEvent) => {
+      const href = warmable(e.target);
+      if (href) warm(href);
+    };
+    const onPointerOver = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      const href = warmable(e.target);
+      if (hoverTimer) clearTimeout(hoverTimer);
+      if (href) hoverTimer = setTimeout(() => warm(href), 80);
     };
     document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("pointerover", onPointerOver, true);
 
     /* ---- Keyboard lift --------------------------------------------- *
      * iOS overlays the keyboard; `position: fixed; bottom: 0` sits UNDER it.
@@ -296,6 +318,8 @@ export function NativeGestures() {
     document.addEventListener("touchcancel", cancel);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("pointerover", onPointerOver, true);
+      if (hoverTimer) clearTimeout(hoverTimer);
       if (vv && onVv) {
         vv.removeEventListener("resize", onVv);
         vv.removeEventListener("scroll", onVv);

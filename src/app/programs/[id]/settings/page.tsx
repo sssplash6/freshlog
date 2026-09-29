@@ -10,6 +10,7 @@ import {
 } from "@/components/forms/program-settings-forms";
 import { PersonChip } from "@/components/person-chip";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ArrowLink } from "@/components/ui/link";
 import { Section } from "@/components/ui/section";
 import { SettingsRow } from "@/components/ui/settings-row";
 import { requireProgramScope } from "@/lib/dal";
@@ -24,11 +25,15 @@ import {
   programStudents,
 } from "../../reads";
 
-/** What a `ProgramStaff.role` means in a sentence. ADMIN is the only one the UI grants. */
+/**
+ * A `ProgramStaff.role` by the name the grants editor gives it. It used to be
+ * a sentence ("Reads this program"), which promised a limit the level does not
+ * set on its own — the editor on Platform settings says what each one shows.
+ */
 const LEVEL: Record<string, string> = {
-  ADMIN: "Super admin",
-  LEADER: "Reads this program",
-  SALES: "Registers students here",
+  ADMIN: "Admin",
+  LEADER: "Leader",
+  SALES: "Sales",
 };
 
 /**
@@ -53,7 +58,7 @@ export default async function ProgramSettingsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireProgramScope(id);
+  const viewer = await requireProgramScope(id);
 
   const [program, students, pairings, cohorts, grants, allMentors] =
     await Promise.all([
@@ -82,7 +87,6 @@ export default async function ProgramSettingsPage({
   return (
     <div className="space-y-4">
       <Section
-        eyebrow="People"
         title="Mentors"
         count={pairings.length > 0 ? pairings.length : undefined}
       >
@@ -92,31 +96,34 @@ export default async function ProgramSettingsPage({
             they join this program automatically.
           </EmptyState>
         ) : (
-          <div className="px-4 sm:px-5">
+          // Plain list rows, not settings rows: a person and the one thing you
+          // can do to their pairing, on one line. As settings rows the name sat
+          // top-left and its button dropped to the row's bottom-right.
+          <ul className="divide-y divide-line">
             {pairings.map((p) => (
-              <SettingsRow
+              <li
                 key={p.id}
-                label={
-                  <span className="flex min-w-0 flex-wrap items-center gap-2">
-                    <PersonChip
-                      person={p.mentor}
-                      size="sm"
-                      href={`/mentors/${p.mentor.id}`}
-                    />
-                    {p.cohort && (
-                      <span className="text-xs font-normal text-muted-fg">
-                        {p.cohort.name}
-                      </span>
-                    )}
-                  </span>
-                }
-                control={<RemoveMentorButton assignmentId={p.id} />}
-              />
+                className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-3 sm:px-5"
+              >
+                <span className="flex min-w-0 flex-wrap items-center gap-2 text-[0.9375rem]">
+                  <PersonChip
+                    person={p.mentor}
+                    size="sm"
+                    href={`/mentors/${p.mentor.id}`}
+                  />
+                  {p.cohort && (
+                    <span className="text-[0.8125rem] text-muted-fg">
+                      {p.cohort.name}
+                    </span>
+                  )}
+                </span>
+                <RemoveMentorButton assignmentId={p.id} />
+              </li>
             ))}
-          </div>
+          </ul>
         )}
         {eligibleMentors.length > 0 && (
-          <div className="border-t border-line px-4 py-2 sm:px-5">
+          <div className="border-t border-line px-4 py-3 sm:px-5">
             <AssignMentorForm
               programId={program.id}
               mentors={eligibleMentors}
@@ -127,7 +134,6 @@ export default async function ProgramSettingsPage({
       </Section>
 
       <Section
-        eyebrow="Structure"
         title="Cohorts"
         caption={
           cohorts.length === 0
@@ -137,18 +143,18 @@ export default async function ProgramSettingsPage({
         count={cohorts.length > 0 ? cohorts.length : undefined}
       >
         {cohorts.length > 0 && (
-          <ul className="divide-y divide-line/60 text-sm">
+          <ul className="divide-y divide-line">
             {cohorts.map((c) => {
               const inUse =
                 c._count.enrollments > 0 || c._count.mentorAssignments > 0;
               return (
                 <li
                   key={c.id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-5"
+                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
                 >
                   <div>
-                    <div className="font-medium text-ink">{c.name}</div>
-                    <div className="text-xs text-muted-fg">
+                    <div className="text-[0.9375rem] font-medium text-ink">{c.name}</div>
+                    <div className="text-[0.8125rem] text-muted-fg">
                       {c._count.enrollments} student
                       {c._count.enrollments === 1 ? "" : "s"} ·{" "}
                       {c._count.mentorAssignments} mentor
@@ -156,7 +162,7 @@ export default async function ProgramSettingsPage({
                     </div>
                   </div>
                   {inUse ? (
-                    <span className="text-xs text-muted-fg">
+                    <span className="text-[0.8125rem] text-muted-fg">
                       Not empty — move its people first
                     </span>
                   ) : (
@@ -175,26 +181,33 @@ export default async function ProgramSettingsPage({
       {/* Read-only, deliberately: `/settings/platform` is the ONE place a grant
           is made, changed or removed (§8.4), so this says who holds one and
           sends the reader there rather than growing a second write surface.
-          The link itself lands with that page, in commit 49. */}
+          Only a platform admin can open that page, so only they get the link;
+          everybody else is told where it happens and who to ask. */}
       <Section
-        eyebrow="Access"
         title="Admins"
         count={grants.length > 0 ? grants.length : undefined}
         caption="Granted on Platform settings"
+        action={
+          viewer.platformAdmin ? (
+            <ArrowLink href="/settings/platform" className="text-[0.8125rem]">
+              Manage on Platform settings
+            </ArrowLink>
+          ) : undefined
+        }
       >
         {grants.length === 0 ? (
           <EmptyState framed={false} title="Nobody is granted this program">
             Only platform admins can see it until somebody is.
           </EmptyState>
         ) : (
-          <ul className="divide-y divide-line/60 text-sm">
+          <ul className="divide-y divide-line">
             {grants.map((g) => (
               <li
                 key={g.id}
-                className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-5"
+                className="flex min-h-11 flex-wrap items-center justify-between gap-3 px-4 py-3 text-[0.9375rem] sm:px-5"
               >
                 <PersonChip person={g.user} size="sm" />
-                <span className="text-xs text-muted-fg">
+                <span className="text-[0.8125rem] text-muted-fg">
                   {LEVEL[g.role] ?? g.role}
                 </span>
               </li>
@@ -203,7 +216,7 @@ export default async function ProgramSettingsPage({
         )}
       </Section>
 
-      <Section eyebrow="Identity" title="Program">
+      <Section title="Program">
         <div className="px-4 sm:px-5">
           <RenameProgramForm programId={program.id} currentName={program.name} />
           <TrackPaymentToggle
@@ -228,10 +241,12 @@ export default async function ProgramSettingsPage({
         </div>
       </Section>
 
+      {/* No eyebrows on this page. "People", "Structure", "Access",
+          "Identity" and "Permanent" each restated the title under it; the
+          caption here says the one thing about deleting that is not obvious. */}
       <Section
-        eyebrow="Danger zone"
         title="Delete this program"
-        caption="Only possible once nothing is left in it"
+        caption="Permanent, and only once nothing is left in it"
       >
         <div className="px-4 py-2 sm:px-5">
           <DeleteProgramButton

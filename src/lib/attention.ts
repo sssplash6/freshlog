@@ -10,7 +10,7 @@ import {
 } from "@/lib/constants";
 import { soonestExpiry } from "@/lib/deadlines";
 import { unallocatedExchanges } from "@/lib/exchanges";
-import { allocationSummary } from "@/lib/hours";
+import { allocationSummary, type AllocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import type { Profile } from "@/lib/profile";
 import { studentTaskStatuses } from "@/lib/student-tasks";
@@ -21,6 +21,7 @@ import {
   studentsWithHours,
 } from "@/lib/queries";
 import {
+  aboutMe,
   attentionList,
   dismissalKey,
   exchangeStatuses,
@@ -155,7 +156,22 @@ const ACCOUNT_LEVEL = new Set<StatusType>([
   "STUDENT_PLACEHOLDER_EMAIL",
 ]);
 
-async function staffAttention(user: User): Promise<Attention> {
+/**
+ * What `/admin` already holds when it asks for the count: the programs and
+ * the roster, read with the same scope and the same instant. Handed in, the
+ * heaviest read in this derivation — every student's hours — is not done
+ * twice for one page.
+ */
+export type StaffPreload = {
+  now: Date;
+  programs: { id: string; name: string }[];
+  students: Awaited<ReturnType<typeof studentsWithHours>>;
+};
+
+export async function staffAttention(
+  user: User,
+  preload?: StaffPreload
+): Promise<Attention> {
   // The reader's grants are applied ONCE here and every read below carries
   // them. `undefined` is a platform admin and means no filter at all — not
   // "every id I happen to have fetched", which would go stale the moment a
@@ -174,7 +190,7 @@ async function staffAttention(user: User): Promise<Attention> {
 
   // One instant for the whole derivation, so no two rows can disagree about
   // what today is or what has expired.
-  const now = new Date();
+  const now = preload?.now ?? new Date();
   const viewer: ViewerContext = { audience: "staff", userId: user.id, now };
   const [
     programs,
@@ -186,15 +202,17 @@ async function staffAttention(user: User): Promise<Attention> {
     taskMinutes,
     exchanges,
   ] = await Promise.all([
-    prisma.program.findMany({
-      where: inScope ? { id: inScope } : {},
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-    studentsWithHours(
-      inScope ? { enrollments: { some: { programId: inScope } } } : {},
-      { now, programIds }
-    ),
+    preload?.programs ??
+      prisma.program.findMany({
+        where: inScope ? { id: inScope } : {},
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
+    preload?.students ??
+      studentsWithHours(
+        inScope ? { enrollments: { some: { programId: inScope } } } : {},
+        { now, programIds }
+      ),
     prisma.mentorAssignment.findMany({
       where: inScope ? { programId: inScope } : {},
       select: { mentorId: true, programId: true, calendlyUrl: true },
@@ -492,27 +510,8 @@ async function mentorAttention(user: User): Promise<Attention> {
  * Student
  * ------------------------------------------------------------------ */
 
-/**
- * A row about the reader themself, addressed to the reader.
- *
- * `studentStatuses` names its subject and links it at `/students/<id>`, which
- * is right for the staff and mentor lists it also feeds and wrong twice over
- * here: the subject is the person holding the phone, and the link leads to a
- * page that redirects a student straight back to their own. The one
- * destination that helps is the page where the time can actually be spent, so
- * an expiry points there and everything else points nowhere.
- */
-function aboutMe(s: Status): Status {
-  return {
-    ...s,
-    subject: undefined,
-    href: s.type === "ALLOCATION_EXPIRING" ? "/student/book" : undefined,
-  };
-}
-
 async function studentAttention(user: User): Promise<Attention> {
   const now = new Date();
-  const viewer: ViewerContext = { audience: "student", userId: user.id, now };
 
   const profile = await prisma.studentProfile.findUnique({
     where: { userId: user.id },
@@ -522,14 +521,45 @@ async function studentAttention(user: User): Promise<Attention> {
   // the shell sends them there; there is nothing to tell them here meanwhile.
   if (!profile || user.status === USER_STATUS.PENDING) return NOTHING;
 
-  const [hours, ledger, pairings] = await Promise.all([
+  const [hours, ledger] = await Promise.all([
     allocationSummary(profile.id),
     studentLedger(profile.id),
-    prisma.mentorAssignment.findMany({
-      where: assignmentsForStudentWhere(profile),
-      include: { mentor: true },
-    }),
   ]);
+
+  return {
+    statuses: await studentRows(user, profile, hours, ledger, now),
+    spilled: 0,
+    // A student's rows are all about their own time. There is nothing here
+    // they should be able to make go away without doing something about it.
+    dismissible: false,
+    empty: "Nothing to do right now.",
+  };
+}
+
+/**
+ * Every row that is true of a student's own account, in their voice, sorted
+ * the way `attentionList` sorts — problems first, then soonest.
+ *
+ * Split out of `studentAttention` so the student's home can say the same
+ * things the bell says without loading the balance and the ledger twice: the
+ * home has both in hand already, and hands them over. The one read this adds
+ * is the pairings, which only the booking-link row needs.
+ */
+export async function studentRows(
+  user: Pick<User, "id" | "name" | "email" | "status">,
+  profile: Parameters<typeof assignmentsForStudentWhere>[0] & {
+    id: string;
+    telegramUsername: string | null;
+  },
+  hours: AllocationSummary,
+  ledger: Awaited<ReturnType<typeof studentLedger>>,
+  now: Date = new Date()
+): Promise<Status[]> {
+  const viewer: ViewerContext = { audience: "student", userId: user.id, now };
+  const pairings = await prisma.mentorAssignment.findMany({
+    where: assignmentsForStudentWhere(profile),
+    include: { mentor: true },
+  });
 
   // Time granted before a mentor was chosen. An expired pool has nothing left
   // to assign, and `allocationSummary` has already written it down to zero.
@@ -656,7 +686,7 @@ async function studentAttention(user: User): Promise<Attention> {
   // the section already says in its own words — and with an informational row
   // still on screen, "Nothing to do right now" would be contradicted by the
   // line directly under it.
-  const list = attentionList(
+  return attentionList(
     [
       ...mine,
       ...overdueTasks,
@@ -665,14 +695,15 @@ async function studentAttention(user: User): Promise<Attention> {
       ...unconfirmed,
     ],
     viewer
-  ).filter((s) => s.type !== "ALL_CLEAR");
-
-  return {
-    statuses: list,
-    spilled: 0,
-    // A student's rows are all about their own time. There is nothing here
-    // they should be able to make go away without doing something about it.
-    dismissible: false,
-    empty: "Nothing to do right now.",
-  };
+  )
+    .filter((s) => s.type !== "ALL_CLEAR")
+    // A roll-up keeps an href only where a filtered list holds exactly its
+    // rows, and the staff lists it knows are no use to a student. Their
+    // meetings page is: "4 sessions are waiting to be confirmed" goes where
+    // the four can be answered.
+    .map((s) =>
+      s.type === "SESSION_UNCONFIRMED" && !s.href
+        ? { ...s, href: "/student/meetings" }
+        : s
+    );
 }

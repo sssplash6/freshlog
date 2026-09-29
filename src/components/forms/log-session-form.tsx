@@ -10,7 +10,7 @@ import { DictateButton } from "@/components/forms/dictate-button";
 import { TimeKindPicker } from "@/components/forms/time-kind-picker";
 import { Select } from "@/components/select";
 import { DateField } from "@/components/ui/date-field";
-import { GrowingField } from "@/components/ui/field";
+import { GrowingField, inputClasses } from "@/components/ui/field";
 import { Receipt } from "@/components/ui/receipt";
 import { SaveState, saveStateFrom } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -23,8 +23,7 @@ import { programToday } from "@/lib/when";
  * from padding and an inherited line-height, so the pair agreed only by
  * arithmetic that nobody was checking.
  */
-const inputClass =
-  "min-h-11 w-full rounded-lg border border-line px-3.5 py-2.5 text-[0.9375rem] focus:border-brand focus:outline-none";
+const inputClass = inputClasses;
 /**
  * Label above control, and the ONE gap between them.
  *
@@ -402,7 +401,10 @@ export function LogSessionForm({
       action={action}
       onChange={() => touched()}
       onInvalidCapture={() => setBlocked(true)}
-      className={cn(!page && "rounded-xl border border-line bg-surface shadow-sm p-4")}
+      // Both shapes sit on a white card. The fields are grey fills, and grey
+      // fills straight on the grey page ground were outlines of nothing —
+      // the form only read as a form once it had a surface to be on.
+      className={cn("rounded-xl bg-surface p-4 shadow-sm", page && "sm:p-5")}
     >
       {!page && (
         <h2 className="text-base font-semibold text-ink">Log a completed session</h2>
@@ -545,8 +547,12 @@ export function LogSessionForm({
               <TimeKindPicker key={`kind-${attempt}`} defaultValue={opening.timeKind} />
             </div>
           </div>
-          <div className="mt-5">
-            <SubmitButton pendingText="Logging…" className="w-full">
+          {/* The one primary action, at the end of the reading order: full
+              width under a thumb, its own width against the right edge on a
+              desktop, where a bar the width of the form was the loudest thing
+              on the page. */}
+          <div className="mt-5 flex sm:justify-end">
+            <SubmitButton pendingText="Logging…" className="w-full sm:w-auto sm:min-w-40">
               Log session
             </SubmitButton>
           </div>

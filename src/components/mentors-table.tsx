@@ -135,7 +135,7 @@ export function MentorsTable({
                         <StarIcon className="h-3.5 w-3.5 text-accent" />
                         {m.averageRating.toFixed(1)}
                       </span>
-                      <span className="text-[0.625rem] font-medium uppercase tracking-wide text-muted-fg">
+                      <span className="text-xs font-medium text-muted-fg">
                         {m.ratingCount}{" "}
                         {m.ratingCount === 1 ? "rating" : "ratings"}
                       </span>
@@ -157,15 +157,18 @@ export function MentorsTable({
               {m.pairings === 0 ? (
                 <span className="text-muted-fg">—</span>
               ) : (
-                <span
-                  className={
-                    m.pairingsWithLink < m.pairings
-                      ? "text-warn-ink"
-                      : "text-muted-fg"
-                  }
-                >
-                  {m.pairingsWithLink} of {m.pairings} set
-                </span>
+                // Missing links are a status — somebody cannot be booked — so
+                // they say it the way every status does, a tinted chip with its
+                // glyph. It was bare amber text, colour alone.
+                m.pairingsWithLink < m.pairings ? (
+                  <StatusChip severity="attention">
+                    {m.pairingsWithLink} of {m.pairings} set
+                  </StatusChip>
+                ) : (
+                  <span className="text-muted-fg">
+                    {m.pairingsWithLink} of {m.pairings} set
+                  </span>
+                )
               )}
             </Td>
 

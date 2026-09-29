@@ -49,6 +49,8 @@ import {
 } from "@/lib/constants";
 import {
   adminScope,
+  adminWriteScope,
+  canAdministerStudent,
   canManageStudent,
   mentorReaches,
   scopeCovers,
@@ -114,8 +116,12 @@ export default async function StudentWorkspacePage({
   // The two rights, asked before anything is fetched. A student outside an
   // admin's programs and outside a mentor's reach reads exactly like a student
   // who does not exist — and their own page is their home, not this.
-  const [manages, reaches] = await Promise.all([
+  const [manages, writes, reaches] = await Promise.all([
     canManageStudent(me, profile),
+    // The change affordances, separately: a LEADER/SALES grant opens the page
+    // and its figures (`manages`) but must not draw a control whose action
+    // would refuse it.
+    canAdministerStudent(me, profile),
     canActAsMentor(me) ? mentorReaches(me, profile) : Promise.resolve(false),
   ]);
   if (!manages && !reaches) notFound();
@@ -245,7 +251,10 @@ export default async function StudentWorkspacePage({
    * exactly what the action will take. A visit is never in this list: a student
    * somebody else lent us is not ours to lend onward.
    */
-  const scope = await adminScope(me);
+  // The legs below build write affordances (send, set a task, row menus), so
+  // they ask the write scope — the read scope `adminScope(me)` would offer a
+  // LEADER controls the actions then refuse.
+  const scope = await adminWriteScope(me);
   const pairedIn = new Set(myPairings.map((p) => p.programId));
   const sendableFrom = studiesIn(profile.enrollments).filter(
     (e) => scopeCovers(scope, e.programId) || pairedIn.has(e.programId)
@@ -365,7 +374,7 @@ export default async function StudentWorkspacePage({
             {name}
             {/* The pencil is on the fact, not in a panel below it. Both
                 readers of this page own this one — see `StudentNameChange`. */}
-            {(manages || reaches) && (
+            {(writes || reaches) && (
               <StudentNameChange
                 studentProfileId={profile.id}
                 currentName={profile.user.name}
@@ -428,12 +437,19 @@ export default async function StudentWorkspacePage({
                 Log a session
               </LinkButton>
             )}
-            {manages && mentorOptions.length > 0 && (
-              <LinkButton href={`/students/${profile.id}/allocate`} variant="secondary" size="md">
+            {writes && mentorOptions.length > 0 && (
+              // The admin lens's one primary action, as logging is the
+              // mentor's: a masthead of two grey buttons had no answer to
+              // "what is this page for".
+              <LinkButton
+                href={`/students/${profile.id}/allocate`}
+                variant={primaryIsLog ? "secondary" : "primary"}
+                size="md"
+              >
                 Allocate time
               </LinkButton>
             )}
-            {isPending && manages && (
+            {isPending && writes && (
               <ApproveStudentButtons studentProfileId={profile.id} />
             )}
           </div>
@@ -472,7 +488,7 @@ export default async function StudentWorkspacePage({
         // `assertTaskScope`; the menu is not the gate, it is the affordance
         // for a gate that will agree with it.
         renderSessionActions={(session) =>
-          manages || session.mentorId === me.id ? (
+          writes || session.mentorId === me.id ? (
             <SessionRowActions
               session={{
                 id: session.id,
@@ -485,12 +501,12 @@ export default async function StudentWorkspacePage({
               }}
               goals={sessionTasks[session.id] ?? []}
               canEdit={session.status !== SESSION_STATUS.VOIDED}
-              canDelete={manages}
+              canDelete={writes}
             />
           ) : null
         }
         renderAgendaActions={(task) =>
-          manages || task.mentorId === me.id ? (
+          writes || task.mentorId === me.id ? (
             <TaskRowActions
               task={{
                 id: task.id,
@@ -504,7 +520,7 @@ export default async function StudentWorkspacePage({
                 progressManual: task.progressManual,
               }}
               mentors={mentorOptions}
-              canDelete={manages}
+              canDelete={writes}
             />
           ) : null
         }
@@ -570,7 +586,7 @@ export default async function StudentWorkspacePage({
                 canReturn={isParty}
               />
               {sendForm && (
-                <div className="border-t border-line px-4 py-2 sm:px-5">
+                <div className="border-t border-line px-4 py-3 sm:px-5">
                   {sendForm}
                 </div>
               )}
@@ -581,8 +597,11 @@ export default async function StudentWorkspacePage({
             // say that nothing has happened yet. `justify-between` with wrap,
             // so the form drops to a line of its own when it is opened and
             // needs the width.
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 sm:px-5">
-              <p className="min-w-0 text-sm text-muted-fg">
+            // The group's empty state: one sentence and the one action, on one
+            // line, wrapping so the form drops below it when it is opened and
+            // needs the width.
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-5">
+              <p className="min-w-0 text-[0.9375rem] text-muted-fg">
                 Nobody has lent {name} to another program.
               </p>
               {sendForm}
@@ -607,7 +626,7 @@ export default async function StudentWorkspacePage({
         // the heading it totals, the way every other card here reads.
         action={
           tracksPayment && manages ? (
-            <span className="text-xs text-muted-fg">
+            <span className="text-[0.8125rem] text-muted-fg">
               <span className="font-semibold tabular-nums text-ink">
                 {formatMoney(hours.paid)}
               </span>{" "}
@@ -626,7 +645,7 @@ export default async function StudentWorkspacePage({
             framed={false}
             showAmountPaid={tracksPayment && manages}
             renderActions={
-              manages
+              writes
                 ? (entry) =>
                     entry.deadline ? (
                       <AllocationRowActions
@@ -658,7 +677,7 @@ export default async function StudentWorkspacePage({
                 : undefined
             }
             renderAssignedActions={
-              manages
+              writes
                 ? (entry) =>
                     entry.deadline ? (
                       <AllocationMinutesEditor
@@ -677,11 +696,13 @@ export default async function StudentWorkspacePage({
         )}
 
         {manages && changes.length > 0 && (
-          <div className="border-t border-line px-4 py-2 sm:px-5">
+          <div className="border-t border-line px-4 sm:px-5">
+            {/* The last row of the group, folded: who changed a grant and to
+                what is asked after something looks wrong, not on every visit. */}
             <Disclosure label="History" count={changes.length}>
-              <ul className="divide-y divide-line/60 text-sm">
+              <ul className="divide-y divide-line text-[0.8125rem]">
                 {changes.map((c) => (
-                  <li key={c.id} className="flex flex-wrap gap-x-2 py-2.5">
+                  <li key={c.id} className="flex flex-wrap gap-x-2 py-2">
                     <span className="tabular-nums text-muted-fg">
                       {formatDate(c.createdAt)}
                     </span>
@@ -706,24 +727,26 @@ export default async function StudentWorkspacePage({
       </Section>
 
       {manages && (
-        <Section eyebrow="Admin only" title="Details">
-          <div className="px-4 py-2 sm:px-5">
+        // No "Admin only" eyebrow: a reader who is not an admin never sees
+        // this group, so the label only ever told an admin what they are.
+        <Section title="Details">
+          <div className="px-4 sm:px-5">
             <FactList
               items={[
                 {
                   label: "Sign-in email",
                   value: profile.user.email,
-                  change: (
+                  change: writes ? (
                     <StudentEmailChange
                       studentProfileId={profile.id}
                       currentEmail={profile.user.email}
                     />
-                  ),
+                  ) : undefined,
                 },
                 {
                   label: enrollments.length === 1 ? "Program" : "Programs",
                   value: enrollmentsLabel(enrollments, "Not in any program"),
-                  change: (
+                  change: writes ? (
                     <StudentPrograms
                       studentProfileId={profile.id}
                       programs={toProgramOptions(programs)}
@@ -734,29 +757,29 @@ export default async function StudentWorkspacePage({
                         label: enrollmentLabel(e),
                       }))}
                     />
-                  ),
+                  ) : undefined,
                 },
                 {
                   label: "Folder",
                   value: profile.folderUrl ?? "Not set",
-                  change: (
+                  change: writes ? (
                     <StudentFolderChange
                       studentProfileId={profile.id}
                       currentFolderUrl={profile.folderUrl}
                     />
-                  ),
+                  ) : undefined,
                 },
                 {
                   label: "Telegram",
                   value: handle
                     ? `@${handle}`
                     : "Not set — they add it on first sign-in",
-                  change: (
+                  change: writes ? (
                     <StudentTelegramChange
                       studentProfileId={profile.id}
                       currentHandle={handle}
                     />
-                  ),
+                  ) : undefined,
                 },
                 { label: "Registered", value: formatDate(profile.createdAt) },
                 {
@@ -766,13 +789,17 @@ export default async function StudentWorkspacePage({
               ]}
             />
           </div>
-          <div className="border-t border-line px-4 py-2 sm:px-5">
-            <RemoveStudentButton
-              studentProfileId={profile.id}
-              name={name}
-              hasSessions={ledger.sessions.length > 0}
-            />
-          </div>
+          {writes && (
+            <div className="border-t border-line px-4 py-2 sm:px-5">
+              {/* Last, and quiet: a red word with its reason beside it, not an
+                  outlined red box at the foot of the page's calmest group. */}
+              <RemoveStudentButton
+                studentProfileId={profile.id}
+                name={name}
+                hasSessions={ledger.sessions.length > 0}
+              />
+            </div>
+          )}
         </Section>
       )}
     </div>

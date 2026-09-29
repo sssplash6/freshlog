@@ -41,7 +41,7 @@ export function Meter({
     <div
       className={cn(
         SIZE[size],
-        "w-full overflow-hidden rounded-full bg-line",
+        "w-full overflow-hidden rounded-full bg-fill",
         className,
       )}
       role="progressbar"

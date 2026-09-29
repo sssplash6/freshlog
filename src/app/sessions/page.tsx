@@ -196,20 +196,25 @@ export default async function SessionsPage({
       <Header lens={lens} />
       {filters}
 
-      <p className="text-sm text-muted-fg">
-        <span className="font-semibold tabular-nums text-ink">
-          {formatDuration(logged)}
-        </span>{" "}
-        logged
-        {missed > 0 && ` · ${formatDuration(missed)} missed`}
-        {extra > 0 && ` · ${formatDuration(extra)} extra`}
-        {/* filterSummary returns "" for an unfiltered empty list — the
-            separator has to be conditional or it dangles. */}
-        {(() => {
-          const s = filterSummary(total, { one: "session", many: "sessions" }, params);
-          return s ? ` · ${s}` : null;
-        })()}
-      </p>
+      {/* The headline as a stat row — label over figure, set apart by space —
+          rather than a sentence of bolded fragments. It still reads the whole
+          filtered set, never the page. Missed and extra only when there are
+          any: a zero there is not news. */}
+      <div className="px-1">
+        <dl className="flex flex-wrap gap-x-10 gap-y-3">
+          <Stat label="Logged" value={formatDuration(logged)} />
+          {missed > 0 && <Stat label="Missed" value={formatDuration(missed)} />}
+          {extra > 0 && <Stat label="Extra" value={formatDuration(extra)} />}
+          <Stat label="Sessions" value={String(total)} />
+        </dl>
+        {/* What the filters did, in words — only once something is on, since
+            the unfiltered count is already the figure above. */}
+        {activeFilterCount(params) > 0 && total > 0 && (
+          <p className="mt-2 text-[0.8125rem] text-muted-fg" aria-live="polite">
+            {filterSummary(total, { one: "session", many: "sessions" }, params)}
+          </p>
+        )}
+      </div>
 
       {total === 0 ? (
         activeFilterCount(params) > 0 ? (
@@ -230,6 +235,7 @@ export default async function SessionsPage({
             page={page}
             total={total}
             unit="sessions"
+            className="px-1"
           />
         </>
       )}
@@ -237,7 +243,18 @@ export default async function SessionsPage({
   );
 }
 
-/** The title and the one action, shared by both tabs. */
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-[0.8125rem] text-muted-fg">{label}</dt>
+      <dd className="mt-0.5 text-[1.375rem] font-semibold leading-tight tabular-nums text-ink">
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+/** The title and the one action. */
 function Header({ lens }: { lens: "admin" | "mentor" }) {
   return (
     <PageTitle

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle } from "@/components/ui/section";
 import { Section } from "@/components/ui/section";
+import { ArrowLink } from "@/components/ui/link";
 import { Pagination, parsePage } from "@/components/ui/pagination";
 import { attentionFor } from "@/lib/attention";
 import { requireUser } from "@/lib/dal";
@@ -121,7 +122,7 @@ export default async function NotificationsPage({
   const blurb = BLURB[user.role] ?? "Everything that changed for you.";
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="max-w-3xl space-y-4">
       <PageTitle
         eyebrow={unread > 0 ? `${unread} unread` : "All caught up"}
         title="Notifications"
@@ -129,7 +130,10 @@ export default async function NotificationsPage({
 
       <AttentionList
         statuses={attention.statuses}
-        title="Active issues"
+        // "Active issues" is the staff word for a queue they work through. A
+        // student has no queue — these are things about their own time to look
+        // at — so they are told so in their own words.
+        title={user.role === "STUDENT" ? "Things to check" : "Active issues"}
         empty={attention.empty}
         dismissible={attention.dismissible}
         renderAction={(s) => {
@@ -149,45 +153,47 @@ export default async function NotificationsPage({
           : {})}
       />
 
-      <Section
-        eyebrow=""
-        title={unread > 0 ? "New for you" : "Earlier"}
-        action={
-          unread > 0 ? (
-            <form action={markAllNotificationsRead}>
-              <Button type="submit" variant="secondary" size="sm">
-                Mark all read
-              </Button>
-            </form>
-          ) : undefined
-        }
-      >
-        {/* Only when there is something to narrow. No "All" chip: a chip that
-            is on clears itself when clicked, and the bar's own Reset is the
-            way back from any of them. Categories a reader has nothing in are
-            dropped rather than offered empty — and if that leaves ONE, the
-            whole row goes: a filter that can only select everything is a
-            button whose job nobody can guess. */}
-        {present.length > 1 && (
-          <div className="border-b border-line px-4 py-2 sm:px-5">
-            <FilterBar
-              basePath="/notifications"
-              params={params}
-              presets={present.map((c) => ({
-                label: NOTIFICATION_CATEGORY_LABELS[c],
-                params: { category: c },
-              }))}
-            />
-          </div>
-        )}
+      {/* The category chips sit on the page ground above the feed, the way a
+          filter strip sits under a large title — not in a bordered band inside
+          the card it narrows, which was a card inside a card.
 
-        {notifications.length === 0 ? (
+          Only when there is something to narrow. No "All" chip: a chip that
+          is on clears itself when clicked, and the bar's own Reset is the way
+          back from any of them. Categories a reader has nothing in are dropped
+          rather than offered empty — and if that leaves ONE, the whole row
+          goes: a filter that can only select everything is a button whose job
+          nobody can guess. */}
+      {present.length > 1 && (
+        <FilterBar
+          basePath="/notifications"
+          params={params}
+          framed={false}
+          presets={present.map((c) => ({
+            label: NOTIFICATION_CATEGORY_LABELS[c],
+            params: { category: c },
+          }))}
+        />
+      )}
+
+      {notifications.length === 0 ? (
+        <Section title="Earlier">
           <EmptyState framed={false} title="Nothing has happened yet">
             {blurb} Changes to time, sessions and deadlines arrive here.
           </EmptyState>
-        ) : (
-          <>
-            <NotificationList notifications={notifications} />
+        </Section>
+      ) : (
+        <NotificationList
+          notifications={notifications}
+          newAction={
+            unread > 0 ? (
+              <form action={markAllNotificationsRead}>
+                <Button type="submit" variant="ghost" size="sm">
+                  Mark all read
+                </Button>
+              </form>
+            ) : undefined
+          }
+          footer={
             <Pagination
               basePath="/notifications"
               params={category ? { category } : {}}
@@ -197,9 +203,15 @@ export default async function NotificationsPage({
               unit="notifications"
               className="border-t border-line px-4 py-2 sm:px-5"
             />
-          </>
-        )}
-      </Section>
+          }
+        />
+      )}
+
+      {/* The feed's other half — which of these also reach the reader's inbox
+          — is decided on Settings, and nothing here led there. */}
+      <ArrowLink href="/settings" className="text-sm">
+        Email preferences
+      </ArrowLink>
     </div>
   );
 }

@@ -54,7 +54,9 @@ export function Figure({
     <div className={className}>
       <div
         className={cn(
-          "font-bold leading-none tracking-tight tabular-nums",
+          // 600, not 700: bold is the large title's weight, and a figure that
+          // matches it competes with the one heading the page has.
+          "font-semibold leading-none tracking-tight tabular-nums",
           SIZE[size],
           // Small orange text fails contrast, so the tone quietly declines
           // below the size it is legible at rather than shipping a grey-on-white
@@ -62,7 +64,7 @@ export function Figure({
           tone === "hours" && size === "inline" ? TONE.ink : TONE[tone]
         )}
       >
-                {value}
+        {value}
         {suffix && (
           // The literal space matters: `ml-1` separates them on screen but not
           // in the accessibility tree, where "4h 30mleft across 1 student" is
@@ -76,7 +78,7 @@ export function Figure({
         )}
       </div>
       {label && (
-        <div className="mt-2 text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-muted-fg">
+        <div className="mt-2 text-[0.8125rem] text-muted-fg">
           {label}
         </div>
       )}

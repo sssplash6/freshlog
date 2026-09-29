@@ -42,14 +42,15 @@ export function ExchangeList({
   showStudent?: boolean;
 }) {
   return (
-    <ul className="divide-y divide-line/60">
+    <ul className="divide-y divide-line">
       {exchanges.map((e) => {
         const open = e.status === EXCHANGE_STATUS.OPEN;
-        const { cap, allocated, unallocated, used, remaining, extra } = e.figures;
+        const { cap, allocated, unallocated, used, missed, remaining, forfeited, extra } =
+          e.figures;
         const sessions = toSessionEntries(e.sessions, { mentorBase: "/mentors" });
 
         return (
-          <li key={e.id} className="px-4 py-2 sm:px-5">
+          <li key={e.id} className="px-4 py-3 sm:px-5">
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
               <span className="flex min-w-0 flex-wrap items-center gap-2">
                 {showStudent && (
@@ -79,12 +80,12 @@ export function ExchangeList({
                   <StatusChip severity="problem">Ran out</StatusChip>
                 )}
               </span>
-              <span className="shrink-0 text-sm tabular-nums text-ink">
+              <span className="shrink-0 text-[0.9375rem] font-medium tabular-nums text-ink">
                 {formatDuration(cap)} · use by {formatDate(e.deadline)}
               </span>
             </div>
 
-            <p className="mt-0.5 text-xs text-muted-fg">
+            <p className="mt-0.5 text-[0.8125rem] text-muted-fg">
               Sent by {e.sentBy.name ?? e.sentBy.email}
               {e.note ? ` · “${e.note}”` : ""}
               {!open && e.returnedBy
@@ -95,13 +96,21 @@ export function ExchangeList({
             </p>
 
             {open && (
-              <p className="mt-0.5 text-sm tabular-nums text-muted-fg">
+              <p className="mt-0.5 text-[0.8125rem] tabular-nums text-muted-fg">
                 {allocated > 0
                   ? `${formatDuration(allocated)} on ${e.mentors
                       .map((m) => m.mentor?.name ?? m.mentor?.email ?? "nobody yet")
                       .join(", ")}`
                   : "Nobody here holds it yet"}
-                {` · ${formatDuration(used)} completed · ${formatDuration(remaining)} remaining`}
+                {/* Completed excludes no-shows — the ledger's own definition,
+                    now that the line names the missed subset beside it. */}
+                {` · ${formatDuration(used - missed)} completed`}
+                {missed > 0 && ` · ${formatDuration(missed)} missed`}
+                {` · ${formatDuration(remaining)} remaining`}
+                {/* Forfeited minutes are named, in the ledger's own words — a
+                    "Ran out" placement that still claimed a spendable balance
+                    was the lie this line used to tell. */}
+                {forfeited > 0 && ` · ${formatDuration(forfeited)} expired unused`}
                 {extra > 0 && ` · ${formatDuration(extra)} extra`}
               </p>
             )}

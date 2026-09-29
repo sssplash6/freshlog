@@ -66,64 +66,82 @@ export function AttentionList({
   // would be more furniture than signpost.
   const groups = groupStatuses(statuses);
 
+  const action = moreHref ? (
+    <Link
+      href={moreHref}
+      transitionTypes={["nav-forward"]}
+      className="text-[0.8125rem] font-medium text-brand hover:underline"
+    >
+      {moreLabel ?? "See all"}
+    </Link>
+  ) : moreLabel ? (
+    // A label with nowhere to go still has something to say: a capped list
+    // that discards its eleventh row in silence reads as a complete list.
+    <span className="text-[0.8125rem] text-muted-fg">{moreLabel}</span>
+  ) : undefined;
+
+  const rowsOf = (rows: Status[]) => (
+    <ul className="divide-y divide-line">
+      {rows.map((s, i) => (
+        <AttentionRow
+          key={`${s.type}-${s.subject?.id ?? i}`}
+          status={s}
+          action={renderAction?.(s)}
+          dismissible={dismissible}
+        />
+      ))}
+    </ul>
+  );
+
+  if (groups) {
+    // Grouped, the way a grouped list is: each group its own card under a
+    // small caption on the page ground. It used to be one card with grey
+    // header bands through it — a lid inside a card, which is the shape the
+    // rest of the app gave up. The title and count are `Section`'s, repeated
+    // here because `Section` owns exactly one card.
+    return (
+      <section className={cn("min-w-0 space-y-2", className)}>
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 px-1 pt-2">
+          <h2 className="flex items-baseline gap-2 text-[1.25rem] font-semibold tracking-[-0.01em] text-ink">
+            <span className="min-w-0 truncate">{title}</span>
+            {count > 0 && (
+              <span className="shrink-0 text-[0.9375rem] font-medium tabular-nums text-muted-fg">
+                {count}
+              </span>
+            )}
+          </h2>
+          {action}
+        </div>
+        {groups.map(({ group, rows }) => (
+          <div key={group}>
+            <h3 className="flex items-baseline gap-1.5 px-4 pb-1.5 pt-1 text-[0.8125rem] text-muted-fg sm:px-5">
+              {STATUS_GROUP_LABELS[group]}
+              <span className="tabular-nums">{rows.length}</span>
+            </h3>
+            <div className="overflow-clip rounded-xl bg-surface shadow-sm">
+              {rowsOf(rows)}
+            </div>
+          </div>
+        ))}
+      </section>
+    );
+  }
+
   return (
     <Section
       title={title}
       count={count > 0 ? count : undefined}
       className={className}
-      action={
-        moreHref ? (
-          <Link
-            href={moreHref}
-            transitionTypes={["nav-forward"]}
-            className="text-xs font-medium text-brand hover:underline"
-          >
-            {moreLabel ?? "See all"}
-          </Link>
-        ) : moreLabel ? (
-          // A label with nowhere to go still has something to say: a capped
-          // list that discards its eleventh row in silence reads as a complete
-          // list.
-          <span className="text-xs text-muted-fg">{moreLabel}</span>
-        ) : undefined
-      }
+      action={action}
     >
       {statuses.length === 0 ? (
-        <p className="flex items-baseline gap-1.5 px-4 py-2 text-sm text-muted-fg sm:px-5">
+        <p className="flex items-baseline gap-1.5 px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">
           {/* Inbox zero gets the tick — the one moment "nothing" is the news. */}
           <CheckIcon className="check-draw h-3.5 w-3.5 shrink-0 translate-y-0.5 text-ink/60" />
           {empty ?? "No active issues."}
         </p>
-      ) : groups ? (
-        groups.map(({ group, rows }, index) => (
-          <div key={group} className={cn(index > 0 && "border-t border-line")}>
-            <h3 className="flex items-baseline gap-2 bg-canvas px-4 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-fg sm:px-5">
-              {STATUS_GROUP_LABELS[group]}
-              <span className="font-normal tabular-nums">{rows.length}</span>
-            </h3>
-            <ul className="divide-y divide-line border-t border-line">
-              {rows.map((s, i) => (
-                <AttentionRow
-                  key={`${s.type}-${s.subject?.id ?? i}`}
-                  status={s}
-                  action={renderAction?.(s)}
-                  dismissible={dismissible}
-                />
-              ))}
-            </ul>
-          </div>
-        ))
       ) : (
-        <ul className="divide-y divide-line">
-          {statuses.map((s, i) => (
-            <AttentionRow
-              key={`${s.type}-${s.subject?.id ?? i}`}
-              status={s}
-              action={renderAction?.(s)}
-              dismissible={dismissible}
-            />
-          ))}
-        </ul>
+        rowsOf(statuses)
       )}
     </Section>
   );
@@ -148,26 +166,32 @@ function AttentionRow({
 }) {
   const { explanation, subject, program, href } = status;
 
+  // Three lines, always in the same order so two rows of the same kind look
+  // alike whatever the length of a name: the state (and where), who it is
+  // about, why. The chip and the subject side by side wrapped or not
+  // depending on the name, and a program on a fourth line of its own made
+  // every row a paragraph.
   const body = (
     <>
-      <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <StatusChip status={{ ...status, explanation: undefined }} />
-        {subject && (
-          <span className="min-w-0 truncate font-medium text-ink">{subject.name}</span>
+        {program && (
+          <span className="min-w-0 truncate text-xs text-muted-fg">{program.name}</span>
         )}
-        
       </span>
-      {explanation && (
-        <span className="mt-1 block text-[0.8125rem] text-muted-fg">{explanation}</span>
+      {subject && (
+        <span className="mt-1 block min-w-0 truncate text-[0.9375rem] font-medium text-ink">
+          {subject.name}
+        </span>
       )}
-      {program && (
-        <span className="mt-0.5 block text-xs text-muted-fg">{program.name}</span>
+      {explanation && (
+        <span className="mt-0.5 block text-[0.8125rem] text-muted-fg">{explanation}</span>
       )}
     </>
   );
 
   return (
-    <li className="group/row flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 transition-colors has-[:active]:bg-canvas sm:px-5">
+    <li className="group/row flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 transition-colors has-[:active]:bg-fill sm:px-5">
       {href && !action ? (
         // The row is the target. `min-w-0` so the subject's truncate works;
         // without it the name sets the width and pushes the chevron off.
@@ -177,7 +201,7 @@ function AttentionRow({
           className="group -my-1 flex min-w-0 flex-1 items-center justify-between gap-3 py-1"
         >
           <span className="min-w-0">{body}</span>
-          <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg/70 transition-colors group-hover:text-brand" />
+          <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg/60 transition-colors group-hover:text-brand" />
         </Link>
       ) : (
         <span className={cn("min-w-0", action ? "" : "flex-1")}>{body}</span>

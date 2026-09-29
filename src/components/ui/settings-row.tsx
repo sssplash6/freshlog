@@ -1,6 +1,6 @@
 import { cn } from "@/lib/cn";
 
-const LABEL = "block text-sm font-medium text-ink";
+const LABEL = "block text-[0.9375rem] font-medium text-ink";
 
 /**
  * One labelled setting: what it is, what it is for, the control, and what that
@@ -26,6 +26,7 @@ export function SettingsRow({
   description,
   control,
   state,
+  trailing = false,
   className,
 }: {
   label: React.ReactNode;
@@ -39,12 +40,20 @@ export function SettingsRow({
   control: React.ReactNode;
   /** The row's `SaveState`, rendered under the control. */
   state?: React.ReactNode;
+  /**
+   * A compact control — a switch, a short toggle, a value that is only read —
+   * pinned to the row's right edge, the way an iOS Settings row carries its
+   * switch. Without it such a control sat wherever the 16rem column began,
+   * floating in the middle of the row. Fields that want width leave it off.
+   */
+  trailing?: boolean;
   className?: string;
 }) {
   return (
     <div
       className={cn(
-        "flex flex-col gap-x-8 gap-y-2 border-b border-line py-2.5 last:border-b-0 sm:flex-row sm:items-start sm:justify-between",
+        "flex flex-col gap-x-8 gap-y-2 border-b border-line py-3 last:border-b-0 sm:flex-row sm:justify-between",
+        trailing ? "max-sm:flex-row max-sm:items-center sm:items-center" : "sm:items-start",
         className
       )}
     >
@@ -57,13 +66,21 @@ export function SettingsRow({
           <div className={LABEL}>{label}</div>
         )}
         {description && (
-          <p className="mt-1 text-xs text-muted-fg">{description}</p>
+          <p className="mt-0.5 text-[0.8125rem] text-muted-fg">{description}</p>
         )}
       </div>
-      {/* The control column keeps a floor of 16rem so a stack of rows lines up
+      {/* A trailing control hugs the right edge at every width. Otherwise the
+          control column keeps a floor of 16rem so a stack of rows lines up
           down the page, and takes the full width below `sm`, where there is no
           column to line up with. */}
-      <div className="min-w-0 sm:min-w-64 sm:flex-1">
+      <div
+        className={cn(
+          "min-w-0",
+          trailing
+            ? "flex flex-col items-end text-right"
+            : "sm:min-w-64 sm:flex-1"
+        )}
+      >
         {control}
         {state}
       </div>

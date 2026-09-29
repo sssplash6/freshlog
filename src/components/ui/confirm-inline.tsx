@@ -59,7 +59,8 @@ export function ConfirmInline({
   cancelLabel = "Cancel",
   pendingLabel,
   pending = false,
-    variant = "button",
+  variant = "button",
+  tone = "danger",
   size,
   className,
 }: {
@@ -87,6 +88,12 @@ export function ConfirmInline({
   pending?: boolean;
   /** `"quiet"` inside a menu panel, where an outlined red button is too loud. */
   variant?: "button" | "quiet";
+  /**
+   * `danger` is the default because most confirms are destructive; `primary`
+   * is for a claim that merely can't be undone — marking an interview done —
+   * where a red button would say "this is a problem" about finishing a thing.
+   */
+  tone?: "danger" | "primary";
     /**
    * Defaults by variant, because the two live in different places. A standalone
    * `button` is a page control and gets 44px — it is the most consequential
@@ -150,7 +157,11 @@ export function ConfirmInline({
           <span role="alert" className="text-xs text-muted-fg">
             {question}
           </span>
-          <SubmitButton variant="dangerSolid" size={stepSize} pendingText={pendingLabel}>
+          <SubmitButton
+            variant={tone === "danger" ? "dangerSolid" : "primary"}
+            size={stepSize}
+            pendingText={pendingLabel}
+          >
             {confirmLabel}
           </SubmitButton>
           <Button
@@ -179,8 +190,11 @@ export function ConfirmInline({
             onClick={() => step(true)}
             className={
               variant === "quiet"
-                ? "inline-flex min-h-10 items-center rounded-lg text-left text-xs font-medium text-danger-ink transition-colors hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                : buttonClasses("danger", stepSize)
+                ? cn(
+                    "inline-flex min-h-10 items-center rounded-lg text-left text-xs font-medium transition-colors hover:underline disabled:cursor-not-allowed disabled:opacity-50",
+                    tone === "danger" ? "text-danger-ink" : "text-ink"
+                  )
+                : buttonClasses(tone === "danger" ? "danger" : "secondary", stepSize)
             }
           >
             {label}

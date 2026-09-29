@@ -3,7 +3,11 @@ import { redirect } from "next/navigation";
 import { LogSessionForm, type LogSessionDraft } from "@/components/forms/log-session-form";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle } from "@/components/ui/section";
-import { adminScope, scopeIsEmpty, scopeProgramFilter } from "@/lib/authz";
+import {
+  adminWriteScope,
+  scopeIsEmpty,
+  scopeProgramFilter,
+} from "@/lib/authz";
 import { canActAsMentor, USER_STATUS } from "@/lib/constants";
 import { mentorsWhere } from "@/lib/filters";
 import { requireMentor, requireUser } from "@/lib/dal";
@@ -46,7 +50,9 @@ export default async function LogSessionPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const viewer = await requireUser();
-  const scope = await adminScope(viewer);
+  // The WRITE scope: this page is a form, and the only thing it does is spend
+  // hours — a LEADER or SALES grant reads the program but does not log in it.
+  const scope = await adminWriteScope(viewer);
   const administers = !scopeIsEmpty(scope);
   // The gate is unchanged for everybody else: a mentor, named, and assigned.
   const user = administers ? viewer : await requireMentor();
@@ -121,7 +127,7 @@ export default async function LogSessionPage({
   const back = !canActAsMentor(user)
     ? "/sessions"
     : draft.studentProfileId
-      ? `/mentor/students/${draft.studentProfileId}`
+      ? `/students/${draft.studentProfileId}`
       : "/mentor";
 
   return (
@@ -129,7 +135,7 @@ export default async function LogSessionPage({
     // side by side above `lg`, and at 42rem each column was too narrow to hold
     // "Attended / Came late / Absent / Rescheduled" on one row. Below `lg` the
     // form is one column and this cap never binds.
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="max-w-4xl space-y-4">
       <PageTitle backHref={back} backLabel="Back" title="Log a session" />
 
       {students.length === 0 && mentors.length === 0 ? (

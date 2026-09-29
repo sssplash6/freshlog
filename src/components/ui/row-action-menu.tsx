@@ -82,11 +82,13 @@ export function RowActionMenu({
           // read as detached from the line above it. The icon is 16px, so 28
           // still leaves it six pixels of air on every side.
           "inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-fg transition sm:h-7 sm:w-7",
-          // The tint says "target" and the ring says "pressable" — a border
-          // sitting there permanently would say it on every row of the table at
-          // once, which is the same as saying it nowhere.
-          "hover:bg-brand-soft hover:text-brand hover:ring-2 hover:ring-brand/15",
-          "data-[open]:bg-brand-soft data-[open]:text-brand data-[open]:ring-2 data-[open]:ring-brand/15",
+          // A grey fill under the pointer and while open — the ghost button's
+          // shape. It was a brand tint plus a ring, which spent the selection
+          // colour on a hover and put a blue halo on every row a cursor
+          // crossed. Nothing sits there permanently: a border on every row of
+          // the table at once says "pressable" nowhere.
+          "hover:bg-fill hover:text-ink",
+          "data-[open]:bg-fill data-[open]:text-ink",
         )}
         trigger={
           trigger === "dots" ? (
@@ -125,7 +127,7 @@ export function RowActionGroup({
   return (
     <div
       className={cn(
-        "mt-3 border-t border-line pt-2.5 first:mt-0 first:border-t-0 first:pt-0",
+        "mt-3 border-t border-line pt-3 first:mt-0 first:border-t-0 first:pt-0",
         className,
       )}
     >

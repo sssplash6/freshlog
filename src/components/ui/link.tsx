@@ -69,7 +69,7 @@ export type ExternalVariant =
    * already starting.
    */
   | "quiet"
-  /** A bordered pill, for a table cell where a bare link would not read as one. */
+  /** A grey-filled pill, for a table cell where a bare link would not read as one. */
   | "chip"
   /** The primary thing to do on the view — booking a session, joining a call. */
   | "action";
@@ -112,7 +112,7 @@ export function ExternalLink({
         variant === "quiet" &&
           "inline-flex min-h-11 items-center gap-1.5 text-[0.8125rem] font-medium text-brand hover:underline",
         variant === "chip" &&
-          "inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-brand transition-colors hover:border-brand hover:bg-brand-soft",
+          "inline-flex min-h-9 items-center gap-1.5 rounded-full bg-fill px-3 text-xs font-medium text-brand transition-colors hover:bg-fill-strong",
         variant === "action" && buttonClasses("primary", size),
         className
       )}

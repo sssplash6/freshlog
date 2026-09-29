@@ -36,7 +36,7 @@ import {
  *
  * "Add students" is not up here either — it was a button here AND a fold on the
  * page below, one action drawn twice a header apart. It is the full-width
- * button under the tabs now, on the page it acts on.
+ * secondary button in the header of the Students group, on the page it acts on.
  *
  * THE TWO THAT ARE HERE are the two an admin opens a program to do and could
  * only reach through a student (21 September 2026, the owner's instruction):
@@ -71,7 +71,7 @@ export default async function ProgramLayout({
     <div className="space-y-4">
       <PageTitle
         backHref={toIndex ? "/programs" : "/admin"}
-        backLabel={toIndex ? "Programs" : "Inbox"}
+        backLabel={toIndex ? "Programs" : "Home"}
         // No eyebrow. "PROGRAM" sat in grey capitals directly under a back
         // link reading "Programs", above a title that is a program's name
         // beside its own coloured dot — the same fact three times in forty
@@ -87,35 +87,11 @@ export default async function ProgramLayout({
             )}
           </span>
         }
-        subtitle={
-          <span className="flex flex-wrap items-center gap-2">
-            <ProgramMetric
-              label="Students"
-              value={String(totals.students)}
-              tone="neutral"
-            />
-            <ProgramMetric label="Mentors" value={String(mentors)} tone="neutral" />
-            <ProgramMetric
-              label="Completed"
-              value={shortHours(formatRough(totals.completed))}
-              tone="hours"
-            />
-            <ProgramMetric
-              label="Remaining"
-              value={shortHours(formatRough(totals.remaining))}
-              tone={totals.remaining < 0 ? "danger" : "hours"}
-            />
-            {/* The column decides, never the program's name — renaming the
-                Master's Program used to switch the money off across the app
-                (`Program.tracksPayment`, schema). */}
-            {program.tracksPayment && (
-              <ProgramMetric label="Paid" value={formatMoney(totals.paid)} tone="neutral" />
-            )}
-          </span>
-        }
         actions={
           <span className="flex flex-wrap items-center gap-2">
-            <LinkButton href={`${base}/allocate`} variant="secondary" size="md">
+            {/* One primary: granting time is what a program admin opens this
+                page to do that no other page does for the whole program. */}
+            <LinkButton href={`${base}/allocate`} variant="primary" size="md">
               Allocate time
             </LinkButton>
             {/* The program travels with it: a student in two of them has two
@@ -131,6 +107,51 @@ export default async function ProgramLayout({
           </span>
         }
       />
+
+      {/* What the program holds, as a stat row: label over value, space
+          between, no boxes. It was a wrapping row of bordered pills, amber
+          ones among them, which read as seven buttons. Colour is on the VALUE
+          and only where the value is a problem. */}
+      <dl className="flex flex-wrap gap-x-8 gap-y-3 px-1">
+        <ProgramMetric label="Students" value={String(totals.students)} />
+        <ProgramMetric label="Mentors" value={String(mentors)} />
+        <ProgramMetric label="Completed" value={formatRough(totals.completed)} />
+        <ProgramMetric
+          label="Remaining"
+          value={formatRough(totals.remaining)}
+          tone={totals.remaining < 0 ? "danger" : undefined}
+        />
+        {/* The ones below exist only when nonzero — a healthy program's
+            masthead is unchanged, and the numbers `programTotals` already
+            computes stop being invisible precisely where they matter. */}
+        {totals.missed > 0 && (
+          <ProgramMetric label="Missed" value={formatRough(totals.missed)} tone="warn" />
+        )}
+        {totals.forfeited > 0 && (
+          <ProgramMetric
+            label="Expired unused"
+            value={formatRough(totals.forfeited)}
+            tone="warn"
+          />
+        )}
+        {totals.extra > 0 && (
+          <ProgramMetric label="Extra" value={formatRough(totals.extra)} />
+        )}
+        {totals.overdrawn > 0 && (
+          // A count of students, not minutes — the value has to say which.
+          <ProgramMetric
+            label="Overdrawn"
+            value={`${totals.overdrawn} ${totals.overdrawn === 1 ? "student" : "students"}`}
+            tone="danger"
+          />
+        )}
+        {/* The column decides, never the program's name — renaming the
+            Master's Program used to switch the money off across the app
+            (`Program.tracksPayment`, schema). */}
+        {program.tracksPayment && (
+          <ProgramMetric label="Paid" value={formatMoney(totals.paid)} />
+        )}
+      </dl>
 
       <TabLinks
         label="Program sections"
@@ -152,23 +173,20 @@ function ProgramMetric({
 }: {
   label: string;
   value: string;
-  tone: "hours" | "danger" | "neutral";
+  /** Only for a figure that is a problem. Everything else is ink. */
+  tone?: "warn" | "danger";
 }) {
   return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 py-1 text-xs",
-        tone === "hours" && "border-line bg-surface text-ink",
-        tone === "danger" && "border-danger-line bg-danger-soft text-danger-ink",
-        tone === "neutral" && "border-line bg-surface text-muted-fg",
-      )}
-    >
-      <span className="font-medium">{label}</span>
-      <span className="font-semibold tabular-nums">{value}</span>
-    </span>
+    <div>
+      <dt className="text-[0.8125rem] text-muted-fg">{label}</dt>
+      <dd
+        className={cn(
+          "mt-0.5 text-[1.25rem] font-semibold tabular-nums",
+          tone === "warn" ? "text-warn-ink" : tone === "danger" ? "text-danger-ink" : "text-ink",
+        )}
+      >
+        {value}
+      </dd>
+    </div>
   );
-}
-
-function shortHours(value: string) {
-  return value.replace(/hours?/, "hrs");
 }

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { getCurrentUser } from "@/lib/dal";
 import {
-  adminScope,
+  adminWriteScope,
   canManageProgram,
   mentorReaches,
   scopeCovers,
@@ -236,7 +236,7 @@ export async function logSession(
     );
   }
   if (onBehalf) {
-    if (scopeIsEmpty(await adminScope(actor))) {
+    if (scopeIsEmpty(await adminWriteScope(actor))) {
       return bad("Only an admin can log a session for somebody else.", "mentorId");
     }
     if (!canActAsMentor(mentor) || mentor.status !== USER_STATUS.ACTIVE) {
@@ -846,7 +846,7 @@ async function requireSessionAuthority(
 ): Promise<SessionAuthority> {
   const actor = await getCurrentUser();
   if (!actor) return { ok: false, refusal: "actor" };
-  const scope = await adminScope(actor);
+  const scope = await adminWriteScope(actor);
   const administers = !scopeIsEmpty(scope);
   const isMentor = canActAsMentor(actor) && actor.status === USER_STATUS.ACTIVE;
   if (!administers && !isMentor) return { ok: false, refusal: "actor" };
@@ -1124,7 +1124,7 @@ export async function restoreSession(
 ): Promise<ActionState> {
   const actor = await getCurrentUser();
   if (!actor) return { ok: false, error: "Sign in to do that." };
-  const scope = await adminScope(actor);
+  const scope = await adminWriteScope(actor);
   const administers = !scopeIsEmpty(scope);
   const isMentor = canActAsMentor(actor) && actor.status === USER_STATUS.ACTIVE;
   if (!administers && !isMentor) {
@@ -1187,7 +1187,7 @@ export async function deleteSession(
   // Asked before the row is loaded, and deliberately: it is a fact about the
   // person, not about any session, so a mentor is pointed at the tool they do
   // have without a probe learning whether the id they guessed exists.
-  if (!actor || scopeIsEmpty(await adminScope(actor))) {
+  if (!actor || scopeIsEmpty(await adminWriteScope(actor))) {
     return {
       ok: false,
       error: "Only admins can delete a session. Mentors can void their own instead, which keeps the record.",

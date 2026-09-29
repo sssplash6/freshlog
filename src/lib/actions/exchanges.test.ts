@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { EXCHANGE_STATUS } from "@/lib/constants";
+import { EXCHANGE_STATUS, SESSION_STATUS } from "@/lib/constants";
 import {
   admin,
   allocation,
@@ -39,7 +39,7 @@ vi.mock("@/lib/dal", () => ({
 const { sendOnExchange, returnExchange } = await import("@/lib/actions/exchanges");
 const { setMentorAllocation } = await import("@/lib/actions/students");
 const { logSession } = await import("@/lib/actions/sessions");
-const { visibleExchanges } = await import("@/lib/exchanges");
+const { visibleExchanges, exchangeFigures } = await import("@/lib/exchanges");
 
 function form(fields: Record<string, string>) {
   const data = new FormData();
@@ -320,6 +320,18 @@ describe("calling an exchange off", () => {
     await expect(
       prisma.hourAllocation.count({ where: { programId: global.id } })
     ).resolves.toBe(0);
+
+    // The allocations go; their history does not. Each returned grant is
+    // written as a terminal change down to zero, so the student's History can
+    // still say where the host-program hours went.
+    const trail = await prisma.hourAllotmentChange.findMany({
+      where: { studentId: malika.id, programId: global.id },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(trail.map((t) => [t.oldMinutes, t.newMinutes])).toEqual([
+      [0, 420],
+      [420, 0],
+    ]);
   });
 
   it("refuses once an hour has been delivered", async () => {
@@ -369,6 +381,89 @@ describe("calling an exchange off", () => {
     await expect(
       prisma.programExchange.findFirstOrThrow({ select: { status: true } })
     ).resolves.toEqual({ status: EXCHANGE_STATUS.OPEN });
+  });
+});
+
+describe("the figures a sender reads", () => {
+  // Pure arithmetic, no database: an expired grant forfeits what is left on
+  // it, per its own deadline — the same rule allocationSummary applies to the
+  // ledger these rows belong to.
+  const past = new Date("2026-01-01T00:00:00.000Z");
+  const future = new Date("2099-01-01T00:00:00.000Z");
+  const now = new Date("2026-06-01T00:00:00.000Z").getTime();
+  const charged = (mentorId: string, minutes: number, attended = true) => ({
+    mentorId,
+    minutes,
+    attended,
+    status: SESSION_STATUS.ACTIVE,
+    withinPlan: true,
+  });
+
+  it("forfeits what an expired grant still holds, and counts the rest of used", async () => {
+    const figures = exchangeFigures(
+      420,
+      [
+        { mentorId: "m1", minutes: 420, deadline: past },
+      ],
+      [
+        charged("m1", 120),
+        charged("m1", 60, false), // a no-show still spends the hours
+      ],
+      now
+    );
+
+    expect(figures).toMatchObject({
+      cap: 420,
+      allocated: 420,
+      used: 180,
+      missed: 60,
+      forfeited: 240,
+      remaining: 0,
+      unallocated: 0,
+    });
+  });
+
+  it("leaves a live grant untouched and keeps extras out of every total", async () => {
+    const figures = exchangeFigures(
+      420,
+      [{ mentorId: "m1", minutes: 300, deadline: future }],
+      [
+        charged("m1", 60),
+        { ...charged("m1", 30), withinPlan: false }, // extra work
+        { ...charged("m1", 15), status: SESSION_STATUS.VOIDED },
+      ],
+      now
+    );
+
+    expect(figures).toMatchObject({
+      used: 60,
+      missed: 0,
+      extra: 30,
+      forfeited: 0,
+      remaining: 240,
+      unallocated: 120,
+    });
+  });
+
+  it("forfeits per mentor, not across the placement", async () => {
+    // Two mentors, two deadlines: only the expired grant lapses, and only by
+    // what ITS holder did not spend — the other mentor's delivered hours do
+    // not rescue it.
+    const figures = exchangeFigures(
+      420,
+      [
+        { mentorId: "m1", minutes: 240, deadline: past },
+        { mentorId: "m2", minutes: 180, deadline: future },
+      ],
+      [charged("m2", 180)],
+      now
+    );
+
+    expect(figures).toMatchObject({
+      used: 180,
+      forfeited: 240,
+      remaining: 0,
+    });
   });
 });
 

@@ -55,6 +55,9 @@ export type Denied = { ok: false; error: string };
  * Explicit grants only: no fallback to `role`, and no "admins see everything
  * when they hold nothing", which is how a permission model quietly returns to
  * the one it replaced.
+ *
+ * This is the READ answer — every level of grant reads the program. What a
+ * grant lets its holder CHANGE is `adminWriteScope`, which is a different set.
  */
 export const adminScope = cache(async (user: User): Promise<AdminScope> => {
   if (user.platformAdmin) return "ALL";
@@ -64,6 +67,29 @@ export const adminScope = cache(async (user: User): Promise<AdminScope> => {
   });
   return new Set(grants.map((g) => g.programId));
 });
+
+/**
+ * The programs this user may CHANGE — the write half of `adminScope`.
+ *
+ * `adminScope` counts every grant, because every level is a read: a LEADER
+ * reads the program and its feedback, a SALES grant reads its students. Only
+ * an ADMIN-level row writes — a grant that named a level and still let the
+ * holder log, void and delete sessions would be a read-only badge on a
+ * read-write key, which is exactly the bug the level select once shipped.
+ *
+ * Every write assertion below asks THIS scope; every page that reads asks
+ * `adminScope`. Never answer a write question with the read set.
+ */
+export const adminWriteScope = cache(
+  async (user: User): Promise<AdminScope> => {
+    if (user.platformAdmin) return "ALL";
+    const grants = await prisma.programStaff.findMany({
+      where: { userId: user.id, role: "ADMIN" },
+      select: { programId: true },
+    });
+    return new Set(grants.map((g) => g.programId));
+  }
+);
 
 /** Does this scope reach this program? */
 export function scopeCovers(scope: AdminScope, programId: string): boolean {
@@ -78,8 +104,10 @@ export function scopeIsEmpty(scope: AdminScope): boolean {
 /**
  * What this person may do inside one program, or null if they may not see it.
  *
- * LEADER and SALES are the two old roles, kept as grant levels so the model can
- * still say what they said. Nothing grants them today; the UI writes ADMIN.
+ * LEADER and SALES are the two old roles, kept as grant levels. Both are
+ * read-only memberships of `adminScope`: they open the program's pages and
+ * decide which nav a person gets, and `adminWriteScope` keeps them out of
+ * every write. Only ADMIN changes the program.
  */
 export async function staffLevel(
   user: User,
@@ -96,12 +124,18 @@ export async function staffLevel(
     : "ADMIN";
 }
 
-/** May this person administer this program? */
+/**
+ * May this person administer this program — as a WRITE question.
+ *
+ * The name predates the split: it is only ever asked where a change is about
+ * to happen (logging for somebody else, deleting a session), so it answers
+ * from `adminWriteScope`, and a LEADER's read grant does not pass it.
+ */
 export async function canManageProgram(
   user: User,
   programId: string
 ): Promise<boolean> {
-  return scopeCovers(await adminScope(user), programId);
+  return scopeCovers(await adminWriteScope(user), programId);
 }
 
 /**
@@ -120,6 +154,21 @@ export async function canManageStudent(
   profile: { enrollments: readonly { programId: string }[] }
 ): Promise<boolean> {
   const scope = await adminScope(user);
+  if (scope === "ALL") return profile.enrollments.length > 0;
+  return profile.enrollments.some((e) => scope.has(e.programId));
+}
+
+/**
+ * May this person WRITE this student's record — the `canManageStudent` rule
+ * asked of `adminWriteScope` instead. Every affordance for a change and every
+ * action that takes one asks this question; `canManageStudent` remains the
+ * read answer.
+ */
+export async function canAdministerStudent(
+  user: User,
+  profile: { enrollments: readonly { programId: string }[] }
+): Promise<boolean> {
+  const scope = await adminWriteScope(user);
   if (scope === "ALL") return profile.enrollments.length > 0;
   return profile.enrollments.some((e) => scope.has(e.programId));
 }
@@ -157,6 +206,24 @@ export async function canManageMentor(
   mentorId: string
 ): Promise<boolean> {
   const scope = await adminScope(user);
+  if (scope === "ALL") return true;
+  if (scope.size === 0) return false;
+  const shared = await prisma.mentorAssignment.findFirst({
+    where: { mentorId, programId: { in: [...scope] } },
+    select: { id: true },
+  });
+  return shared !== null;
+}
+
+/**
+ * May this person CHANGE this mentor's record — `canManageMentor` asked of
+ * `adminWriteScope`, for the edit affordance and the actions behind it.
+ */
+export async function canAdministerMentor(
+  user: User,
+  mentorId: string
+): Promise<boolean> {
+  const scope = await adminWriteScope(user);
   if (scope === "ALL") return true;
   if (scope.size === 0) return false;
   const shared = await prisma.mentorAssignment.findFirst({
@@ -213,7 +280,7 @@ export async function assertProgramScope(
   programId: string
 ): Promise<Denied | null> {
   if (!actor) return { ok: false, error: "Sign in to do that." };
-  const scope = await adminScope(actor);
+  const scope = await adminWriteScope(actor);
   if (scopeCovers(scope, programId)) return null;
   return {
     ok: false,
@@ -235,7 +302,7 @@ export async function assertStudentScope(
   profile: { enrollments: readonly { programId: string }[] }
 ): Promise<Denied | null> {
   if (!actor) return { ok: false, error: "Sign in to do that." };
-  if (await canManageStudent(actor, profile)) return null;
+  if (await canAdministerStudent(actor, profile)) return null;
   return {
     ok: false,
     error: "You don't administer any program this student is in.",
@@ -267,7 +334,7 @@ export async function assertStudentReach(
   profile: { id: string; enrollments: readonly { programId: string }[] }
 ): Promise<Denied | null> {
   if (!actor) return { ok: false, error: "Sign in to do that." };
-  if (await canManageStudent(actor, profile)) return null;
+  if (await canAdministerStudent(actor, profile)) return null;
   if (canActAsMentor(actor) && (await mentorReaches(actor, profile))) {
     return null;
   }
@@ -310,7 +377,7 @@ export async function assertTaskScope(
   ) {
     return null;
   }
-  const scope = await adminScope(actor);
+  const scope = await adminWriteScope(actor);
   if (scopeCovers(scope, task.programId)) return null;
   return {
     ok: false,
@@ -348,7 +415,7 @@ export async function assertTaskAssigner(
   if (!actor) return { ok: false, error: "Sign in to do that." };
   const enrolled = profile.enrollments.some((e) => e.programId === programId);
   if (enrolled) {
-    const scope = await adminScope(actor);
+    const scope = await adminWriteScope(actor);
     if (scopeCovers(scope, programId)) return null;
     if (canActAsMentor(actor) && actor.status === USER_STATUS.ACTIVE) {
       const works = await prisma.mentorAssignment.findFirst({
@@ -393,7 +460,7 @@ export async function assertExchangeSender(
   if (!profile.enrollments.some((e) => e.programId === fromProgramId)) {
     return { ok: false, error: "That student doesn't study in that program." };
   }
-  const scope = await adminScope(actor);
+  const scope = await adminWriteScope(actor);
   if (scopeCovers(scope, fromProgramId)) return null;
   if (canActAsMentor(actor) && actor.status === USER_STATUS.ACTIVE) {
     const works = await prisma.mentorAssignment.findFirst({
@@ -426,7 +493,7 @@ export async function assertExchangeParty(
 ): Promise<Denied | null> {
   if (!actor) return { ok: false, error: "Sign in to do that." };
   if (actor.id === exchange.sentById) return null;
-  const scope = await adminScope(actor);
+  const scope = await adminWriteScope(actor);
   if (
     scopeCovers(scope, exchange.toProgramId) ||
     scopeCovers(scope, exchange.fromProgramId)

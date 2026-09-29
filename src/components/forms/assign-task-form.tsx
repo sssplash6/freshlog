@@ -11,7 +11,7 @@ import { setMentorAllocation } from "@/lib/actions/students";
 import { programToday } from "@/lib/when";
 
 const labelClass =
-  "block text-xs font-semibold uppercase tracking-[0.06em] text-muted-fg";
+  "block text-xs font-medium text-muted-fg";
 
 /**
  * The one way hours reach a student: a grant, with the mentor and task

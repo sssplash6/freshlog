@@ -354,12 +354,12 @@ export function AvatarForm({
           <img
             src={preview}
             alt=""
-            className="h-24 w-24 shrink-0 rounded-full bg-canvas object-cover sm:h-28 sm:w-28"
+            className="h-16 w-16 shrink-0 rounded-full bg-canvas object-cover"
           />
         ) : (
           <Avatar
             person={person}
-            className="h-24 w-24 text-3xl sm:h-28 sm:w-28"
+            className="h-16 w-16 text-xl"
           />
         )}
 

@@ -26,7 +26,7 @@ import { cn } from "@/lib/cn";
 
 /** The shared shell, so the two shapes cannot drift apart again. */
 const TRACK =
-  "flex w-full flex-wrap gap-1 rounded-xl border border-line bg-canvas p-1 sm:w-fit";
+  "flex w-full flex-wrap gap-0.5 rounded-xl bg-fill p-0.5 sm:w-fit";
 /** 44px: students and mentors use this on a phone. */
 const SEGMENT =
   "inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 text-sm transition-colors sm:flex-none";
@@ -55,9 +55,11 @@ const SEGMENT_DENSE =
  * row on a phone. Two words and a count are not a full-width control.
  */
 const TRACK_TAB =
-  "flex w-fit max-w-full flex-wrap gap-0.5 rounded-lg border border-line bg-canvas p-0.5";
+  "flex w-fit max-w-full flex-wrap gap-0.5 rounded-lg bg-fill p-0.5";
 const SEGMENT_TAB =
   "inline-flex min-h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-[0.8125rem] transition-colors";
+// The thumb: white on the grey track, iOS's segmented control. `shadow-sm`
+// is the resting-card shadow, which is exactly the lift a thumb has.
 const ON = "bg-surface font-semibold text-ink shadow-sm";
 const OFF = "font-medium text-muted-fg hover:text-ink";
 

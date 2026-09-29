@@ -37,7 +37,7 @@ function Step({
     <div className="mx-auto max-w-md space-y-4">
       <PageTitle eyebrow={eyebrow} title={title} subtitle={sentence} />
       {form && (
-        <div className="rounded-2xl border border-line bg-surface shadow-sm p-5 sm:p-6">
+        <div className="rounded-xl bg-surface shadow-sm p-5 sm:p-6">
           {form}
         </div>
       )}

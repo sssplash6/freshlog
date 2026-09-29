@@ -365,7 +365,7 @@ export function Popover({
                 visibility: measured ? "visible" : "hidden",
               }}
               className={cn(
-                "z-50 overflow-y-auto overscroll-contain border border-line bg-surface text-left shadow-lg focus:outline-none",
+                "z-50 overflow-y-auto overscroll-contain bg-surface text-left shadow-lg focus:outline-none",
                 sheet
                   ? // The sheet: full-width, anchored to the home-indicator
                     // inset — or to `--kb`, the keyboard's height, when it is

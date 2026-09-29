@@ -17,18 +17,25 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowLink } from "@/components/ui/link";
 import { Meter } from "@/components/ui/meter";
 import { PageTitle, Section } from "@/components/ui/section";
-import { StatusChip } from "@/components/ui/status-chip";
+import { StatusSummary } from "@/components/status-summary";
+import { DeadlineText, StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
 import { ASSIGNMENT_PROGRESS, ROLES, USER_STATUS } from "@/lib/constants";
 import { withoutMentorNotes } from "@/lib/authz";
 import { requireRole } from "@/lib/dal";
-import { formatDate, formatMinutes } from "@/lib/format";
+import { formatDate, formatDuration, formatMinutes } from "@/lib/format";
 import { enrollmentsLabel } from "@/lib/enrollments";
 import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
+import { studentRows } from "@/lib/attention";
 import { studentLedger, type LedgerAssignment } from "@/lib/queries";
 import { taskIsOpen } from "@/lib/student-tasks";
-import { taskStatuses, type Status, type ViewerContext } from "@/lib/status";
+import {
+  EXPIRY_WINDOW_DAYS,
+  taskStatuses,
+  type Status,
+  type ViewerContext,
+} from "@/lib/status";
 
 /**
  * One line of the AGENDA — a piece of work the student's hours were budgeted
@@ -49,11 +56,11 @@ function AgendaRow({ task, statuses }: { task: LedgerAssignment; statuses: Statu
   const over = budget > 0 && task.loggedMinutes > budget;
 
   return (
-    <li className="border-b border-line bg-surface px-4 py-2 sm:px-5 sm:[&:nth-child(odd)]:border-r">
-      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
+    <li className="px-4 py-3 sm:px-5">
+      <div className="flex items-start justify-between gap-3">
         {/* A purpose is occasionally written as a paragraph rather than a name,
             and one such row must not cost every other row its scanability. */}
-        <div className="min-w-0 flex-1 text-[0.9375rem] font-semibold leading-snug">
+        <div className="min-w-0 flex-1 text-[0.9375rem] font-medium leading-snug text-ink">
           <ExpandableText text={task.purpose} lines={2} />
         </div>
         {/* Whichever half this task has. The note is free text — the tracking
@@ -67,7 +74,7 @@ function AgendaRow({ task, statuses }: { task: LedgerAssignment; statuses: Statu
         )}
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
         {task.mentor && <PersonChip person={task.mentor} size="sm" />}
         {statuses.map((s) => (
           <StatusChip key={s.type} status={s} />
@@ -85,22 +92,22 @@ function AgendaRow({ task, statuses }: { task: LedgerAssignment; statuses: Statu
             ariaValueMax={budget}
             ariaLabel={`Time logged on ${task.purpose}`}
           />
-          <p className="mt-1.5 text-xs text-muted-fg">
+          <p className="mt-1.5 text-[0.8125rem] tabular-nums text-muted-fg">
             <span
               className={cn(
-                "font-semibold tabular-nums",
+                "font-medium",
                 over ? "text-danger-ink" : "text-ink",
               )}
             >
               {formatMinutes(task.loggedMinutes)}
             </span>
-            /{formatMinutes(budget)}
+            {" "}of {formatMinutes(budget)}
           </p>
         </>
       ) : (
         task.loggedMinutes > 0 && (
-          <p className="mt-2 text-xs text-muted-fg">
-            <span className="font-semibold tabular-nums text-ink">
+          <p className="mt-1.5 text-[0.8125rem] text-muted-fg">
+            <span className="font-medium tabular-nums text-ink">
               {formatMinutes(task.loggedMinutes)}
             </span>{" "}
             logged
@@ -117,12 +124,12 @@ function AgendaRow({ task, statuses }: { task: LedgerAssignment; statuses: Statu
  */
 function FinishedAgendaItem({ task }: { task: LedgerAssignment }) {
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
-      <span className="min-w-0 flex-1 truncate text-sm text-muted-fg">
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3">
+      <span className="min-w-0 flex-1 truncate text-[0.9375rem] text-muted-fg">
         {task.purpose}
       </span>
       {task.mentor && <PersonChip person={task.mentor} size="sm" />}
-      <span className="text-xs tabular-nums text-muted-fg">
+      <span className="text-[0.8125rem] tabular-nums text-muted-fg">
         {formatMinutes(task.loggedMinutes)}
       </span>
     </li>
@@ -207,6 +214,21 @@ export default async function StudentHomePage() {
     ...tasks.filter((t) => t.task.progress === ASSIGNMENT_PROGRESS.NOT_STARTED),
   ];
 
+  // What is true of the ACCOUNT, said to its owner — the same rows the bell
+  // lists on /notifications: no time, no mentor, a deadline coming or one
+  // that ate a balance, a mentor with no booking link, meetings to confirm,
+  // overdue work. A student with nothing yet used to land on a 0m ring and
+  // three empty sections and be told nothing. The balance and the ledger are
+  // handed over rather than read again.
+  const account = await studentRows(user, profile, hours, ledger, now);
+  // The soonest use-by, stated even outside the month the expiry row warns
+  // in: a deadline is the one date on this page that costs time, and a
+  // student should be able to see it before it becomes a warning.
+  const useBy =
+    hours.expiring && !account.some((s) => s.type === "ALLOCATION_EXPIRING")
+      ? hours.expiring
+      : null;
+
   // What their mentors set them to go away and do — already soonest-deadline
   // first from the query, because that is the order a to-do list is read in.
   const myTasks = toStudentTaskEntries(ledger.tasks, {
@@ -228,25 +250,27 @@ export default async function StudentHomePage() {
         // second, quieter rule about who may book.
         subtitle={<ArrowLink href="/student/book">Book a session</ArrowLink>}
         leading={
-          // 96px, scaled from the component's own 132: a ring that size beside
-          // the h1 on a 390px screen leaves the greeting three words wide, and
-          // the figure inside it has to stay the ledger's own rather than being
-          // re-derived by a second ring.
-          <div className="h-24 w-24">
-            <HoursRing
-              used={hours.used}
-              allotted={hours.allotted}
-              forfeited={hours.forfeited}
-              remaining={hours.remaining}
-              className="origin-top-left scale-[0.727]"
-            />
-          </div>
+          // 96px rather than the component's own 132: a ring that size beside
+          // the h1 on a 390px screen leaves the greeting three words wide. Sized
+          // by its prop, not a scale transform, so the stroke and the figure are
+          // sizes somebody chose rather than 73% of them.
+          <HoursRing
+            used={hours.used}
+            allotted={hours.allotted}
+            forfeited={hours.forfeited}
+            remaining={hours.remaining}
+            size={96}
+          />
         }
       />
 
+      {/* Account truth, between the greeting and the figures: a chip, and
+          the sentence that goes with it, most urgent first. */}
+      <StatusSummary statuses={account} title="Things to check" />
+
       {(hours.allotted > 0 || hours.used > 0 || hours.extra > 0) && (
         <Section title="Your time">
-          <div className="px-4 py-2 sm:px-5">
+          <div className="px-4 py-3 sm:px-5">
             <HoursBreakdown
               allotted={hours.allotted}
               completed={hours.completed}
@@ -258,6 +282,16 @@ export default async function StudentHomePage() {
               // that cannot show an overdraw is a bar that lies about it.
               remaining={Math.min(0, hours.remaining)}
             />
+            {useBy && (
+              <p className="mt-3 text-[0.8125rem] text-muted-fg">
+                {formatDuration(useBy.minutes)} to use by{" "}
+                <DeadlineText
+                  deadline={useBy.date}
+                  now={now}
+                  within={EXPIRY_WINDOW_DAYS.student}
+                />
+              </p>
+            )}
           </div>
         </Section>
       )}
@@ -280,7 +314,7 @@ export default async function StudentHomePage() {
           </EmptyState>
         ) : (
           <>
-            <ul className="divide-y divide-line/60">
+            <ul className="divide-y divide-line">
               {openTasks.map((task, i) => (
                 <StudentTaskRow
                   key={task.id}
@@ -307,7 +341,7 @@ export default async function StudentHomePage() {
                 {/* Finished, folded: it has stopped asking anything, and the
                     way back out of a mistake is inside the fold with it. */}
                 <Disclosure label="Finished" count={doneTasks.length}>
-                  <ul className="divide-y divide-line/60">
+                  <ul className="-mx-4 divide-y divide-line sm:-mx-5">
                     {doneTasks.map((task) => (
                       <StudentTaskRow
                         key={task.id}
@@ -341,11 +375,11 @@ export default async function StudentHomePage() {
         ) : (
           <>
             {live.length > 0 && (
-              // Two up. An agenda card is a title, a chip or two and a bar — it
-              // never fills a phone-width row, so one per line spent the whole
-              // right-hand side on nothing and pushed the finished fold below
-              // the fold of the screen.
-              <ul className="grid sm:grid-cols-2">
+              // One column, hairlines between — the grouped list every other
+              // card on the page is. The two-up grid it replaces drew a
+              // vertical rule down the card and left an empty half-cell
+              // whenever the count was odd, which read as a table with a hole.
+              <ul className="divide-y divide-line">
                 {live.map(({ task, statuses }) => (
                   <AgendaRow key={task.id} task={task} statuses={statuses} />
                 ))}
@@ -359,7 +393,7 @@ export default async function StudentHomePage() {
                 )}
               >
                 <Disclosure label="Finished" count={finished.length}>
-                  <ul className="divide-y divide-line/60">
+                  <ul className="divide-y divide-line">
                     {finished.map(({ task }) => (
                       <FinishedAgendaItem key={task.id} task={task} />
                     ))}
@@ -377,21 +411,24 @@ export default async function StudentHomePage() {
           thing on the page and pushes everything that needs doing off screen.
           So: on the page, closed, counted. */}
       {held.length > 0 && (
-        <Section title="Meetings you've had" count={held.length}>
-          <div className="px-4 py-2 sm:px-5">
-            <Disclosure
-              label="Show them"
-              aside={
-                <Link
-                  href="/student/meetings"
-                  transitionTypes={["nav-forward"]}
-                  className="text-xs font-medium text-brand hover:underline"
-                >
-                  All meetings
-                </Link>
-              }
+        <Section
+          title="Meetings you've had"
+          count={held.length}
+          // The way to the full list sits beside the group's title, where iOS
+          // puts a "See all", rather than wedged against the fold's own label.
+          action={
+            <Link
+              href="/student/meetings"
+              transitionTypes={["nav-forward"]}
+              className="text-[0.9375rem] font-medium text-brand hover:text-brand-dark"
             >
-              <ol className="divide-y divide-line/60">
+              See all
+            </Link>
+          }
+        >
+          <div className="px-4 py-2 sm:px-5">
+            <Disclosure label="Show them">
+              <ol className="divide-y divide-line">
                 {toSessionEntries(held).map((session, i) => (
                   <SessionRow
                     key={session.id}

@@ -5,11 +5,14 @@ import { useState } from "react";
 import { submitMentorFeedback } from "@/lib/actions/feedback";
 import { StarIcon } from "@/components/icons";
 import { Select } from "@/components/select";
+import { inputClasses } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { cn } from "@/lib/cn";
 
-const inputClass =
-  "w-full rounded-lg border border-line px-3.5 py-2.5 text-[0.9375rem] focus:border-brand focus:outline-none";
+// The shared field chrome — `text-base` under `sm`, so iOS does not zoom the
+// page when the comment box takes focus (it did, at the old 15px).
+const inputClass = cn(inputClasses, "resize-y leading-relaxed");
 
 /** Native radio inputs retain expected keyboard behavior while labels render
  * as a large, tap-friendly star picker. */
@@ -30,10 +33,14 @@ export function StarRating({
   const shown = hovered || value;
 
   return (
-    <fieldset className="block text-sm">
-      <legend className="text-muted-fg">{legend}</legend>
+    <fieldset className="block">
+      {/* The same label every `Field` wears, so the stars read as one field
+          among the form's others rather than a caption above a picture. */}
+      <legend className="text-sm font-medium text-ink">{legend}</legend>
       <div
-        className="mt-1 flex items-center gap-0.5"
+        // -ml-2 puts the first star's glyph, not its 44px target, on the
+        // form's left edge, under the label it belongs to.
+        className="-ml-2 mt-0.5 flex items-center"
         onMouseLeave={() => setHovered(0)}
       >
         {[1, 2, 3, 4, 5].map((n) => (
@@ -54,20 +61,18 @@ export function StarRating({
             />
             <label
               htmlFor={`${idPrefix}-${n}`}
-              className={`inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand ${
-                n <= shown ? "text-accent" : "text-line"
-              }`}
+              className={cn(
+                "inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg transition-colors active:scale-90 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-[-2px] peer-focus-visible:outline-brand",
+                n <= shown ? "text-ink" : "text-fill-strong"
+              )}
             >
-            <StarIcon
-              className="h-7 w-7"
-              aria-hidden="true"
-            />
-            <span className="sr-only">{n} star{n === 1 ? "" : "s"}</span>
+              <StarIcon className="h-7 w-7 transition-transform" aria-hidden="true" />
+              <span className="sr-only">{n} star{n === 1 ? "" : "s"}</span>
             </label>
           </span>
         ))}
         {shown > 0 && (
-          <span className="ml-2 text-sm font-medium tabular-nums text-muted-fg">
+          <span className="ml-1 text-[0.8125rem] font-medium tabular-nums text-muted-fg">
             {shown}/5
           </span>
         )}
@@ -89,14 +94,13 @@ export function MentorFeedbackForm({
   return (
     // No heading of its own: the page's title says "Rate a mentor" directly
     // above this, and the form was repeating it word for word.
-    <form action={action} className="rounded-xl border border-line bg-surface shadow-sm p-4">
-      <p className="text-xs text-muted-fg">
-        Your name isn&apos;t shown to the mentor.
-      </p>
-      <div className="mt-3 space-y-3">
-        <div className="block text-sm">
-          <span className="text-muted-fg">Mentor *</span>
-          <div className="mt-0.5">
+    <form action={action} className="rounded-xl bg-surface px-4 py-3 shadow-sm sm:px-5">
+      <div className="space-y-4">
+        <div className="block">
+          <span className="block text-sm font-medium text-ink">
+            Mentor <span className="text-accent-ink">*</span>
+          </span>
+          <div className="mt-1.5">
             <Select
               name="mentorId"
               ariaLabel="Mentor"
@@ -106,8 +110,8 @@ export function MentorFeedbackForm({
           </div>
         </div>
         <StarRating name="rating" idPrefix="mentor-rating" />
-        <label className="block text-sm">
-          <span className="text-muted-fg">Comment</span>
+        <label className="block space-y-1.5">
+          <span className="block text-sm font-medium text-ink">Comment</span>
           <textarea
             name="comment"
             rows={3}
@@ -116,9 +120,14 @@ export function MentorFeedbackForm({
           />
         </label>
       </div>
-      <SubmitButton pendingText="Sending…" className="mt-3">
-        Submit mentor feedback
-      </SubmitButton>
+      {/* Said at the point of sending, where the worry is, rather than as the
+          form's first line where it read as a disclaimer. */}
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <SubmitButton pendingText="Sending…">Send feedback</SubmitButton>
+        <p className="text-[0.8125rem] text-muted-fg">
+          Your name isn&apos;t shown to the mentor.
+        </p>
+      </div>
       <SaveState state={save} />
     </form>
   );

@@ -90,7 +90,9 @@ export function ProfileShortcut() {
 }
 
 /**
- * Two segments, the active one filled. Dual-role admins only.
+ * Two segments on a grey track, the active one a white thumb — the app's
+ * segmented control (`ui/segmented`), drawn by hand only because one half is a
+ * submit and the other is a label. Dual-role admins only.
  *
  * A form, not a pair of links: switching writes a cookie and revalidates, so
  * the page you are on repaints in the other lens at the same URL. `path` rides
@@ -106,11 +108,11 @@ export function ProfileSwitch({ active }: { active: Profile }) {
       role="group"
       aria-label="Switch profile"
       aria-keyshortcuts="Alt+M"
-      // w-fit, not just flex: the sidebar stacks its header with flex-col, so a
-      // stretch child fills all 220px and the control reads as a wide empty
-      // trough with two words at one end. It should be the size of its two
-      // segments and no larger.
-      className="flex w-fit items-center gap-0.5 rounded-lg border border-line bg-canvas p-0.5"
+      // Full width with two equal segments, the way iOS lays a segmented
+      // control across a sidebar. The w-fit version left a stretch child
+      // filling the rail as an empty trough; equal flex-1 halves fill it with
+      // the control itself instead.
+      className="flex w-full items-center gap-0.5 rounded-lg bg-fill p-0.5"
     >
       <input type="hidden" name="path" value={pathname} />
       {ITEMS.map((it) =>
@@ -118,7 +120,7 @@ export function ProfileSwitch({ active }: { active: Profile }) {
           <span
             key={it.value}
             aria-current="true"
-            className="rounded-md bg-brand-soft px-2.5 py-1.5 text-xs font-semibold text-brand"
+            className="flex min-h-8 flex-1 items-center justify-center rounded-md bg-surface px-2.5 text-[0.8125rem] font-semibold text-ink shadow-sm"
           >
             {it.label}
           </span>
@@ -129,7 +131,7 @@ export function ProfileSwitch({ active }: { active: Profile }) {
             name="profile"
             value={it.value}
             title={`Switch profile (${shortcut})`}
-            className="cursor-pointer rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-fg transition-colors hover:text-ink"
+            className="flex min-h-8 flex-1 cursor-pointer items-center justify-center rounded-md px-2.5 text-[0.8125rem] font-medium text-muted-fg transition-colors hover:text-ink"
           >
             {it.label}
           </button>
@@ -158,9 +160,9 @@ export function ProfileSwitchMenu({ active }: { active: Profile }) {
       aria-keyshortcuts="Alt+M"
     >
       <input type="hidden" name="path" value={pathname} />
-      <p className="flex items-baseline justify-between gap-2 px-3 pb-0.5 pt-1 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted-fg">
+      <p className="flex items-baseline justify-between gap-2 px-3 pb-0.5 pt-1 text-[0.8125rem] text-muted-fg">
         Profile
-        <span className="font-semibold normal-case tracking-normal">
+        <span className="font-medium">
           {shortcut}
         </span>
       </p>
@@ -169,10 +171,10 @@ export function ProfileSwitchMenu({ active }: { active: Profile }) {
           <span
             key={it.value}
             aria-current="true"
-            className="flex min-h-11 items-center justify-between rounded-lg bg-brand-soft px-3 text-sm font-medium text-brand"
+            className="flex min-h-11 items-center justify-between rounded-lg px-3 text-[0.9375rem] text-ink"
           >
             {it.label}
-            <CheckIcon className="h-4 w-4" />
+            <CheckIcon className="h-4 w-4 text-brand" />
           </span>
         ) : (
           <button
@@ -180,7 +182,7 @@ export function ProfileSwitchMenu({ active }: { active: Profile }) {
             type="submit"
             name="profile"
             value={it.value}
-            className="flex min-h-11 w-full cursor-pointer items-center rounded-lg px-3 text-left text-sm font-medium text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
+            className="flex min-h-11 w-full cursor-pointer items-center rounded-lg px-3 text-left text-[0.9375rem] text-ink transition-colors hover:bg-fill"
           >
             {it.label}
           </button>

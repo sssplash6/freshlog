@@ -43,8 +43,8 @@ import { sessionStatuses, type ViewerContext } from "@/lib/status";
  * attended in-plan session gets NO chip, which is what finally removes the
  * green "Logged" badge that sat on every row of every log.
  *
- *   log       the ledger — /sessions. TWO LINES, at every width: who and how
- *             long on the first, what it was about on the second.
+ *   log       the ledger — /sessions. An iOS list row: who and how long on
+ *             the first line, when and what it was about on the second.
  *   timeline  a student reading their own history: mentor leads, date is a
  *             marker down a rail (the one thing StudentJourney had right)
  *   line      one sentence, read-only: "Aug 30 · Malika logged 90 min…"
@@ -137,6 +137,7 @@ export function SessionRow({
   variant = "log",
   columns = DEFAULT_COLUMNS,
   actions,
+  footer,
   index,
 }: {
   session: SessionEntry;
@@ -147,6 +148,12 @@ export function SessionRow({
   columns?: SessionColumn[];
   /** Edit · Void · Delete · Rate — already resolved for this reader. */
   actions?: React.ReactNode;
+  /**
+   * Content pinned under the row — the student's "Did this happen?" form on
+   * /student/meetings. Rendered by the `timeline` and `log` variants; `line`
+   * stays a single sentence and ignores it.
+   */
+  footer?: React.ReactNode;
   /** Position in the list, for the entrance stagger and nothing else. */
   index?: number;
 }) {
@@ -158,6 +165,7 @@ export function SessionRow({
         variant={variant}
         columns={columns}
         actions={actions}
+        footer={footer}
         index={index}
       />
     </SessionLiveProvider>
@@ -170,6 +178,7 @@ function SessionRowContent({
   variant = "log",
   columns = DEFAULT_COLUMNS,
   actions,
+  footer,
   index,
 }: {
   session: SessionEntry;
@@ -177,6 +186,7 @@ function SessionRowContent({
   variant?: "log" | "timeline" | "line";
   columns?: SessionColumn[];
   actions?: React.ReactNode;
+  footer?: React.ReactNode;
   index?: number;
 }) {
   const live = useLiveSession()?.session;
@@ -203,7 +213,10 @@ function SessionRowContent({
     statuses.length > 0 ? (
       <span className="flex flex-wrap gap-1.5">
         {statuses.map((s) => (
-          <StatusChip key={s.type} status={s} />
+          // The timeline is the student's own history, read on a phone —
+          // where a `title` tooltip never appears — so the reason a session
+          // cost what it cost is printed, not hovered.
+          <StatusChip key={s.type} status={s} explain={variant === "timeline"} />
         ))}
       </span>
     ) : null;
@@ -240,7 +253,7 @@ function SessionRowContent({
       <li
         id={anchor}
         className={cn(
-          "flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-4 py-2.5 text-[0.8125rem] text-muted-fg sm:px-5",
+          "flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-4 py-3 text-[0.8125rem] text-muted-fg sm:px-5",
           index != null && "deal-in",
         )}
         style={stagger}
@@ -275,7 +288,7 @@ function SessionRowContent({
         // them. It was `pb-3 last:pb-0` — space under a row and none above
         // it — so every date sat hard against the hairline above it while the
         // note under it had room to spare, which is the exact inverse.
-        className={cn("group py-2.5", index != null && "deal-in")}
+        className={cn("group py-3", index != null && "deal-in")}
         style={stagger}
       >
         {/* NO RAIL. It was a dot in the mentor's own hue joined by a hairline
@@ -371,6 +384,7 @@ function SessionRowContent({
             </div>
           )}
           {chips && <div className="mt-1">{chips}</div>}
+          {footer && <div className="mt-2">{footer}</div>}
         </div>
       </li>
     );
@@ -378,84 +392,99 @@ function SessionRowContent({
 
   // ------------------------------------------------------------------ log
   //
-  // Two lines, at every width, and the second one only when it has something
-  // on it. Line 1 is who and how long — the two facts you scan a ledger by.
-  // Line 2 is what it was about, one line of it, unfoldable in place.
+  // An iOS list row. Line 1 is who and how long — the two facts a ledger is
+  // scanned by — with the figure against the right edge in a column of its
+  // own. Line 2 is when and what it was about, in one quiet run, clamped and
+  // unfoldable in place. The chips, when there are any, come after it.
+  //
+  // The people are names, not chips. Two avatar pills per row, each in its
+  // person's hue, down forty rows, was a column of confetti the eye had to
+  // read through to reach the figure; the name is what is read, and it is
+  // still the link to their page.
   const showStudent = columns.includes("student") && Boolean(student);
   const showMentor = columns.includes("mentor");
   const showTask = columns.includes("task") && Boolean(task);
   const showNote = columns.includes("notes") && Boolean(note);
-  const secondLine = showTask || showNote || chips || student?.program;
+  // One string so the clamp can count it as one run: the date, the program
+  // when the log spans them, the agenda item, then the note.
+  const about = [
+    formatDate(date),
+    student?.program,
+    showTask ? task?.purpose : null,
+    showNote ? note : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const lead = showStudent && student ? student : showMentor ? mentor : null;
+  const second = showStudent && student && showMentor ? mentor : null;
 
   return (
     <li
       id={anchor}
-      className={cn(
-        "group/row px-3 py-1.5 transition-colors hover:bg-canvas sm:px-4",
-        index != null && "deal-in",
-      )}
+      className={cn("group/row px-4 py-3 sm:px-5", index != null && "deal-in")}
       style={stagger}
     >
-      <div className="flex items-center gap-2">
-        {/* A fixed column from `sm` up, so a ledger of forty rows has its
-            names starting in one place; auto below it, where 96px of mostly
-            empty date would come out of the names themselves. */}
-        <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-fg sm:w-24">
-          {formatDate(date)}
-        </span>
-        {/* Both people on ONE line. The student led the mentor by a line break
-            in the table this replaces, which read as two facts and cost every
-            row its second line. `min-w-0` is what lets each chip truncate
-            instead of the pair wrapping. */}
-        <span className="flex min-w-0 flex-1 items-center gap-1.5">
-          {/* Half each when both are here, and the cap lives on a WRAPPER
-              rather than on the chip: `cn` joins classes without resolving
-              conflicts, so a `max-w` passed to `PersonChip` lands beside its
-              own `max-w-full` and loses. The cap matters because flexbox
-              shrinks BOTH pills when the pair overflows — at 390px "Sitora"
-              was being cut to "S…" to buy room for a mentor with a long name.
-              Capped, the pair can never overflow, so a short name is never
-              shortened at all, and the long one ellipses its own label. */}
-          {showStudent && student && (
-            <span className={cn("min-w-0", showMentor && "max-w-[50%]")}>
-              <PersonChip person={student} size="sm" href={student.href} />
-            </span>
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          {/* `min-w-0` on each name is what lets it truncate instead of the
+              pair wrapping; the mentor gives way first, being the quieter. */}
+          <div className="flex min-w-0 items-baseline gap-x-1.5 text-[0.9375rem] leading-snug">
+            {lead && (
+              <PersonName
+                person={lead}
+                className={cn("shrink truncate font-medium", textTone)}
+              />
+            )}
+            {second && (
+              <>
+                <Separator />
+                <PersonName
+                  person={second}
+                  className="min-w-0 shrink-[2] truncate text-muted-fg"
+                />
+              </>
+            )}
+          </div>
+          <ExpandableText
+            text={about}
+            lines={2}
+            className="mt-0.5 text-[0.8125rem] leading-snug text-muted-fg"
+          />
+          {chips && <div className="mt-1.5">{chips}</div>}
+        </div>
+        {/* The figure, then the menu, on the first line's axis. */}
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <span className="text-[0.9375rem] leading-snug">{duration}</span>
+          {actions && (
+            <span className="-my-2.5 shrink-0 sm:-my-1">{actions}</span>
           )}
-          {showMentor && (
-            <span
-              className={cn("min-w-0", showStudent && student && "max-w-[50%]")}
-            >
-              <PersonChip person={mentor} size="sm" href={mentor.href} />
-            </span>
-          )}
-        </span>
-        <span className="shrink-0 text-[0.8125rem]">{duration}</span>
-        {actions && <span className="shrink-0">{actions}</span>}
+        </div>
       </div>
 
-      {secondLine && (
-        <div className="mt-px flex min-w-0 items-baseline gap-1.5 text-[0.8125rem] leading-snug">
-          {showTask && task && (
-            <span className={cn("max-w-[45%] shrink-0 truncate font-medium", textTone)}>
-              {task.purpose}
-            </span>
-          )}
-          {showNote && note && (
-            <ExpandableText
-              text={note}
-              lines={1}
-              className={cn("min-w-0 flex-1", voided ? "text-muted-fg" : "text-muted-fg")}
-            />
-          )}
-          {student?.program && (
-            <span className="max-w-32 shrink-0 truncate text-xs text-muted-fg">
-              {student.program}
-            </span>
-          )}
-          {chips}
-        </div>
-      )}
+      {footer && <div className="mt-2">{footer}</div>}
     </li>
+  );
+}
+
+/** A name on a log row: the link to their page when this reader may open it. */
+function PersonName({
+  person,
+  className,
+}: {
+  person: RowPerson;
+  className?: string;
+}) {
+  return person.href ? (
+    <Link
+      href={person.href}
+      transitionTypes={["nav-forward"]}
+      className={cn("min-w-0 hover:text-brand", className)}
+    >
+      {nameOf(person)}
+    </Link>
+  ) : (
+    <span className={cn("min-w-0", className)}>{nameOf(person)}</span>
   );
 }
 
@@ -549,8 +578,8 @@ export function SessionsList({
   return (
     <ul
       className={cn(
-        "divide-y divide-line/60",
-        framed && "overflow-hidden rounded-xl border border-line bg-surface shadow-sm",
+        "divide-y divide-line",
+        framed && "overflow-hidden rounded-xl bg-surface shadow-sm",
         className,
       )}
     >
@@ -633,9 +662,9 @@ export function SessionsLog({
       title={title}
       action={
         moreHref ? (
-          <span className="flex items-center gap-3 text-xs text-muted-fg">
+          <span className="flex items-center gap-3 text-[0.8125rem] text-muted-fg">
             {tally}
-            <ArrowLink href={moreHref} className="text-xs">
+            <ArrowLink href={moreHref} className="text-[0.8125rem]">
               {moreLabel}
             </ArrowLink>
           </span>

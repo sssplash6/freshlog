@@ -167,7 +167,12 @@ const nextConfig: NextConfig = {
      * corrects itself on the next nav, and `router.refresh()` (pull to
      * refresh, toast actions) always bypasses the cache.
      */
-    staleTimes: { dynamic: 30 },
+    //
+    // `static` is also how long a FULL prefetch is kept — the sidebar and tab
+    // bar prefetch their pages fully so a tap needs no round trip — and the
+    // default five minutes is too long for a Home count or a roster. Two
+    // minutes; any write this app makes revalidates the cache anyway.
+    staleTimes: { dynamic: 30, static: 120 },
     /**
      * Every hostname this app is reachable on.
      *

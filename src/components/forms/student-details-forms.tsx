@@ -13,7 +13,7 @@ import {
   unenrollStudent,
 } from "@/lib/actions/students";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
-import { EmailInput, Field, Input, NameInput } from "@/components/ui/field";
+import { EmailInput, Field, Input, inputClasses, NameInput } from "@/components/ui/field";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -30,8 +30,7 @@ import type { ProgramOption } from "@/lib/queries";
  * cannot edit an email address.
  */
 
-const selectClass =
-  "min-h-11 w-full rounded-lg border border-line bg-surface px-3.5 py-2 text-sm text-ink transition hover:border-brand/40 focus:border-brand focus:outline-none";
+const selectClass = inputClasses;
 
 /**
  * The name everyone reads them by, correctable by the two people who ever
@@ -365,6 +364,7 @@ export function RemoveStudentButton({
   return (
     <div className="space-y-2">
       <ConfirmInline
+        variant="quiet"
         label="Remove student"
         question={`${name}'s record goes, with their agenda, their tasks and any time granted to them.`}
         confirmLabel="Yes, remove them"

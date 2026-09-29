@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Avatar } from "@/components/avatar";
 import { cn } from "@/lib/cn";
-import { personTone, type PersonTone } from "@/lib/person-tone";
+import type { PersonTone } from "@/lib/person-tone";
 
 /**
  * `avatarUpdatedAt` is optional so the many call sites that `select` only
@@ -45,7 +45,6 @@ export function PersonChip({
   person,
   size = "md",
   href,
-  tone: toneOverride,
   className,
 }: {
   person: Person;
@@ -64,7 +63,6 @@ export function PersonChip({
   tone?: PersonTone;
   className?: string;
 }) {
-  const tone = toneOverride ?? personTone(person.id);
   const label = person.name ?? person.email;
   const sm = size === "sm";
 
@@ -79,13 +77,16 @@ export function PersonChip({
     // in it, so it is stated once here: 24px at `sm` (a 20px avatar in 2px of
     // padding), 40px at `md` (32px in 4px). `leading-none` keeps a long name
     // from arguing with it.
-    "inline-flex max-w-full items-center rounded-full font-medium leading-none",
-    tone.chip,
+    // No tinted pill. The person's colour lives in their avatar and only
+    // there: a roster of tinted name-pills beside tinted status-pills was a
+    // page of coloured lozenges nobody could rank, which is the "too many
+    // colours" the owner kept pointing at. A face and a name, in ink.
+    "inline-flex max-w-full items-center rounded-full font-medium leading-none text-ink",
     sm
-      ? "h-6 gap-1.5 py-0.5 pl-0.5 pr-2.5 text-xs"
-      : "h-10 gap-2 py-1 pl-1 pr-3.5 text-sm",
+      ? "h-6 gap-1.5 py-0.5 pr-0.5 text-[0.8125rem]"
+      : "h-10 gap-2 py-1 pr-1 text-sm",
     href &&
-      "ring-1 ring-transparent transition-shadow hover:ring-current focus-visible:ring-current",
+      "transition-colors hover:text-brand",
     className,
   );
   const title = person.name

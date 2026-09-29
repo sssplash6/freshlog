@@ -56,6 +56,13 @@ const BANNED = [
   },
   { re: /Nothing (yet|here)\b/i, why: "generic empty state — say what is empty" },
   {
+    // A heading that dramatises instead of saying what is true. The program
+    // settings page grouped its delete under one; "Permanent" says the same
+    // thing and is the fact the reader needs.
+    re: /danger zone/i,
+    why: "say what is true of the action (\"Permanent\"), not a warning-sign cliché",
+  },
+  {
     // A TRAILING arrow — nothing after it but the end of the text node — is a
     // link affordance drawn as a character: it cannot be tabbed to, screen
     // readers say "right arrow", and it was on five links whose real hover

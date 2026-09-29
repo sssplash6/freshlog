@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   adminScope,
+  adminWriteScope,
   assertPlatformAdmin,
   assertProgramScope,
+  canAdministerMentor,
+  canAdministerStudent,
   canManageMentor,
   canManageProgram,
   canManageStudent,
@@ -143,6 +146,76 @@ describe("canManageMentor", () => {
 
     expect(await canManageMentor(a, m.id)).toBe(false);
     expect(await canManageMentor(p, m.id)).toBe(true);
+  });
+});
+
+/**
+ * The level on a grant is real: LEADER and SALES rows are read membership.
+ * They count in `adminScope` — the program's pages open and its figures read —
+ * and are absent from `adminWriteScope`, which every write assertion asks. A
+ * read-only badge on a read-write key was the bug this describe exists to keep
+ * dead: if a write assert ever asks the read set again, these fail.
+ */
+describe("read-only grant levels (LEADER / SALES)", () => {
+  it("reads the program but holds no write scope for it", async () => {
+    const [a, prog] = await Promise.all([admin(), program("Watched")]);
+    await grant({ userId: a.id, programId: prog.id, role: "LEADER" });
+
+    expect(await adminScope(a)).toEqual(new Set([prog.id]));
+    expect(await adminWriteScope(a)).toEqual(new Set());
+  });
+
+  it("opens a student's page and refuses to change them", async () => {
+    const [a, prog] = await Promise.all([admin(), program("Watched")]);
+    await grant({ userId: a.id, programId: prog.id, role: "SALES" });
+    const s = await student({ programId: prog.id });
+
+    expect(await canManageStudent(a, s)).toBe(true);
+    expect(await canAdministerStudent(a, s)).toBe(false);
+  });
+
+  it("opens a mentor's record and refuses to change it", async () => {
+    const [a, prog, m] = await Promise.all([admin(), program(), mentor()]);
+    await grant({ userId: a.id, programId: prog.id, role: "LEADER" });
+    await pairing({ mentorId: m.id, programId: prog.id });
+
+    expect(await canManageMentor(a, m.id)).toBe(true);
+    expect(await canAdministerMentor(a, m.id)).toBe(false);
+  });
+
+  it("refuses every write assertion on the program", async () => {
+    const [a, prog] = await Promise.all([admin(), program("Watched")]);
+    await grant({ userId: a.id, programId: prog.id, role: "SALES" });
+
+    expect(await canManageProgram(a, prog.id)).toBe(false);
+    expect(await assertProgramScope(a, prog.id)).toEqual({
+      ok: false,
+      error: "You don't administer that program.",
+    });
+  });
+
+  it("still refuses a write when the same user holds ADMIN elsewhere", async () => {
+    const [a, writes, reads] = await Promise.all([
+      admin(),
+      program("Writable"),
+      program("Readable"),
+    ]);
+    await grant({ userId: a.id, programId: writes.id });
+    await grant({ userId: a.id, programId: reads.id, role: "LEADER" });
+
+    expect(await assertProgramScope(a, writes.id)).toBeNull();
+    expect(await assertProgramScope(a, reads.id)).toEqual({
+      ok: false,
+      error: "You don't administer that program.",
+    });
+  });
+
+  it("lets a platform admin write regardless of level rows", async () => {
+    const [p, prog] = await Promise.all([platformAdmin(), program()]);
+    await grant({ userId: p.id, programId: prog.id, role: "SALES" });
+
+    expect(await adminWriteScope(p)).toBe("ALL");
+    expect(await assertProgramScope(p, prog.id)).toBeNull();
   });
 });
 

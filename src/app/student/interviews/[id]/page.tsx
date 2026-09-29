@@ -103,7 +103,7 @@ export default async function InterviewPage({
       />
 
       <Section title="With">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
           <PersonChip person={{ ...other, email: "" }} />
           {interview.slot.meetingUrl && (
             <a
@@ -121,7 +121,7 @@ export default async function InterviewPage({
             </LinkButton>
           )}
           {phase === "booked" && (
-            <p className="text-sm text-muted-fg">
+            <p className="text-[0.8125rem] text-muted-fg">
               {interview.slot.meetingUrl
                 ? "You can mark it done once it starts."
                 : "Arrange where to meet between you. You can mark it done once it starts."}
@@ -132,7 +132,7 @@ export default async function InterviewPage({
 
       {template && !interview.answers.length && !myFeedback?.submittedAt && (
         <Section title="Questions" count={template.questions.length} caption={template.summary}>
-          <ol className="list-decimal space-y-1 py-2 pl-9 pr-4 text-sm text-ink sm:pl-10 sm:pr-5">
+          <ol className="list-decimal space-y-2 py-3 pl-9 pr-4 text-[0.9375rem] text-ink marker:text-muted-fg sm:pl-10 sm:pr-5">
             {template.questions.map((q) => (
               <li key={q}>{q}</li>
             ))}

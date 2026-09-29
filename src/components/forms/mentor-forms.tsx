@@ -38,7 +38,7 @@ export function RegisterMentorForm({ programs }: { programs: ProgramOption[] }) 
   const [, action, save] = useSaveState(createMentor);
 
   return (
-    <form action={action} className="rounded-xl border border-line bg-surface shadow-sm p-4">
+    <form action={action} className="rounded-xl bg-surface shadow-sm p-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field
           label="Email"
@@ -118,7 +118,7 @@ export function EditMentorForm({
   return (
     <form
       action={action}
-      className="rise-in mt-2 rounded-xl border border-line bg-surface shadow-sm p-4"
+      className="rise-in mt-2 rounded-xl bg-surface shadow-sm p-4"
       // Remount when the pairings change, so the checkboxes show what was
       // actually saved rather than what was typed.
       key={targets.join("|")}

@@ -11,6 +11,7 @@ import {
 import { createPortal } from "react-dom";
 
 import { CheckIcon, ChevronDownIcon, SearchIcon } from "@/components/icons";
+import { fieldChrome } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
 import { useAnchoredPosition } from "@/lib/use-anchored-position";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -467,12 +468,11 @@ export function Select({
           // 44px, not 40. §9 measured every control on a phone and this was
           // the one that appears most often — the log form and every filter
           // row carry one — so four pixels here is four pixels everywhere.
-          "flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border bg-surface pl-3.5 pr-2.5 text-[0.9375rem] transition-colors focus:outline-none",
+          fieldChrome,
+          "flex min-h-11 w-full items-center justify-between gap-2 pl-3.5 pr-2.5 text-[0.9375rem]",
           invalid
-            ? "border-danger"
-            : open
-              ? "border-brand"
-              : "border-line hover:border-brand/40",
+            ? "border-danger bg-danger-soft/40"
+            : open && "border-brand bg-surface",
           selected ? "text-ink" : "text-muted-fg",
         )}
       >
@@ -521,7 +521,7 @@ export function Select({
                 visibility: measured ? "visible" : "hidden",
               }}
               className={cn(
-                "z-50 flex flex-col overflow-hidden border border-line bg-surface shadow-lg",
+                "z-50 flex flex-col overflow-hidden bg-surface shadow-lg",
                 sheet
                   ? // `var(--kb)` lifts the sheet above an open keyboard —
                     // iOS overlays it rather than resizing the viewport.
@@ -581,7 +581,7 @@ export function Select({
                     <li
                       key={`h-${row.label}`}
                       role="presentation"
-                      className="px-2.5 pb-1 pt-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted-fg"
+                      className="px-2.5 pb-1 pt-2 text-xs font-medium text-muted-fg"
                     >
                       {row.label}
                     </li>

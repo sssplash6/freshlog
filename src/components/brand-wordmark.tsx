@@ -57,7 +57,7 @@ export function BrandWordmark({
       {copied && (
         <span
           role="status"
-          className="rise-in absolute left-0 top-full z-50 mt-1 whitespace-nowrap rounded-md border border-line bg-surface px-2 py-0.5 text-[0.6875rem] font-medium text-muted-fg shadow-sm"
+          className="rise-in absolute left-0 top-full z-50 mt-1 whitespace-nowrap rounded-md bg-surface px-2 py-0.5 text-[0.6875rem] font-medium text-muted-fg shadow-sm"
         >
           v{version} · copied
         </span>

@@ -4,7 +4,7 @@ import { PersonCell } from "@/components/person-chip";
 import { ProgramChip } from "@/components/program-chip";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Figure, FigureRow } from "@/components/ui/figure";
+import { ChevronRightIcon } from "@/components/icons";
 import { ArrowLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
 import { TabLinks } from "@/components/ui/segmented";
@@ -17,7 +17,7 @@ import { formatDate, formatDuration, formatRough } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { applySort, readSort } from "@/lib/sort";
 import { mentorCaseload } from "@/lib/queries";
-import { type ViewerContext } from "@/lib/status";
+import { EXPIRY_WINDOW_DAYS, type ViewerContext } from "@/lib/status";
 
 /** Students shown before the table offers to unfold the rest. */
 const CASELOAD_ROWS = 8;
@@ -179,7 +179,7 @@ export default async function MentorHomePage({
     <div className="space-y-4">
       <PageTitle
         eyebrow="Mentor"
-        title="Inbox"
+        title="Home"
         subtitle={
           // The programs, and only when there is no figure strip below to say
           // more than they do. A mentor holding no time at all is the one
@@ -204,26 +204,35 @@ export default async function MentorHomePage({
           question. `formatRough` because these orient rather than settle: the
           exact figure is a row in the table below, with a name on it. */}
       {hasFigures && (
-        <FigureRow>
-          <Figure
-            size="lead"
-            tone="hours"
-            label="Completed"
-            value={formatRough(completed)}
-          />
-          <Figure
-            size="lead"
-            tone={remaining > 0 ? "hours" : "muted"}
-            label={
-              spendable.length > 0
+        // A stat row — label over figure, space between, no rules round it.
+        // Two 42px bold orange numbers side by side were the loudest thing in
+        // the app; at 28px semibold they still lead the page. Orange is for
+        // the balance still to deliver; what is done is ink.
+        <dl className="flex flex-wrap gap-x-12 gap-y-3 px-1">
+          <div>
+            <dt className="text-[0.8125rem] text-muted-fg">Completed</dt>
+            <dd className="mt-0.5 text-[1.75rem] font-semibold leading-tight tracking-tight tabular-nums text-ink">
+              {formatRough(completed)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[0.8125rem] text-muted-fg">
+              {spendable.length > 0
                 ? `Remaining across ${spendable.length} ${
                     spendable.length === 1 ? "student" : "students"
                   }`
-                : "Remaining"
-            }
-            value={formatRough(remaining)}
-          />
-        </FigureRow>
+                : "Remaining"}
+            </dt>
+            <dd
+              className={cn(
+                "mt-0.5 text-[1.75rem] font-semibold leading-tight tracking-tight tabular-nums",
+                remaining > 0 ? "text-accent-ink" : "text-muted-fg"
+              )}
+            >
+              {formatRough(remaining)}
+            </dd>
+          </div>
+        </dl>
       )}
 
       <Section
@@ -256,14 +265,14 @@ export default async function MentorHomePage({
               (showAllStudents ? (
                 <Link
                   href={homeHref({ program: selected })}
-                  className="text-xs font-medium text-brand transition-colors hover:underline"
+                  className="text-[0.8125rem] font-medium text-brand transition-colors hover:underline"
                 >
                   First {CASELOAD_ROWS}
                 </Link>
               ) : (
                 <ArrowLink
                   href={homeHref({ program: selected, all: true })}
-                  className="text-xs"
+                  className="text-[0.8125rem]"
                 >
                   All {inView.length}
                 </ArrowLink>
@@ -300,7 +309,7 @@ export default async function MentorHomePage({
                       name: s.profile.user.name,
                       email: s.profile.user.email,
                     }}
-                    href={`/mentor/students/${s.profile.id}`}
+                    href={`/students/${s.profile.id}`}
                     secondary={false}
                   >
                     {s.profile.user.status !== USER_STATUS.ACTIVE && (
@@ -330,7 +339,13 @@ export default async function MentorHomePage({
                   </span>
                 </Td>
                 <Td label="Use by">
-                  <DeadlineText deadline={s.deadline} now={viewer.now} />
+                  <DeadlineText
+                    deadline={s.deadline}
+                    now={viewer.now}
+                    // A mentor's own window: they schedule a week out, so
+                    // amber a fortnight early is a warning they cannot use.
+                    within={EXPIRY_WINDOW_DAYS.mentor}
+                  />
                 </Td>
                 <Td label="Last session" className="text-muted-fg">
                   {lastSeen.get(s.profile.id)
@@ -338,12 +353,17 @@ export default async function MentorHomePage({
                     : "—"}
                 </Td>
                 <Td align="right">
-                  <ArrowLink
-                    href={`/mentor/students/${s.profile.id}`}
-                    className="text-[0.8125rem]"
+                  {/* A chevron, the mark of a row that goes somewhere — not
+                      a column of blue "Open →" repeating what the name, already
+                      a link, says. Still its own target for a thumb. */}
+                  <Link
+                    href={`/students/${s.profile.id}`}
+                    transitionTypes={["nav-forward"]}
+                    aria-label={`Open ${s.profile.user.name ?? s.profile.user.email}`}
+                    className="-my-2 inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-fg/60 transition-colors hover:bg-fill hover:text-brand sm:h-8 sm:w-8"
                   >
-                    Open
-                  </ArrowLink>
+                    <ChevronRightIcon className="h-4 w-4" />
+                  </Link>
                 </Td>
               </Tr>
             ))}

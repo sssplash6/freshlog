@@ -37,14 +37,14 @@ import { programToday } from "@/lib/when";
 /**
  * Set a student a task.
  *
- * Closed, it is a `+` pinned to the bottom-right corner of the Tasks pane — the
- * one place on the board where "add one of these" is unambiguous, and the one
- * shape that does not spend a row of the list saying so. A labelled button sat
- * directly under the last task and read as a fourth row.
+ * Closed, it is the last row of the Tasks group — iOS's blue "Add…" row, the
+ * one place in the list where "add one of these" is unambiguous. It used to be
+ * a floating "+" pinned to the column's corner, which was the only floating
+ * button in the app and sat over the bottom of the list it added to.
  *
- * Open, it expands in place at the foot of the same column rather than in a
- * dialog: what it does is visible without being explained, and the list it adds
- * to stays readable while it is filled in.
+ * Open, it expands in place of that row rather than in a dialog: what it does
+ * is visible without being explained, and the list it adds to stays readable
+ * while it is filled in.
  */
 export function SetStudentTaskForm({
   studentProfileId,
@@ -75,31 +75,24 @@ export function SetStudentTaskForm({
 
   if (!open) {
     return (
-      // Bottom-right of the COLUMN, which the board makes `relative` for it —
-      // so on a screen where the meetings list is twice as long, the + still
-      // sits in the corner of the pane it belongs to rather than floating half
-      // way up it. Right-anchored and bottom-anchored, so the confirmation
-      // above it grows away from both edges instead of off them.
-      <div className="absolute bottom-3 right-4 flex flex-col items-end sm:right-5">
-        {/* The last result survives the form closing, so a mentor who submits
-            and collapses it still sees that it worked. */}
-        <SaveState state={save} className="mb-1 text-right" />
+      <div className="border-t border-line">
         <button
           type="button"
           onClick={() => setOpen(true)}
-          aria-label="Set a task"
-          title="Set a task"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-brand text-on-brand shadow-sm transition hover:bg-brand-dark"
+          className="flex min-h-11 w-full items-center gap-2 px-4 py-3 text-left text-[0.9375rem] font-medium text-brand transition-colors hover:bg-fill focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand sm:px-5"
         >
-          <PlusIcon className="h-5 w-5" />
+          <PlusIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+          Set a task
         </button>
+        {/* The last result survives the form closing, so a mentor who submits
+            and collapses it still sees that it worked. */}
+        <SaveState state={save} className="px-4 has-[span]:pb-2 sm:px-5" />
       </div>
     );
   }
 
   return (
-    // Its own band, because the closed state has no band at all — a `+` in a
-    // bordered strip would be a strip drawn around a button.
+    // In place of the row that opened it, hairlined like any other row.
     <form
       action={action}
       className="rise-in space-y-3 border-t border-line px-4 py-2 sm:px-5"
@@ -293,7 +286,7 @@ export function TaskProgressControl({
           name="intent"
           value="reopen"
           disabled={pending}
-          className="inline-flex min-h-8 items-center rounded-lg border border-dashed border-line px-2.5 text-xs font-medium text-muted-fg transition-colors hover:border-brand hover:text-brand disabled:opacity-50"
+          className="inline-flex min-h-8 items-center rounded-lg px-2 text-[0.8125rem] font-medium text-brand transition-colors hover:bg-brand-soft disabled:opacity-50"
         >
           Not finished after all
         </button>
@@ -312,35 +305,42 @@ export function TaskProgressControl({
       aria-label={mine ? "How far along you are" : "How far along they are"}
     >
       <input type="hidden" name="taskId" value={taskId} />
-      <div className="flex flex-wrap gap-1.5">
-        {PERCENT_STEPS.map((step) => {
-          const current = step === percent;
-          return (
-            <button
-              key={step}
-              type="submit"
-              name="percent"
-              value={step}
-              disabled={pending || current}
-              aria-current={current}
-              className={`min-h-8 rounded-lg px-2.5 text-xs font-medium tabular-nums transition-colors disabled:cursor-default ${
-                current
-                  ? "bg-brand text-on-brand"
-                  : "border border-line text-ink hover:border-brand hover:text-brand disabled:opacity-50"
-              }`}
-            >
-              {step}%
-            </button>
-          );
-        })}
-        {/* Apart from the quarters, and never filled like the selected one:
-            the steps say where you are, this one ends the row. */}
+      {/* The look of the app's segmented control — grey track, white thumb
+          on the current step — because it IS one: one of four, the same
+          gesture as every other choice among a few options. It stays a row of
+          submit buttons rather than a `SegmentedRadio`: each tap is the save,
+          and radios would need a Save button to mean anything. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex gap-0.5 rounded-lg bg-fill p-0.5">
+          {PERCENT_STEPS.map((step) => {
+            const current = step === percent;
+            return (
+              <button
+                key={step}
+                type="submit"
+                name="percent"
+                value={step}
+                disabled={pending || current}
+                aria-current={current}
+                className={`inline-flex min-h-8 items-center rounded-md px-3 text-[0.8125rem] tabular-nums transition-colors disabled:cursor-default max-sm:min-h-10 ${
+                  current
+                    ? "bg-surface font-semibold text-ink shadow-sm"
+                    : "font-medium text-muted-fg hover:text-ink disabled:opacity-50"
+                }`}
+              >
+                {step}%
+              </button>
+            );
+          })}
+        </div>
+        {/* Outside the track: the steps say where you are, this one ends the
+            row. A secondary button, not a fifth segment. */}
         <button
           type="submit"
           name="intent"
           value="done"
           disabled={pending}
-          className="ml-1 inline-flex min-h-8 items-center gap-1 rounded-lg border border-brand/40 bg-brand-soft px-2.5 text-xs font-semibold text-brand transition-colors hover:border-brand disabled:opacity-50"
+          className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-fill px-3 text-[0.8125rem] font-semibold text-brand transition-colors hover:bg-fill-strong disabled:opacity-50 max-sm:min-h-11"
         >
           <span aria-hidden="true">✓</span> Done
         </button>

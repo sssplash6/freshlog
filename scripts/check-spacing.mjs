@@ -6,7 +6,10 @@
  *
  *   space-y-4   between top-level blocks of a page
  *   py-2.5      a section's HEADER band
- *   py-2        everything INSIDE a section — a body, a list row, a table cell
+ *   py-2        everything INSIDE a section — a body, a table cell
+ *   py-3        a LIST ROW (September 2026, iOS pass): 44px-plus rows are what
+ *               makes a grouped list read as calm rather than as a ledger, and
+ *               py-2 rows of 36px were the densest thing on every page
  *
  * Before it, the page rhythm was `space-y-4`, `-5`, `-6` and `-8` across
  * seventeen pages, and the vertical padding inside a card was 2, 2.5, 3, 3.5,
@@ -53,8 +56,8 @@ const RULES = [
     ],
   },
   {
-    re: /\bpy-(?:3|3\.5|4|5|6|7|8|9|10|11|12|14|16|20|24)\b/,
-    why: "vertical padding inside a card is py-2 (py-2.5 for a section header)",
+    re: /\bpy-(?:3\.5|4|5|6|7|8|9|10|11|12|14|16|20|24)\b/,
+    why: "vertical padding inside a card is py-2, py-3 for a list row (py-2.5 for a section header)",
     allow: [
       // The shell holds the app off the viewport edge — not a card off a card.
       "src/components/app-shell.tsx",

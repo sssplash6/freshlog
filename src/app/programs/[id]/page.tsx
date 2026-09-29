@@ -167,23 +167,27 @@ export default async function ProgramPage({
 
   return (
     <div className="space-y-4">
-      {/* ONE way in, the width of the page, directly under the tabs. Adding
-          students was a link in the header AND a text fold above the table —
-          the same action twice, in the two shapes least likely to be pressed
-          on a phone. The button IS the form now: each tap opens a row above
-          it (`add-students-form.tsx`). */}
-      <AddStudentsForm
-        program={{
-          id: program.id,
-          name: program.name,
-          cohorts: cohorts.map((c) => ({ id: c.id, name: c.name })),
-        }}
-      />
-
       {/* The roster, and the mentors beside it. Source order is the phone's
           order: the students first, the rail under them. */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
         <div className="min-w-0 space-y-4">
+          {/* ONE way in, at the head of the roster it adds to. Adding students
+              was a link in the header AND a text fold above the table, then a
+              grey bar the width of the page — which read as a banner rather
+              than a button. It hugs its label now, as a secondary action
+              should; the rows it opens still take the column's width. The
+              selector reaches the trigger, a direct child of the form, and
+              not the submit nested inside the rows. */}
+          <div className="[&_form>button]:w-auto">
+            <AddStudentsForm
+              program={{
+                id: program.id,
+                name: program.name,
+                cohorts: cohorts.map((c) => ({ id: c.id, name: c.name })),
+              }}
+            />
+          </div>
+
           <FilterBar
             basePath={basePath}
             params={query}
@@ -227,7 +231,6 @@ export default async function ProgramPage({
               page, where the ledger it would take with it is on screen. */}
           {lent.length > 0 && (
             <Section
-              eyebrow="Between programs"
               title="Exchange"
               count={lent.length}
               caption="Hours one program promises, another delivers"
@@ -258,11 +261,11 @@ export default async function ProgramPage({
           }
         >
           {mentorRows.length === 0 ? (
-            <p className="px-4 py-2 text-sm text-muted-fg sm:px-5">
+            <p className="px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">
               Nobody here yet.
             </p>
           ) : (
-            <ul className="divide-y divide-line/60 text-sm">
+            <ul className="divide-y divide-line">
               {mentorRows
                 .slice(0, MENTORS_SHOWN)
                  .map(({ mentor, teaches }) => (
@@ -273,7 +276,7 @@ export default async function ProgramPage({
                   // name it costs a line only when the name leaves no room.
                   <li
                     key={mentor.id}
-                    className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2 sm:px-5"
+                    className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-3 text-[0.9375rem] sm:px-5"
                   >
                     <span className="flex min-w-0 flex-wrap items-center gap-2">
                       {/* "Their mentors can have matching colours." This is the
@@ -288,17 +291,18 @@ export default async function ProgramPage({
                         tone={programTone(program.id)}
                       />
                       {superAdminIds.has(mentor.id) && (
-                        <span title="Super admin" className="text-warn-ink">
+                        <span title="Admin" className="text-warn-ink">
                           <CrownIcon className="h-4 w-4" />
+                          <span className="sr-only">Admin</span>
                         </span>
                       )}
-                      {/* The crown cannot say this: it marks a super admin
+                      {/* The crown cannot say this: it marks an admin
                           whether or not they teach here, and half the names on
                           a program's list wear one. This says the other thing
                           — that no session can be logged against them here,
                           because nobody paired them with the program. */}
                       {!teaches && (
-                        <span className="text-xs text-muted-fg">Admin only</span>
+                        <span className="text-[0.8125rem] text-muted-fg">Admin only</span>
                       )}
                     </span>
                   </li>
@@ -306,7 +310,7 @@ export default async function ProgramPage({
             </ul>
           )}
           {eligibleMentors.length > 0 && (
-            <div className="border-t border-line px-4 py-2 sm:px-5">
+            <div className="border-t border-line px-4 py-3 sm:px-5">
               <AssignMentorForm
                 programId={program.id}
                 mentors={eligibleMentors}
