@@ -929,7 +929,13 @@ export function studentStatuses(
   const extra =
     v.audience === "student"
       ? {}
-      : { subject, href: `/students/${s.id}`, ...(s.program ? { program: s.program } : {}) };
+      : {
+          subject,
+          // The program the row is tagged with is the one the student's page
+          // should lead back to, for a student who is in several.
+          href: `/students/${s.id}${s.program ? `?from=${s.program.id}` : ""}`,
+          ...(s.program ? { program: s.program } : {}),
+        };
   const of = (type: StatusType, detail: Detail = {}, at?: Date) =>
     status(type, v, detail, at ? { ...extra, at } : extra);
 

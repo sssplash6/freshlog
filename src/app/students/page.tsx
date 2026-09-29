@@ -235,7 +235,13 @@ export default async function StudentsPage({
         )
       ) : (
         <>
-          <StudentsTable students={students} viewer={lens} sorts={STUDENT_SORTS} />
+          <StudentsTable
+            students={students}
+            viewer={lens}
+            // Filtered to one program, the student's page leads back to it.
+            from={readParam(params, "program") || undefined}
+            sorts={STUDENT_SORTS}
+          />
           <Pagination
             basePath="/students"
             params={params}

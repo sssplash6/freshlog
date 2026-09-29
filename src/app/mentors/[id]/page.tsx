@@ -498,7 +498,7 @@ async function MentorRecord({
                       email: s.student.user.email,
                       avatarUpdatedAt: s.student.user.avatarUpdatedAt,
                     }}
-                    href={`/students/${s.student.id}`}
+                    href={`/students/${s.student.id}?from=${s.program.id}`}
                     // The program rides here rather than in a seventh column:
                     // a table stacks to one labelled line per field on a phone,
                     // and six is the cap.

@@ -363,14 +363,15 @@ export default async function StudentWorkspacePage({
     ).filter((v): v is string => v !== null)
   );
   // Back to the program the reader came from — named by the roster's link — or,
-  // when the student is in just one program they administer, to that one. A
-  // student in several, reached from somewhere else, has no single "respective
-  // program" to return to, and the list of students is the honest answer.
+  // failing that, to a program of the student's that the reader administers:
+  // their own before one they are only visiting, then by name. The list of
+  // students is only for a reader who administers none of them (a mentor).
+  const administered = enrollments.filter((e) => scopeCovers(scope, e.programId));
   const backProgram =
-    enrollments.find((e) => e.programId === from && scopeCovers(scope, e.programId)) ??
-    (enrollments.length === 1 && scopeCovers(scope, enrollments[0].programId)
-      ? enrollments[0]
-      : null);
+    administered.find((e) => e.programId === from) ??
+    administered.find((e) => !e.exchangeId) ??
+    administered[0] ??
+    null;
   const back = backProgram
     ? { href: `/programs/${backProgram.programId}`, label: backProgram.program.name }
     : { href: "/students", label: "Students" };
@@ -474,7 +475,7 @@ export default async function StudentWorkspacePage({
               // mentor's: a masthead of two grey buttons had no answer to
               // "what is this page for".
               <LinkButton
-                href={`/students/${profile.id}/allocate`}
+                href={`/students/${profile.id}/allocate${from ? `?from=${from}` : ""}`}
                 variant={primaryIsLog ? "secondary" : "primary"}
                 size="md"
               >

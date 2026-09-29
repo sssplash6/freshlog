@@ -10,6 +10,7 @@ import {
 } from "@/lib/authz";
 import { enrollmentLabel } from "@/lib/enrollments";
 import { requireUser } from "@/lib/dal";
+import { readParam, type SearchParams } from "@/lib/filters";
 import { formatMinutes } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { pastHours } from "@/lib/hours";
@@ -17,11 +18,14 @@ import { studentLedger } from "@/lib/queries";
 
 export default async function AllocateStudentTimePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<SearchParams>;
 }) {
   const me = await requireUser();
   const { id } = await params;
+  const from = readParam(await searchParams, "from");
   const profile = await prisma.studentProfile.findUnique({
     where: { id },
     include: {
@@ -105,7 +109,7 @@ export default async function AllocateStudentTimePage({
   return (
     <div className="max-w-4xl space-y-4">
       <PageTitle
-        backHref={`/students/${profile.id}`}
+        backHref={`/students/${profile.id}${from ? `?from=${from}` : ""}`}
         backLabel="Student"
         title="Allocate time"
         subtitle={profile.user.name ?? profile.user.email}
