@@ -5,14 +5,13 @@ import { ProgramDot } from "@/components/program-chip";
 import { StatusChip } from "@/components/ui/status-chip";
 import { adminScope } from "@/lib/authz";
 import { requireProgramScope } from "@/lib/dal";
-import { formatMoney, formatRough } from "@/lib/format";
+import { formatRough } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { programTotals } from "@/lib/hours";
 
 import {
   PROGRAM_STATUS,
   programOf,
-  programPairings,
   programStudents,
 } from "../reads";
 
@@ -53,18 +52,13 @@ export default async function ProgramLayout({
 }) {
   const { id } = await params;
   const user = await requireProgramScope(id);
-  const [program, students, pairings] = await Promise.all([
-    programOf(id),
-    programStudents(id),
-    programPairings(id),
-  ]);
+  const [program, students] = await Promise.all([programOf(id), programStudents(id)]);
 
   const scope = await adminScope(user);
   // Back to the index, unless this reader's whole scope is this program — then
   // `/programs` redirects straight back here and the link is a loop.
   const toIndex = scope === "ALL" || scope.size > 1;
   const totals = programTotals(students);
-  const mentors = new Set(pairings.map((p) => p.mentorId)).size;
   const base = `/programs/${program.id}`;
 
   return (
@@ -109,48 +103,19 @@ export default async function ProgramLayout({
       />
 
       {/* What the program holds, as a stat row: label over value, space
-          between, no boxes. It was a wrapping row of bordered pills, amber
-          ones among them, which read as seven buttons. Colour is on the VALUE
-          and only where the value is a problem. */}
+          between, no boxes. Four figures and nothing else, at the owner's
+          request: Total is what the students hold in all — the hour bank,
+          where the program has one. Colour is on the VALUE and only where the
+          value is a problem. */}
       <dl className="flex flex-wrap gap-x-8 gap-y-3 px-1">
         <ProgramMetric label="Students" value={String(totals.students)} />
-        <ProgramMetric label="Mentors" value={String(mentors)} />
         <ProgramMetric label="Completed" value={formatRough(totals.completed)} />
         <ProgramMetric
           label="Remaining"
           value={formatRough(totals.remaining)}
           tone={totals.remaining < 0 ? "danger" : undefined}
         />
-        {/* The ones below exist only when nonzero — a healthy program's
-            masthead is unchanged, and the numbers `programTotals` already
-            computes stop being invisible precisely where they matter. */}
-        {totals.missed > 0 && (
-          <ProgramMetric label="Missed" value={formatRough(totals.missed)} tone="warn" />
-        )}
-        {totals.forfeited > 0 && (
-          <ProgramMetric
-            label="Expired unused"
-            value={formatRough(totals.forfeited)}
-            tone="warn"
-          />
-        )}
-        {totals.extra > 0 && (
-          <ProgramMetric label="Extra" value={formatRough(totals.extra)} />
-        )}
-        {totals.overdrawn > 0 && (
-          // A count of students, not minutes — the value has to say which.
-          <ProgramMetric
-            label="Overdrawn"
-            value={`${totals.overdrawn} ${totals.overdrawn === 1 ? "student" : "students"}`}
-            tone="danger"
-          />
-        )}
-        {/* The column decides, never the program's name — renaming the
-            Master's Program used to switch the money off across the app
-            (`Program.tracksPayment`, schema). */}
-        {program.tracksPayment && (
-          <ProgramMetric label="Paid" value={formatMoney(totals.paid)} />
-        )}
+        <ProgramMetric label="Total" value={formatRough(totals.allotted)} />
       </dl>
 
       <TabLinks
