@@ -3,8 +3,11 @@
 import { useState } from "react";
 
 import { setPlatformAdmin, setProgramAccess } from "@/lib/actions/grants";
+import { removeProgramGrant, setProgramGrant } from "@/lib/actions/grants";
 import { Button } from "@/components/ui/button";
 import { fieldChrome } from "@/components/ui/field";
+import { PersonChip } from "@/components/person-chip";
+import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -56,6 +59,12 @@ export type GrantRow = {
   platformAdmin: boolean;
   /** programId → level, for the programs they hold. */
   grants: Record<string, string>;
+};
+
+type ProgramGrant = {
+  id: string;
+  role: string;
+  user: { id: string; name: string | null; email: string };
 };
 
 export function GrantsEditor({
@@ -138,6 +147,134 @@ export function GrantsEditor({
         <PlatformToggle row={row} />
       </RowActionGroup>
     </RowActionMenu>
+  );
+}
+
+/** Program-local access control, mounted from that program's Settings page. */
+export function ProgramGrantsEditor({
+  programId,
+  grants,
+  people,
+  canEdit,
+}: {
+  programId: string;
+  grants: ProgramGrant[];
+  people: { id: string; name: string | null; email: string }[];
+  canEdit: boolean;
+}) {
+  const granted = new Set(grants.map((grant) => grant.user.id));
+  const available = people.filter((person) => !granted.has(person.id));
+
+  return (
+    <div className="px-4 py-2 sm:px-5">
+      <ul className="divide-y divide-line/60 text-sm">
+        {grants.map((grant) => (
+          <ProgramGrantRow
+            key={grant.id}
+            programId={programId}
+            grant={grant}
+            canEdit={canEdit}
+          />
+        ))}
+      </ul>
+      {canEdit && available.length > 0 && (
+        <ProgramGrantAddForm programId={programId} people={available} />
+      )}
+    </div>
+  );
+}
+
+function ProgramGrantRow({
+  programId,
+  grant,
+  canEdit,
+}: {
+  programId: string;
+  grant: ProgramGrant;
+  canEdit: boolean;
+}) {
+  const [, saveAction, save] = useSaveState(setProgramGrant);
+  const [, removeAction, removeSave] = useSaveState(removeProgramGrant);
+
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-3 py-2">
+      <PersonChip person={grant.user} size="sm" />
+      {canEdit ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <form action={saveAction} className="flex items-center gap-2">
+            <input type="hidden" name="programId" value={programId} />
+            <input type="hidden" name="userId" value={grant.user.id} />
+            <select
+              name="role"
+              defaultValue={grant.role}
+              className="min-h-9 rounded-lg border border-line bg-surface px-2.5 text-xs text-ink"
+            >
+              <option value="ADMIN">Super admin</option>
+              <option value="LEADER">Leader</option>
+              <option value="SALES">Sales</option>
+            </select>
+            <SubmitButton size="sm" variant="secondary">Save</SubmitButton>
+          </form>
+          <ConfirmInline
+            variant="quiet"
+            action={removeAction}
+            values={{ programId, userId: grant.user.id }}
+            pending={removeSave.kind === "saving"}
+            label="Remove"
+            question="Remove this person's access to the program?"
+            confirmLabel="Yes, remove"
+            pendingLabel="Removing…"
+          />
+          <SaveState state={save} />
+          <SaveState state={removeSave} />
+        </div>
+      ) : (
+        <span className="text-xs text-muted-fg">
+          {grant.role === "ADMIN" ? "Super admin" : grant.role}
+        </span>
+      )}
+    </li>
+  );
+}
+
+function ProgramGrantAddForm({
+  programId,
+  people,
+}: {
+  programId: string;
+  people: { id: string; name: string | null; email: string }[];
+}) {
+  const [, action, save] = useSaveState(setProgramGrant);
+  return (
+    <div className="border-t border-line pt-2.5">
+      <form action={action} className="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="programId" value={programId} />
+        <select
+          name="userId"
+          required
+          defaultValue=""
+          className="min-h-11 min-w-56 rounded-lg border border-line bg-surface px-2.5 text-sm text-ink"
+        >
+          <option value="" disabled>Add a person…</option>
+          {people.map((person) => (
+            <option key={person.id} value={person.id}>
+              {person.name ?? person.email}
+            </option>
+          ))}
+        </select>
+        <select
+          name="role"
+          defaultValue="ADMIN"
+          className="min-h-11 rounded-lg border border-line bg-surface px-2.5 text-sm text-ink"
+        >
+          <option value="ADMIN">Super admin</option>
+          <option value="LEADER">Leader</option>
+          <option value="SALES">Sales</option>
+        </select>
+        <SubmitButton size="sm">Add access</SubmitButton>
+        <SaveState state={save} />
+      </form>
+    </div>
   );
 }
 

@@ -28,6 +28,54 @@ function isLevel(value: unknown): value is Level {
   return typeof value === "string" && (LEVELS as readonly string[]).includes(value);
 }
 
+/** Set one person's role in one program without touching their other grants. */
+export async function setProgramGrant(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+  const denied = assertPlatformAdmin(actor);
+  if (denied) return denied;
+
+  const programId = String(formData.get("programId") ?? "");
+  const userId = String(formData.get("userId") ?? "");
+  const role = formData.get("role");
+  if (!isLevel(role)) return { ok: false, error: "Pick an access level." };
+
+  const [program, person] = await Promise.all([
+    prisma.program.findUnique({ where: { id: programId }, select: { name: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } }),
+  ]);
+  if (!program || !person) return { ok: false, error: "That program or person no longer exists." };
+
+  await prisma.programStaff.upsert({
+    where: { userId_programId: { userId, programId } },
+    update: { role },
+    create: { userId, programId, role, createdById: actor!.id },
+  });
+  revalidatePath(`/programs/${programId}/settings`);
+  return {
+    ok: true,
+    message: `${person.name ?? person.email} is now a ${role === "ADMIN" ? "super admin" : role.toLowerCase()} for ${program.name}.`,
+  };
+}
+
+/** Remove one person's access to one program. */
+export async function removeProgramGrant(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+  const denied = assertPlatformAdmin(actor);
+  if (denied) return denied;
+
+  const programId = String(formData.get("programId") ?? "");
+  const userId = String(formData.get("userId") ?? "");
+  await prisma.programStaff.deleteMany({ where: { programId, userId } });
+  revalidatePath(`/programs/${programId}/settings`);
+  return { ok: true, message: "Program access removed." };
+}
+
 /**
  * Set one person's access across every program at once.
  *
