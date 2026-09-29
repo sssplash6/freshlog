@@ -7,6 +7,7 @@ import {
   HourBankToggle,
   RemoveMentorButton,
   RenameProgramForm,
+  StandardHoursForm,
   TrackPaymentToggle,
 } from "@/components/forms/program-settings-forms";
 import { PersonChip } from "@/components/person-chip";
@@ -225,6 +226,12 @@ export default async function ProgramSettingsPage({
             tracksPayment={program.tracksPayment}
           />
           <HourBankToggle programId={program.id} hourBank={program.hourBank} />
+          <StandardHoursForm
+            programId={program.id}
+            standardMinutes={program.standardMinutes}
+            standardDays={program.standardDays}
+            hourBank={program.hourBank}
+          />
           <SettingsRow
             label={archived ? "Archived" : "Archive this program"}
             description={

@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 import { assertPlatformAdmin, assertProgramScope } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
-import type { ActionState } from "@/lib/actions/shared";
+import { parseMinutesField, type ActionState } from "@/lib/actions/shared";
+import { formatDuration } from "@/lib/format";
 
 /**
  * A platform admin opens a new program. Programs created here live alongside
@@ -230,6 +231,76 @@ export async function setProgramTracksPayment(
     message: tracksPayment
       ? `Allocating time in ${program.name} now asks what the student paid.`
       : `Allocating time in ${program.name} no longer asks about payment. Amounts already recorded stay.`,
+  };
+}
+
+/** Three years: past that, "use within" is a typo for a minutes figure. */
+const STANDARD_DAYS_MAX = 1095;
+
+/**
+ * Set, change or clear the grant every student joining this program receives
+ * (`grantStandardHours`): minutes into their unassigned pool, to use within a
+ * number of days of joining. Both fields empty turns it off.
+ *
+ * Program-scoped like `setProgramTracksPayment`: a level's hours are what that
+ * program sells, and its admin is the one who knows the figure. It changes
+ * what students who join FROM NOW ON get, and nothing already granted — a
+ * student who joined under the old figure was promised the old figure.
+ */
+export async function setProgramStandardHours(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+
+  const programId = String(formData.get("programId") ?? "");
+  const denied = await assertProgramScope(actor, programId);
+  if (denied) return denied;
+
+  const program = await prisma.program.findUnique({ where: { id: programId } });
+  if (!program) return { ok: false, error: "Program not found." };
+
+  const rawMinutes = String(formData.get("minutes") ?? "").trim();
+  const rawDays = String(formData.get("days") ?? "").trim();
+
+  let standardMinutes: number | null = null;
+  let standardDays: number | null = null;
+  if (rawMinutes || rawDays) {
+    if (!rawMinutes || !rawDays) {
+      return {
+        ok: false,
+        error: "Give both the minutes and the days to use them in, or leave both empty to turn it off.",
+      };
+    }
+    const minutes = parseMinutesField(rawMinutes, { min: 1, label: "Minutes" });
+    if ("error" in minutes) return { ok: false, error: minutes.error };
+    const days = Number(rawDays);
+    if (!Number.isInteger(days) || days < 1 || days > STANDARD_DAYS_MAX) {
+      return {
+        ok: false,
+        error: `Days to use them in must be a whole number from 1 to ${STANDARD_DAYS_MAX}.`,
+      };
+    }
+    standardMinutes = minutes.value;
+    standardDays = days;
+  }
+
+  if (standardMinutes === program.standardMinutes && standardDays === program.standardDays) {
+    return { ok: true, message: "No change." };
+  }
+
+  await prisma.program.update({
+    where: { id: programId },
+    data: { standardMinutes, standardDays },
+  });
+
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message:
+      standardMinutes === null
+        ? `Students joining ${program.name} no longer get standard hours. Time already granted stays.`
+        : `Students joining ${program.name} from now on get ${formatDuration(standardMinutes)} to use within ${standardDays} day${standardDays === 1 ? "" : "s"}. Students already in it keep what they have.`,
   };
 }
 

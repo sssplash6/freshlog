@@ -1,7 +1,7 @@
 # Standard hours per program — design
 
 Date: 2026-09-29
-Status: approved in conversation, awaiting spec review
+Status: implemented
 
 ## Why
 
@@ -24,6 +24,7 @@ within D days", and freshlog should grant it.
 | Changing the standard | Affects students who join afterwards only. Existing students are never touched. |
 | Existing programs | Off. Nothing changes until an admin sets a standard. |
 | Exchanges | Never. A visitor's minutes are capped by the sending program. |
+| Hour-bank programs | The standard opens the student's hour bank (`isBank`) instead of filling the pool, since every meeting there draws the bank and time beside it would never be spent. |
 
 ## Data (one migration)
 
@@ -38,14 +39,15 @@ them; nothing else writes them.
 ## Setting it — `/programs/[id]/settings`
 
 A **Standard hours** form in the existing **Program** section, beside the
-payment toggle. Two fields: **Hours** (parsed with `parseMinutesField`, like
-every hours field) and **Use within (days)**, a whole number 1–1095. Both
+payment toggle. Two fields: **Minutes** (parsed with `parseMinutesField`; every
+time field in the app takes whole minutes) and **Use within (days)**, a whole
+number 1–1095. Both
 empty turns it off. One field empty and the other filled is refused with a
 sentence.
 
 New action `setProgramStandardHours(prev, formData)` in
 `src/lib/actions/programs.ts`, gated with `assertProgramScope` on the program
-(the same gate as `setProgramTracksPayment`). Hours must be > 0 when set.
+(the same gate as `setProgramTracksPayment`). Minutes must be at least 1 when set.
 The section caption says it applies to students who join from now on.
 
 ## Granting it

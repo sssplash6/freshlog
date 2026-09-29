@@ -41,11 +41,30 @@ import { enrollmentsLabel } from "@/lib/enrollments";
 import { allocatedUnder, ExchangeCapExceeded } from "@/lib/exchanges";
 import { deadlinePassed } from "@/lib/deadlines";
 import { pastHours } from "@/lib/hours";
+import { grantStandardHours } from "@/lib/standard-hours";
 import type { Cohort, Program } from "@/generated/prisma/client";
 
 /** "Program" or "Program / Cohort" display label. */
 function enrollmentLabel(programName: string, cohortName?: string | null) {
   return cohortName ? `${programName} / ${cohortName}` : programName;
+}
+
+/**
+ * The sentence an action adds when the program's standard grant went out:
+ * the admin should not have to open each student to learn that the hours are
+ * already there. Empty when nobody got one.
+ */
+function standardNote(
+  program: Pick<Program, "standardMinutes" | "standardDays">,
+  granted: number,
+  of: number
+): string {
+  if (granted === 0 || program.standardMinutes === null || program.standardDays === null) {
+    return "";
+  }
+  const what = `${formatDuration(program.standardMinutes)} to use within ${program.standardDays} day${program.standardDays === 1 ? "" : "s"}`;
+  if (granted === of) return of === 1 ? ` They have ${what}.` : ` Each has ${what}.`;
+  return ` ${granted} of them ${granted === 1 ? "has" : "have"} ${what}.`;
 }
 
 /**
@@ -78,7 +97,8 @@ async function resolveEnrollment(
  * program has them), skipping the self-signup approval queue. Whoever
  * administers the program may add students to it. Each student confirms their
  * full name and Telegram username on first sign-in; hours are NOT granted
- * here — an admin allocates them per mentor afterwards. An optional
+ * here — an admin allocates them per mentor afterwards — except the program's
+ * standard grant, when it has one (`grantStandardHours`). An optional
  * student-folder link per row is stored for their mentors to open.
  * Already-registered and malformed entries are skipped and reported. Each
  * student created here is emailed a welcome with a sign-in link — staff
@@ -200,6 +220,9 @@ export async function createStudents(
     }
   }
 
+  // How many of them the program's standard grant reached: a student who
+  // already held time here (none can, today, but the helper decides) is not.
+  let standardGranted = 0;
   await prisma.$transaction(async (tx) => {
     for (const { profileId } of enrolling) {
       await tx.studentEnrollment.create({
@@ -210,6 +233,12 @@ export async function createStudents(
           createdById: actor.id,
         },
       });
+      const made = await grantStandardHours(tx, {
+        studentId: profileId,
+        programId: program.id,
+        actorId: actor.id,
+      });
+      if (made) standardGranted++;
     }
     for (const { email, name, folderUrl } of fresh) {
       const studentUser = await tx.user.create({
@@ -220,7 +249,7 @@ export async function createStudents(
           status: USER_STATUS.ACTIVE,
         },
       });
-      await tx.studentProfile.create({
+      const created = await tx.studentProfile.create({
         data: {
           userId: studentUser.id,
           folderUrl,
@@ -237,6 +266,12 @@ export async function createStudents(
           },
         },
       });
+      const made = await grantStandardHours(tx, {
+        studentId: created.id,
+        programId: program.id,
+        actorId: actor.id,
+      });
+      if (made) standardGranted++;
     }
   });
 
@@ -295,6 +330,7 @@ export async function createStudents(
     message:
       `${added} student${added === 1 ? "" : "s"} added to ${enrollmentLabel(program.name, cohort?.name)}.` +
       alsoEnrolled +
+      standardNote(program, standardGranted, added) +
       ` They'll confirm their Telegram username when they first sign in.` +
       (emailConfigured()
         ? ` A welcome email is on its way to ${added === 1 ? "them" : "each of them"}.`
@@ -724,7 +760,7 @@ export async function moveStudent(
   const fromLabel = enrollmentLabel(from.program.name, from.cohort?.name);
   const to = enrollmentLabel(program.name, cohort?.name);
 
-  await prisma.$transaction(async (tx) => {
+  const granted = await prisma.$transaction(async (tx) => {
     await tx.studentEnrollment.update({
       where: { id: from.id },
       data: { programId: program.id, cohortId: cohort?.id ?? null },
@@ -736,12 +772,23 @@ export async function moveStudent(
       href: notificationHref.studentHome(),
       message: `Your enrollment was moved from ${fromLabel} to ${to}. Your time and session history stayed with ${fromLabel}.`,
     });
+    // Arriving in a program is joining it, so its standard grant applies — but
+    // a move between two cohorts of the same program arrives nowhere new.
+    return program.id === from.programId
+      ? null
+      : grantStandardHours(tx, {
+          studentId: profile.id,
+          programId: program.id,
+          actorId: actor.id,
+        });
   });
 
   revalidatePath("/", "layout");
   return {
     ok: true,
-    message: `${profile.user.name ?? profile.user.email} moved from ${fromLabel} to ${to}.`,
+    message:
+      `${profile.user.name ?? profile.user.email} moved from ${fromLabel} to ${to}.` +
+      standardNote(program, granted ? 1 : 0, 1),
   };
 }
 
@@ -783,7 +830,7 @@ export async function enrollStudent(
   }
 
   const label = enrollmentLabel(program.name, cohort?.name);
-  await prisma.$transaction(async (tx) => {
+  const granted = await prisma.$transaction(async (tx) => {
     await tx.studentEnrollment.create({
       data: {
         studentId: profile.id,
@@ -799,12 +846,19 @@ export async function enrollStudent(
       href: notificationHref.studentHome(),
       message: `You were enrolled in ${label}. Your time in your other programs is unchanged — this program grants its own.`,
     });
+    return grantStandardHours(tx, {
+      studentId: profile.id,
+      programId: program.id,
+      actorId: actor.id,
+    });
   });
 
   revalidatePath("/", "layout");
   return {
     ok: true,
-    message: `${profile.user.name ?? profile.user.email} is now in ${label}. Allocate their hours for it next.`,
+    message: granted
+      ? `${profile.user.name ?? profile.user.email} is now in ${label}.${standardNote(program, 1, 1)}`
+      : `${profile.user.name ?? profile.user.email} is now in ${label}. Allocate their hours for it next.`,
   };
 }
 
@@ -989,8 +1043,9 @@ export async function deleteStudent(
 }
 
 /**
- * Approve a self-signed-up student (admin only). Activates the account;
- * hours are allocated separately, per mentor. Approval is their admission
+ * Approve a self-signed-up student (admin only). Activates the account and
+ * grants each program's standard hours, if it has them; anything else is
+ * allocated separately, per mentor. Approval is their admission
  * into the program, so the welcome email goes out here — the in-app notice
  * alone reaches only students who happen to come back and check.
  */
@@ -1022,7 +1077,10 @@ export async function approveStudent(
   // up for rather than one an admin happens to be looking at.
   const programLabel = enrollmentsLabel(profile.enrollments);
 
-  await prisma.$transaction(async (tx) => {
+  // The programs whose standard grant went out. Given here rather than at
+  // sign-up: approval is when they are let in, so it is when the use-by clock
+  // starts — a sign-up left in the queue for a month must not lose a month.
+  const grantedIn = await prisma.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: profile.userId },
       data: { status: USER_STATUS.ACTIVE },
@@ -1034,6 +1092,17 @@ export async function approveStudent(
       href: notificationHref.studentHome(),
       message: `Your registration for ${programLabel} was approved. You'll be notified as mentor hours are allocated to you.`,
     });
+    const granted: Program[] = [];
+    for (const e of profile.enrollments) {
+      if (e.exchangeId) continue;
+      const made = await grantStandardHours(tx, {
+        studentId: profile.id,
+        programId: e.programId,
+        actorId: actor.id,
+      });
+      if (made) granted.push(e.program);
+    }
+    return granted;
   });
 
   sendWelcomeEmails([
@@ -1049,7 +1118,12 @@ export async function approveStudent(
   return {
     ok: true,
     message:
-      `${profile.user.name ?? profile.user.email} approved. Now allocate their mentor hours.` +
+      `${profile.user.name ?? profile.user.email} approved.` +
+      (grantedIn.length === 0
+        ? " Now allocate their mentor hours."
+        : grantedIn.length === 1
+          ? standardNote(grantedIn[0], 1, 1)
+          : " Each of their programs' standard hours is in place.") +
       (emailConfigured() ? " A welcome email is on its way to them." : ""),
   };
 }

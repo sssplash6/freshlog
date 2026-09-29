@@ -15,8 +15,10 @@ import {
   deleteProgram,
   renameProgram,
   setProgramHourBank,
+  setProgramStandardHours,
   setProgramTracksPayment,
 } from "@/lib/actions/programs";
+import { formatDuration } from "@/lib/format";
 
 const labelClass =
   "block text-[0.8125rem] text-muted-fg";
@@ -253,6 +255,88 @@ export function HourBankToggle({
           <SubmitButton variant="secondary" pendingText="Saving…">
             {hourBank ? "Stop offering banks" : "Offer hour banks"}
           </SubmitButton>
+        </form>
+      }
+      state={<SaveState state={save} />}
+    />
+  );
+}
+
+/**
+ * The grant every student who joins this program receives: minutes into their
+ * unassigned pool, to use within a number of days of joining. Both boxes
+ * empty is off. The description says what is in force now, and that a change
+ * reaches only the students who join after it.
+ */
+export function StandardHoursForm({
+  programId,
+  standardMinutes,
+  standardDays,
+  hourBank,
+}: {
+  programId: string;
+  standardMinutes: number | null;
+  standardDays: number | null;
+  /** Where the time lands: the student's hour bank, or their unassigned pool. */
+  hourBank: boolean;
+}) {
+  const minutesId = useId();
+  const daysId = useId();
+  const [minutes, setMinutes] = useState(standardMinutes?.toString() ?? "");
+  const [days, setDays] = useState(standardDays?.toString() ?? "");
+  const dirty =
+    minutes.trim() !== (standardMinutes?.toString() ?? "") ||
+    days.trim() !== (standardDays?.toString() ?? "");
+  const [, action, save] = useSaveState(setProgramStandardHours, dirty);
+
+  return (
+    <SettingsRow
+      label="Standard hours"
+      htmlFor={minutesId}
+      description={
+        standardMinutes !== null && standardDays !== null
+          ? `Every student who joins gets ${formatDuration(standardMinutes)} ${hourBank ? "in their hour bank" : "unassigned"}, to use within ${standardDays} day${standardDays === 1 ? "" : "s"}. A change reaches only students who join after it.`
+          : "Off. Set it to give every student who joins the same time, instead of allocating it by hand. Leave both empty to keep it off."
+      }
+      control={
+        <form action={action} className="flex flex-wrap items-end gap-3">
+          <input type="hidden" name="programId" value={programId} />
+          <div>
+            <label htmlFor={minutesId} className={labelClass}>
+              Minutes
+            </label>
+            <Input
+              id={minutesId}
+              name="minutes"
+              type="number"
+              inputMode="numeric"
+              min="1"
+              step="1"
+              placeholder="600"
+              value={minutes}
+              onChange={(event) => setMinutes(event.target.value)}
+              className="w-28"
+            />
+          </div>
+          <div>
+            <label htmlFor={daysId} className={labelClass}>
+              Use within (days)
+            </label>
+            <Input
+              id={daysId}
+              name="days"
+              type="number"
+              inputMode="numeric"
+              min="1"
+              max="1095"
+              step="1"
+              placeholder="90"
+              value={days}
+              onChange={(event) => setDays(event.target.value)}
+              className="w-28"
+            />
+          </div>
+          <SubmitButton variant="secondary" pendingText="Saving…">Save</SubmitButton>
         </form>
       }
       state={<SaveState state={save} />}
