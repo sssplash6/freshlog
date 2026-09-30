@@ -20,6 +20,7 @@ import {
   NOTIFICATION_TYPES,
   PLACEHOLDER_EMAIL_DOMAIN,
   ROLES,
+  STANDING_SESSION,
   USER_STATUS,
 } from "@/lib/constants";
 import { formatDate, formatDuration, formatMoney } from "@/lib/format";
@@ -985,7 +986,11 @@ export async function unenrollStudent(
 
   const [sessions, allocations] = await Promise.all([
     prisma.session.count({
-      where: { studentId: enrollment.studentId, programId: enrollment.programId },
+      where: {
+        studentId: enrollment.studentId,
+        programId: enrollment.programId,
+        ...STANDING_SESSION,
+      },
     }),
     prisma.hourAllocation.count({
       where: { studentId: enrollment.studentId, programId: enrollment.programId },
@@ -1773,8 +1778,9 @@ export async function setMentorAllocation(
  * tasks those hours bought, and appends a terminal change row to the audit
  * trail so History still says where the hours went (admin only, student
  * notified). Blocked once a session has been logged with the mentor: those
- * hours were delivered and are history, not a mistake to erase. The mentor
- * keeps their program assignment.
+ * hours were delivered and are history, not a mistake to erase. Voided
+ * sessions stay on record but no longer block. The mentor keeps their program
+ * assignment.
  */
 export async function removeMentorAllocation(
   _prev: ActionState,
@@ -1831,7 +1837,12 @@ export async function removeMentorAllocation(
       return { ok: false, error: "Only an admin of this program can change an hour bank." };
     }
     const drawn = await prisma.session.count({
-      where: { studentId: profileId, programId: allocation.programId, fromBank: true },
+      where: {
+        studentId: profileId,
+        programId: allocation.programId,
+        fromBank: true,
+        ...STANDING_SESSION,
+      },
     });
     if (drawn > 0) {
       return {
@@ -1841,10 +1852,17 @@ export async function removeMentorAllocation(
       };
     }
   }
-  // The pool has no sessions by construction — only mentors log them.
+  // The pool has no sessions by construction — only mentors log them. Voided
+  // ones do not count: the refusal below says to void them, and a void that
+  // changed nothing would leave a duplicate grant with no way out.
   if (mentorId) {
     const sessionCount = await prisma.session.count({
-      where: { studentId: profileId, programId: allocation.programId, mentorId },
+      where: {
+        studentId: profileId,
+        programId: allocation.programId,
+        mentorId,
+        ...STANDING_SESSION,
+      },
     });
     if (sessionCount > 0) {
       return {

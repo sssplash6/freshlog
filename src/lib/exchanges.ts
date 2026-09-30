@@ -5,6 +5,7 @@ import {
   CHARGED_SESSION,
   EXCHANGE_STATUS,
   SESSION_STATUS,
+  STANDING_SESSION,
   canActAsMentor,
 } from "@/lib/constants";
 import { deadlinePassed } from "@/lib/deadlines";
@@ -336,10 +337,13 @@ export class ExchangeCapExceeded extends Error {
   }
 }
 
-/** Has anything been logged under this exchange? Returning is refused if so. */
+/**
+ * Has anything been logged under this exchange? Returning is refused if so.
+ * Voided sessions do not count: voiding them is how the refusal says to clear it.
+ */
 export async function exchangeHasSessions(exchangeId: string): Promise<boolean> {
   const logged = await prisma.session.findFirst({
-    where: { exchangeId },
+    where: { exchangeId, ...STANDING_SESSION },
     select: { id: true },
   });
   return logged !== null;

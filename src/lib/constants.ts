@@ -252,6 +252,18 @@ export const CHARGED_SESSION = {
 } as const;
 
 /**
+ * The sessions that make a grant, a membership or an exchange history rather
+ * than a mistake — every one but the voided. Each guard that refuses an
+ * erasure because time was logged tells the admin to void those sessions
+ * first, so a voided row must not count, or the advice is a dead end.
+ * Rescheduled and extra-hours meetings still count: they are records of a
+ * meeting, not retractions of one.
+ */
+export const STANDING_SESSION = {
+  status: { not: SESSION_STATUS.VOIDED },
+} as const;
+
+/**
  * What stands in for the mentor in the key `(student, program, mentor)` when
  * the draw is the HOUR BANK's. Every total keyed on that triple takes the
  * mentor from `drawKey`, so a bank meeting never lands on whichever mentor

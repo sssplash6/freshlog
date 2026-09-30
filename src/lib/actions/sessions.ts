@@ -1195,6 +1195,20 @@ export async function restoreSession(
   if (session.status !== SESSION_STATUS.VOIDED) {
     return { ok: true, message: "That session is already counting." };
   }
+  // Voiding is how a program is cleared before a student is taken off it (or
+  // an exchange returned), so a voided session can outlive the membership it
+  // was logged under. Restoring it then would charge hours in a program the
+  // student is no longer in, where no roster shows them and no admin sees it.
+  const member = await prisma.studentEnrollment.findFirst({
+    where: { studentId: session.studentId, programId: session.programId },
+    select: { id: true },
+  });
+  if (!member) {
+    return {
+      ok: false,
+      error: "The student is no longer in the program this session was logged in, so it can't be restored.",
+    };
+  }
 
   const staff = await staffIdsFor(session.programId);
   const actorLabel = actor.name ?? actor.email;
