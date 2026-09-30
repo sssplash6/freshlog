@@ -344,3 +344,19 @@ export async function exchangeHasSessions(exchangeId: string): Promise<boolean> 
   });
   return logged !== null;
 }
+
+/**
+ * The open exchange, if any, on which this program has lent this student out.
+ *
+ * Only a student's own programs lend, so the sending program is the one thing
+ * an open placement cannot outlive: move the student out of it, or unenroll
+ * them, and the host is left with a visitor whose sender no longer has them —
+ * a cap nobody holds and a return that goes nowhere. Both actions ask this
+ * first and refuse until the exchange is returned.
+ */
+export async function openExchangeFrom(studentId: string, programId: string) {
+  return prisma.programExchange.findFirst({
+    where: { studentId, fromProgramId: programId, status: EXCHANGE_STATUS.OPEN },
+    include: { toProgram: { select: { name: true } } },
+  });
+}

@@ -38,10 +38,11 @@ import {
 import { emailConfigured } from "@/lib/email/send";
 import { sendWelcomeEmails, welcomeMail } from "@/lib/email/welcome";
 import { enrollmentsLabel } from "@/lib/enrollments";
-import { allocatedUnder, ExchangeCapExceeded } from "@/lib/exchanges";
+import { allocatedUnder, ExchangeCapExceeded, openExchangeFrom } from "@/lib/exchanges";
 import { deadlinePassed } from "@/lib/deadlines";
 import { pastHours } from "@/lib/hours";
 import { grantStandardHours } from "@/lib/standard-hours";
+import { carryForward } from "@/lib/carry-forward";
 import type { Cohort, Program } from "@/generated/prisma/client";
 
 /** "Program" or "Program / Cohort" display label. */
@@ -757,37 +758,87 @@ export async function moveStudent(
     };
   }
 
+  // Leaving a program that has them out on exchange would strand the visit:
+  // the sender would no longer be one of their programs. A cohort change inside
+  // the same program leaves the sender where it was.
+  if (program.id !== from.programId) {
+    const lent = await openExchangeFrom(profile.id, from.programId);
+    if (lent) {
+      return {
+        ok: false,
+        error: `${from.program.name} has them out on exchange to ${lent.toProgram.name}. Return the exchange before moving them out of ${from.program.name}.`,
+      };
+    }
+  }
+
   const fromLabel = enrollmentLabel(from.program.name, from.cohort?.name);
   const to = enrollmentLabel(program.name, cohort?.name);
 
-  const granted = await prisma.$transaction(async (tx) => {
+  const studentName = profile.user.name ?? profile.user.email;
+  const { granted, carried } = await prisma.$transaction(async (tx) => {
     await tx.studentEnrollment.update({
       where: { id: from.id },
       data: { programId: program.id, cohortId: cohort?.id ?? null },
+    });
+    // A move between two cohorts of the same program arrives nowhere new: no
+    // standard grant, and nothing to carry.
+    if (program.id === from.programId) {
+      await notify(tx, {
+        to: [profile.userId],
+        type: NOTIFICATION_TYPES.ENROLLMENT_MOVED,
+        actorId: actor.id,
+        href: notificationHref.studentHome(),
+        message: `Your enrollment was moved from ${fromLabel} to ${to}.`,
+      });
+      return { granted: null, carried: null };
+    }
+    // Arriving in a program is joining it, so its standard grant applies — and
+    // first, so the time carried below tops it up instead of looking like a
+    // grant the student already holds.
+    const granted = await grantStandardHours(tx, {
+      studentId: profile.id,
+      programId: program.id,
+      actorId: actor.id,
+    });
+    const carried = await carryForward(tx, {
+      studentId: profile.id,
+      fromProgramId: from.programId,
+      toProgramId: program.id,
+      actorId: actor.id,
     });
     await notify(tx, {
       to: [profile.userId],
       type: NOTIFICATION_TYPES.ENROLLMENT_MOVED,
       actorId: actor.id,
       href: notificationHref.studentHome(),
-      message: `Your enrollment was moved from ${fromLabel} to ${to}. Your time and session history stayed with ${fromLabel}.`,
+      message:
+        carried.minutes > 0
+          ? `Your enrollment was moved from ${fromLabel} to ${to}. Your unused ${formatDuration(carried.minutes)} moved with you; your session history stayed with ${fromLabel}.`
+          : `Your enrollment was moved from ${fromLabel} to ${to}. Your session history stayed with ${fromLabel}.`,
     });
-    // Arriving in a program is joining it, so its standard grant applies — but
-    // a move between two cohorts of the same program arrives nowhere new.
-    return program.id === from.programId
-      ? null
-      : grantStandardHours(tx, {
-          studentId: profile.id,
-          programId: program.id,
-          actorId: actor.id,
-        });
+    await notify(tx, {
+      to: carried.mentorIds,
+      type: NOTIFICATION_TYPES.HOURS_GRANTED,
+      actorId: actor.id,
+      href: notificationHref.mentorStudent(profile.id),
+      message: `${studentName} moved from ${fromLabel} to ${to}. Your unused time with them moved too.`,
+    });
+    return { granted, carried };
   });
 
   revalidatePath("/", "layout");
+  const carriedNote =
+    carried && carried.minutes > 0
+      ? ` ${formatDuration(carried.minutes)} of unused time moved with them` +
+        (carried.tasks > 0
+          ? `, along with ${carried.tasks === 1 ? "one untouched task" : `${carried.tasks} untouched tasks`}.`
+          : ".")
+      : "";
   return {
     ok: true,
     message:
-      `${profile.user.name ?? profile.user.email} moved from ${fromLabel} to ${to}.` +
+      `${studentName} moved from ${fromLabel} to ${to}.` +
+      carriedNote +
       standardNote(program, granted ? 1 : 0, 1),
   };
 }
@@ -921,6 +972,14 @@ export async function unenrollStudent(
       ok: false,
       error:
         "This is their only program, and a student has to be in one. Move them to another program, or delete the student.",
+    };
+  }
+
+  const lent = await openExchangeFrom(enrollment.studentId, enrollment.programId);
+  if (lent) {
+    return {
+      ok: false,
+      error: `${enrollment.program.name} has them out on exchange to ${lent.toProgram.name}. Return the exchange before removing them from ${enrollment.program.name}.`,
     };
   }
 
