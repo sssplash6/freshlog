@@ -73,12 +73,17 @@ export async function carryForward(
     // What this row has already been drawn down by — the same key the balance
     // uses: a bank by every bank meeting, a mentor by their own, a pool by none.
     let used = 0;
-    if (row.isBank || row.mentorId) {
+    const drawnBy = row.isBank
+      ? { fromBank: true }
+      : row.mentorId
+        ? { mentorId: row.mentorId, fromBank: false }
+        : null;
+    if (drawnBy) {
       const agg = await tx.session.aggregate({
         where: {
           studentId,
           programId: fromProgramId,
-          ...(row.isBank ? { fromBank: true } : { mentorId: row.mentorId, fromBank: false }),
+          ...drawnBy,
           ...CHARGED_SESSION,
         },
         _sum: { minutes: true },
