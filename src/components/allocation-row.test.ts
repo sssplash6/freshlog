@@ -69,4 +69,19 @@ describe("time by mentor", () => {
       assigned: 720,
     });
   });
+
+  it("names a second program under the mentor, not in a column of its own", () => {
+    // A Program column pushed the ⋮ menu off the card's right edge.
+    const html = renderToStaticMarkup(
+      createElement(AllocationsTable, {
+        entries: [hasan, { ...hasan, program: { id: "global", name: "Global Admissions" } }],
+        framed: false,
+        renderActions: () => "⋮",
+      }),
+    );
+
+    expect(html).not.toContain(">Program<");
+    expect(html).toContain("Global Admissions");
+    expect(html.match(/<th[ >]/g)).toHaveLength(6);
+  });
 });

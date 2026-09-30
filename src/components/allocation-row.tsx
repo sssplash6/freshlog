@@ -67,7 +67,7 @@ export type AllocationEntry = {
    * The program the time was granted in.
    *
    * A row is one (program, mentor) grant, so a student in two programs has two
-   * rows for one mentor, with two balances and two use-by dates. The column is
+   * rows for one mentor, with two balances and two use-by dates. The name is
    * only drawn when there IS more than one program on the table — see
    * `AllocationsTable` — because a program named on every row of a
    * single-program student is a column of the same word.
@@ -350,12 +350,17 @@ export function AllocationRow({
     >
       <Td>
         <AllocationPerson entry={entry} />
+        {/* Under the person, not a column of its own. A Program column made a
+            two-program student's table a column wider than the card, and the
+            one cell pushed past its clipped edge was the ⋮ menu that edits
+            the grant. The row is still told apart by its dot and name. */}
+        {showProgram && (
+          <ProgramChip
+            program={entry.program}
+            className="mt-1 flex text-[0.8125rem] text-muted-fg"
+          />
+        )}
       </Td>
-      {showProgram && (
-        <Td label="Program">
-          <ProgramChip program={entry.program} />
-        </Td>
-      )}
       <Td label="Completed" align="right" className="tabular-nums">
         {formatDuration(entry.completed)}
       </Td>
@@ -427,7 +432,6 @@ export function AllocationsTable({
 
   const columns: Column[] = [
     { label: "Mentor" },
-    ...(showProgram ? [{ label: "Program" } as Column] : []),
     { label: "Completed", align: "right" },
     { label: "Missed", align: "right" },
     { label: "Remaining", align: "right" },
