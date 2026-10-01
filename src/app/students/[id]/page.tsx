@@ -509,6 +509,23 @@ export default async function StudentWorkspacePage({
         })}
         assignments={ledger.assignments}
         banks={timeByMentor.filter((entry) => entry.bank)}
+        // The pinned bank row is where the balance is read, so it is where an
+        // admin corrects it — the same ⋮ its "Time by mentor" row carries:
+        // total, use-by, removal. `bankAdmin` is the action's own rule, so the
+        // menu is the affordance for a gate that will agree with it.
+        renderBankActions={(bank) =>
+          bank.deadline && bankAdmin.has(bank.program.id) ? (
+            <AllocationRowActions
+              bank
+              studentProfileId={profile.id}
+              programId={bank.program.id}
+              mentorId=""
+              mentorLabel="the hour bank"
+              currentMinutes={bank.allocated}
+              currentDeadline={toDateInputValue(bank.deadline)}
+            />
+          ) : null
+        }
         totals={hours}
         mentorBase="/mentors"
         // The board is where these rows are READ, so it is where they have to

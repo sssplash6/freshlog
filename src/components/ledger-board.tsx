@@ -278,10 +278,10 @@ export function LedgerBoard({
                       </span>
                     )}
                   </span>
-                  <span className="inline-flex items-center gap-2">
+                  <div className="flex items-center gap-2">
                     <AllocationBalance entry={bank} />
                     {renderBankActions?.(bank)}
-                  </span>
+                  </div>
                 </div>
                 <AllocationMeter
                   entry={bank}

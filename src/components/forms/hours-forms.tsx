@@ -97,7 +97,7 @@ export function AllocationRowActions({
   return (
     <RowActionMenu
       trigger="dots"
-      label={`Manage time with ${mentorLabel}`}
+      label={bank ? "Manage the hour bank" : `Manage time with ${mentorLabel}`}
       width="md"
     >
       <RowActionGroup label="Correct this allocation">
