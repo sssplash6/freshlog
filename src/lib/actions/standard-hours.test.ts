@@ -65,8 +65,8 @@ describe("createStudents", () => {
       })
     );
 
-    expect(state).toMatchObject({ ok: true });
-    expect(state.ok && state.message).toContain("Each has 10h to use within 90 days.");
+    if (!state?.ok) throw new Error("expected the create to succeed");
+    expect(state.message).toContain("Each has 10h to use within 90 days.");
     const pool = await poolIn(beginner.id);
     expect(pool.map((r) => r.minutes)).toEqual([600, 600]);
     await expect(prisma.hourAllotmentChange.count()).resolves.toBe(2);
@@ -104,8 +104,8 @@ describe("enrollStudent", () => {
       form({ studentProfileId: s.id, programId: advanced.id })
     );
 
-    expect(state).toMatchObject({ ok: true });
-    expect(state.ok && state.message).toContain("They have 20h to use within 120 days.");
+    if (!state?.ok) throw new Error("expected the enrollment to succeed");
+    expect(state.message).toContain("They have 20h to use within 120 days.");
     expect((await poolIn(advanced.id)).map((r) => r.minutes)).toEqual([1200]);
     await expect(poolIn(beginner.id)).resolves.toEqual([]);
   });
@@ -155,8 +155,8 @@ describe("approveStudent", () => {
     await expect(prisma.hourAllocation.count()).resolves.toBe(0);
     const state = await approveStudent(null, form({ studentProfileId: s.id }));
 
-    expect(state).toMatchObject({ ok: true });
-    expect(state.ok && state.message).toContain("They have 10h to use within 90 days.");
+    if (!state?.ok) throw new Error("expected the approval to succeed");
+    expect(state.message).toContain("They have 10h to use within 90 days.");
     expect((await poolIn(beginner.id)).map((r) => r.minutes)).toEqual([600]);
   });
 });
