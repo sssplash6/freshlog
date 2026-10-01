@@ -574,8 +574,9 @@ model Session {
   studentAnswer     String?
   studentAnsweredAt DateTime?
   // 1-5 on the session itself, not on the mentor. `MentorFeedback` rates a
-  // person over time and is anonymous to them; this rates one meeting and is
-  // not, because a mentor cannot act on "one of your sessions was a 2".
+  // person over time and names the writer only to that student's admins; this
+  // rates one meeting and is not anonymous, because a mentor cannot act on
+  // "one of your sessions was a 2".
   studentRating     Int?
   // Their words: what was wrong, or what was good. Optional either way.
   studentNote       String?

@@ -10,7 +10,12 @@ import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
 import { PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
-import { adminScope, staffLevel, type AdminScope } from "@/lib/authz";
+import {
+  adminScope,
+  adminWriteScope,
+  staffLevel,
+  type AdminScope,
+} from "@/lib/authz";
 import { canActAsMentor, ROLES } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import {
@@ -42,11 +47,13 @@ import type { User } from "@/generated/prisma/client";
  * THREE THINGS THE OLD PAGES LET A READER SEE THAT THEY SHOULD NOT, all closed
  * here:
  *
- *   1. A rating OF YOU carried the name of the student who left it. The form
- *      says "Your name isn't shown to the mentor", and nine of the ten admins
- *      also mentor students (`profile.ts`), so for nine of ten mentors that
- *      promise was false: they opened /admin/feedback and read exactly who had
- *      scored them 2. Withheld below, by the reader's own id, in both shapes.
+ *   1. A rating carried the name of the student who left it, readable by
+ *      anyone with a grant. The form promises the student their name is not
+ *      shown to the mentor, so it is shown to the student's own admins —
+ *      the people who moderate what was said — and to nobody else: not the
+ *      mentor, not a leader, not an admin of a program the writer is not
+ *      in. Decided per row from the WRITER's enrollments, because the row
+ *      itself names no program.
  *   2. The mentor picker read `mentorFeedback: { some: {} }` — every mentor
  *      rated anywhere, by name and email, offered to a leader granted one
  *      program. It reads through the reader's own scope now.
@@ -160,6 +167,16 @@ export default async function FeedbackPage({
 /** The promise the rating form made the student, repeated where it is kept. */
 const ANONYMOUS =
   "Ratings of you are anonymous. Students' names are never shown to you.";
+
+/**
+ * Who may see the writer, said where the staff list shows names.
+ *
+ * For a leader every row is anonymous and this says why; for an admin the
+ * named rows are the ones their grants reach, and this says why the rest are
+ * not.
+ */
+const ADMIN_ONLY =
+  "Who wrote a rating is visible only to that student's admins.";
 
 /**
  * A mentor reading their own: an average, a count, and the comments.
@@ -293,7 +310,15 @@ async function AllRatings({
   const since = new Date(now.getTime() - RECENT_DAYS * 24 * 60 * 60 * 1000);
   const recentWhere = { AND: [where, { createdAt: { gte: since } }] };
 
-  const [stats, byMentor, lately, rows, rated, programs] = await Promise.all([
+  const [
+    stats,
+    byMentor,
+    lately,
+    rows,
+    rated,
+    programs,
+    writeScope,
+  ] = await Promise.all([
     prisma.mentorFeedback.aggregate({
       where,
       _avg: { rating: true },
@@ -319,14 +344,21 @@ async function AllRatings({
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
+      // The writer's enrollments are fetched so the name can be opened to the
+      // student's admins — the row itself names no program to check a grant
+      // against. Whether the name is RENDERED is decided per row below.
       select: {
         id: true,
         rating: true,
         comment: true,
         createdAt: true,
-        mentorId: true,
         mentor: { select: PERSON },
-        student: { select: { user: { select: PERSON } } },
+        student: {
+          select: {
+            user: { select: PERSON },
+            enrollments: { select: { programId: true } },
+          },
+        },
       },
     }),
     // Mentors somebody in reach has actually rated — a picker offering the
@@ -343,6 +375,9 @@ async function AllRatings({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    // ADMIN-level grants — the "admin" the name is open to. A LEADER reads
+    // every row in reach and names none of them.
+    adminWriteScope(user),
   ]);
 
   const person = new Map(rated.map((m) => [m.id, m]));
@@ -364,17 +399,27 @@ async function AllRatings({
     ];
   });
 
+  /**
+   * The name is open to the writer's admins and to nobody else — including
+   * the mentor the rating is about, whatever else they administer. Decided
+   * per row by the reader's ADMIN grants against the writer's own programs:
+   * a rating is readable through any one of a student's programs, but its
+   * author is named only where the reader actually administers one — the
+   * same intersection `studentScope` answers for everything else about the
+   * student.
+   */
+  const namesFor =
+    writeScope === "ALL"
+      ? () => true
+      : (enrollments: readonly { programId: string }[]) =>
+          enrollments.some((e) => writeScope.has(e.programId));
   const list = rows.map((f) => ({
     id: f.id,
     rating: f.rating,
     comment: f.comment,
     createdAt: f.createdAt,
     mentor: f.mentor,
-    // The leak, closed at its only source. A rating OF the reader loses the
-    // student who left it, whatever grants the reader holds and whichever lens
-    // they are in — the promise was made to the student, so it is not the
-    // reader's role to trade away.
-    student: f.mentorId === user.id ? null : f.student.user,
+    student: namesFor(f.student.enrollments) ? f.student.user : null,
   }));
 
   const avg = stats._avg.rating;
@@ -486,9 +531,9 @@ async function AllRatings({
       <Section
         title="Ratings"
         count={stats._count}
-        // Only when the page holds ratings of the reader: the anonymous rows
-        // would otherwise be the one unexplained gap in a list of names.
-        caption={list.some((f) => !f.student) ? ANONYMOUS : undefined}
+        // Said on the page, not only in a tooltip: whether a name or
+        // "Anonymous" prints under a row, this is the rule both are drawn by.
+        caption={list.length > 0 ? ADMIN_ONLY : undefined}
       >
         {list.length === 0 ? (
           filtered ? (
@@ -506,7 +551,8 @@ async function AllRatings({
               <li key={f.id} className="px-4 py-3 sm:px-5">
                 {/* Who it is about and the score on one line; what was said
                     as the body, in ink, because the words are the point of
-                    the row; who said it and when as the quiet line under it. */}
+                    the row; who said it — open to the writer's admins only —
+                    and when, as the quiet line under it. */}
                 <div className="flex items-center justify-between gap-3">
                   <PersonChip
                     person={f.mentor}
@@ -525,13 +571,7 @@ async function AllRatings({
                   </div>
                 )}
                 <p className="mt-0.5 text-[0.8125rem] text-muted-fg">
-                  {f.student ? (
-                    (f.student.name ?? f.student.email)
-                  ) : (
-                    <span title="A rating of you stays anonymous, as the student was promised.">
-                      Anonymous
-                    </span>
-                  )}
+                  {f.student ? (f.student.name ?? f.student.email) : "Anonymous"}
                   {" · "}
                   {formatDate(f.createdAt)}
                 </p>

@@ -125,7 +125,7 @@ export function MentorFeedbackForm({
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
         <SubmitButton pendingText="Sending…">Send feedback</SubmitButton>
         <p className="text-[0.8125rem] text-muted-fg">
-          Your name isn&apos;t shown to the mentor.
+          Your name isn&apos;t shown to the mentor — only to your admins.
         </p>
       </div>
       <SaveState state={save} />

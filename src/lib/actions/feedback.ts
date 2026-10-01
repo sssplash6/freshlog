@@ -27,8 +27,8 @@ async function requireStudentProfile() {
 /**
  * Student rates a mentor (1–5 + optional comment). The mentor must be
  * relevant to the student: currently assigned to their program (or cohort),
- * or someone they've had a session with. Mentor-facing display is anonymous;
- * the student link is stored for admin/leader views.
+ * or someone they've had a session with. The writer's name is shown to their
+ * admins and to nobody else — anonymous to the mentor and to leaders.
  */
 export async function submitMentorFeedback(
   _prev: ActionState,
