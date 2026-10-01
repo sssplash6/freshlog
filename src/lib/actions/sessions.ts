@@ -33,7 +33,7 @@ import {
   formatDuration,
   formatMinutes,
 } from "@/lib/format";
-import { chargeableAgainst, lateLogLastDay } from "@/lib/deadlines";
+import { chargeableAgainst } from "@/lib/deadlines";
 import { syncGoalProgress } from "@/lib/goal-progress";
 import { notify, notificationHref, staffIdsFor } from "@/lib/notify";
 import {
@@ -110,26 +110,18 @@ async function bankRemaining(
 }
 
 /**
- * Why a session held on `date` cannot charge hours that expire on `deadline`,
- * or null when it can. Shared by logging and by correcting a log, so the two
- * never disagree about which meetings the hours cover.
+ * Whether a session held on `date` lands past the hours' use-by `deadline` —
+ * held after it, or written down after the late-logging window closed. Never
+ * a refusal: a deadline is a use-by date, not a wall, and a meeting that
+ * happened is recorded. The verdict is what the receipt and the staff note
+ * say out loud instead.
  */
-function lateLogRefusal(
-  deadline: Date,
+function pastDeadline(
+  source: { deadline: Date } | null,
   date: Date
-): { error: string; field: string } | null {
-  const verdict = chargeableAgainst(deadline, date);
-  if (verdict.ok) return null;
-  if (verdict.reason === "after-deadline") {
-    return {
-      error: `These hours had to be used by ${formatDate(deadline)}, and this session is dated after that. Check the date, ask an admin to extend the deadline, or log this as extra hours.`,
-      field: "date",
-    };
-  }
-  return {
-    error: `These hours expired on ${formatDate(deadline)}, and sessions held before then could be logged until ${formatDate(lateLogLastDay(deadline))}. Ask an admin to extend the deadline, allocate new hours, or log this as extra hours.`,
-    field: "timeKind",
-  };
+): Date | null {
+  if (!source) return null;
+  return chargeableAgainst(source.deadline, date).ok ? null : source.deadline;
 }
 
 /**
@@ -395,31 +387,21 @@ export async function logSession(
   // as in-plan past a balance always has — because the alternative is a mentor
   // choosing between misreporting the meeting as extra and not logging it.
 
-  // Deadlines are hard: once passed, the unused hours are forfeited and no
-  // meeting held AFTER the deadline can be logged against this allocation. A
-  // rescheduled meeting charges nothing, but recording one against expired hours
-  // would still be recording work on a pool that is closed.
-  //
-  // It is the meeting's date that is held against the deadline, not the moment
-  // the log is typed: a session held on the 13th against hours good until the
-  // 13th spent those hours, whether the mentor logs it that night or two days
-  // later. Late logging stays open for `LATE_LOG_GRACE_DAYS` after the
-  // deadline, and no longer — otherwise forfeited hours could be reopened by a
-  // backdated log months on.
-  //
-  // Out-of-plan hours are exempt, and deliberately so: an expired deadline means
-  // the student's remaining hours are gone, not that a mentor who kept helping
-  // them afterwards has nowhere to record it.
+  // Deadlines are use-by dates, not walls: once passed, the unused hours show
+  // as forfeited everywhere balances are counted, but a meeting that happened
+  // is still logged against the allocation it draws on. The ledger's job is
+  // to record the hours; a deadline that could silence them would make a
+  // mentor choose between misreporting the meeting as extra and not recording
+  // it at all — and an admin's remedy was only ever the same log through a
+  // second door. So the verdict is said, not enforced: a session held past
+  // the use-by, or written down after the fortnight's grace for late entries,
+  // is marked on its receipt and in what the program's staff are told.
   //
   // A student holding nothing at all has no deadline to be past: an expired
   // allocation is a positive statement that the time is over, where an absent
-  // one is only an absence. The first closes in-plan logging; the second
-  // overdraws.
+  // one is only an absence — the second overdraws, as ever.
   const source = withinPlan ? (bank ?? allocation ?? pool) : null;
-  if (source) {
-    const refusal = lateLogRefusal(source.deadline, dateParsed.value);
-    if (refusal) return bad(refusal.error, refusal.field);
-  }
+  const lateDeadline = pastDeadline(source, dateParsed.value);
 
   // Checked after reach, so a mentor who may not log for this student at all
   // hears that first rather than being told about a task they can't use.
@@ -633,6 +615,11 @@ export async function logSession(
         (carved > 0
           ? ` The time came out of the unassigned pool (${formatDuration(poolAfter)} remaining in it).`
           : "") +
+        // Past the hours' use-by is allowed now, but it is still a fact the
+        // program's staff should read plainly rather than infer from totals.
+        (lateDeadline
+          ? ` Logged past the ${formatDate(lateDeadline)} deadline.`
+          : "") +
         // Who actually typed it. The row says the mentor delivered the hours,
         // which is true; this says the mentor did not report them, which is
         // the part another admin needs when the log is queried later.
@@ -660,6 +647,11 @@ export async function logSession(
   const notes: string[] = [];
   if (state !== ATTENDANCE.ATTENDED) {
     notes.push(`Recorded as ${ATTENDANCE_META[state].label.toLowerCase()}.`);
+  }
+  if (lateDeadline) {
+    notes.push(
+      `These hours were to be used by ${formatDate(lateDeadline)} — logged past the deadline.`
+    );
   }
   // Tell the mentor what their own log just did to the task, so an automatic
   // status change is never a surprise they discover later.
@@ -965,15 +957,11 @@ export async function editSession(
     assignmentId = resolved.value?.id ?? null;
   }
 
-  // The same deadline rule logging applies, so a correction cannot do what a
-  // new log may not. Only what the edit CHANGES is held to it: fixing the notes
-  // on an old session is not blocked because its hours have since expired.
-  // Moving an in-plan session's date must keep it on or before the deadline;
-  // turning extra hours into in-plan ones is a new charge, and is held to the
-  // late-logging window as well.
+  // A deadline never refuses a new log, so it refuses a correction no more:
+  // a use-by date is displayed, not enforced, and moving a session's date or
+  // making it in-plan is the same act done after the fact. What used to be a
+  // refusal is now only which allocation the charge lands on below.
   const charges = timeKindFields(kind).withinPlan;
-  const nowCharges = charges && !session.withinPlan;
-  const moved = dateParsed.value.getTime() !== session.date.getTime();
   // Becoming in-plan is a new charge, and against a bank when the student has
   // one; a session that was already in-plan stays on whatever it was drawing.
   const bankRow = charges
@@ -982,25 +970,6 @@ export async function editSession(
       })
     : null;
   const fromBank = !charges ? false : session.withinPlan ? session.fromBank : bankRow !== null;
-  if (charges && (nowCharges || moved)) {
-    const allocation = fromBank
-      ? bankRow
-      : await prisma.hourAllocation.findUnique({
-          where: {
-            studentId_programId_mentorId: {
-              studentId: session.studentId,
-              programId: session.programId,
-              mentorId: session.mentorId,
-            },
-          },
-        });
-    if (allocation) {
-      const refusal = lateLogRefusal(allocation.deadline, dateParsed.value);
-      if (refusal && (nowCharges || refusal.field === "date")) {
-        return { ok: false, error: refusal.error };
-      }
-    }
-  }
 
   const wasState = attendanceOf(session);
   const attendanceNote =

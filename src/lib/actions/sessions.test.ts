@@ -283,12 +283,16 @@ describe("logSession on a mentor's behalf", () => {
 });
 
 /**
- * Late logging: the meeting's date is what is held against the deadline.
+ * Deadlines are use-by dates, not walls: they change what the log SAYS, never
+ * whether it lands.
  *
  * A mentor met a student late on the 13th, went to sleep, and came back two
  * days later to be told the hours had expired — the check had asked when the
- * log was typed. A session held while the hours were good spent them, and may
- * be logged for two weeks after the deadline; one held after it may not.
+ * log was typed. Then the expiry itself refused the meeting entirely, and a
+ * session that had really happened could only be recorded as extra hours.
+ * Neither holds now: the meeting's date charges the hours it names, whenever
+ * it is logged, and logging past the deadline is marked on the receipt and
+ * in what staff are told rather than refused.
  */
 describe("logSession against a deadline", () => {
   /** A program day `n` days from today, as the form sends it. */
@@ -325,22 +329,22 @@ describe("logSession against a deadline", () => {
     expect(await log(s.id, { date: day(0) })).toMatchObject({ ok: true });
   });
 
-  it("refuses a session dated after the deadline", async () => {
+  it("logs a session dated after the deadline, and says so", async () => {
     const { s } = await heldWith(-2);
 
-    expect(await log(s.id, { date: day(-1) })).toMatchObject({
-      ok: false,
-      field: "date",
-    });
+    const state = await log(s.id, { date: day(-1) });
+
+    if (!state?.ok) throw new Error("expected the log to succeed");
+    expect(state.message).toContain("past the deadline");
+    await expect(
+      prisma.session.count({ where: { studentId: s.id, withinPlan: true } })
+    ).resolves.toBe(1);
   });
 
-  it("refuses once the late-logging fortnight is over", async () => {
+  it("logs a session written down after the late-logging fortnight too", async () => {
     const { s } = await heldWith(-15);
 
-    expect(await log(s.id, { date: day(-16) })).toMatchObject({
-      ok: false,
-      field: "timeKind",
-    });
+    expect(await log(s.id, { date: day(-16) })).toMatchObject({ ok: true });
   });
 
   it("still records it as extra hours after that", async () => {
@@ -351,7 +355,22 @@ describe("logSession against a deadline", () => {
     });
   });
 
-  it("will not let a correction move an in-plan session past the deadline", async () => {
+  it("logs for an admin on a mentor's behalf, past the deadline too", async () => {
+    const { s, m } = await heldWith(-2);
+    const a = await admin();
+    await grant({ userId: a.id, programId: s.enrollments[0].programId });
+    actor.value = a;
+
+    expect(await log(s.id, { date: day(-1), mentorId: m.id })).toMatchObject({
+      ok: true,
+    });
+    const logged = await prisma.session.findFirstOrThrow({
+      where: { studentId: s.id },
+    });
+    expect(logged).toMatchObject({ mentorId: m.id, withinPlan: true });
+  });
+
+  it("lets a correction move an in-plan session past the deadline", async () => {
     const { s } = await heldWith(-2);
     await log(s.id, { date: day(-3) });
     const logged = await prisma.session.findFirstOrThrow({ where: { studentId: s.id } });
@@ -361,7 +380,10 @@ describe("logSession against a deadline", () => {
       form({ sessionId: logged.id, minutes: "30", date: day(-1) })
     );
 
-    expect(state).toMatchObject({ ok: false });
+    expect(state).toMatchObject({ ok: true });
+    await expect(
+      prisma.session.findFirstOrThrow({ where: { id: logged.id } })
+    ).resolves.toMatchObject({ date: new Date(`${day(-1)}T00:00:00.000Z`) });
   });
 
   it("still lets the notes on an old session be corrected", async () => {

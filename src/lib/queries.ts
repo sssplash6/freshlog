@@ -10,7 +10,7 @@ import {
   drawKey,
 } from "@/lib/constants";
 import { formatDate, formatDuration } from "@/lib/format";
-import { deadlinePassed, lateLogCloses, lateLogLastDay } from "@/lib/deadlines";
+import { deadlinePassed } from "@/lib/deadlines";
 import type { Prisma } from "@/generated/prisma/client";
 
 /**
@@ -1165,17 +1165,17 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
     assignments.some((a) => a.programId === programId);
 
   // Skipped once the mentor holds their own grant IN THAT PROGRAM (that row
-  // already exists, and their sessions draw their own hours), and once the pool
-  // is empty or closed to late logs too — there is nothing left to log against.
-  // A pool past its deadline but inside the late-logging window stays: the
-  // meetings held before the deadline can still be logged against it.
+  // already exists, and their sessions draw their own hours), and once a pool
+  // is empty — there is nothing left to claim from it. A past deadline does
+  // not close the row: a deadline is a use-by date, not a wall, and logging
+  // still draws the hours.
   const mine = new Set(allocations.map((a) => key(a)));
   for (const p of poolAllocations) {
     if (!p.isBank && mine.has(key(p))) continue;
     // A bank is left to be overdrawn (warned, never blocked); only the pool,
     // which is a stock to claim from, is dropped once it is empty.
     const left = p.isBank ? p.minutes - (bankDrawn.get(key(p)) ?? 0) : p.minutes;
-    if ((!p.isBank && p.minutes <= 0) || Date.now() >= lateLogCloses(p.deadline)) continue;
+    if (!p.isBank && p.minutes <= 0) continue;
     if (!inScope(p.student, p.programId)) continue;
     students.push({
       profile: p.student,
@@ -1401,24 +1401,21 @@ export function logSessionOptions(
 
   for (const s of students) {
     // Approval is the one thing that closes the picker, because it is the one
-    // thing `logSession` refuses outright. An EXPIRED balance does not: the
-    // hours are forfeited and in-plan logging is closed, but the meeting still
-    // happened and extra hours still record it — so the row stays, says so,
-    // and sorts last. Dropping it was how a mentor lost the student from the
-    // picker entirely the day their deadline passed.
+    // thing `logSession` refuses outright. An EXPIRED balance does not close
+    // it either: the hours show forfeited everywhere they are counted, but a
+    // meeting that happened still logs against them — so the row stays, says
+    // so, and sorts last. Dropping it was how a mentor lost the student from
+    // the picker entirely the day their deadline passed.
     if (!s.approved) continue;
     if (!permitted(s.program.id)) continue;
     const row = at(s.profile.id, s.profile.user.name ?? s.profile.user.email);
     row.choices.push({
       id: s.program.id,
       name: s.program.name,
-      // Past the deadline is not closed yet: for two weeks the meetings held
-      // before it can still be logged, and a mentor who is two days late has
-      // to be told that, not "extra hours only".
+      // Expired hours still answer a log — the picker's job is to say the
+      // hours' state, not to forbid the meeting.
       balance: s.expired
-        ? s.deadline && Date.now() < lateLogCloses(s.deadline)
-          ? `Hours expired ${formatDate(s.deadline)} — sessions held by then can be logged until ${formatDate(lateLogLastDay(s.deadline))}`
-          : `Hours expired${s.deadline ? ` ${formatDate(s.deadline)}` : ""} — extra hours only`
+        ? `Hours expired${s.deadline ? ` ${formatDate(s.deadline)}` : ""} — logging still counts against them`
         : s.bank
           ? `${formatDuration(s.pool ?? 0)} left in their hour bank`
           : s.pool != null

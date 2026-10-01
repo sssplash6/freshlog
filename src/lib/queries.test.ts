@@ -127,7 +127,7 @@ describe("who a mentor may log for", () => {
     expect(optionFor(options, s.id)).toBeDefined();
   });
 
-  it("keeps a student whose hours expired, for the extra hours that still happen", async () => {
+  it("keeps a student whose hours expired — logging still counts against them", async () => {
     const p = await program("Master's");
     const m = await mentor();
     await pairing({ mentorId: m.id, programId: p.id });
@@ -141,7 +141,9 @@ describe("who a mentor may log for", () => {
 
     const options = logSessionOptions(await mentorCaseload(m.id));
 
-    expect(optionFor(options, s.id)?.programs[0].balance).toContain("extra hours only");
+    expect(optionFor(options, s.id)?.programs[0].balance).toContain(
+      "logging still counts against them"
+    );
   });
 
   it("offers only the programs of theirs the student is actually in", async () => {
