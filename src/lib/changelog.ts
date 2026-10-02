@@ -33,7 +33,7 @@ const SECTION_HEADING = /^###\s+(New|Fixed)\s*$/;
 const BULLET = /^[-*]\s+(.*\S)\s*$/;
 
 /** `2026-02-31` matches the shape and is not a day. */
-function isRealDay(day: string): boolean {
+export function isRealDay(day: string): boolean {
   const d = new Date(`${day}T00:00:00.000Z`);
   return !Number.isNaN(d.getTime()) && toDateInputValue(d) === day;
 }
