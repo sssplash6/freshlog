@@ -53,6 +53,11 @@ model User {
   // When the last digest actually went out. This is the idempotency guard: a
   // re-run of the cron, or two instances firing at once, must not send twice.
   digestSentAt DateTime?
+  // The last time this person opened /changelog. The dot on the account button
+  // is "the newest entry is dated after this" — or after createdAt, for someone
+  // who has never opened it, so a new user is not shown history that predates
+  // them. A day, not an entry id: see docs/superpowers/specs/2026-10-02-changelog-design.md.
+  changelogSeenAt DateTime?
 
   studentProfile      StudentProfile?          @relation("StudentUser")
   createdStudents     StudentProfile[]         @relation("CreatedBy")
