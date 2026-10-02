@@ -9,7 +9,9 @@ import { PersonCell } from "@/components/person-chip";
 import { SessionsLog } from "@/components/session-row";
 import { sessionsCaption, toSessionEntries } from "@/lib/session-entries";
 import { Disclosure } from "@/components/ui/disclosure";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/field";
 import { Figure, FigureRow } from "@/components/ui/figure";
 import { ArrowLink, ExternalLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
@@ -27,6 +29,7 @@ import { requireUser } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
 import { formatDate, formatDuration } from "@/lib/format";
 import { allocationSummary, canBookOn } from "@/lib/hours";
+import { mentorWindow } from "@/lib/mentor-window";
 import { prisma } from "@/lib/prisma";
 import {
   assignmentsForStudentWhere,
@@ -40,7 +43,6 @@ import type { User } from "@/generated/prisma/client";
 
 /** Sessions shown under the record; the figures above them stay complete. */
 const LOG_LIMIT = 10;
-const DAY = 24 * 60 * 60 * 1000;
 
 /** "Global Admissions / Spring 25", or just the program where there is no cohort. */
 function labelOf(a: {
@@ -117,23 +119,6 @@ export default async function MentorPage({
 
 /* ------------------------------------------------------------------ record --- */
 
-/**
- * The window the delivery figures are read through.
- *
- * Three answers and no free-text range, because the range this page had was
- * two date inputs and a program select producing a sentence nobody could check.
- * The default is ninety days rather than everything: a lifetime total only ever
- * grows, so it tells a reader nothing about whether this mentor is delivering
- * now — which is the question the section is on the page to answer.
- */
-function windowFor(period: string, now: Date): { from?: Date; label: string } {
-  if (period === "all") return { label: "all time" };
-  if (period === "30d") {
-    return { from: new Date(now.getTime() - 30 * DAY), label: "30 days" };
-  }
-  return { from: new Date(now.getTime() - 90 * DAY), label: "90 days" };
-}
-
 async function MentorRecord({
   mentor,
   viewer,
@@ -170,12 +155,14 @@ async function MentorRecord({
   const inReach = (programId: string) =>
     !programIds || programIds.includes(programId);
 
-  const period = readParam(query, "period");
-  const win = windowFor(period, now);
+  const win = mentorWindow(query, now);
+  // The date fields open for a typed range, and for the Custom tab before
+  // anything is typed — an empty pair of fields is how it asks for one.
+  const choosingDates = win.kind === "custom" || readParam(query, "period") === "custom";
 
   const [allPairings, overview, feedback, pickerPrograms] = await Promise.all([
     mentorAssignments(mentor.id),
-    mentorOverview(mentor.id, { from: win.from }),
+    mentorOverview(mentor.id, { from: win.from, to: win.to }),
     prisma.mentorFeedback.aggregate({
       where: {
         mentorId: mentor.id,
@@ -362,10 +349,46 @@ async function MentorRecord({
               // default view are the same URL.
               { href: base, label: "90 days" },
               { href: `${base}?period=all`, label: "All" },
+              { href: `${base}?period=custom`, label: "Custom" },
             ]}
           />
         }
       >
+        {choosingDates && (
+          // A plain GET form: the range lives in the address, so a link to this
+          // page is a link to exactly the days being read. `period=custom` is
+          // what keeps the Custom tab lit once the dates are in.
+          <form
+            method="get"
+            action={base}
+            className="flex flex-wrap items-end gap-2 px-4 pt-3 sm:px-5"
+          >
+            <input type="hidden" name="period" value="custom" />
+            <label className="min-w-0 flex-1 text-sm sm:w-40 sm:flex-none">
+              <span className="block text-muted-fg">From</span>
+              <Input
+                type="date"
+                name="from"
+                defaultValue={win.fromValue}
+                aria-label="Completed from"
+                className="mt-1 block"
+              />
+            </label>
+            <label className="min-w-0 flex-1 text-sm sm:w-40 sm:flex-none">
+              <span className="block text-muted-fg">To</span>
+              <Input
+                type="date"
+                name="to"
+                defaultValue={win.toValue}
+                aria-label="Completed to"
+                className="mt-1 block"
+              />
+            </label>
+            <Button type="submit" size="md">
+              Apply
+            </Button>
+          </form>
+        )}
         <div className="px-4 sm:px-5">
           <FigureRow framed={false} className="py-3">
             <Figure
@@ -384,6 +407,12 @@ async function MentorRecord({
               tone={missed > 0 ? "ink" : "muted"}
             />
           </FigureRow>
+          {/* Said once, here: a balance is what is owed after every session
+              ever logged, so no reporting range can move it — and the Students
+              list is that ledger, grant by grant, not a report. */}
+          <p className="pb-3 text-[0.8125rem] text-muted-fg">
+            Total and remaining time, and the Students list below, count every session, whatever the range.
+          </p>
         </div>
 
         {byProgram.length === 0 ? (
@@ -574,7 +603,7 @@ async function MentorRecord({
         }
         empty={
           <EmptyState framed={false} title="No sessions in this period">
-            {period === "all"
+            {win.kind === "all"
               ? "This mentor has logged none at all."
               : "Widen the period above to see older ones."}
           </EmptyState>

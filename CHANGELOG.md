@@ -5,6 +5,7 @@ What we have added and fixed, newest first. Each commit that changes what you se
 ## 2026-10-02
 
 ### New
+- On a mentor's page you can now read their completed hours over any dates you choose, not just 30 or 90 days. Pick Custom, enter a start and end date, and the figure says exactly which days it covers.
 - There is now a "What's new" page in the account menu listing what we have added and fixed. A blue dot on your account button tells you when there is something you have not read.
 
 ## 2026-10-01
