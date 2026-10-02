@@ -88,6 +88,9 @@ export default async function PlatformPage() {
             Register a mentor or a staff account first.
           </EmptyState>
         ) : (
+          // One column per program: as wide as the programs are many. Sideways
+          // scroll costs the sticky heading (it binds to the nearest scroller).
+          <div className="overflow-x-auto">
           <Table framed={false} columns={columns}>
             {rows.map((row) => (
               <Tr key={row.userId}>
@@ -131,6 +134,7 @@ export default async function PlatformPage() {
               </Tr>
             ))}
           </Table>
+          </div>
         )}
       </Section>
 
