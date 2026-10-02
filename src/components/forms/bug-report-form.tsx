@@ -1,7 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useActionState, useState } from "react";
 
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -52,14 +51,9 @@ async function toScreenshot(file: File): Promise<Blob> {
  * it is one of ours.
  */
 export function ReportBugForm({ from }: { from: string | null }) {
-  const router = useRouter();
   const [state, action] = useActionState(reportBug, null);
   const [shot, setShot] = useState<Blob | null>(null);
   const [shotError, setShotError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (state?.ok && state.receipt) router.push(`/bugs/${state.receipt.id}`);
-  }, [state, router]);
 
   async function pick(file: File | undefined) {
     setShotError(null);

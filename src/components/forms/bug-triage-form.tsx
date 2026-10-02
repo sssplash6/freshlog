@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState, useTransition } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea, inputClasses } from "@/components/ui/field";
-import { SubmitButton } from "@/components/ui/submit-button";
 import { setBugStatus } from "@/lib/actions/bugs";
+import type { ActionState } from "@/lib/actions/shared";
 import {
   BUG_RESOLUTION_MAX,
   BUG_STATUS,
@@ -17,6 +18,13 @@ import {
  * Move a report along. Fixed and Closed ask for words — the fix line is read by
  * every user, the closing note by the person who reported it — and Fixed also
  * takes the changelog day it shipped in, which defaults to today.
+ *
+ * It submits from a handler and not through `<form action>`, on purpose. React
+ * resets a form action's fields when the action settles; the status select is
+ * controlled by state, so the reset put its on-screen value back to the first
+ * option while state still held the admin's choice. The next save then sent
+ * whatever the DOM said — a report an admin had just set to Fixed went back to
+ * Pending, "Saved." and all. Nothing here is ever reset behind the state's back.
  */
 export function BugTriageForm({
   id,
@@ -29,14 +37,23 @@ export function BugTriageForm({
   resolution: string | null;
   changelogDate: string | null;
 }) {
-  const [state, action] = useActionState(setBugStatus, null);
+  const [state, setState] = useState<ActionState>(null);
+  const [saving, startSaving] = useTransition();
   const [next, setNext] = useState<BugStatus>(status);
   const failed = state && !state.ok ? state : null;
   const fieldError = (name: string) => (failed?.field === name ? failed.error : undefined);
   const closing = next === BUG_STATUS.FIXED || next === BUG_STATUS.CLOSED;
 
+  function save(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    startSaving(async () => {
+      setState(await setBugStatus(null, data));
+    });
+  }
+
   return (
-    <form action={action} className="space-y-4 p-4 sm:p-5">
+    <form onSubmit={save} className="space-y-4 p-4 sm:p-5">
       <input type="hidden" name="id" value={id} />
 
       <Field label="Status">
@@ -87,7 +104,9 @@ export function BugTriageForm({
       )}
       {state?.ok && <p className="text-sm text-muted-fg">{state.message}</p>}
 
-      <SubmitButton pendingText="Saving…">Save</SubmitButton>
+      <Button type="submit" disabled={saving}>
+        {saving ? "Saving…" : "Save"}
+      </Button>
     </form>
   );
 }

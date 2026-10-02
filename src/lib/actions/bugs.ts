@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import type { ActionState } from "@/lib/actions/shared";
 import { sniffImageType } from "@/lib/avatar";
@@ -118,12 +119,15 @@ export async function reportBug(
     actorId: actor.id,
   });
 
+  // Success is a redirect from HERE, not a state for the form to act on. A
+  // `router.push` fired from an effect, or a confirmation held in the form's
+  // state, raced the refresh that `revalidatePath` triggers and was sometimes
+  // lost after a soft navigation into the page: the report was saved and the
+  // person was left looking at an emptied form, which invites sending it twice.
+  // A redirect returned by the action itself needs nothing on the client to
+  // survive.
   revalidatePath("/bugs", "layout");
-  return {
-    ok: true,
-    message: "Thanks — we have it.",
-    receipt: { id: created.id, headline: "Report sent.", notes: [] },
-  };
+  redirect(`/bugs/${created.id}`);
 }
 
 /**
