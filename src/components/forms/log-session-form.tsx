@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { logSession } from "@/lib/actions/sessions";
 import type { ActionState } from "@/lib/actions/shared";
@@ -74,6 +74,42 @@ export type LogSessionDraft = {
   attendance?: string;
   timeKind?: string;
 };
+
+/**
+ * Where a note too long for the URL lives instead.
+ *
+ * The whole request head — request line, cookies, browser headers — has to
+ * fit inside the server's ~16KB limit, and the draft in the URL is part of
+ * it. A note past the limit is not a slow page or an error a boundary can
+ * catch: the socket is closed before the request is even read, so the tab's
+ * address itself becomes unservable and every reload fails the same way.
+ * One mentor lost two days to exactly that.
+ *
+ * So the URL holds the note only while the whole address stays safely under
+ * the limit; a longer one is mirrored here instead and restored from it on
+ * mount. 8KB leaves the other half of the head to the session cookie and
+ * everything a browser sends.
+ */
+const DRAFT_KEY = "freshlog:log-session-draft";
+const URL_SAFE = 8192;
+/** Longer than any real interruption, short enough that last week's draft is gone. */
+const DRAFT_TTL_MS = 48 * 60 * 60 * 1000;
+
+/** The note the URL could not hold, or "" — unreadable storage reads as nothing saved. */
+function readNoteMirror(): string {
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY);
+    if (!raw) return "";
+    const saved = JSON.parse(raw) as { note?: unknown; at?: unknown };
+    if (typeof saved.note !== "string" || !saved.note) return "";
+    if (typeof saved.at !== "number" || Date.now() - saved.at > DRAFT_TTL_MS) {
+      return "";
+    }
+    return saved.note;
+  } catch {
+    return "";
+  }
+}
 
 /**
  * Log a completed session. Naming the agenda item it went toward is what lets planned
@@ -216,7 +252,8 @@ export function LogSessionForm({
     if (!page || typeof window === "undefined") return;
     const form = formRef.current;
     if (!form) return;
-        const url = new URL(window.location.href);
+    const url = new URL(window.location.href);
+    let noteValue = "";
     // Every field, so a reload restores the same form a failed submit does.
     // Attendance and kind are one tap each, but "cheap to redo" is not the
     // same as "restored", and two draft mechanisms that disagree is worse
@@ -236,9 +273,46 @@ export function LogSessionForm({
       const value = override?.[name] ?? String(new FormData(form).get(name) ?? "");
       if (value) url.searchParams.set(name, value);
       else url.searchParams.delete(name);
+      if (name === "note") noteValue = value;
     }
+    // The note is the only field with no natural size limit — and the only
+    // one that can take the URL past what the server will read. Over the
+    // line it stays out of the address and the mirror below answers reloads.
+    if (url.href.length > URL_SAFE) url.searchParams.delete("note");
     window.history.replaceState(null, "", url);
+    try {
+      window.localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ note: noteValue, at: Date.now() })
+      );
+    } catch {
+      // Storage full or refused: the URL still holds every draft that fits.
+    }
   }
+
+  // Whatever the URL could not hold is restored once, on mount — and only
+  // into a still-empty box, so a `?note=` the address did carry always wins
+  // over the mirror of an older draft. Deferred a microtask rather than run
+  // in the effect body, where a synchronous setState would cascade renders.
+  useEffect(() => {
+    if (!page) return;
+    queueMicrotask(() => {
+      const saved = readNoteMirror();
+      if (saved) setNote((n) => (n ? n : saved));
+    });
+  }, [page]);
+
+  // A submitted draft is spent: the note it carried must not come back as
+  // somebody else's blank form. The URL copy dies with the receipt; the
+  // mirror has to be removed by hand.
+  useEffect(() => {
+    if (!state?.ok) return;
+    try {
+      window.localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      // Optional — a leftover mirror expires on its own inside DRAFT_TTL_MS.
+    }
+  }, [state]);
 
   /**
    * The mentor touched something.
