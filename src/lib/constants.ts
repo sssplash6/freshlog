@@ -347,6 +347,9 @@ export const NOTIFICATION_TYPES = {
   EXCHANGE_ALLOCATED: "EXCHANGE_ALLOCATED", // back to the sender: the host put those hours on a mentor
   EXCHANGE_RETURNED: "EXCHANGE_RETURNED", // to the other side: the placement is off
   PEER_INTERVIEW_BOOKED: "PEER_INTERVIEW_BOOKED", // to a student: a classmate booked one of their interview times
+  BUG_REPORTED: "BUG_REPORTED", // to platform admins: somebody reported a bug
+  BUG_FIXED: "BUG_FIXED", // to the reporter: their report was fixed
+  BUG_CLOSED: "BUG_CLOSED", // to the reporter: their report was closed, with a note
   PEER_INTERVIEW_CANCELLED: "PEER_INTERVIEW_CANCELLED", // to the other student: a practice interview is off
   PEER_INTERVIEW_FEEDBACK: "PEER_INTERVIEW_FEEDBACK", // to the other student: their partner sent feedback on a practice interview
   WEEKLY_SUMMARY: "WEEKLY_SUMMARY", // to everyone who wants it: the Monday digest, in the feed too
@@ -443,6 +446,9 @@ export const CATEGORY_OF: Record<NotificationType, NotificationCategory> = {
   // what the rest of this category is about — not a category of its own for
   // two notices.
   PEER_INTERVIEW_BOOKED: "SESSIONS",
+  BUG_REPORTED: "ACCOUNTS",
+  BUG_FIXED: "ACCOUNTS",
+  BUG_CLOSED: "ACCOUNTS",
   PEER_INTERVIEW_CANCELLED: "SESSIONS",
   PEER_INTERVIEW_FEEDBACK: "SESSIONS",
   WEEKLY_SUMMARY: "ACCOUNTS",
@@ -486,6 +492,9 @@ export const NOTIFICATION_META: Record<
   EXCHANGE_ALLOCATED: { label: "Exchange", tone: "accent" },
   EXCHANGE_RETURNED: { label: "Exchange", tone: "warning" },
   PEER_INTERVIEW_BOOKED: { label: "Practice interview", tone: "brand" },
+  BUG_REPORTED: { label: "Bug report", tone: "brand" },
+  BUG_FIXED: { label: "Bug fixed", tone: "success" },
+  BUG_CLOSED: { label: "Bug closed", tone: "warning" },
   PEER_INTERVIEW_CANCELLED: { label: "Interview cancelled", tone: "warning" },
   PEER_INTERVIEW_FEEDBACK: { label: "Interview feedback", tone: "brand" },
   WEEKLY_SUMMARY: { label: "Weekly summary", tone: "plan" },
