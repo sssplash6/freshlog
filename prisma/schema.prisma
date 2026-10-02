@@ -58,6 +58,13 @@ model User {
   // who has never opened it, so a new user is not shown history that predates
   // them. A day, not an entry id: see docs/superpowers/specs/2026-10-02-changelog-design.md.
   changelogSeenAt DateTime?
+  // WHAT they had read then: a JSON object of entry date -> number of bullets
+  // that day had. An entry is unseen when its day is missing here or has grown,
+  // so a bullet added to a day somebody already read, and an entry committed
+  // before their last visit but deployed after it, both light the dot — which a
+  // comparison of dates against `changelogSeenAt` never could. Null until the
+  // first visit; the createdAt floor above applies until then.
+  changelogSeen String?
 
   studentProfile      StudentProfile?          @relation("StudentUser")
   createdStudents     StudentProfile[]         @relation("CreatedBy")

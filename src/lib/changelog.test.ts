@@ -7,6 +7,7 @@ import {
   isUnseen,
   loadChangelog,
   parseChangelog,
+  snapshotChangelog,
   type ChangelogEntry,
 } from "@/lib/changelog";
 
@@ -141,47 +142,82 @@ describe("loadChangelog", () => {
   });
 });
 
-const entry = (date: string): ChangelogEntry => ({ date, new: ["x"], fixed: [] });
-const person = (createdAt: string, seen: string | null) => ({
+const entry = (date: string, ...bullets: string[]): ChangelogEntry => ({
+  date,
+  new: bullets.length ? bullets : ["x"],
+  fixed: [],
+});
+const person = (createdAt: string, seen: Record<string, number> | string | null = null) => ({
   createdAt: new Date(createdAt),
-  changelogSeenAt: seen ? new Date(seen) : null,
+  changelogSeen: seen === null ? null : typeof seen === "string" ? seen : JSON.stringify(seen),
 });
 
 describe("hasUnseenChangelog", () => {
   it("is false when there are no entries", () => {
-    expect(hasUnseenChangelog([], person("2026-01-01T00:00:00Z", null))).toBe(false);
+    expect(hasUnseenChangelog([], person("2026-01-01T00:00:00Z"))).toBe(false);
   });
 
   it("does not show a new person history that predates them", () => {
-    const user = person("2026-09-01T10:00:00Z", null);
-    expect(hasUnseenChangelog([entry("2026-08-15")], user)).toBe(false);
+    expect(hasUnseenChangelog([entry("2026-08-15")], person("2026-09-01T10:00:00Z"))).toBe(false);
   });
 
   it("shows a new person an entry written after they joined", () => {
-    const user = person("2026-09-01T10:00:00Z", null);
-    expect(hasUnseenChangelog([entry("2026-09-02")], user)).toBe(true);
+    expect(hasUnseenChangelog([entry("2026-09-02")], person("2026-09-01T10:00:00Z"))).toBe(true);
   });
 
-  it("is false once they have opened the page since the newest entry", () => {
-    const user = person("2026-01-01T00:00:00Z", "2026-10-03T08:00:00Z");
-    expect(hasUnseenChangelog([entry("2026-10-02")], user)).toBe(false);
+  it("is false for somebody who has read everything there is", () => {
+    const entries = [entry("2026-10-02", "a", "b"), entry("2026-09-20", "c")];
+    const user = person("2026-01-01T00:00:00Z", JSON.parse(snapshotChangelog(entries)));
+    expect(hasUnseenChangelog(entries, user)).toBe(false);
   });
 
-  it("is true when an entry is dated after the last visit", () => {
-    const user = person("2026-01-01T00:00:00Z", "2026-10-01T08:00:00Z");
-    expect(hasUnseenChangelog([entry("2026-10-02"), entry("2026-09-20")], user)).toBe(true);
+  it("lights up for a bullet added to a day they had already read", () => {
+    const before = [entry("2026-10-02", "a")];
+    const user = person("2026-01-01T00:00:00Z", JSON.parse(snapshotChangelog(before)));
+    const after = [entry("2026-10-02", "a", "added later the same day")];
+    expect(hasUnseenChangelog(after, user)).toBe(true);
   });
 
-  it("does not flag a same-day entry added after they looked (accepted edge)", () => {
-    const user = person("2026-01-01T00:00:00Z", "2026-10-02T06:00:00Z");
-    expect(hasUnseenChangelog([entry("2026-10-02")], user)).toBe(false);
+  it("lights up for an entry dated before their last visit but deployed after it", () => {
+    // Dates are commit days and deploys are manual: they opened the page after
+    // the 10-04 deploy, and the 10-03 and 10-04 commits made since went live
+    // on 10-07. Neither is "newer than the visit", and both are unread.
+    const read = [entry("2026-10-02", "a")];
+    const user = person("2026-01-01T00:00:00Z", JSON.parse(snapshotChangelog(read)));
+    const now = [entry("2026-10-04", "d"), entry("2026-10-03", "c"), ...read];
+    expect(hasUnseenChangelog(now, user)).toBe(true);
+  });
+
+  it("is cleared by a visit even when an entry is dated in the future", () => {
+    const entries = [entry("2099-01-01", "dated tomorrow, UTC")];
+    const user = person("2026-01-01T00:00:00Z", JSON.parse(snapshotChangelog(entries)));
+    expect(hasUnseenChangelog(entries, user)).toBe(false);
+  });
+
+  it("falls back to the createdAt rule when the stored record is unreadable", () => {
+    for (const junk of ["not json", "[1,2]", "null", "42"]) {
+      const user = person("2026-09-01T10:00:00Z", junk);
+      expect(hasUnseenChangelog([entry("2026-08-15")], user)).toBe(false);
+      expect(hasUnseenChangelog([entry("2026-09-02")], user)).toBe(true);
+    }
   });
 });
 
 describe("isUnseen", () => {
-  it("judges each entry on its own date", () => {
-    const user = person("2026-01-01T00:00:00Z", "2026-09-25T12:00:00Z");
-    expect(isUnseen(entry("2026-09-30"), user)).toBe(true);
+  it("judges each entry on what was read of that day", () => {
+    const user = person("2026-01-01T00:00:00Z", { "2026-09-20": 1, "2026-09-30": 1 });
     expect(isUnseen(entry("2026-09-20"), user)).toBe(false);
+    expect(isUnseen(entry("2026-09-30", "a", "b"), user)).toBe(true);
+    expect(isUnseen(entry("2026-10-01"), user)).toBe(true);
+  });
+});
+
+describe("snapshotChangelog", () => {
+  it("records how many bullets each day had", () => {
+    const entries: ChangelogEntry[] = [
+      { date: "2026-10-02", new: ["a"], fixed: ["b", "c"] },
+      entry("2026-09-30", "d"),
+    ];
+    expect(JSON.parse(snapshotChangelog(entries))).toEqual({ "2026-10-02": 3, "2026-09-30": 1 });
   });
 });

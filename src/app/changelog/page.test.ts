@@ -7,7 +7,7 @@ vi.mock("@/lib/dal", () => ({
   requireUser: async () => {
     calls.push("gate");
     if (!session.signedIn) throw new Error("redirect:/login");
-    return { id: "u1", createdAt: new Date("2026-01-01T00:00:00Z"), changelogSeenAt: null };
+    return { id: "u1", createdAt: new Date("2026-01-01T00:00:00Z"), changelogSeenAt: null, changelogSeen: null };
   },
   getCurrentUser: async () => null,
 }));

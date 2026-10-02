@@ -105,19 +105,50 @@ export const readChangelog = cache(() =>
   loadChangelog(path.join(process.cwd(), "CHANGELOG.md"))
 );
 
-export type SeenFields = Pick<User, "changelogSeenAt" | "createdAt">;
+export type SeenFields = Pick<User, "changelogSeen" | "createdAt">;
 
-const day = toDateInputValue;
+const entryCount = (e: ChangelogEntry) => e.new.length + e.fixed.length;
 
 /**
- * By DAY, in UTC, against the last visit — or against `createdAt` for somebody
- * who has never opened the page, so a new user is not handed history that
- * predates them. Someone who looked this morning will not be told about a
- * second entry dated today until tomorrow; that is the price of not storing
- * per-entry state, and `changelog.test.ts` pins it as intended.
+ * What the changelog held, as a person would have seen it: each day and how
+ * many bullets it had. Stored on the user by `markChangelogSeen`.
+ */
+export function snapshotChangelog(entries: ChangelogEntry[]): string {
+  return JSON.stringify(Object.fromEntries(entries.map((e) => [e.date, entryCount(e)])));
+}
+
+/** `null` for never opened, and for anything that is not the object we wrote. */
+function readSeen(raw: string | null): Record<string, unknown> | null {
+  if (!raw) return null;
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+  } catch {
+    // Unreadable is the same as never opened: the createdAt rule below.
+  }
+  return null;
+}
+
+/**
+ * Judged against WHAT they read, not WHEN they looked.
+ *
+ * An entry is dated the day it was committed, and deploys here are manual, so
+ * "dated after my last visit" is the wrong question: a commit from last
+ * Tuesday can go live next Friday, and a second bullet is routinely added to a
+ * day somebody already read. Both are unread. So an entry is unseen when its
+ * day is absent from what they saw, or has more bullets than it did.
+ *
+ * Somebody who has never opened the page has no record, and is shown only what
+ * was written after they joined — a new user is not handed history that
+ * predates them, which is judged by day, in UTC.
  */
 export function isUnseen(entry: ChangelogEntry, user: SeenFields): boolean {
-  return entry.date > day(user.changelogSeenAt ?? user.createdAt);
+  const seen = readSeen(user.changelogSeen);
+  if (!seen) return entry.date > toDateInputValue(user.createdAt);
+  const count = seen[entry.date];
+  return (typeof count === "number" ? count : 0) < entryCount(entry);
 }
 
 export function hasUnseenChangelog(entries: ChangelogEntry[], user: SeenFields): boolean {
