@@ -19,6 +19,7 @@ import {
   ProfileSwitchMenu,
 } from "@/components/profile-switch";
 import { PublicShell } from "@/components/public-shell";
+import { ReportBugLink } from "@/components/report-bug-link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DensityToggle } from "@/components/density-toggle";
 import { Sidebar } from "@/components/sidebar";
@@ -204,6 +205,18 @@ function AccountMenu({
             className="h-2 w-2 rounded-full bg-brand"
           />
         )}
+      </Link>
+
+      <ReportBugLink className="flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill">
+        Report a bug
+      </ReportBugLink>
+
+      <Link
+        href="/bugs"
+        transitionTypes={["nav-forward"]}
+        className="flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill"
+      >
+        Bug reports
       </Link>
 
       {user.platformAdmin && (

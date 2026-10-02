@@ -8,6 +8,7 @@ What we have added and fixed, newest first. Each commit that changes what you se
 - A long session note no longer makes "Log a session" unreachable. Drafts that grew past what a web address can carry now restore from the browser instead, so reloading keeps the note rather than failing to open the page at all.
 
 ### New
+- You can now report a bug from the account menu, with a screenshot if it helps. Bug reports shows what you have reported and where each one stands, and a list of what has been fixed.
 - On a mentor's page you can now read their completed hours over any dates you choose, not just 30 or 90 days. Pick Custom, enter a start and end date, and the figure says exactly which days it covers.
 - There is now a "What's new" page in the account menu listing what we have added and fixed. A blue dot on your account button tells you when there is something you have not read.
 

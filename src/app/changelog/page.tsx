@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
 import { hasUnseenChangelog, isUnseen, readChangelog, type ChangelogEntry } from "@/lib/changelog";
@@ -21,7 +23,17 @@ export default async function ChangelogPage() {
     <div className="space-y-4">
       {hasUnseenChangelog(entries, user) && <MarkChangelogSeen />}
 
-      <PageTitle title="What's new" subtitle="What we have added and fixed." />
+      <PageTitle
+        title="What's new"
+        subtitle={
+          <>
+            What we have added and fixed.{" "}
+            <Link href="/bugs" className="text-brand hover:underline">
+              Bug reports
+            </Link>
+          </>
+        }
+      />
 
       {entries.length === 0 ? (
         <EmptyState title="No updates yet">Changes are posted here as they ship.</EmptyState>
@@ -29,6 +41,7 @@ export default async function ChangelogPage() {
         entries.map((entry) => (
           <Section
             key={entry.date}
+            id={entry.date}
             title={
               <>
                 {formatDate(new Date(`${entry.date}T00:00:00.000Z`))}{" "}
