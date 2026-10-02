@@ -5,6 +5,7 @@ import path from "node:path";
 import { cache } from "react";
 
 import type { User } from "@/generated/prisma/client";
+import { toDateInputValue } from "@/lib/format";
 
 /**
  * What users read at /changelog.
@@ -34,7 +35,7 @@ const BULLET = /^[-*]\s+(.*\S)\s*$/;
 /** `2026-02-31` matches the shape and is not a day. */
 function isRealDay(day: string): boolean {
   const d = new Date(`${day}T00:00:00.000Z`);
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === day;
+  return !Number.isNaN(d.getTime()) && toDateInputValue(d) === day;
 }
 
 export function parseChangelog(text: string): ChangelogEntry[] {
@@ -106,7 +107,7 @@ export const readChangelog = cache(() =>
 
 export type SeenFields = Pick<User, "changelogSeenAt" | "createdAt">;
 
-const day = (d: Date) => d.toISOString().slice(0, 10);
+const day = toDateInputValue;
 
 /**
  * By DAY, in UTC, against the last visit — or against `createdAt` for somebody
