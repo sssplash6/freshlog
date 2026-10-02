@@ -114,6 +114,23 @@ export function ReportBugForm({ from }: { from: string | null }) {
         />
       </Field>
 
+      {/* Tied to the blob that will actually be sent, not to the file picker.
+          React resets the picker when a refused submission settles, so it says
+          "No file chosen" while the resized image is still held here — and
+          would be sent again. This row is the truth, and the way to drop it. */}
+      {shot && (
+        <p className="flex flex-wrap items-center gap-x-3 text-sm text-ink">
+          <span>Screenshot attached ({Math.max(1, Math.round(shot.size / 1024))} KB)</span>
+          <button
+            type="button"
+            onClick={() => setShot(null)}
+            className="min-h-11 font-semibold text-brand hover:text-brand-dark"
+          >
+            Remove
+          </button>
+        </p>
+      )}
+
       {failed && !failed.field && (
         <p role="alert" className="text-sm text-danger-ink">
           {failed.error}

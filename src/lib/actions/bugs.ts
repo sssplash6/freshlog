@@ -192,7 +192,14 @@ export async function setBugStatus(
       status,
       triagedById: actor.id,
       ...(closing
-        ? { resolution, resolvedAt: new Date(), changelogDate }
+        ? {
+            resolution,
+            changelogDate,
+            // When it BECAME fixed or closed. Correcting a typo in an old fix
+            // line must not move it to the top of the public list under
+            // today's date.
+            ...(before.status !== status ? { resolvedAt: new Date() } : {}),
+          }
         : { resolvedAt: null, changelogDate: null }),
     },
   });

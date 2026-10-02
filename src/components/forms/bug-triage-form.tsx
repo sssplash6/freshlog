@@ -11,6 +11,7 @@ import {
   BUG_STATUS,
   BUG_STATUSES,
   BUG_STATUS_LABELS,
+  resolutionPrefill,
   type BugStatus,
 } from "@/lib/bugs";
 
@@ -82,11 +83,14 @@ export function BugTriageForm({
               : "Only the reporter reads this."
           }
         >
+          {/* Keyed on the status, so switching between Fixed and Closed opens
+              an empty box instead of carrying the other kind's words across. */}
           <Textarea
+            key={next}
             name="resolution"
             rows={3}
             maxLength={BUG_RESOLUTION_MAX}
-            defaultValue={resolution ?? ""}
+            defaultValue={resolutionPrefill(next, status, resolution)}
           />
         </Field>
       )}

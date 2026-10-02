@@ -106,6 +106,30 @@ describe("setBugStatus", () => {
     expect(await fixedBugs()).toEqual([]);
   });
 
+  it("keeps the date a fix was made when its wording is corrected later", async () => {
+    actor.value = await platformAdmin();
+    const fixedOn = new Date("2026-09-15T08:00:00Z");
+    const r = await bugReport({ status: "FIXED", resolution: "Typo in the fix lnie", resolvedAt: fixedOn, changelogDate: "2026-09-15" });
+
+    expect(await setBugStatus(null, form({ id: r.id, status: "FIXED", resolution: "Typo in the fix line", changelogDate: "2026-09-15" }))).toMatchObject({ ok: true });
+    const row = await reload(r.id);
+    expect(row.resolution).toBe("Typo in the fix line");
+    expect(row.resolvedAt?.toISOString()).toBe(fixedOn.toISOString());
+  });
+
+  it("dates a new resolution when the status changes into Fixed or Closed", async () => {
+    actor.value = await platformAdmin();
+    const longAgo = new Date("2026-01-01T00:00:00Z");
+    const r = await bugReport({ status: "FIXED", resolution: "was fixed", resolvedAt: longAgo, changelogDate: "2026-01-01" });
+
+    await setBugStatus(null, form({ id: r.id, status: "CLOSED", resolution: "On reflection, by design." }));
+    expect((await reload(r.id)).resolvedAt!.getTime()).toBeGreaterThan(longAgo.getTime());
+
+    const reopened = await bugReport({ status: "PENDING", resolution: "older line" });
+    await setBugStatus(null, form({ id: reopened.id, status: "FIXED", resolution: "Fixed now." }));
+    expect((await reload(reopened.id)).resolvedAt).not.toBeNull();
+  });
+
   it("reopens a report: off the public list, dates cleared, the old line kept", async () => {
     actor.value = await platformAdmin();
     const r = await bugReport({ status: "FIXED", resolution: "old fix", resolvedAt: new Date(), changelogDate: "2026-10-01" });

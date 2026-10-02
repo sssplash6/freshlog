@@ -4,6 +4,7 @@ import {
   BUG_STATUSES,
   isBugStatus,
   readTriageFilter,
+  resolutionPrefill,
   sanitizePagePath,
 } from "@/lib/bugs";
 
@@ -61,5 +62,29 @@ describe("readTriageFilter", () => {
     expect(readTriageFilter("FIXED")).toBe("FIXED");
     expect(readTriageFilter("PENDING")).toBe("PENDING");
     expect(readTriageFilter("all")).toBe("all");
+  });
+});
+
+describe("resolutionPrefill", () => {
+  it("offers the stored line only to the status it was written for", () => {
+    expect(resolutionPrefill("FIXED", "FIXED", "Totals now add up.")).toBe("Totals now add up.");
+    expect(resolutionPrefill("CLOSED", "CLOSED", "Works as designed.")).toBe("Works as designed.");
+  });
+
+  it("never turns a private Closed note into the public fix line, or the reverse", () => {
+    const note = "Duplicate - Bekzod entered Aziza's hours twice";
+    expect(resolutionPrefill("FIXED", "CLOSED", note)).toBe("");
+    expect(resolutionPrefill("CLOSED", "FIXED", "Public fix line")).toBe("");
+  });
+
+  it("starts empty for a report that was reopened, whatever it once said", () => {
+    for (const current of ["PENDING", "IN_PROGRESS"] as const) {
+      expect(resolutionPrefill("FIXED", current, "old line")).toBe("");
+      expect(resolutionPrefill("CLOSED", current, "old note")).toBe("");
+    }
+  });
+
+  it("is empty when there is nothing stored", () => {
+    expect(resolutionPrefill("FIXED", "FIXED", null)).toBe("");
   });
 });

@@ -73,6 +73,25 @@ export function sanitizePagePath(raw: unknown): string | null {
   return path;
 }
 
+/**
+ * What the triage form's "Fix line" / "Note" box opens with.
+ *
+ * `resolution` means two different things — the public fix line when FIXED, a
+ * note private to the reporter when CLOSED — so a stored line is only offered
+ * back to the status it was written for. Without this, an admin switching a
+ * Closed report to Fixed would see the private note sitting in the box labelled
+ * "Everybody reads this", and saving without a word would publish it. A report
+ * that was reopened has no current kind, so it starts empty.
+ */
+export function resolutionPrefill(
+  target: BugStatus,
+  current: BugStatus,
+  resolution: string | null
+): string {
+  const resolved = target === BUG_STATUS.FIXED || target === BUG_STATUS.CLOSED;
+  return resolved && target === current ? (resolution ?? "") : "";
+}
+
 export type TriageFilter = "open" | "all" | BugStatus;
 
 /** `?status=` on the triage page. Anything unreadable opens on the work to do. */
