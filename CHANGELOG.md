@@ -1,0 +1,32 @@
+# Changelog
+
+What we have added and fixed, newest first. Each commit that changes what you see or can do adds a line here.
+
+## 2026-10-01
+
+### New
+- Logging time after a grant's deadline is allowed again, with a note that the deadline has passed. A deadline is a use-by date, not a wall.
+- The pinned row in the hour bank now offers the same corrections as a mentor's row.
+
+### Fixed
+- The name of whoever left a rating is shown only to admins of that student's own programs, and to nobody else.
+
+## 2026-09-30
+
+### New
+- Moving a student to another program now carries their unused hours across, so nothing they were owed is lost in the move.
+- A student who is visiting another program on an exchange can no longer be moved or unenrolled until the exchange ends. Returning them is the way out.
+
+### Fixed
+- Voiding a session now really lets you remove that mentor's hours. Before, voided sessions still counted and the removal stayed blocked.
+- The grant menu on a student who has time in two programs was cut off the edge of the screen. It is reachable again, and each program's name now sits under the mentor.
+
+## 2026-09-29
+
+### New
+- A program can set standard hours: every new student who joins gets a set number of hours to use within a set number of days, with no one granting them by hand.
+- Program admins and mentors can be given access to just one program, with a screen for managing who has it.
+- Opening a student from a program keeps you in that program, with a path back.
+
+### Fixed
+- The status labels on a student's task rows are lined up with the text beside them.
