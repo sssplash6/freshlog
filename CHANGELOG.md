@@ -5,6 +5,7 @@ What we have added and fixed, newest first. Each commit that changes what you se
 ## 2026-10-03
 
 ### Fixed
+- A mentor who is given admin access to a program now gets the Admin and Mentor switch, so they can reach the admin pages instead of being stuck in the mentor view.
 - Creating an hour bank and choosing to include past hours no longer shrinks the bank: the number you enter is the bank's size, and the student's unused time with mentors folds into it instead of being taken out twice.
 
 ## 2026-10-02
