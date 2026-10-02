@@ -104,6 +104,19 @@ export async function requireProgramScope(programId: string): Promise<User> {
 }
 
 /**
+ * Gate the pages that triage bug reports: platform admins, nobody else.
+ *
+ * `notFound()` rather than a redirect, like `/settings/platform`: a page a
+ * reader may not use should read exactly like one that does not exist. Call it
+ * in the PAGE, not only the layout (see `requireRole`).
+ */
+export async function requirePlatformAdmin(): Promise<User> {
+  const user = await requireUser();
+  if (!user.platformAdmin) notFound();
+  return user;
+}
+
+/**
  * Gate mentor-area access to users who may act as a mentor — a plain MENTOR
  * or a dual-role ADMIN flagged as a mentor. No onboarding redirect, so it's
  * safe to use in the mentor layout. Onboarding lives at /onboarding, outside
