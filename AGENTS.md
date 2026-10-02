@@ -87,3 +87,21 @@ Four rules, and breaking any of them is silent:
    appends "(on exchange)", the rosters mark it, and `studiesIn()` is how you
    ask for a student's own programs.
 
+## Every commit writes its changelog entry
+
+`CHANGELOG.md` at the repo root is what users read on `/changelog`. It ships
+with the code, so an entry goes live exactly when its change does — Render
+deploys are manual, and a note posted anywhere else would announce work nobody
+can see yet.
+
+So: every commit that changes what a user sees or can do adds its entry to
+`CHANGELOG.md` **in the same commit**. Not a follow-up commit, not "at release".
+Commits with no user-visible effect — tests, refactors, dependency pins,
+tooling — add nothing.
+
+- Entries sit under a dated heading, newest first: `## 2026-10-02`. A second
+  commit on the same day adds to that day's heading rather than opening another.
+- Under the date, `### New` and `### Fixed`; leave out whichever is empty.
+- One short paragraph or bullet per change, written for the student, mentor or
+  admin who will read it: what they can now do, or what no longer goes wrong.
+  No file names, no function names, no commit-message prose.
