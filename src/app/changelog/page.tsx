@@ -36,7 +36,7 @@ export default async function ChangelogPage() {
               </>
             }
           >
-            <div className="space-y-4 px-1">
+            <div className="space-y-4 p-4">
               <Items label="New" items={entry.new} />
               <Items label="Fixed" items={entry.fixed} />
             </div>

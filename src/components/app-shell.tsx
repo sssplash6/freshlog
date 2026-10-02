@@ -30,6 +30,7 @@ import { Popover } from "@/components/ui/popover";
 import { signOut } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { adminScope, scopeIsEmpty } from "@/lib/authz";
+import { hasUnseenChangelog, readChangelog } from "@/lib/changelog";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { navFor, type NavItem } from "@/lib/nav";
 import { prisma } from "@/lib/prisma";
@@ -112,37 +113,50 @@ function AccountMenu({
   user,
   lens,
   mentorProfile,
+  whatsNew,
 }: {
   user: User;
   /** The lens to show as active, or null for somebody who has only one. */
   lens: Profile | null;
   /** Where a mentor edits their own name, picture and booking link, until /settings. */
   mentorProfile: boolean;
+  /** The changelog has an entry this person has not opened. */
+  whatsNew: boolean;
 }) {
   const label = user.name ?? user.email;
   const initial = (user.name?.trim() || user.email).charAt(0).toUpperCase();
 
   return (
     <Popover
-      label="Account"
+      label={whatsNew ? "Account (new updates)" : "Account"}
       origin="end"
       width="sm"
       triggerClassName="group flex h-11 w-full cursor-pointer items-center gap-2 rounded-lg pl-1 pr-2 transition-colors hover:bg-fill"
       trigger={
         <>
-          {user.avatarUpdatedAt ? (
-            <Avatar person={user} className="h-8 w-8 shrink-0" />
-          ) : (
-            // The brand-soft initial rather than the identity tone used for a
-            // person in a list: this is your OWN chrome, not somebody you are
-            // being asked to tell apart from somebody else.
-            <span
-              aria-hidden="true"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand"
-            >
-              {initial}
-            </span>
-          )}
+          <span className="relative shrink-0">
+            {user.avatarUpdatedAt ? (
+              <Avatar person={user} className="h-8 w-8 shrink-0" />
+            ) : (
+              // The brand-soft initial rather than the identity tone used for a
+              // person in a list: this is your OWN chrome, not somebody you are
+              // being asked to tell apart from somebody else.
+              <span
+                aria-hidden="true"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand"
+              >
+                {initial}
+              </span>
+            )}
+            {/* Blue, not red: red is spent on hours that are gone. The bell
+                owns the corner's count; this is only "something to read". */}
+            {whatsNew && (
+              <span
+                aria-hidden="true"
+                className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-brand ring-2 ring-surface"
+              />
+            )}
+          </span>
           <span className="hidden min-w-0 flex-1 truncate text-left text-[0.9375rem] font-medium text-ink lg:inline">
             {label}
           </span>
@@ -175,6 +189,21 @@ function AccountMenu({
         className="mt-1 flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill"
       >
         Settings
+      </Link>
+
+      <Link
+        href="/changelog"
+        transitionTypes={["nav-forward"]}
+        className="flex min-h-11 items-center justify-between rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill"
+      >
+        {"What's new"}
+        {whatsNew && (
+          <span
+            role="img"
+            aria-label="Unread updates"
+            className="h-2 w-2 rounded-full bg-brand"
+          />
+        )}
       </Link>
 
       {user.platformAdmin && (
@@ -325,11 +354,14 @@ function StaffShell({
   search,
   recent,
   now,
+  whatsNew,
   children,
 }: {
   user: User;
   unread: number;
   items: NavItem[];
+  /** Something in the changelog this person has not opened. */
+  whatsNew: boolean;
   /** The lens, for the two people in one — null for everybody with one lens. */
   lens: Profile | null;
   search?: { mentors: boolean };
@@ -344,6 +376,7 @@ function StaffShell({
       user={user}
       lens={lens}
       mentorProfile={canActAsMentor(user)}
+      whatsNew={whatsNew}
     />
   );
 
@@ -442,11 +475,13 @@ function StudentShell({
   user,
   unread,
   items,
+  whatsNew,
   children,
 }: {
   user: User;
   unread: number;
   items: NavItem[];
+  whatsNew: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -464,7 +499,12 @@ function StudentShell({
           </nav>
         }
         account={
-          <AccountMenu user={user} lens={null} mentorProfile={false} />
+          <AccountMenu
+            user={user}
+            lens={null}
+            mentorProfile={false}
+            whatsNew={whatsNew}
+          />
         }
       />
 
@@ -533,7 +573,7 @@ export async function AppShell({
 
   // Six rows and a count, in one round trip each. The panel is a glance, so
   // `take: 6` is the whole of it — `/notifications` is where the feed lives.
-  const [profile, unread, recent] = await Promise.all([
+  const [profile, unread, recent, changelog] = await Promise.all([
     profileOf(user),
     prisma.notification.count({ where: { userId: user.id, read: false } }),
     prisma.notification.findMany({
@@ -548,7 +588,9 @@ export async function AppShell({
         createdAt: true,
       },
     }),
+    readChangelog(),
   ]);
+  const whatsNew = hasUnseenChangelog(changelog, user);
   // One instant for every "3h ago" the bell prints, computed here rather than
   // inside the render, for the reason `ViewerContext.now` exists.
   const now = new Date();
@@ -556,7 +598,7 @@ export async function AppShell({
 
   if (user.role === ROLES.STUDENT) {
     return (
-      <StudentShell user={user} unread={unread} items={items}>
+      <StudentShell user={user} unread={unread} items={items} whatsNew={whatsNew}>
         {children}
       </StudentShell>
     );
@@ -580,6 +622,7 @@ export async function AppShell({
       recent={recent}
       now={now}
       items={items}
+      whatsNew={whatsNew}
       lens={canSwitchProfile(user) ? profile : null}
       search={search}
     >

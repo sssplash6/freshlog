@@ -2,6 +2,11 @@
 
 What we have added and fixed, newest first. Each commit that changes what you see or can do adds a line here.
 
+## 2026-10-02
+
+### New
+- There is now a "What's new" page in the account menu listing what we have added and fixed. A blue dot on your account button tells you when there is something you have not read.
+
 ## 2026-10-01
 
 ### New
