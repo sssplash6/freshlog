@@ -87,6 +87,8 @@ model User {
   dismissals          StatusDismissal[]
   exchangesSent       ProgramExchange[]        @relation("ExchangeSentBy")
   exchangesReturned   ProgramExchange[]        @relation("ExchangeReturnedBy")
+  bugsReported        BugReport[]              @relation("BugReporter")
+  bugsTriaged         BugReport[]              @relation("BugTriager")
 }
 
 // One profile picture, stored in the database rather than on disk so it travels
@@ -838,4 +840,49 @@ model InterviewFeedback {
   from      StudentProfile @relation(fields: [fromId], references: [id], onDelete: Cascade)
 
   @@unique([interviewId, fromId])
+}
+
+// Something somebody reported as broken. See docs/superpowers/specs/2026-10-02-bug-reports-design.md.
+//
+// Each person reads their own; everyone reads only the FIX LINE of a Fixed one
+// (`resolution`, `resolvedAt`, `changelogDate` — nothing else). A reporter's
+// title and description can name a student, so they are never selected by the
+// public list. `resolution` is the public fix line when FIXED and a note
+// private to the reporter and triagers when CLOSED.
+model BugReport {
+  id            String    @id @default(cuid())
+  // SetNull: removing an account never removes what they reported.
+  reporterId    String?
+  reporterRole  String // the role at the time, for triage
+  title         String
+  description   String
+  // A path only, validated by sanitizePagePath — never a URL.
+  pagePath      String?
+  status        String    @default("PENDING") // PENDING | IN_PROGRESS | FIXED | CLOSED
+  resolution    String?
+  resolvedAt    DateTime?
+  // YYYY-MM-DD, the changelog entry a fix shipped in.
+  changelogDate String?
+  triagedById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  reporter  User?           @relation("BugReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  triagedBy User?           @relation("BugTriager", fields: [triagedById], references: [id], onDelete: SetNull)
+  image     BugReportImage?
+
+  @@index([reporterId, createdAt])
+  @@index([status, createdAt])
+}
+
+// One screenshot per report, in its own table for the reason AvatarImage is:
+// Prisma selects every scalar, and a list of reports must not drag image bytes
+// into memory. Only /api/bug-report/[id]/image reads this table.
+model BugReportImage {
+  id       String @id @default(cuid())
+  reportId String @unique
+  bytes    Bytes
+  mimeType String
+
+  report BugReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 }

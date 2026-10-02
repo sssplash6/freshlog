@@ -26,6 +26,8 @@ export async function resetDb() {
   await prisma.studentEnrollment.deleteMany();
   await prisma.studentProfile.deleteMany();
   await prisma.avatarImage.deleteMany();
+  await prisma.bugReportImage.deleteMany();
+  await prisma.bugReport.deleteMany();
   await prisma.user.deleteMany();
   await prisma.cohort.deleteMany();
   await prisma.program.deleteMany();
@@ -269,6 +271,45 @@ export async function studentTask(opts: {
       percent: opts.percent ?? 0,
       dueOn: inDays(opts.dueInDays ?? 7),
       completedAt: opts.completedAt ?? null,
+    },
+  });
+}
+
+/** The eight-byte PNG signature plus padding: enough for `sniffImageType`. */
+export const PNG_BYTES = new Uint8Array([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0,
+]);
+
+export async function bugReport(
+  opts: {
+    reporterId?: string | null;
+    reporterRole?: string;
+    title?: string;
+    description?: string;
+    status?: string;
+    resolution?: string | null;
+    resolvedAt?: Date | null;
+    changelogDate?: string | null;
+    pagePath?: string | null;
+    createdAt?: Date;
+    image?: boolean;
+  } = {}
+) {
+  return prisma.bugReport.create({
+    data: {
+      reporterId: opts.reporterId ?? null,
+      reporterRole: opts.reporterRole ?? ROLES.STUDENT,
+      title: opts.title ?? "Hours look wrong",
+      description: opts.description ?? "The total says 3h but I logged 4h.",
+      pagePath: opts.pagePath ?? null,
+      status: opts.status ?? "PENDING",
+      resolution: opts.resolution ?? null,
+      resolvedAt: opts.resolvedAt ?? null,
+      changelogDate: opts.changelogDate ?? null,
+      ...(opts.createdAt ? { createdAt: opts.createdAt } : {}),
+      ...(opts.image
+        ? { image: { create: { bytes: PNG_BYTES, mimeType: "image/png" } } }
+        : {}),
     },
   });
 }
