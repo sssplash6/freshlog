@@ -54,7 +54,13 @@ export function renderEmail({
   cta,
   unsubscribeUrl,
   footerNote,
+  place,
 }: {
+  /**
+   * The institute the reader studies in, set beside the wordmark — the same
+   * frame the app gives them (lib/space.ts). Absent for everybody else.
+   */
+  place?: string;
   /** The grey line a client shows beside the subject. */
   preheader: string;
   title: string;
@@ -117,7 +123,11 @@ export function renderEmail({
   <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:${BRAND.surface};border:1px solid ${BRAND.line};border-radius:12px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
     <tr><td style="height:3px;background:${BRAND.accent};"></td></tr>
     <tr><td style="padding:24px 28px 0 28px;">
-      <div style="font-size:15px;font-weight:700;color:${BRAND.brand};">freshlog</div>
+      <div style="font-size:15px;font-weight:700;color:${BRAND.brand};">freshlog${
+        place
+          ? ` <span style="font-weight:600;color:${BRAND.ink};">&middot; ${escapeHtml(place)}</span>`
+          : ""
+      }</div>
       <h1 style="margin:12px 0 0 0;font-size:24px;line-height:1.25;font-weight:700;color:${BRAND.ink};">${escapeHtml(title)}</h1>
       <p style="margin:10px 0 0 0;font-size:15px;line-height:1.5;color:${BRAND.muted};">${escapeHtml(intro)}</p>
     </td></tr>
@@ -144,6 +154,7 @@ export function renderEmail({
   // The text twin is not a fallback nobody reads — it is what a screen reader in
   // plain-text mode and every "show original" view gets.
   const text = [
+    ...(place ? [place, ""] : []),
     title,
     "",
     intro,

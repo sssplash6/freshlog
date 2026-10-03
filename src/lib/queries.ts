@@ -228,6 +228,10 @@ export async function studentsWithHours(
         {
           programId: e.programId,
           program: e.program,
+          // The level this membership sits at, where the program has them —
+          // what an institute's home splits its figures by. Null for a
+          // level-less program and for a visitor on exchange.
+          level: e.level,
           cohort: e.cohort,
           ...tally(`${profile.id}:${e.programId}`),
         },

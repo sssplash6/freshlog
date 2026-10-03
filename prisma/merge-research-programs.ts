@@ -41,6 +41,7 @@ import "dotenv/config";
 
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { RESEARCH_INSTITUTE_NAME } from "../config/app-config";
 import { EXCHANGE_STATUS, PROGRAM_STATUS } from "../src/lib/constants";
 
 const WRITE = process.env.RESEARCH_CONFIRM === "WRITE";
@@ -109,6 +110,11 @@ async function main() {
     target
       ? `\nTarget: "${TARGET_NAME}" exists — merging into it\n`
       : `\nTarget: "${TARGET_NAME}" will be created\n`
+  );
+  console.log(
+    target?.spaceName
+      ? `Institute: already named "${target.spaceName}" — left as it is\n`
+      : `Institute: shown as "${RESEARCH_INSTITUTE_NAME}" to the people who work only in it\n`
   );
 
   // ------------------------------------------------------------- the plan
@@ -354,6 +360,14 @@ async function main() {
         })
       ).id;
     }
+
+    // The merged program is the Research Institute to the people who work
+    // only in it (lib/space.ts). Unless somebody already named it — then the
+    // platform admin has decided, and the merge leaves it alone.
+    await tx.program.updateMany({
+      where: { id: targetId, spaceName: null },
+      data: { space: "INSTITUTE", spaceName: RESEARCH_INSTITUTE_NAME },
+    });
 
     // Levels: create what is missing; where the level already exists (the
     // seed creates it on boot), the canonical minutes and the SOURCE program's

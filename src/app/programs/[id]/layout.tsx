@@ -11,6 +11,7 @@ import { programTotals } from "@/lib/hours";
 
 import {
   PROGRAM_STATUS,
+  programLevels,
   programOf,
   programStudents,
 } from "../reads";
@@ -52,7 +53,11 @@ export default async function ProgramLayout({
 }) {
   const { id } = await params;
   const user = await requireProgramScope(id);
-  const [program, students] = await Promise.all([programOf(id), programStudents(id)]);
+  const [program, students, levels] = await Promise.all([
+    programOf(id),
+    programStudents(id),
+    programLevels(id),
+  ]);
 
   const scope = await adminScope(user);
   // Back to the index, unless this reader's whole scope is this program — then
@@ -118,10 +123,24 @@ export default async function ProgramLayout({
         <ProgramMetric label="Total" value={formatRough(totals.allotted)} />
       </dl>
 
+      {/* A leveled program's roster comes in its levels as well as whole:
+          one tab per level, each the roster narrowed by `?level=`. They are
+          what an institute's sidebar links to, and they replace the Level
+          select the roster used to carry — two controls for one filter. The
+          count is each level's own members, never the whole program's. */}
       <TabLinks
         label="Program sections"
         items={[
-          { href: base, label: "Students", count: totals.students },
+          {
+            href: base,
+            label: levels.length > 0 ? "All students" : "Students",
+            count: totals.students,
+          },
+          ...levels.map((l) => ({
+            href: `${base}?level=${l.id}`,
+            label: l.name,
+            count: students.filter((s) => s.byProgram.get(id)?.level?.id === l.id).length,
+          })),
           { href: `${base}/settings`, label: "⚙ Settings" },
         ]}
       />

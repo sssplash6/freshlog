@@ -35,6 +35,15 @@ export const PROGRAM_STATUS = { ACTIVE: "ACTIVE", ARCHIVED: "ARCHIVED" } as cons
 export type ProgramStatus = (typeof PROGRAM_STATUS)[keyof typeof PROGRAM_STATUS];
 
 /**
+ * `Program.space`: how the people who work only in a program see it. An
+ * INSTITUTE is presented as a place of its own (lib/space.ts); every program is
+ * an ordinary PROGRAM to everybody else. Presentation, never permission.
+ */
+export const PROGRAM_SPACE = { PROGRAM: "PROGRAM", INSTITUTE: "INSTITUTE" } as const;
+
+export type ProgramSpace = (typeof PROGRAM_SPACE)[keyof typeof PROGRAM_SPACE];
+
+/**
  * The domain the sheet import gives a student whose real address the sheet
  * never had. RFC 2606 reserves `.invalid`, so mail to it can never be
  * delivered — which is the point: a placeholder must be undeliverable rather

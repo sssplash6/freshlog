@@ -10,6 +10,7 @@ import { ArrowLink } from "@/components/ui/link";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
 import { Section } from "@/components/ui/section";
 import { requireProgramScope } from "@/lib/dal";
+import { formatDuration } from "@/lib/format";
 import { programExchanges } from "@/lib/exchanges";
 import {
   activeFilterCount,
@@ -127,6 +128,9 @@ export default async function ProgramPage({
   const students = ordered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const lent = [...exchanges.hosted, ...exchanges.sent];
+  // The level this roster is narrowed to, when the tab above names one of
+  // this program's — anything else in `?level=` already matched nobody.
+  const level = levels.find((l) => l.id === readParam(query, "level")) ?? null;
   const basePath = `/programs/${program.id}`;
 
   // One line per MENTOR: somebody paired with three cohorts of this program is
@@ -200,30 +204,41 @@ export default async function ProgramPage({
             />
           </div>
 
+          {/* The level is a tab in the layout above, not a select here. */}
+          {/* Reset only for a filter the reader set here; the level tab is
+              not one, and Reset would have cleared it along with the rest. */}
           <FilterBar
             basePath={basePath}
             params={query}
             q="students"
-            selects={
-              levels.length > 0
-                ? [
-                    {
-                      name: "level",
-                      label: "Level",
-                      all: "All levels",
-                      options: levels.map((l) => ({ value: l.id, label: l.name })),
-                    },
-                  ]
-                : []
-            }
+            reset={activeFilterCount(query) > (level ? 1 : 0)}
           />
 
+          {/* What the level buys, said where the level is being read: the
+              standard grant is the one fact that makes Emerging and Advanced
+              different places, and it otherwise lives two tabs away. */}
+          {level && (
+            <p className="px-1 text-[0.8125rem] text-muted-fg">
+              {(() => {
+                const minutes = level.standardMinutes ?? program.standardMinutes;
+                const days = level.standardDays ?? program.standardDays;
+                return minutes !== null && days !== null
+                  ? `Students joining ${level.name} get ${formatDuration(minutes)} to use within ${days} day${days === 1 ? "" : "s"}.`
+                  : `${level.name} grants no standard time on joining.`;
+              })()}
+            </p>
+          )}
+
           {total === 0 ? (
-            activeFilterCount(query) > 0 ? (
+            activeFilterCount(query) > (level ? 1 : 0) ? (
               // The bar above has just said in words that nothing matched, so
               // this adds the way out and not the count again.
               <EmptyState variant="no-results">
                 Check the spelling, or reset to see everyone.
+              </EmptyState>
+            ) : level ? (
+              <EmptyState title={`Nobody in ${level.name} yet`}>
+                Add them with the button above.
               </EmptyState>
             ) : (
               <EmptyState title="Nobody enrolled">

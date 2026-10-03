@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import {
   canActAsMentor,
   NOTIFICATION_TYPES,
+  PROGRAM_SPACE,
   WEEKLY_SUMMARY_PREF,
   SESSION_STATUS,
   USER_STATUS,
@@ -56,6 +57,12 @@ type Pairing = {
   mentorId: string | null;
   mentorLabel: string;
   programName: string;
+  /**
+   * The institute the student's whole study is in, by its own name — the
+   * same rule as the app's frame (lib/space.ts): exactly one program of their
+   * own, and it is an institute. Null for everybody else.
+   */
+  studentInstitute: string | null;
   allocated: number;
   deadline: Date;
   /** Hours drawn down: delivered plus no-shows, which are charged. */
@@ -88,6 +95,14 @@ async function loadPairings(now: Date): Promise<Pairing[]> {
         student: {
           include: {
             user: { select: { id: true, name: true, email: true, status: true } },
+            // Their own programs, never a visit: what decides whether they
+            // are written to as a student of an institute.
+            enrollments: {
+              where: { exchangeId: null },
+              select: {
+                program: { select: { name: true, space: true, spaceName: true } },
+              },
+            },
           },
         },
       },
@@ -145,6 +160,7 @@ async function loadPairings(now: Date): Promise<Pairing[]> {
         ? (a.mentor.name ?? a.mentor.email)
         : "no mentor yet",
       programName: a.program.name,
+      studentInstitute: instituteOf(a.student.enrollments),
       allocated: a.minutes,
       deadline: a.deadline,
       used: drawn,
@@ -156,6 +172,16 @@ async function loadPairings(now: Date): Promise<Pairing[]> {
       remaining: expired ? Math.min(0, a.minutes - drawn) : a.minutes - drawn,
     };
   });
+}
+
+/** The institute a student studies only in, by its own name, or null. */
+function instituteOf(
+  enrollments: readonly { program: { name: string; space: string; spaceName: string | null } }[]
+): string | null {
+  if (enrollments.length !== 1) return null;
+  const { program } = enrollments[0];
+  if (program.space !== PROGRAM_SPACE.INSTITUTE) return null;
+  return program.spaceName?.trim() || program.name;
 }
 
 const soonest = (a: Pairing, b: Pairing) =>
@@ -271,6 +297,7 @@ function studentDigest(mine: Pairing[], now: Date): Mail | null {
       : `${formatDuration(totalRemaining)} still available.`,
     title: subject,
     intro: `Your mentoring time in ${to.programName}, as of ${formatDate(now)}.`,
+    place: to.studentInstitute ?? undefined,
     sections,
     cta:
       live.length > 0

@@ -19,6 +19,7 @@ import {
   ProfileSwitchMenu,
 } from "@/components/profile-switch";
 import { PublicShell } from "@/components/public-shell";
+import { ProgramDot } from "@/components/program-chip";
 import { ReportBugLink } from "@/components/report-bug-link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DensityToggle } from "@/components/density-toggle";
@@ -36,6 +37,7 @@ import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { navFor, type NavItem } from "@/lib/nav";
 import { prisma } from "@/lib/prisma";
 import { canSwitchProfile, profileOf, type Profile } from "@/lib/profile";
+import { spaceOf, type Space } from "@/lib/space";
 import type { User } from "@/generated/prisma/client";
 
 async function signOutAction() {
@@ -260,6 +262,28 @@ function AccountMenu({
 }
 
 /**
+ * The institute's name, for the reader whose whole work is in it.
+ *
+ * The program's own dot and the name it goes by in its own chrome, and no
+ * other colour: DESIGN.md gives a program a dot and a label and nothing that
+ * washes, and an institute is a program everywhere the ledger is concerned.
+ * It sits beside the wordmark rather than replacing it — this is still
+ * freshlog, and the wordmark is still the way home.
+ */
+function InstituteMark({
+  space,
+}: {
+  space: Extract<Space, { kind: "institute" }>;
+}) {
+  return (
+    <span className="flex min-w-0 items-center gap-2 text-[0.9375rem] font-semibold text-ink">
+      <ProgramDot program={{ id: space.programId, name: space.name }} />
+      <span className="min-w-0 truncate">{space.name}</span>
+    </span>
+  );
+}
+
+/**
  * The first Tab stop on every signed-in page.
  *
  * Without it a keyboard reader crosses the wordmark, the whole rail and the
@@ -301,8 +325,11 @@ function TopBar({
   search,
   width,
   className,
+  place,
 }: {
   account: React.ReactNode;
+  /** The institute's mark, beside the wordmark — institute frame only. */
+  place?: React.ReactNode;
   unread: number;
   links?: React.ReactNode;
   /** The palette's opener, for a reader who has the palette. */
@@ -340,7 +367,18 @@ function TopBar({
           width
         )}
       >
-        <PhoneChrome brand={<BrandWordmark version={pkg.version} />} />
+        <PhoneChrome
+          brand={
+            place ? (
+              <span className="flex min-w-0 items-center gap-3">
+                <BrandWordmark version={pkg.version} />
+                {place}
+              </span>
+            ) : (
+              <BrandWordmark version={pkg.version} />
+            )
+          }
+        />
         {links}
         <div className="ml-auto flex shrink-0 items-center gap-1">
           {search}
@@ -368,11 +406,14 @@ function StaffShell({
   recent,
   now,
   whatsNew,
+  place,
   children,
 }: {
   user: User;
   unread: number;
   items: NavItem[];
+  /** The institute's mark, when this reader is in one. */
+  place?: React.ReactNode;
   /** Something in the changelog this person has not opened. */
   whatsNew: boolean;
   /** The lens, for the two people in one — null for everybody with one lens. */
@@ -420,6 +461,7 @@ function StaffShell({
         switcher={lens ? <ProfileSwitch active={lens} /> : undefined}
         search={search}
         account={account}
+        place={place}
       />
 
       {/* THE TOP RIGHT CORNER OF THE WINDOW, and nothing else's.
@@ -457,6 +499,7 @@ function StaffShell({
         }
         width="max-w-6xl"
         className="lg:hidden"
+        place={place}
       />
 
       {/* pb-24 clears the bottom bar (56px + the home-indicator inset);
@@ -489,12 +532,14 @@ function StudentShell({
   unread,
   items,
   whatsNew,
+  place,
   children,
 }: {
   user: User;
   unread: number;
   items: NavItem[];
   whatsNew: boolean;
+  place?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -503,6 +548,7 @@ function StudentShell({
       <TopBar
         width="max-w-2xl"
         unread={unread}
+        place={place}
         links={
           <nav
             aria-label="Primary"
@@ -607,11 +653,23 @@ export async function AppShell({
   // One instant for every "3h ago" the bell prints, computed here rather than
   // inside the render, for the reason `ViewerContext.now` exists.
   const now = new Date();
-  const items = await navFor(user, profile);
+  // The frame: the school, or the one institute this person's whole work is
+  // in. It dresses the chrome and picks the sidebar's items; it never decides
+  // what they may open (lib/space.ts).
+  const space = await spaceOf(user, profile);
+  const items = await navFor(user, profile, space);
+  const place =
+    space.kind === "institute" ? <InstituteMark space={space} /> : undefined;
 
   if (user.role === ROLES.STUDENT) {
     return (
-      <StudentShell user={user} unread={unread} items={items} whatsNew={whatsNew}>
+      <StudentShell
+        user={user}
+        unread={unread}
+        items={items}
+        whatsNew={whatsNew}
+        place={place}
+      >
         {children}
       </StudentShell>
     );
@@ -636,6 +694,7 @@ export async function AppShell({
       now={now}
       items={items}
       whatsNew={whatsNew}
+      place={place}
       lens={(await canSwitchProfile(user)) ? profile : null}
       search={search}
     >

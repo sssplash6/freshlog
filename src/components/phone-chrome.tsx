@@ -127,7 +127,10 @@ export function PhoneChrome({ brand }: { brand: React.ReactNode }) {
     <>
       {/* Both render whenever a back link exists — CSS decides which is seen:
           the chevron on a phone, the wordmark from `sm` up. */}
-      <div className={cn("flex shrink-0 items-center", back && "max-sm:hidden")}>
+      {/* min-w-0, not shrink-0: an institute's name rides beside the
+          wordmark here and is what gives way on a narrow phone. The wordmark
+          keeps its own shrink-0. */}
+      <div className={cn("flex min-w-0 items-center", back && "max-sm:hidden")}>
         {brand}
       </div>
       {back && (

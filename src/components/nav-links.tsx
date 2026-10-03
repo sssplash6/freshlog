@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { usePendingHref } from "@/lib/nav-pending";
 
@@ -66,6 +66,11 @@ export function NavIcon({ href, className }: { href: string; className?: string 
  * claim all of them. Shared by all three renderings below and by the tab bar,
  * because a sidebar and a bottom bar that disagreed about where you are would
  * be worse than either alone.
+ *
+ * An item may carry a query — an institute's levels are one program page each
+ * narrowed by `?level=` — and then it matches only where every parameter it
+ * names holds, the rule `TabLinks` uses. Longest href still wins, so a level
+ * outranks the "All levels" item on the same path.
  */
 export function useCurrentNavItem(items: NavItem[]): NavItem | null {
   // Where a tap is heading wins over where the router still is, so the
@@ -73,11 +78,15 @@ export function useCurrentNavItem(items: NavItem[]): NavItem | null {
   // the old one and the new one together.
   const pending = usePendingHref();
   const current = usePathname();
+  const params = useSearchParams();
   const pathname = pending ?? current;
   return items.reduce<NavItem | null>((best, item) => {
-    const matches =
-      pathname === item.href || pathname.startsWith(`${item.href}/`);
+    const [path, query = ""] = item.href.split("?");
+    const matches = pathname === path || pathname.startsWith(`${path}/`);
     if (!matches) return best;
+    for (const [key, value] of new URLSearchParams(query)) {
+      if (params.get(key) !== value) return best;
+    }
     if (!best || item.href.length > best.href.length) return item;
     return best;
   }, null);
@@ -207,7 +216,20 @@ export function SidebarNav({
 
   return (
     <nav aria-label="Primary" className="flex flex-col gap-0.5">
-      {items.map(row)}
+      {items.map((item, i) =>
+        // A heading over the first item of each run sharing a group. Hidden
+        // when the rail is shut: a heading is words, and a shut rail is marks.
+        item.group && item.group !== items[i - 1]?.group ? (
+          <div key={item.href} className="flex flex-col gap-0.5">
+            <p className="px-3 pt-3 text-[0.8125rem] font-medium text-muted-fg rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
+              {item.group}
+            </p>
+            {row(item)}
+          </div>
+        ) : (
+          row(item)
+        )
+      )}
       {utility.length > 0 && (
         <>
           {/* Space, not a rule: iOS separates a sidebar's sections with air,

@@ -6,6 +6,7 @@ import {
   canBookOn,
   programTotals,
   remainingWithMentor,
+  totalsByLevel,
   type StudentHoursRow,
 } from "@/lib/hours";
 import { allocation, mentor, session, student } from "@/test/db";
@@ -339,6 +340,30 @@ describe("programTotals", () => {
     const totals = programTotals([row({ amountPaid: 12000 }), row({ amountPaid: 0 }), row({ amountPaid: 4500 })]);
     expect(totals.paid).toBe(16500);
     expect(totals.students).toBe(3);
+  });
+});
+
+describe("totalsByLevel", () => {
+  const row = (remainingMinutes: number, level: string | null) => ({
+    allottedMinutes: remainingMinutes,
+    completedMinutes: 0,
+    missedMinutes: 0,
+    remainingMinutes,
+    forfeitedMinutes: 0,
+    extraMinutes: 0,
+    amountPaid: 0,
+    level: level ? { id: level } : null,
+  });
+
+  it("splits by level and keeps the level-less rows, so the parts add up", () => {
+    const rows = [row(60, "emerging"), row(120, "advanced"), row(30, "advanced"), row(15, null)];
+    const split = totalsByLevel(rows);
+
+    expect(split.get("emerging")).toMatchObject({ students: 1, remaining: 60 });
+    expect(split.get("advanced")).toMatchObject({ students: 2, remaining: 150 });
+    expect(split.get(null)).toMatchObject({ students: 1, remaining: 15 });
+    const sum = [...split.values()].reduce((n, t) => n + t.remaining, 0);
+    expect(sum).toBe(programTotals(rows).remaining);
   });
 });
 

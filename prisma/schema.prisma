@@ -137,6 +137,18 @@ model Program {
   // student joining afterwards gets it; changing it touches nobody already in.
   standardMinutes   Int?
   standardDays      Int?
+  // PROGRAM | INSTITUTE. An institute is an ordinary program in the ledger —
+  // same grants, same keys, same exchanges — that the people who work ONLY in
+  // it see as a place of its own: its name in the chrome, its levels in the
+  // sidebar, its own frame on analytics (see lib/space.ts). Everyone else,
+  // platform admins included, sees one program among the others. A column for
+  // the reason `tracksPayment` is one: renaming the program must not switch
+  // the institute off.
+  space             String                @default("PROGRAM")
+  // What the institute is called in its own chrome — "Research Institute" —
+  // which is not the program's name in everybody else's tables. Null falls
+  // back to the program's name.
+  spaceName         String?
   levels            ProgramLevel[]
   cohorts           Cohort[]
   enrollments       StudentEnrollment[]

@@ -20,6 +20,7 @@ import {
   setLevelStandardHours,
   setProgramHourBank,
   setProgramStandardHours,
+  setProgramSpace,
   setProgramTracksPayment,
 } from "@/lib/actions/programs";
 import { formatDuration } from "@/lib/format";
@@ -303,6 +304,71 @@ export function TrackPaymentToggle({
             {tracksPayment ? "Stop asking for amounts" : "Ask for amounts"}
           </SubmitButton>
         </form>
+      }
+      state={<SaveState state={save} />}
+    />
+  );
+}
+
+/**
+ * Present this program as an institute to the people who work only in it.
+ * Platform admins only — the page renders it for no one else, and the action
+ * refuses everyone else.
+ */
+export function InstituteSpaceForm({
+  programId,
+  programName,
+  institute,
+  spaceName,
+}: {
+  programId: string;
+  programName: string;
+  institute: boolean;
+  spaceName: string | null;
+}) {
+  const id = useId();
+  const [name, setName] = useState(spaceName ?? "");
+  const [, action, save] = useSaveState(setProgramSpace);
+
+  return (
+    <SettingsRow
+      label="Its own institute"
+      htmlFor={id}
+      description={
+        institute
+          ? "People who work only here see it as its own place, with its levels in the sidebar. Everyone else sees one program."
+          : "Show it as its own place to the people who work only here. Nobody gains or loses access."
+      }
+      control={
+        <div className="flex flex-wrap items-end gap-3">
+          <form action={action} className="flex min-w-56 flex-1 flex-wrap items-end gap-3">
+            <input type="hidden" name="programId" value={programId} />
+            <input type="hidden" name="space" value="INSTITUTE" />
+            <Input
+              id={id}
+              name="spaceName"
+              type="text"
+              maxLength={80}
+              placeholder={programName}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="min-w-56 flex-1"
+            />
+            <SubmitButton variant="secondary" pendingText="Saving…">
+              {institute ? "Save name" : "Show as an institute"}
+            </SubmitButton>
+          </form>
+          {/* No name field: turning it off keeps the name for next time. */}
+          {institute && (
+            <form action={action}>
+              <input type="hidden" name="programId" value={programId} />
+              <input type="hidden" name="space" value="PROGRAM" />
+              <SubmitButton variant="secondary" pendingText="Saving…">
+                Show as a program
+              </SubmitButton>
+            </form>
+          )}
+        </div>
       }
       state={<SaveState state={save} />}
     />

@@ -244,6 +244,9 @@ program they are looking at from three places only: the program page's `h1` and 
 inbox and list rows. A scoped admin with one program sees that program's name in the sidebar
 instead of "Programs".
 
+The one exception is an institute (owner decision 7, §10): somebody whose whole reach is one
+program marked `INSTITUTE` sees it as a place of its own, with its levels in the sidebar.
+
 ---
 
 ## 5. The shared foundation
@@ -1388,6 +1391,15 @@ governs and the reason it is safe is stated.
    allocating time. Add nothing until a real person holds the role.
 6. **Nothing else is cut.** Mentor ratings and the weekly digest email both stay, as specified.
    `WebsiteFeedback` remains the only removal (M5).
+7. **The Research Institute is a frame of its own — added 2026-10-03.** §4.3 says programs are
+   entities and filters, not silos. One deliberate exception: a program with `space = INSTITUTE`
+   is presented as its own place to the people whose whole work is in it — admins whose every
+   grant is that program, mentors paired only there, students who study only there
+   (`lib/space.ts`). They get its name in the chrome, its levels in the sidebar, a home split by
+   level and analytics framed on it. It is still not a switcher: nobody chooses it, it follows
+   reach, and anyone with a second program, and every platform admin, stays in the school frame.
+   It is presentation only — `authz.ts` never reads it, and no route is prefixed (rule 1 holds).
+   Do not undo this as drift.
 
 ## 11. Out of scope (the post-redesign list)
 

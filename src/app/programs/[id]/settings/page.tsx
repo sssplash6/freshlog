@@ -7,6 +7,7 @@ import {
   DeleteLevelButton,
   DeleteProgramButton,
   HourBankToggle,
+  InstituteSpaceForm,
   LevelStandardHoursForm,
   RemoveMentorButton,
   RenameProgramForm,
@@ -18,6 +19,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowLink } from "@/components/ui/link";
 import { Section } from "@/components/ui/section";
 import { SettingsRow } from "@/components/ui/settings-row";
+import { PROGRAM_SPACE } from "@/lib/constants";
 import { requireProgramScope } from "@/lib/dal";
 
 import {
@@ -345,6 +347,16 @@ export default async function ProgramSettingsPage({
             tracksPayment={program.tracksPayment}
           />
           <HourBankToggle programId={program.id} hourBank={program.hourBank} />
+          {/* Platform admins only: it reframes the app for everybody who works
+              only here, which is not one program admin's call. */}
+          {viewer.platformAdmin && (
+            <InstituteSpaceForm
+              programId={program.id}
+              programName={program.name}
+              institute={program.space === PROGRAM_SPACE.INSTITUTE}
+              spaceName={program.spaceName}
+            />
+          )}
           <StandardHoursForm
             programId={program.id}
             standardMinutes={program.standardMinutes}

@@ -25,8 +25,14 @@ export function Sidebar({
   switcher,
   search,
   account,
+  place,
 }: {
   items: NavItem[];
+  /**
+   * The institute this reader works in, under the wordmark — absent for
+   * everybody in the school frame (lib/space.ts).
+   */
+  place?: React.ReactNode;
   /** Rendered under a rule — Notifications, and later Settings. */
   utility?: NavItem[];
   /** The Admin | Mentor control. Absent for everybody with one lens. */
@@ -58,6 +64,11 @@ export function Sidebar({
             />
             <RailToggle />
           </div>
+          {place && (
+            <div className="rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
+              {place}
+            </div>
+          )}
           <div className="rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
             {switcher}
           </div>

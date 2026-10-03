@@ -36,6 +36,51 @@ import { programTone } from "@/lib/program-tone";
 
 import s from "./dashboard.module.css";
 
+/**
+ * What the page calls its parts. The school's are programs; an institute's are
+ * its levels, handed over in the same `programs` slots (`instituteAnalyticsData`)
+ * so the drill itself never has to know which it is reading — only the words do.
+ */
+export type Frame =
+  | { kind: "school" }
+  | { kind: "institute"; name: string };
+
+type Words = {
+  all: string;
+  allChip: string;
+  across: string;
+  parts: string;
+  top: string;
+  topMentor: string;
+  inOne: string;
+  inOneMentor: string;
+};
+
+function wordsFor(frame: Frame): Words {
+  if (frame.kind === "institute") {
+    return {
+      all: frame.name,
+      allChip: "All levels",
+      across: `Hours mentors spent with students, across ${frame.name}.`,
+      parts: "Levels",
+      top: `Top mentors in ${frame.name}`,
+      topMentor: `Mentors in ${frame.name}`,
+      inOne: "Who delivered the most",
+      inOneMentor: "Mentors at this level",
+    };
+  }
+  return {
+    all: "All programs",
+    allChip: "All programs",
+    across: "Hours mentors spent with students, across every program.",
+    parts: "Programs",
+    top: "Top mentors across the school",
+    topMentor: "Mentors across the school",
+    inOne: "Who delivered the most",
+    inOneMentor: "Mentors in this program",
+  };
+}
+
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTHS_LONG = [
   "January", "February", "March", "April", "May", "June",
@@ -97,9 +142,19 @@ export function Dashboard({
   today,
   audience = "staff",
   selfMentorId,
+  frame = { kind: "school" },
+  elsewhere,
 }: {
   data: AnalyticsData;
   today: Today;
+  /** The school, or one institute with its levels in the program slots. */
+  frame?: Frame;
+  /**
+   * The other frame, for a reader who has both: an institute's people can
+   * still read the whole school, which is unscoped for every mentor and member
+   * of staff by design. Absent for everybody in the school frame only.
+   */
+  elsewhere?: { label: string; href: string };
   /**
    * Who is reading — lens, not authority. The rows are the same either way;
    * what changes is whether the page leads with a school-wide ranking (staff,
@@ -120,6 +175,7 @@ export function Dashboard({
     [data.mentors, selfMentorId]
   );
   const [view, go] = useView(data, today, audience === "mentor" ? selfIndex : null);
+  const words = wordsFor(frame);
   const { year, month, program, mentor } = view;
   const accent = program != null ? colorOf(data, program) : DEFAULT;
 
@@ -154,7 +210,7 @@ export function Dashboard({
   const crumbs = (programRow || mentorRow) && (
     <nav className="flex flex-wrap items-center gap-1" aria-label="Where you are">
       <Crumb current={program == null && mentor == null} onClick={() => go({ program: null, mentor: null })}>
-        All programs
+        {words.all}
       </Crumb>
       {programRow && (
         <>
@@ -189,9 +245,16 @@ export function Dashboard({
             mentorRow?.name ?? "Analytics"
           )
         }
-        subtitle={crumbs || "Hours mentors spent with students, across every program."}
+        subtitle={crumbs || words.across}
         actions={
           <>
+            {/* A plain link, not a drill: the other frame is a different read
+                on the server, not a different slice of this one. */}
+            {elsewhere && (
+              <a href={elsewhere.href} className={buttonClasses("secondary", "sm")}>
+                {elsewhere.label}
+              </a>
+            )}
             {month != null && (
               <button
                 type="button"
@@ -252,20 +315,18 @@ export function Dashboard({
         </div>
       ) : (
         <div key={`${level}`} className={cn(s.enter, "space-y-4")}>
-          {mentor != null && <MentorScope data={data} view={view} go={go} ranked={audience === "staff"} />}
+          {mentor != null && <MentorScope data={data} view={view} go={go} ranked={audience === "staff"} words={words} />}
           <Hero data={data} view={view} today={today} yearRows={yearRows} periodRows={periodRows} />
           <MonthsCard data={data} view={view} go={go} yearRows={yearRows} />
           {program == null && mentor == null && (
             <>
-              <ProgramCards data={data} view={view} go={go} last={last} />
+              <ProgramCards data={data} view={view} go={go} last={last} words={words} />
               <Leaderboard
                 data={data}
                 view={view}
                 go={go}
                 title={
-                  audience === "mentor"
-                    ? "Mentors across the school"
-                    : "Top mentors across the school"
+                  audience === "mentor" ? words.topMentor : words.top
                 }
                 ranked={audience === "staff"}
                 periodRows={periodRows}
@@ -281,9 +342,7 @@ export function Dashboard({
               view={view}
               go={go}
               title={
-                audience === "mentor"
-                  ? "Mentors in this program"
-                  : "Who delivered the most"
+                audience === "mentor" ? words.inOneMentor : words.inOne
               }
               ranked={audience === "staff"}
               periodRows={periodRows}
@@ -339,6 +398,10 @@ function useView(
       setNavigated(true);
       const v = { ...view, ...next };
       const q = new URLSearchParams();
+      // Which frame this is was chosen on the server and is not part of the
+      // view; carried so a reload after drilling lands in the same one.
+      const frame = params.get("frame");
+      if (frame) q.set("frame", frame);
       if (v.year !== today.year) q.set("y", String(v.year));
       if (v.month != null) q.set("m", String(v.month + 1));
       if (v.program != null) q.set("p", data.programs[v.program].id);
@@ -346,7 +409,7 @@ function useView(
       const qs = q.toString();
       window.history.pushState(null, "", qs ? `?${qs}` : window.location.pathname);
     },
-    [view, today.year, data.programs, data.mentors]
+    [view, today.year, data.programs, data.mentors, params]
   );
 
   return [view, go];
@@ -803,7 +866,9 @@ function ProgramCards({
   view,
   go,
   last,
+  words,
 }: {
+  words: Words;
   data: AnalyticsData;
   view: View;
   go: (next: Partial<View>) => void;
@@ -830,7 +895,7 @@ function ProgramCards({
       {/* Section's own header, by hand: this group is a grid of cards rather
           than one card, and Section's body is always exactly one. */}
       <div className="px-1 pb-2 pt-2">
-        <h2 className="text-[1.25rem] font-semibold tracking-[-0.01em] text-ink">Programs</h2>
+        <h2 className="text-[1.25rem] font-semibold tracking-[-0.01em] text-ink">{words.parts}</h2>
         <div className="mt-0.5 text-[0.8125rem] font-medium text-muted-fg">Open one to see which mentors carry it.</div>
       </div>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
@@ -1128,7 +1193,9 @@ function MentorScope({
   view,
   go,
   ranked = true,
+  words,
 }: {
+  words: Words;
   data: AnalyticsData;
   view: View;
   go: (next: Partial<View>) => void;
@@ -1164,7 +1231,7 @@ function MentorScope({
       {theirPrograms.length > 1 ? (
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Program">
           <button type="button" className={chip(program == null)} aria-pressed={program == null} onClick={() => go({ program: null })}>
-            All programs
+            {words.allChip}
           </button>
           {theirPrograms.map((p) => (
             <button

@@ -128,13 +128,48 @@ export async function analyticsData(
 
   const programIndex = new Map(programs.map((p, i) => [p.id, i]));
   const granted = new Map(grants.map((g) => [g.programId, g._sum.minutes ?? 0]));
+  const { mentors, rows } = toRows(sessions, (s) => programIndex.get(s.programId));
+
+  return {
+    programs: programs.map((p) => ({
+      id: p.id,
+      name: p.name,
+      archived: p.status === PROGRAM_STATUS.ARCHIVED,
+      granted: granted.get(p.id) ?? 0,
+    })),
+    mentors,
+    rows,
+  };
+}
+
+/** A session as `toRows` needs it. */
+type SessionRead = {
+  programId: string;
+  studentId: string;
+  minutes: number;
+  date: Date;
+  withinPlan: boolean;
+  attended: boolean;
+  mentor: { id: string; name: string | null; email: string; avatarUpdatedAt: Date | null };
+};
+
+/**
+ * Sessions as compact rows, with the mentors they name. `bucket` says which
+ * entry of `programs` each one belongs to — the program it names, or, in an
+ * institute's frame, the level its student is at — and a session it answers
+ * `undefined` for is left out.
+ */
+function toRows(
+  sessions: readonly SessionRead[],
+  bucket: (s: SessionRead) => number | undefined
+): { mentors: AnalyticsMentor[]; rows: AnalyticsRow[] } {
   const mentors: AnalyticsMentor[] = [];
   const mentorIndex = new Map<string, number>();
   const studentIndex = new Map<string, number>();
   const rows: AnalyticsRow[] = [];
 
   for (const s of sessions) {
-    const program = programIndex.get(s.programId);
+    const program = bucket(s);
     if (program === undefined) continue;
 
     let mentor = mentorIndex.get(s.mentor.id);
@@ -156,15 +191,80 @@ export async function analyticsData(
 
     rows.push([program, mentor, student, dayKey(s.date), s.minutes, kindOf(s)]);
   }
+  return { mentors, rows };
+}
 
-  return {
-    programs: programs.map((p) => ({
-      id: p.id,
-      name: p.name,
-      archived: p.status === PROGRAM_STATUS.ARCHIVED,
-      granted: granted.get(p.id) ?? 0,
-    })),
-    mentors,
-    rows,
+/** The bucket for members of an institute at no level — visitors, mostly. */
+export const NO_LEVEL_ID = "no-level";
+
+/**
+ * One institute's sessions, with its LEVELS standing where the programs stand
+ * in the school's data — so the dashboard's own drill reads Institute › level
+ * › mentor without a line of it knowing the difference.
+ *
+ * A session goes to the level its student is at NOW. The ledger keys on the
+ * program and carries no level, so a student who moved up from Emerging takes
+ * the hours they used there to Advanced: the chart answers "how much time has
+ * this level's cohort of students had", not "how much was delivered at this
+ * level". Sessions of somebody no longer in the program, or in it at no level
+ * (a visitor on exchange), go to a "No level" entry, shown only when it holds
+ * something — leaving them out would make the levels add up to less than the
+ * program.
+ */
+export async function instituteAnalyticsData(programId: string): Promise<AnalyticsData> {
+  const [levels, enrollments, sessions, grants] = await Promise.all([
+    prisma.programLevel.findMany({
+      where: { programId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.studentEnrollment.findMany({
+      where: { programId },
+      select: { studentId: true, levelId: true },
+    }),
+    prisma.session.findMany({
+      where: { status: SESSION_STATUS.ACTIVE, programId },
+      orderBy: { date: "asc" },
+      select: {
+        programId: true,
+        studentId: true,
+        minutes: true,
+        date: true,
+        withinPlan: true,
+        attended: true,
+        mentor: {
+          select: { id: true, name: true, email: true, avatarUpdatedAt: true },
+        },
+      },
+    }),
+    prisma.hourAllocation.groupBy({
+      by: ["studentId"],
+      where: { programId },
+      _sum: { minutes: true },
+    }),
+  ]);
+
+  const levelOf = new Map(enrollments.map((e) => [e.studentId, e.levelId]));
+  const index = new Map(levels.map((l, i) => [l.id, i]));
+  const bucketOf = (studentId: string): number => {
+    const level = levelOf.get(studentId);
+    const at = level ? index.get(level) : undefined;
+    return at ?? levels.length;
   };
+
+  const { mentors, rows } = toRows(sessions, (s) => bucketOf(s.studentId));
+  const granted = new Array<number>(levels.length + 1).fill(0);
+  for (const g of grants) granted[bucketOf(g.studentId)] += g._sum.minutes ?? 0;
+
+  const entries: AnalyticsProgram[] = levels.map((l, i) => ({
+    id: l.id,
+    name: l.name,
+    archived: false,
+    granted: granted[i],
+  }));
+  const unleveled = rows.some((r) => r[0] === levels.length) || granted[levels.length] > 0;
+  if (unleveled) {
+    entries.push({ id: NO_LEVEL_ID, name: "No level", archived: false, granted: granted[levels.length] });
+  }
+  return { programs: entries, mentors, rows };
 }

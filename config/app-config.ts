@@ -19,6 +19,9 @@ export const ALLOWED_MENTOR_DOMAIN = "freshman.academy";
  */
 export const MASTERS_PROGRAM_NAME = "Master's Program";
 
+/** What the Research Program is called by the people who work only in it. */
+export const RESEARCH_INSTITUTE_NAME = "Research Institute";
+
 /**
  * The pieces of work hours are normally granted for. Allocating hours names one
  * of these (or anything typed in its place), which is what the mentor then logs
@@ -43,11 +46,18 @@ export const TASK_PRESETS: string[] = [
  * Research is the leveled one: Emerging, Advanced and Frontiers are LEVELS
  * inside one program, each with its own standard grant — the merge script
  * folds the three old research programs into this same shape.
+ *
+ * It is also the one INSTITUTE: the people who work only in it see it as the
+ * Research Institute, a place of its own (lib/space.ts). Applied when the seed
+ * CREATES the program and never after, so a platform admin who turns it off
+ * on the settings page is not overruled by the next boot.
  */
 export const PROGRAMS: {
   name: string;
   cohorts: string[];
   levels?: { name: string; standardMinutes: number; standardDays: number }[];
+  /** Created as an institute, with this name in its own chrome. */
+  institute?: string;
 }[] = [
   { name: "Global Admissions Program", cohorts: [] },
   { name: "Flexible Program", cohorts: [] },
@@ -55,6 +65,7 @@ export const PROGRAMS: {
   {
     name: "Research Program",
     cohorts: [],
+    institute: RESEARCH_INSTITUTE_NAME,
     // 90 days: the app's own "use within" default — editable per level on the
     // program's settings page.
     levels: [

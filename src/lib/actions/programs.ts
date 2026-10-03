@@ -7,6 +7,7 @@ import { assertPlatformAdmin, assertProgramScope } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { parseMinutesField, type ActionState } from "@/lib/actions/shared";
+import { PROGRAM_SPACE } from "@/lib/constants";
 import { formatDuration } from "@/lib/format";
 
 /**
@@ -400,6 +401,63 @@ export async function setProgramTracksPayment(
     message: tracksPayment
       ? `Allocating time in ${program.name} now asks what the student paid.`
       : `Allocating time in ${program.name} no longer asks about payment. Amounts already recorded stay.`,
+  };
+}
+
+/**
+ * Present a program as an institute of its own to the people who work only in
+ * it — or stop. See lib/space.ts.
+ *
+ * Platform admin only, unlike the program's other settings: this changes what
+ * OTHER people see — the chrome, the sidebar and the home of every admin,
+ * mentor and student whose work is all in this program — and the person who
+ * runs one program is not the one to rearrange the frame for everybody in it.
+ * It moves no hours and grants nothing; `authz.ts` never reads it.
+ *
+ * `space` is "INSTITUTE" or "PROGRAM"; `spaceName` is what the institute is
+ * called in its own chrome, and an empty one falls back to the program's name.
+ */
+export async function setProgramSpace(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+  const denied = assertPlatformAdmin(actor);
+  if (denied) return denied;
+
+  const programId = String(formData.get("programId") ?? "");
+  const program = await prisma.program.findUnique({ where: { id: programId } });
+  if (!program) return { ok: false, error: "Program not found." };
+
+  const space =
+    String(formData.get("space") ?? "") === PROGRAM_SPACE.INSTITUTE
+      ? PROGRAM_SPACE.INSTITUTE
+      : PROGRAM_SPACE.PROGRAM;
+  const rawName = String(formData.get("spaceName") ?? "").trim();
+  if (rawName.length > 80) {
+    return { ok: false, error: "Keep the institute's name under 80 characters." };
+  }
+  // The name is kept when the program stops being an institute, so turning it
+  // back on later does not ask for it again.
+  const spaceName = formData.has("spaceName") ? rawName || null : program.spaceName;
+
+  if (space === program.space && spaceName === program.spaceName) {
+    return { ok: true, message: "No change." };
+  }
+
+  await prisma.program.update({
+    where: { id: programId },
+    data: { space, spaceName },
+  });
+
+  revalidatePath("/", "layout");
+  const shown = spaceName ?? program.name;
+  return {
+    ok: true,
+    message:
+      space === PROGRAM_SPACE.INSTITUTE
+        ? `People who work only in ${program.name} now see it as ${shown}.`
+        : `${program.name} is shown as an ordinary program to everyone.`,
   };
 }
 

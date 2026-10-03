@@ -42,6 +42,15 @@ describe("renderEmail", () => {
     expect(html).not.toContain("BRAND.");
   });
 
+  it("names the institute beside the wordmark only when given one, escaped", () => {
+    const plain = renderEmail(base);
+    expect(plain.html).not.toContain("&middot;");
+
+    const framed = renderEmail({ ...base, place: "Research <Institute>" });
+    expect(framed.html).toContain("&middot; Research &lt;Institute&gt;");
+    expect(framed.text.startsWith("Research <Institute>\n")).toBe(true);
+  });
+
   it("paints a brand call to action, and an accent one only when asked", () => {
     // Scoped to the anchor: the shell also has a 3px accent rule across its
     // top, so the accent hex is in the document either way.

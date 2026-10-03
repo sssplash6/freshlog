@@ -20,11 +20,15 @@ async function main() {
   // is leveled. `findFirst` + `create`, not `upsert`: a cohort's name is
   // unique per (program, level) now, and a level's per program — no single
   // compound selector names them.
-  for (const { name, cohorts, levels } of PROGRAMS) {
+  for (const { name, cohorts, levels, institute } of PROGRAMS) {
     const program = await prisma.program.upsert({
       where: { name },
+      // Never on update: whether it is an institute is the platform admin's
+      // call once the program exists, and the seed runs on every boot.
       update: {},
-      create: { name },
+      create: institute
+        ? { name, space: "INSTITUTE", spaceName: institute }
+        : { name },
     });
     for (const spec of levels ?? []) {
       const level = await prisma.programLevel.findFirst({

@@ -15,10 +15,11 @@ import {
 } from "@/lib/authz";
 import { staffAttention, type StaffPreload } from "@/lib/attention";
 import { requireStaff } from "@/lib/dal";
-import { formatRough } from "@/lib/format";
-import { programTotals } from "@/lib/hours";
+import { formatDuration, formatRough } from "@/lib/format";
+import { programTotals, totalsByLevel, type ProgramTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { studentsWithHours } from "@/lib/queries";
+import { spaceOf, type Space } from "@/lib/space";
 import { actionableCount, status, type ViewerContext } from "@/lib/status";
 import { PROGRAM_ZONE, programWallClock } from "@/lib/when";
 import type { User } from "@/generated/prisma/client";
@@ -137,6 +138,43 @@ export default async function AdminHomePage() {
   ]);
 
   const overall = programTotals(students);
+
+  // A reader whose whole scope is one institute gets the institute: the same
+  // roster and the same figures, broken down by level instead of by program —
+  // a table of one program row is what this page already refuses to draw.
+  // Asked in the admin lens whatever the cookie says, since this is the admin
+  // home (lib/space.ts).
+  const space = await spaceOf(user, "admin");
+  if (space.kind === "institute") {
+    const levels = await prisma.programLevel.findMany({
+      where: { programId: space.programId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, standardMinutes: true, standardDays: true },
+    });
+    const program = await prisma.program.findUniqueOrThrow({
+      where: { id: space.programId },
+      select: { standardMinutes: true, standardDays: true },
+    });
+    const enrolled = students.flatMap((s) => {
+      const figures = s.byProgram.get(space.programId);
+      return figures ? [figures] : [];
+    });
+    return (
+      <InstituteHome
+        space={space}
+        now={now}
+        overall={programTotals(enrolled)}
+        split={totalsByLevel(enrolled)}
+        levels={levels}
+        programStandard={program}
+        needsYou={
+          <Suspense fallback={null}>
+            <NeedsYou user={user} preload={{ now, programs, students }} />
+          </Suspense>
+        }
+      />
+    );
+  }
   const rows = programs.map((p) => {
     // That program's figures for each student in it — never the student's
     // combined row, which would put another program's hours in this total and
@@ -245,6 +283,154 @@ export default async function AdminHomePage() {
                 </Td>
               </Tr>
             ))}
+          </Table>
+        </Section>
+      )}
+    </div>
+  );
+}
+
+/** "15h within 180 days", or a dash when nothing is granted on joining. */
+function standardLabel(minutes: number | null, days: number | null): string {
+  if (minutes === null || days === null) return "—";
+  return `${formatDuration(minutes)} within ${days} day${days === 1 ? "" : "s"}`;
+}
+
+/**
+ * The institute's own home: its name as the title, its levels as the table.
+ *
+ * Built from the same rows as the school's home and the same helper —
+ * `totalsByLevel` is `programTotals` per level — so a level's Remaining here,
+ * the program's Remaining on `/programs`, and the platform admin's figure for
+ * the same program cannot disagree.
+ *
+ * A level's standard grant is printed beside it because it is what a level IS
+ * to the people who run it: Emerging buys two hours, Advanced fifteen. A level
+ * that sets none inherits the program's, and says so by printing that.
+ */
+function InstituteHome({
+  space,
+  now,
+  overall,
+  split,
+  levels,
+  programStandard,
+  needsYou,
+}: {
+  space: Extract<Space, { kind: "institute" }>;
+  now: Date;
+  overall: ProgramTotals;
+  split: Map<string | null, ProgramTotals>;
+  levels: {
+    id: string;
+    name: string;
+    standardMinutes: number | null;
+    standardDays: number | null;
+  }[];
+  programStandard: { standardMinutes: number | null; standardDays: number | null };
+  needsYou: React.ReactNode;
+}) {
+  const base = `/programs/${space.programId}`;
+  const unleveled = split.get(null);
+  const columns: Column[] = [
+    { label: "Level" },
+    { label: "Standard grant" },
+    { label: "Students", align: "right" },
+    { label: "Remaining", align: "right" },
+  ];
+  const remainingCell = (totals: ProgramTotals | undefined) => {
+    const remaining = totals?.remaining ?? 0;
+    return (
+      <Figure
+        size="inline"
+        value={formatRough(remaining)}
+        tone={remaining < 0 ? "danger" : "hours"}
+        className="sm:text-right"
+      />
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <PageTitle
+        title={space.name}
+        actions={
+          <span className="text-[0.8125rem] text-muted-fg">
+            Updated {clock(now)}{" "}
+            <span className="sr-only">{PROGRAM_ZONE} time</span>
+          </span>
+        }
+      />
+
+      <dl className="flex flex-wrap gap-x-10 gap-y-3 px-1">
+        <div>
+          <dt className="text-[0.8125rem] text-muted-fg">Levels</dt>
+          <dd className="mt-0.5 text-[1.5rem] font-semibold tabular-nums text-ink">
+            {levels.length}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[0.8125rem] text-muted-fg">Students</dt>
+          <dd className="mt-0.5 text-[1.5rem] font-semibold tabular-nums text-ink">
+            {overall.students}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[0.8125rem] text-muted-fg">Remaining</dt>
+          <dd
+            className={
+              overall.remaining < 0
+                ? "mt-0.5 text-[1.5rem] font-semibold tabular-nums text-danger-ink"
+                : "mt-0.5 text-[1.5rem] font-semibold tabular-nums text-accent-ink"
+            }
+          >
+            {formatRough(overall.remaining)}
+          </dd>
+        </div>
+      </dl>
+
+      {needsYou}
+
+      {levels.length > 0 && (
+        <Section
+          title="Levels"
+          action={<ArrowLink href={base} className="text-[0.8125rem]">Everyone</ArrowLink>}
+        >
+          <Table columns={columns} framed={false}>
+            {levels.map((l) => (
+              <Tr key={l.id}>
+                <Td label="Level">
+                  <ArrowLink href={`${base}?level=${l.id}`} className="min-h-11 font-medium sm:min-h-0">
+                    {l.name}
+                  </ArrowLink>
+                </Td>
+                <Td label="Standard grant" className="text-muted-fg">
+                  {l.standardMinutes !== null
+                    ? standardLabel(l.standardMinutes, l.standardDays)
+                    : standardLabel(programStandard.standardMinutes, programStandard.standardDays)}
+                </Td>
+                <Td label="Students" align="right" className="tabular-nums">
+                  {split.get(l.id)?.students ?? 0}
+                </Td>
+                <Td label="Remaining" align="right">
+                  {remainingCell(split.get(l.id))}
+                </Td>
+              </Tr>
+            ))}
+            {/* Visitors and anyone enrolled before the levels existed. Shown
+                rather than dropped, so the rows add up to the figure above. */}
+            {unleveled && (
+              <Tr>
+                <Td label="Level" className="text-muted-fg">No level</Td>
+                <Td label="Standard grant" className="text-muted-fg">—</Td>
+                <Td label="Students" align="right" className="tabular-nums">
+                  {unleveled.students}
+                </Td>
+                <Td label="Remaining" align="right">
+                  {remainingCell(unleveled)}
+                </Td>
+              </Tr>
+            )}
           </Table>
         </Section>
       )}

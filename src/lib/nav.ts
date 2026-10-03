@@ -4,6 +4,7 @@ import { adminScope, scopeIsEmpty, staffLevel, type StaffLevel } from "@/lib/aut
 import { canActAsMentor, ROLES } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import type { Profile } from "@/lib/profile";
+import { SCHOOL, type Space } from "@/lib/space";
 import type { User } from "@/generated/prisma/client";
 
 /**
@@ -48,6 +49,13 @@ export type NavItem = {
    * not.
    */
   count?: number;
+  /**
+   * A heading the rail prints above the first item of a run that shares it.
+   * Only the institute's levels carry one: they are several items standing in
+   * for the one program item everybody else has, and four bare level names in
+   * a column of places read as four more places rather than one place's parts.
+   */
+  group?: string;
 };
 
 /**
@@ -86,7 +94,11 @@ function widest(levels: readonly (StaffLevel | null)[]): StaffLevel {
  * double the cost of every page. It becomes a shared query with `/inbox` in
  * Phase 6; until then the item simply carries no number.
  */
-async function staffNav(viewer: User, inbox?: number): Promise<NavItem[]> {
+async function staffNav(
+  viewer: User,
+  space: Space,
+  inbox?: number
+): Promise<NavItem[]> {
   const scope = await adminScope(viewer);
   // "Home", not "Inbox": the attention rows this used to promise live behind
   // the bell at /notifications — a label that named them on a page that no
@@ -112,9 +124,25 @@ async function staffNav(viewer: User, inbox?: number): Promise<NavItem[]> {
       : null;
   // One program is a name, not an index: an index of one is a page whose only
   // content is a link. More than one, and it is the list.
-  const programItem: NavItem[] = onlyProgram
-    ? [{ href: `/programs/${onlyProgram.id}`, label: onlyProgram.name }]
-    : [{ href: "/programs", label: "Programs" }];
+  //
+  // An institute is a program with parts, and somebody whose whole scope it is
+  // gets the parts: the roster as a whole, then each level, under one heading.
+  // The rail already names the institute at its top, so the program's name
+  // would be the same fact twice. An institute with no levels yet is just a
+  // program, and gets the program's item.
+  const programItem: NavItem[] =
+    space.kind === "institute" && space.levels.length > 0
+      ? [
+          { href: `/programs/${space.programId}`, label: "All levels", group: "Levels" },
+          ...space.levels.map((l) => ({
+            href: `/programs/${space.programId}?level=${l.id}`,
+            label: l.name,
+            group: "Levels",
+          })),
+        ]
+      : onlyProgram
+        ? [{ href: `/programs/${onlyProgram.id}`, label: onlyProgram.name }]
+        : [{ href: "/programs", label: "Programs" }];
 
   const students: NavItem = { href: "/students", label: "Students" };
   const feedback: NavItem = { href: "/feedback", label: "Feedback" };
@@ -162,6 +190,7 @@ function mentorNav(inbox?: number): NavItem[] {
 export async function navFor(
   viewer: User,
   profile: Profile,
+  space: Space = SCHOOL,
   inbox?: number
 ): Promise<NavItem[]> {
   // Role first, not lens. `profileOf` answers "admin" for anybody who cannot
@@ -169,5 +198,5 @@ export async function navFor(
   // never in one.
   if (viewer.role === ROLES.STUDENT) return STUDENT_NAV;
   if (profile === "mentor" && canActAsMentor(viewer)) return mentorNav(inbox);
-  return staffNav(viewer, inbox);
+  return staffNav(viewer, space, inbox);
 }

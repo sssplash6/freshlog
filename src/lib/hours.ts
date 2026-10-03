@@ -311,6 +311,32 @@ export function programTotals(rows: readonly StudentHoursRow[]): ProgramTotals {
   return totals;
 }
 
+/**
+ * One program's totals split by level — an institute's home, where the levels
+ * are the parts somebody administers the whole of.
+ *
+ * Each row goes to the level its membership names, and to `null` when it names
+ * none (a visitor on exchange, or a student enrolled before the program had
+ * levels), so the parts always add up to `programTotals` of the same rows: a
+ * row left out of every level would be hours the page silently lost.
+ *
+ * The level is the membership's CURRENT one. The ledger keys on the program
+ * and carries no level, so a student who moved from Emerging to Advanced
+ * brings the hours they used in Emerging with them.
+ */
+export function totalsByLevel(
+  rows: readonly (StudentHoursRow & { level?: { id: string } | null })[]
+): Map<string | null, ProgramTotals> {
+  const groups = new Map<string | null, StudentHoursRow[]>();
+  for (const row of rows) {
+    const key = row.level?.id ?? null;
+    const group = groups.get(key) ?? [];
+    group.push(row);
+    groups.set(key, group);
+  }
+  return new Map([...groups].map(([key, group]) => [key, programTotals(group)]));
+}
+
 /** The fields of a `StudentWithHours` that a total is built from. */
 export type StudentHoursRow = {
   allottedMinutes: number;
