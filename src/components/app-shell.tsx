@@ -636,7 +636,7 @@ export async function AppShell({
       now={now}
       items={items}
       whatsNew={whatsNew}
-      lens={canSwitchProfile(user) ? profile : null}
+      lens={(await canSwitchProfile(user)) ? profile : null}
       search={search}
     >
       {children}

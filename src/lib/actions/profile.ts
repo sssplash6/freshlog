@@ -51,7 +51,7 @@ import { type ActionState } from "@/lib/actions/shared";
  */
 export async function setProfile(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
-  if (!user || !canSwitchProfile(user)) return;
+  if (!user || !(await canSwitchProfile(user))) return;
 
   const next = formData.get("profile");
   if (!isProfile(next)) return;

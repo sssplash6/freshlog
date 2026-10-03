@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 
+import { adminScope, scopeIsEmpty } from "@/lib/authz";
 import { canActAsMentor, ROLE_HOME, ROLES, type Role } from "@/lib/constants";
 import type { User } from "@/generated/prisma/client";
 
@@ -43,12 +44,16 @@ export function isProfile(value: unknown): value is Profile {
 }
 
 /**
- * Can this person be in both? Only a dual-role admin — a plain mentor has one
- * lens and a plain admin has one, and a switch offering a view its owner
- * cannot open is worse than no switch.
+ * Can this person be in both? Somebody who mentors AND administers: a dual-role
+ * admin, or a mentor a grant made an admin. Nothing changes a mentor's `role`
+ * when they are granted a program, so the admin half is asked of the scope, the
+ * same question every gate asks. A plain mentor has one lens and a plain admin
+ * has one, and a switch offering a view its owner cannot open is worse than no
+ * switch.
  */
-export function canSwitchProfile(user: User): boolean {
-  return user.role === ROLES.ADMIN && !!user.isMentor;
+export async function canSwitchProfile(user: User): Promise<boolean> {
+  if (!canActAsMentor(user)) return false;
+  return user.role === ROLES.ADMIN || !scopeIsEmpty(await adminScope(user));
 }
 
 /** The lens as it was last set, before anybody's role is considered. */
@@ -66,7 +71,7 @@ export const storedProfile = cache(async (): Promise<Profile | null> => {
  * put them in a lens their pages do not fit.
  */
 export const profileOf = cache(async (user: User): Promise<Profile> => {
-  if (!canSwitchProfile(user)) {
+  if (!(await canSwitchProfile(user))) {
     return canActAsMentor(user) ? "mentor" : "admin";
   }
   return (await storedProfile()) ?? "admin";
@@ -83,5 +88,7 @@ export const profileOf = cache(async (user: User): Promise<Profile> => {
 export function homeFor(user: User, profile?: Profile | null): string {
   if (user.role === ROLES.STUDENT) return "/student";
   if (profile === "mentor" && canActAsMentor(user)) return "/mentor";
+  // `profileOf` only answers "admin" for a MENTOR who was granted a program.
+  if (profile === "admin" && user.role === ROLES.MENTOR) return "/admin";
   return ROLE_HOME[user.role as Role] ?? "/login";
 }
