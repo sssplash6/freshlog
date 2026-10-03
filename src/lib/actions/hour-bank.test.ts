@@ -132,7 +132,7 @@ describe("granting an hour bank", () => {
 });
 
 describe("including the meetings already logged", () => {
-  it("yes: the greater of allocated and logged comes out, and per-mentor time is folded in", async () => {
+  it("yes: the number entered is the bank's size, and per-mentor time is folded in", async () => {
     const { prog, kid } = await setup();
     const m = await mentor();
     await allocation({ studentId: kid.id, mentorId: m.id, minutes: 180 });
@@ -140,13 +140,13 @@ describe("including the meetings already logged", () => {
 
     await addBank(kid, prog, { includePrevious: "yes" });
 
-    // 180 allocated beats 60 logged: 600 − 180 = 420 left.
+    // The 60 already logged draws the bank; the grant's unused 120 folds in.
     const hours = await allocationSummary(kid.id);
-    expect(hours.allotted).toBe(480);
+    expect(hours.allotted).toBe(600);
     expect(hours.used).toBe(60);
-    expect(hours.remaining).toBe(420);
+    expect(hours.remaining).toBe(540);
     const bank = hours.perMentor.find((r) => r.bank)!;
-    expect(bank).toMatchObject({ allocated: 480, completed: 60, remaining: 420 });
+    expect(bank).toMatchObject({ allocated: 600, completed: 60, remaining: 540 });
     // The mentor's grant no longer counts twice.
     await expect(
       prisma.hourAllocation.findFirstOrThrow({ where: { mentorId: m.id } })
@@ -156,7 +156,7 @@ describe("including the meetings already logged", () => {
     ).resolves.toBe(1);
   });
 
-  it("yes: logged beyond what was allocated is what comes out", async () => {
+  it("yes: logged beyond what was allocated still draws the bank", async () => {
     const { prog, kid } = await setup();
     const m = await mentor();
     await allocation({ studentId: kid.id, mentorId: m.id, minutes: 30 });
@@ -169,15 +169,20 @@ describe("including the meetings already logged", () => {
     expect(hours.remaining).toBe(510);
   });
 
-  it("yes: refuses when the allocated past hours are more than the bank", async () => {
+  it("yes: a bank smaller than the past allocation still replaces it", async () => {
     const { prog, kid } = await setup();
     const m = await mentor();
     await allocation({ studentId: kid.id, mentorId: m.id, minutes: 900 });
 
     const state = await addBank(kid, prog, { includePrevious: "yes" });
 
-    expect(state).toMatchObject({ ok: false });
-    await expect(prisma.hourAllocation.count({ where: { isBank: true } })).resolves.toBe(0);
+    expect(state).toMatchObject({ ok: true });
+    const hours = await allocationSummary(kid.id);
+    expect(hours.allotted).toBe(600);
+    expect(hours.remaining).toBe(600);
+    await expect(
+      prisma.hourAllocation.findFirstOrThrow({ where: { mentorId: m.id } })
+    ).resolves.toMatchObject({ minutes: 0 });
   });
 
   it("no: the bank starts full and earlier meetings stay where they were logged", async () => {

@@ -2,6 +2,11 @@
 
 What we have added and fixed, newest first. Each commit that changes what you see or can do adds a line here.
 
+## 2026-10-03
+
+### Fixed
+- Creating an hour bank and choosing to include past hours no longer shrinks the bank: the number you enter is the bank's size, and the student's unused time with mentors folds into it instead of being taken out twice.
+
 ## 2026-10-02
 
 ### Fixed

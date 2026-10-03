@@ -1408,9 +1408,10 @@ export async function setMentorAllocation(
           },
         });
   // A NEW bank asks whether past hours are included — but only when there ARE
-  // any. If so, the greater of what was allocated to mentors and what was
-  // logged comes out of the bank: the logged hours are re-pointed at it below,
-  // and any allocated hours nobody has used yet are taken off its total.
+  // any. If so, the logged hours are re-pointed at the bank below and any
+  // allocated hours nobody has used yet are folded into it. The number
+  // entered IS the bank's size: unspent grants are inside it already, so
+  // subtracting them here would charge the student for the same hours twice.
   const past =
     isBank && !existing ? await pastHours(prisma, profile.id, program.id) : null;
   const hasPast = !!past && (past.allocated > 0 || past.logged > 0);
@@ -1420,18 +1421,12 @@ export async function setMentorAllocation(
       error: "Say whether the past hours for this student are included in the bank.",
     };
   }
-  const carried =
+  const folded =
     hasPast && includePrevious === "yes" ? Math.max(0, past.allocated - past.logged) : 0;
   const oldMinutes = existing?.minutes ?? 0;
   const newMinutes = Number(
-    ((mode === "add" ? oldMinutes + enteredHours : enteredHours) - carried).toFixed(2)
+    (mode === "add" ? oldMinutes + enteredHours : enteredHours).toFixed(2)
   );
-  if (newMinutes < 0) {
-    return {
-      ok: false,
-      error: `${formatDuration(carried)} of allocated past hours come out of this bank, which is more than the ${formatDuration(enteredHours)} being added.`,
-    };
-  }
   const granted = Number((newMinutes - oldMinutes).toFixed(2));
 
   // Every grant from one mentor lands in the same pool, which has one use-by
@@ -1734,7 +1729,7 @@ export async function setMentorAllocation(
         message:
           granted > 0
             ? isBank
-              ? `${formatDuration(granted)} were added to your hour bank${programNote} (now ${formatDuration(newMinutes)}${carried > 0 ? `, after ${formatDuration(carried)} of past hours` : ""}).${deadlineNote}`
+              ? `${formatDuration(granted)} were added to your hour bank${programNote} (now ${formatDuration(newMinutes)}${folded > 0 ? `, which includes ${formatDuration(folded)} of unused time moved in from your old grants` : ""}).${deadlineNote}`
               : `You were granted ${formatDuration(granted)} more hours${programNote}${withMentor}${task ? ` for "${task}"` : ""} (now ${formatDuration(newMinutes)}${mentorLabel ? " with them" : ""}).${deadlineNote}`
             : granted < 0
               ? `Your time${programNote}${withMentor} was adjusted from ${formatDuration(oldMinutes)} to ${formatDuration(newMinutes)}.${deadlineNote}`
@@ -1754,9 +1749,9 @@ export async function setMentorAllocation(
   }
 
   revalidatePath("/", "layout");
-  const carriedNote =
-    carried > 0
-      ? ` ${formatDuration(carried)} of allocated past hours were taken out of it.`
+  const foldedNote =
+    folded > 0
+      ? ` ${formatDuration(folded)} of unused time with mentors was folded into it.`
       : "";
   const paidNote =
     tracksPayment && newPaid !== null ? ` · ${formatMoney(newPaid)} paid` : "";
@@ -1769,7 +1764,7 @@ export async function setMentorAllocation(
     : "";
   return {
     ok: true,
-    message: `${profile.user.email} now has ${formatDuration(newMinutes)} ${mentorLabel ? `with ${mentorLabel}` : isBank ? "in their hour bank" : "unassigned"}${programNote}, to use by ${formatDate(deadline)}${paidNote}.${carriedNote}${taskSummary}`,
+    message: `${profile.user.email} now has ${formatDuration(newMinutes)} ${mentorLabel ? `with ${mentorLabel}` : isBank ? "in their hour bank" : "unassigned"}${programNote}, to use by ${formatDate(deadline)}${paidNote}.${foldedNote}${taskSummary}`,
   };
 }
 
