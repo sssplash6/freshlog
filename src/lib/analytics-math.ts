@@ -116,6 +116,16 @@ export function byDay(rows: readonly AnalyticsRow[], year: number, month: number
   return days;
 }
 
+/** Hours each program has ever delivered, ignoring the year: `[program]`. */
+export function hoursByProgram(
+  rows: readonly AnalyticsRow[],
+  programCount: number
+): number[] {
+  const out = new Array<number>(programCount).fill(0);
+  for (const r of rows) if (r[5] !== KIND_NO_SHOW) out[r[0]] += r[4];
+  return out;
+}
+
 /** Hours per program index, per month: `[program][month]`. */
 export function monthsByProgram(
   rows: readonly AnalyticsRow[],

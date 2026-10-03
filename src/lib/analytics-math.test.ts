@@ -5,6 +5,7 @@ import {
   byDay,
   byMonth,
   change,
+  hoursByProgram,
   niceAxis,
   rankBy,
   select,
@@ -69,6 +70,14 @@ describe("rankBy", () => {
     expect(ranked.map((r) => r.index)).toEqual([0]);
     expect(ranked[0].hours).toBe(90);
     expect(ranked[0].trend[0]).toBe(90);
+  });
+});
+
+describe("hoursByProgram", () => {
+  it("sums each program's delivered hours across every year, no-shows apart", () => {
+    // program 0: 60 + 30 extra + 90, the 60-minute no-show excluded
+    // program 1: 120 this year + 45 last year — the grant gauge is all-time
+    expect(hoursByProgram(ROWS, 2)).toEqual([180, 165]);
   });
 });
 

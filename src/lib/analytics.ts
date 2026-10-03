@@ -28,6 +28,11 @@ import { prisma } from "@/lib/prisma";
  * WHAT IS NOT SENT. No student names or ids: a student is an opaque index, used
  * only to count how many different people a mentor saw. Notes, ratings and
  * disputes stay on the pages that already govern them.
+ *
+ * GRANTED. Each program also carries the minutes ever allocated to its
+ * students, so a program card can say how far through its grant the delivered
+ * hours have come — the question "% of all hours" was being asked and could
+ * not answer.
  */
 
 export const SESSION_KIND = { COMPLETED: 0, EXTRA: 1, NO_SHOW: 2 } as const;
@@ -50,7 +55,17 @@ export type AnalyticsRow = [
   kind: SessionKind,
 ];
 
-export type AnalyticsProgram = { id: string; name: string; archived: boolean };
+export type AnalyticsProgram = {
+  id: string;
+  name: string;
+  archived: boolean;
+  /**
+   * Minutes ever granted to the program's students — the stock the delivered
+   * hours are read against ("4.4h of the 8h granted"). A stock, not a flow: it
+   * does not narrow with the year picker the way the session rows do.
+   */
+  granted: number;
+};
 export type AnalyticsMentor = { id: string; name: string; avatar: string | null };
 
 export type AnalyticsData = {
@@ -80,7 +95,7 @@ export async function analyticsData(
 ): Promise<AnalyticsData> {
   const inScope = programIds ? { in: [...programIds] } : undefined;
 
-  const [programs, sessions] = await Promise.all([
+  const [programs, sessions, grants] = await Promise.all([
     prisma.program.findMany({
       where: inScope ? { id: inScope } : {},
       orderBy: { name: "asc" },
@@ -104,9 +119,15 @@ export async function analyticsData(
         },
       },
     }),
+    prisma.hourAllocation.groupBy({
+      by: ["programId"],
+      ...(inScope ? { where: { programId: inScope } } : {}),
+      _sum: { minutes: true },
+    }),
   ]);
 
   const programIndex = new Map(programs.map((p, i) => [p.id, i]));
+  const granted = new Map(grants.map((g) => [g.programId, g._sum.minutes ?? 0]));
   const mentors: AnalyticsMentor[] = [];
   const mentorIndex = new Map<string, number>();
   const studentIndex = new Map<string, number>();
@@ -141,6 +162,7 @@ export async function analyticsData(
       id: p.id,
       name: p.name,
       archived: p.status === PROGRAM_STATUS.ARCHIVED,
+      granted: granted.get(p.id) ?? 0,
     })),
     mentors,
     rows,
