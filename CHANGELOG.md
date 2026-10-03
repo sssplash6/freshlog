@@ -7,6 +7,7 @@ What we have added and fixed, newest first. Each commit that changes what you se
 ### Fixed
 - A mentor who is given admin access to a program now gets the Admin and Mentor switch, so they can reach the admin pages instead of being stuck in the mentor view.
 - Creating an hour bank and choosing to include past hours no longer shrinks the bank: the number you enter is the bank's size, and the student's unused time with mentors folds into it instead of being taken out twice.
+- A program card on Analytics now says how much of the program's granted time has been delivered — "55% of the 8h granted" — instead of that program's share of every hour the school logged, which read as if a small program had barely started.
 
 ## 2026-10-02
 

@@ -14,6 +14,7 @@ import {
   change,
   dateOf,
   hoursByDay,
+  hoursByProgram,
   hoursOf,
   monthOf,
   monthsByProgram,
@@ -813,7 +814,10 @@ function ProgramCards({
   const periodRows = useMemo(() => (month == null ? yearRows : select(yearRows, { year, month })), [yearRows, year, month]);
   const ranked = useMemo(() => new Map(rankBy(periodRows, yearRows, 0).map((r) => [r.index, r])), [periodRows, yearRows]);
   const trends = useMemo(() => monthsByProgram(yearRows, data.programs.length), [yearRows, data.programs.length]);
-  const all = totals(periodRows).hours;
+  // Progress against a program's grant is a stock question: the delivered
+  // hours are all-time, not the period's, so the gauge does not pretend the
+  // program is barely started when March is picked.
+  const delivered = useMemo(() => hoursByProgram(data.rows, data.programs.length), [data.rows, data.programs.length]);
 
   // Busiest first; a program with no hours this period still gets a card, last.
   const order = data.programs
@@ -831,7 +835,7 @@ function ProgramCards({
       </div>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
         {order.map(({ p, i, r }, n) => {
-          const share = all ? (r?.hours ?? 0) / all : 0;
+          const progress = p.granted > 0 ? delivered[i] / p.granted : 0;
           const color = colorOf(data, i);
           return (
             <button
@@ -856,10 +860,14 @@ function ProgramCards({
                 <span className="text-[1.75rem] font-semibold leading-none tracking-tight tabular-nums text-ink">
                   {shortHours(r?.hours ?? 0)}
                 </span>
-                <span className="text-[0.8125rem] tabular-nums text-muted-fg">{Math.round(share * 100)}% of all hours</span>
+                <span className="text-[0.8125rem] tabular-nums text-muted-fg">
+                  {p.granted > 0
+                    ? `${Math.round(progress * 100)}% of the ${shortHours(p.granted)} granted`
+                    : "no time granted"}
+                </span>
               </span>
               <span className="block h-1 overflow-hidden rounded-full bg-fill" aria-hidden>
-                <span className={cn(s.shareFill, "block h-full rounded-full")} style={{ width: `${share * 100}%`, background: color }} />
+                <span className={cn(s.shareFill, "block h-full rounded-full")} style={{ width: `${Math.min(100, progress * 100)}%`, background: color }} />
               </span>
               <Sparkline values={trends[i].slice(0, last + 1)} color={color} width={220} height={36} highlight={month} fluid />
               <span className="text-[0.8125rem] tabular-nums text-muted-fg">
