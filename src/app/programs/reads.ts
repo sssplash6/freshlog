@@ -73,8 +73,28 @@ export const programStudents = cache((id: string) =>
 export const programPairings = cache((id: string) =>
   prisma.mentorAssignment.findMany({
     where: { programId: id },
-    include: { mentor: true, cohort: true },
+    include: { mentor: true, cohort: true, level: true },
     orderBy: { createdAt: "asc" },
+  })
+);
+
+/**
+ * The program's levels, each with its cohorts — the shape the pickers ask
+ * for (level first, then the cohorts inside it).
+ */
+export const programLevels = cache((id: string) =>
+  prisma.programLevel.findMany({
+    where: { programId: id },
+    orderBy: { name: "asc" },
+    include: {
+      cohorts: {
+        orderBy: { name: "asc" },
+        include: {
+          _count: { select: { enrollments: true, mentorAssignments: true } },
+        },
+      },
+      _count: { select: { enrollments: true, mentorAssignments: true } },
+    },
   })
 );
 
@@ -83,7 +103,10 @@ export const programCohorts = cache((id: string) =>
   prisma.cohort.findMany({
     where: { programId: id },
     orderBy: { name: "asc" },
-    include: { _count: { select: { enrollments: true, mentorAssignments: true } } },
+    include: {
+      level: true,
+      _count: { select: { enrollments: true, mentorAssignments: true } },
+    },
   })
 );
 

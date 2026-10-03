@@ -43,12 +43,13 @@ const DOMAIN = "freshman.academy";
  * silently-skipped grant is somebody who cannot open the page they are
  * responsible for.
  */
-/** The three research programs, held by more than one person. */
-const RESEARCH = [
-  "Advanced Research Program",
-  "Emerging Researchers Program",
-  "Frontiers Researchers Program",
-];
+/**
+ * The merged research program — Emerging, Advanced and Frontiers are its
+ * LEVELS now, not three programs of their own (prisma/merge-research-programs.ts
+ * did the fold). The old names stay absent on purpose: a name still listed here
+ * would silently grant nothing.
+ */
+const RESEARCH = ["Research Program"];
 
 const ADMINS: Record<string, string[]> = {
   "sega@freshman.academy": ["Global Admissions Program", "Flexible Program"],
@@ -56,9 +57,7 @@ const ADMINS: Record<string, string[]> = {
   "assistant@freshman.academy": ["Global Admissions Program"],
   "sharofiddin@freshman.academy": ["Master's Program"],
   "khusanboy@freshman.academy": ["Imkon Scholars"],
-  // "Any research program" — all three of them, written out rather than matched
-  // on the word, so a fourth one opened next term needs a line here instead of
-  // inheriting access quietly.
+  // Research is one program now — an admin grant covers all its levels.
   "nigel@freshman.academy": RESEARCH,
   "research@freshman.academy": RESEARCH,
   "valera@freshman.academy": ["Full Support", "Pre-Full Support"],

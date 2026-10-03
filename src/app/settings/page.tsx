@@ -45,7 +45,7 @@ export default async function SettingsPage() {
     isMentor
       ? prisma.mentorAssignment.findMany({
           where: { mentorId: user.id },
-          include: { program: true, cohort: true },
+          include: { program: true, cohort: true, level: true },
           orderBy: { createdAt: "asc" },
         })
       : Promise.resolve([]),

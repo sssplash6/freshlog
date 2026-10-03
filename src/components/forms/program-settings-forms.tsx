@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 
 import { Select, type SelectOption } from "@/components/select";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Input } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SettingsRow } from "@/components/ui/settings-row";
@@ -11,9 +12,12 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { assignMentorToProgram, removeAssignment } from "@/lib/actions/mentors";
 import {
   archiveProgram,
+  createLevel,
   deleteCohort,
+  deleteLevel,
   deleteProgram,
   renameProgram,
+  setLevelStandardHours,
   setProgramHourBank,
   setProgramStandardHours,
   setProgramTracksPayment,
@@ -68,18 +72,27 @@ export function RenameProgramForm({
 
 /**
  * Assign a mentor to this program — the same pairing the mentors page edits,
- * reached from the program's side. Program-wide unless a cohort is named.
+ * reached from the program's side. Program-wide unless something narrower is
+ * named: a level, or a cohort inside it.
  */
 export function AssignMentorForm({
   programId,
   mentors,
+  levels,
   cohorts,
 }: {
   programId: string;
   mentors: SelectOption[];
+  /** The program's levels, each carrying its cohorts for the cascade. */
+  levels?: { id: string; name: string; cohorts: SelectOption[] }[];
+  /** Its FLAT cohorts — empty whenever it has levels. */
   cohorts: SelectOption[];
 }) {
   const [, action, save] = useSaveState(assignMentorToProgram);
+  const [levelId, setLevelId] = useState("");
+  const leveled = (levels?.length ?? 0) > 0;
+  const level = levels?.find((l) => l.id === levelId) ?? null;
+  const cohortOptions = leveled ? (level?.cohorts ?? []) : cohorts;
 
   return (
     <form action={action}>
@@ -100,15 +113,33 @@ export function AssignMentorForm({
             />
           </div>
         </div>
-        {cohorts.length > 0 && (
+        {leveled && (
+          <div className="min-w-44">
+            <span className={labelClass}>Level</span>
+            <div className="mt-1">
+              <Select
+                name="levelId"
+                ariaLabel="Level"
+                options={levels!.map((l) => ({ value: l.id, label: l.name }))}
+                placeholder="Program-wide"
+                required={false}
+                onChange={(value) => setLevelId(value)}
+              />
+            </div>
+          </div>
+        )}
+        {cohortOptions.length > 0 && (
           <div className="min-w-44">
             <span className={labelClass}>Cohort</span>
             <div className="mt-1">
+              {/* `key` remounts when the level changes, so a cohort picked
+                  under one level is never submitted under another. */}
               <Select
+                key={levelId}
                 name="cohortId"
                 ariaLabel="Cohort"
-                options={cohorts}
-                placeholder="Program-wide"
+                options={cohortOptions}
+                placeholder={leveled ? "Whole level" : "Program-wide"}
                 required={false}
               />
             </div>
@@ -152,6 +183,54 @@ export function RemoveMentorButton({
         question="They leave this program. Hours already allocated to students stay."
         confirmLabel="Yes, remove"
         pendingLabel="Removing…"
+      />
+      <SaveState state={save} />
+    </div>
+  );
+}
+
+/** Add a level to the program — "Emerging" inside Research. */
+export function CreateLevelForm({ programId }: { programId: string }) {
+  const [, action, save] = useSaveState(createLevel);
+
+  return (
+    <Disclosure
+      label="Add a level"
+      hint="The first one makes this a leveled program: new enrollments pick a level, and its cohorts sit under one."
+    >
+      <form action={action} className="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="programId" value={programId} />
+        <div className="w-56">
+          <Input name="name" type="text" required placeholder="e.g. Emerging" />
+        </div>
+        <SubmitButton pendingText="Adding…">Add level</SubmitButton>
+      </form>
+      <SaveState state={save} />
+    </Disclosure>
+  );
+}
+
+/** Delete an empty level — the same ask an empty cohort gets, one row up. */
+export function DeleteLevelButton({
+  levelId,
+  levelName,
+}: {
+  levelId: string;
+  levelName: string;
+}) {
+  const [, action, save] = useSaveState(deleteLevel);
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <ConfirmInline
+        variant="quiet"
+        action={action}
+        values={{ levelId }}
+        pending={save.kind === "saving"}
+        label={`Delete ${levelName}`}
+        question="Nothing is in it, so nothing moves."
+        confirmLabel="Yes, delete"
+        pendingLabel="Deleting…"
       />
       <SaveState state={save} />
     </div>
@@ -301,6 +380,89 @@ export function StandardHoursForm({
       control={
         <form action={action} className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="programId" value={programId} />
+          <div>
+            <label htmlFor={minutesId} className={labelClass}>
+              Minutes
+            </label>
+            <Input
+              id={minutesId}
+              name="minutes"
+              type="number"
+              inputMode="numeric"
+              min="1"
+              step="1"
+              placeholder="600"
+              value={minutes}
+              onChange={(event) => setMinutes(event.target.value)}
+              className="w-28"
+            />
+          </div>
+          <div>
+            <label htmlFor={daysId} className={labelClass}>
+              Use within (days)
+            </label>
+            <Input
+              id={daysId}
+              name="days"
+              type="number"
+              inputMode="numeric"
+              min="1"
+              max="1095"
+              step="1"
+              placeholder="90"
+              value={days}
+              onChange={(event) => setDays(event.target.value)}
+              className="w-28"
+            />
+          </div>
+          <SubmitButton variant="secondary" pendingText="Saving…">Save</SubmitButton>
+        </form>
+      }
+      state={<SaveState state={save} />}
+    />
+  );
+}
+
+/**
+ * The grant every student joining at THIS level receives — the pair the
+ * program's own `StandardHoursForm` holds, one row down, where Emerging's two
+ * hours and Advanced's fifteen actually differ. Both boxes empty means the
+ * level inherits the program's.
+ */
+export function LevelStandardHoursForm({
+  levelId,
+  levelName,
+  standardMinutes,
+  standardDays,
+  hourBank,
+}: {
+  levelId: string;
+  levelName: string;
+  standardMinutes: number | null;
+  standardDays: number | null;
+  hourBank: boolean;
+}) {
+  const minutesId = useId();
+  const daysId = useId();
+  const [minutes, setMinutes] = useState(standardMinutes?.toString() ?? "");
+  const [days, setDays] = useState(standardDays?.toString() ?? "");
+  const dirty =
+    minutes.trim() !== (standardMinutes?.toString() ?? "") ||
+    days.trim() !== (standardDays?.toString() ?? "");
+  const [, action, save] = useSaveState(setLevelStandardHours, dirty);
+
+  return (
+    <SettingsRow
+      label="Standard hours"
+      htmlFor={minutesId}
+      description={
+        standardMinutes !== null && standardDays !== null
+          ? `Every student who joins ${levelName} gets ${formatDuration(standardMinutes)} ${hourBank ? "in their hour bank" : "unassigned"}, to use within ${standardDays} day${standardDays === 1 ? "" : "s"}. A change reaches only students who join after it.`
+          : `Inherits the program's. Set both to give ${levelName} its own, instead of allocating by hand.`
+      }
+      control={
+        <form action={action} className="flex flex-wrap items-end gap-3">
+          <input type="hidden" name="levelId" value={levelId} />
           <div>
             <label htmlFor={minutesId} className={labelClass}>
               Minutes

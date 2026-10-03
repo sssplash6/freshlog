@@ -7,10 +7,11 @@ import { fieldChrome } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
 import type { ProgramOption } from "@/lib/queries";
 
-/** A pairing the server understands: "p:<programId>" or "c:<cohortId>". */
+/** A pairing the server understands: "p:<programId>", "l:<levelId>" or "c:<cohortId>". */
 export type Target = string;
 
 const programTarget = (programId: string) => `p:${programId}`;
+const levelTarget = (levelId: string) => `l:${levelId}`;
 const cohortTarget = (cohortId: string) => `c:${cohortId}`;
 
 /** Show the filter once the list is long enough that scanning it costs something. */
@@ -19,7 +20,16 @@ const SEARCH_THRESHOLD = 6;
 function labelFor(programs: ProgramOption[], target: Target): string | null {
   for (const p of programs) {
     if (target === programTarget(p.id)) {
-      return p.cohorts.length > 0 ? `${p.name} · all cohorts` : p.name;
+      return p.levels.length > 0
+        ? `${p.name} · all levels`
+        : p.cohorts.length > 0
+          ? `${p.name} · all cohorts`
+          : p.name;
+    }
+    for (const l of p.levels) {
+      if (target === levelTarget(l.id)) return `${p.name} / ${l.name}`;
+      const nested = l.cohorts.find((c) => cohortTarget(c.id) === target);
+      if (nested) return `${p.name} / ${l.name} / ${nested.name}`;
     }
     const cohort = p.cohorts.find((c) => cohortTarget(c.id) === target);
     if (cohort) return `${p.name} / ${cohort.name}`;
@@ -62,16 +72,32 @@ export function ProgramTargetsPicker({
   const [query, setQuery] = useState("");
   const [invalid, setInvalid] = useState(false);
   const [expanded, setExpanded] = useState<string[]>(() =>
-    // A program opens with its cohorts showing when one of them is the reason
-    // this mentor is assigned at all.
+    // A program opens with its subdivisions showing when one of them is the
+    // reason this mentor is assigned at all.
     programs
-      .filter((p) => p.cohorts.some((c) => defaultTargets.includes(cohortTarget(c.id))))
+      .filter(
+        (p) =>
+          p.cohorts.some((c) => defaultTargets.includes(cohortTarget(c.id))) ||
+          p.levels.some(
+            (l) =>
+              defaultTargets.includes(levelTarget(l.id)) ||
+              l.cohorts.some((c) => defaultTargets.includes(cohortTarget(c.id))),
+          ),
+      )
       .map((p) => p.id),
   );
   const firstControlRef = useRef<HTMLInputElement>(null);
   const errorId = "program-targets-error";
 
-  const rows = programs.length + programs.reduce((n, p) => n + p.cohorts.length, 0);
+  const rows =
+    programs.length +
+    programs.reduce(
+      (n, p) =>
+        n +
+        p.cohorts.length +
+        p.levels.reduce((m, l) => m + 1 + l.cohorts.length, 0),
+      0,
+    );
   const withSearch = rows > SEARCH_THRESHOLD;
 
   const visible = useMemo(() => {
@@ -80,7 +106,12 @@ export function ProgramTargetsPicker({
     return programs.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
-        p.cohorts.some((c) => c.name.toLowerCase().includes(q)),
+        p.cohorts.some((c) => c.name.toLowerCase().includes(q)) ||
+        p.levels.some(
+          (l) =>
+            l.name.toLowerCase().includes(q) ||
+            l.cohorts.some((c) => c.name.toLowerCase().includes(q)),
+        ),
     );
   }, [programs, query]);
 
@@ -97,9 +128,27 @@ export function ProgramTargetsPicker({
       set(selected.filter((s) => s !== t));
       return;
     }
-    // Whole program wins: its cohort rows would say the same thing again.
-    const cohorts = p.cohorts.map((c) => cohortTarget(c.id));
-    set([...selected.filter((s) => !cohorts.includes(s)), t]);
+    // Whole program wins: its level and cohort rows would say the same thing
+    // again.
+    const inside = [
+      ...p.cohorts.map((c) => cohortTarget(c.id)),
+      ...p.levels.flatMap((l) => [
+        levelTarget(l.id),
+        ...l.cohorts.map((c) => cohortTarget(c.id)),
+      ]),
+    ];
+    set([...selected.filter((s) => !inside.includes(s)), t]);
+  };
+
+  const toggleLevel = (l: ProgramOption["levels"][number]) => {
+    const t = levelTarget(l.id);
+    if (has(t)) {
+      set(selected.filter((s) => s !== t));
+      return;
+    }
+    // Whole level wins: its cohort rows would say the same thing again.
+    const inside = l.cohorts.map((c) => cohortTarget(c.id));
+    set([...selected.filter((s) => !inside.includes(s)), t]);
   };
 
   const toggleCohort = (cohortId: string) => {
@@ -111,8 +160,14 @@ export function ProgramTargetsPicker({
 
   const selectAllVisible = () => {
     const wide = visible.map((p) => programTarget(p.id));
-    const theirCohorts = visible.flatMap((p) => p.cohorts.map((c) => cohortTarget(c.id)));
-    set([...selected.filter((s) => !theirCohorts.includes(s) && !wide.includes(s)), ...wide]);
+    const inside = visible.flatMap((p) => [
+      ...p.cohorts.map((c) => cohortTarget(c.id)),
+      ...p.levels.flatMap((l) => [
+        levelTarget(l.id),
+        ...l.cohorts.map((c) => cohortTarget(c.id)),
+      ]),
+    ]);
+    set([...selected.filter((s) => !inside.includes(s) && !wide.includes(s)), ...wide]);
   };
 
   return (
@@ -213,7 +268,18 @@ export function ProgramTargetsPicker({
         )}
         {visible.map((p, i) => {
           const wide = has(programTarget(p.id));
-          const chosenCohorts = p.cohorts.filter((c) => has(cohortTarget(c.id)));
+          // Everything narrower than the program itself — its levels, and the
+          // cohorts under them or directly under it.
+          const subdivisions =
+            p.levels.length +
+            p.cohorts.length;
+          const chosen =
+            p.cohorts.filter((c) => has(cohortTarget(c.id))).length +
+            p.levels.filter((l) => has(levelTarget(l.id))).length +
+            p.levels.reduce(
+              (n, l) => n + l.cohorts.filter((c) => has(cohortTarget(c.id))).length,
+              0,
+            );
           const open = expanded.includes(p.id);
           return (
             <li key={p.id}>
@@ -228,18 +294,18 @@ export function ProgramTargetsPicker({
                   />
                   <span className="min-w-0">
                     <span className="block min-w-0 truncate font-medium">{p.name}</span>
-                    {p.cohorts.length > 0 && (
+                    {subdivisions > 0 && (
                       <span className="block text-xs text-muted-fg">
                         {wide
-                          ? "Every cohort, including ones added later"
-                          : chosenCohorts.length > 0
-                            ? `${chosenCohorts.length}/${p.cohorts.length} cohorts`
+                          ? "Everything in it, including what is added later"
+                          : chosen > 0
+                            ? `${chosen} of ${subdivisions} inside`
                             : "Entire program"}
                       </span>
                     )}
                   </span>
                 </label>
-                {p.cohorts.length > 0 && (
+                {subdivisions > 0 && (
                   <button
                     type="button"
                     aria-expanded={open}
@@ -252,7 +318,9 @@ export function ProgramTargetsPicker({
                     }
                     className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
                   >
-                    {p.cohorts.length} cohort{p.cohorts.length === 1 ? "" : "s"}
+                    {p.levels.length > 0
+                      ? `${p.levels.length} level${p.levels.length === 1 ? "" : "s"}`
+                      : `${p.cohorts.length} cohort${p.cohorts.length === 1 ? "" : "s"}`}
                     <ChevronDownIcon
                       className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")}
                     />
@@ -260,14 +328,68 @@ export function ProgramTargetsPicker({
                 )}
               </div>
 
-              {open && p.cohorts.length > 0 && (
+              {open && subdivisions > 0 && (
                 <ul className="border-t border-line/60 bg-canvas/60 px-3 py-2">
                   {wide && (
                     <li className="pb-1.5 text-xs text-muted-fg">
-                      The whole program is assigned, so single cohorts add
-                      nothing. Untick it to pick cohorts instead.
+                      The whole program is assigned, so single levels or
+                      cohorts add nothing. Untick it to pick inside instead.
                     </li>
                   )}
+                  {p.levels.map((l) => {
+                    const levelWide = has(levelTarget(l.id));
+                    return (
+                      <li key={l.id}>
+                        <label
+                          className={cn(
+                            "flex items-center gap-2.5 py-1 text-sm",
+                            wide ? "text-muted-fg" : "text-ink",
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={wide || levelWide}
+                            disabled={wide}
+                            onChange={() => toggleLevel(l)}
+                            className="h-4 w-4 shrink-0 accent-brand"
+                          />
+                          <span className="min-w-0">
+                            {l.name}
+                            {l.cohorts.length > 0 && (
+                              <span className="block text-xs text-muted-fg">
+                                {levelWide || wide
+                                  ? `All ${l.cohorts.length} cohort${l.cohorts.length === 1 ? "" : "s"}`
+                                  : `${l.cohorts.length} cohort${l.cohorts.length === 1 ? "" : "s"}`}
+                              </span>
+                            )}
+                          </span>
+                        </label>
+                        {l.cohorts.length > 0 && (
+                          <ul className="pl-7">
+                            {l.cohorts.map((c) => (
+                              <li key={c.id}>
+                                <label
+                                  className={cn(
+                                    "flex items-center gap-2.5 py-1 text-sm",
+                                    wide || levelWide ? "text-muted-fg" : "text-ink",
+                                  )}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={wide || levelWide || has(cohortTarget(c.id))}
+                                    disabled={wide || levelWide}
+                                    onChange={() => toggleCohort(c.id)}
+                                    className="h-4 w-4 shrink-0 accent-brand"
+                                  />
+                                  {c.name}
+                                </label>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    );
+                  })}
                   {p.cohorts.map((c) => (
                     <li key={c.id}>
                       <label
@@ -296,7 +418,7 @@ export function ProgramTargetsPicker({
 
       {invalid && (
         <p id={errorId} role="alert" className="mt-1.5 text-xs text-danger-ink">
-          Pick at least one program or cohort.
+          Pick at least one program, level or cohort.
         </p>
       )}
 

@@ -116,6 +116,7 @@ export const PAGE_PARAMS: readonly string[] = ["page", "site"];
 export const FILTER_PARAMS: readonly string[] = [
   "q",
   "program",
+  "level",
   "cohort",
   "student",
   "mentor",
@@ -714,7 +715,11 @@ function reachOf(
   programIds?: readonly string[]
 ): Prisma.StudentProfileWhereInput {
   return mentorReachWhere(mentorId, {
-    pairings: programIds?.map((programId) => ({ programId, cohortId: null })),
+    pairings: programIds?.map((programId) => ({
+      programId,
+      cohortId: null,
+      levelId: null,
+    })),
   });
 }
 
@@ -770,15 +775,20 @@ export function studentsWhere(
   // outside the grant then matches nothing, which is the honest answer, and
   // there is no branch in which it could widen the query.
   if (program) and.push({ enrollments: { some: { programId: program } } });
+  // Level and cohort narrow the same way — and land on the SAME enrollment as
+  // each other and as the program: a student in Research / Advanced and in
+  // Global Admissions / Spring 25 must not match "?level=advanced&cohort=s25"
+  // by satisfying each half in a different program.
+  const level = readParam(params, "level");
   const cohort = readParam(params, "cohort");
-  // On the SAME enrollment as the program when both are given: a cohort of
-  // Global Admissions says nothing about the student's Master's Program row,
-  // and two separate `some` clauses would match a student who satisfies each
-  // in a different program.
-  if (cohort) {
+  if (level || cohort) {
     and.push({
       enrollments: {
-        some: { cohortId: cohort, ...(program ? { programId: program } : {}) },
+        some: {
+          ...(level ? { levelId: level } : {}),
+          ...(cohort ? { cohortId: cohort } : {}),
+          ...(program ? { programId: program } : {}),
+        },
       },
     });
   }

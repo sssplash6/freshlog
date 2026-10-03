@@ -36,14 +36,33 @@ export const TASK_PRESETS: string[] = [
 ];
 
 /**
- * Starter programs. All are flat single programs — no seeded cohorts;
- * students belong to the program directly. Admins can add cohorts (and whole
- * programs) from the dashboard when a program grows into them.
+ * Starter programs. Most are flat single programs — students belong to the
+ * program directly. Admins can add cohorts (and whole programs) from the
+ * dashboard when a program grows into them.
+ *
+ * Research is the leveled one: Emerging, Advanced and Frontiers are LEVELS
+ * inside one program, each with its own standard grant — the merge script
+ * folds the three old research programs into this same shape.
  */
-export const PROGRAMS: { name: string; cohorts: string[] }[] = [
+export const PROGRAMS: {
+  name: string;
+  cohorts: string[];
+  levels?: { name: string; standardMinutes: number; standardDays: number }[];
+}[] = [
   { name: "Global Admissions Program", cohorts: [] },
   { name: "Flexible Program", cohorts: [] },
   { name: MASTERS_PROGRAM_NAME, cohorts: [] },
+  {
+    name: "Research Program",
+    cohorts: [],
+    // 90 days: the app's own "use within" default — editable per level on the
+    // program's settings page.
+    levels: [
+      { name: "Emerging", standardMinutes: 120, standardDays: 90 },
+      { name: "Advanced", standardMinutes: 900, standardDays: 90 },
+      { name: "Frontiers", standardMinutes: 1200, standardDays: 90 },
+    ],
+  },
 ];
 
 /**

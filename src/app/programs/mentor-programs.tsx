@@ -93,7 +93,7 @@ export async function MentorPrograms({ mentorId }: { mentorId: string }) {
   const [pairings, caseload] = await Promise.all([
     prisma.mentorAssignment.findMany({
       where: { mentorId },
-      include: { program: true, cohort: true },
+      include: { program: true, cohort: true, level: true },
       orderBy: [{ program: { name: "asc" } }],
     }),
     mentorCaseload(mentorId),

@@ -161,7 +161,7 @@ export default async function StudentHomePage() {
 
   const profile = await prisma.studentProfile.findUnique({
     where: { userId: user.id },
-    include: { enrollments: { include: { program: true, cohort: true } } },
+    include: { enrollments: { include: { program: true, cohort: true, level: true } } },
   });
 
   // Everything unfinished about this account is finished at /onboarding, and

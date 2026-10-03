@@ -51,21 +51,39 @@ export async function completeMentorProfile(
 }
 
 /**
- * Resolve a "p:<programId>" / "c:<cohortId>" assignment target to the
- * program + optional cohort it names, with a display label.
+ * Resolve a "p:<programId>" / "l:<levelId>" / "c:<cohortId>" assignment target
+ * to the program + optional level + optional cohort it names, with a display
+ * label. A level pairing covers every cohort under it; a cohort pairing is
+ * the narrowest and carries no levelId — its cohort names the level.
  */
 async function resolveAssignmentTarget(target: string) {
   const [kind, targetId] = target.split(":");
   if (kind === "c") {
     const cohort = await prisma.cohort.findUnique({
       where: { id: targetId },
-      include: { program: true },
+      include: { program: true, level: true },
     });
     if (!cohort) return null;
     return {
       programId: cohort.programId,
+      levelId: null,
       cohortId: cohort.id,
-      label: `${cohort.program.name} / ${cohort.name}`,
+      label: cohort.level
+        ? `${cohort.program.name} / ${cohort.level.name} / ${cohort.name}`
+        : `${cohort.program.name} / ${cohort.name}`,
+    };
+  }
+  if (kind === "l") {
+    const level = await prisma.programLevel.findUnique({
+      where: { id: targetId },
+      include: { program: true },
+    });
+    if (!level) return null;
+    return {
+      programId: level.programId,
+      levelId: level.id,
+      cohortId: null,
+      label: `${level.program.name} / ${level.name}`,
     };
   }
   if (kind === "p") {
@@ -73,21 +91,26 @@ async function resolveAssignmentTarget(target: string) {
       where: { id: targetId },
     });
     if (!program) return null;
-    return { programId: program.id, cohortId: null, label: program.name };
+    return {
+      programId: program.id,
+      levelId: null,
+      cohortId: null,
+      label: program.name,
+    };
   }
   return null;
 }
 
-/** Resolve every checked "p:"/"c:" target; null if any fails to resolve. */
+/** Resolve every checked "p:"/"l:"/"c:" target; null if any fails to resolve. */
 async function resolveAssignmentTargets(raw: FormDataEntryValue[]) {
   const targets = await Promise.all(
     raw.map((value) => resolveAssignmentTarget(String(value)))
   );
   if (targets.some((t) => !t)) return null;
-  // Deduplicate identical targets (same program + cohort pairing).
+  // Deduplicate identical targets (same program + level + cohort pairing).
   const seen = new Set<string>();
   return (targets as NonNullable<(typeof targets)[number]>[]).filter((t) => {
-    const key = `${t.programId}:${t.cohortId ?? ""}`;
+    const key = `${t.programId}:${t.levelId ?? ""}:${t.cohortId ?? ""}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -152,6 +175,7 @@ export async function createMentor(
       data: targets.map((t) => ({
         mentorId: mentor.id,
         programId: t.programId,
+        levelId: t.levelId,
         cohortId: t.cohortId,
       })),
     });
@@ -237,11 +261,16 @@ export async function updateMentor(
   const targets = await resolveAssignmentTargets(formData.getAll("targets"));
   if (!targets) return { ok: false, error: "Pick a program or cohort." };
 
-  const wanted = new Set(targets.map((t) => `${t.programId}:${t.cohortId ?? ""}`));
+  const wanted = new Set(
+    targets.map((t) => `${t.programId}:${t.levelId ?? ""}:${t.cohortId ?? ""}`)
+  );
   const toCreate = targets.filter(
     (t) =>
       !mentor.mentorAssignments.some(
-        (a) => a.programId === t.programId && a.cohortId === t.cohortId
+        (a) =>
+          a.programId === t.programId &&
+          (a.levelId ?? null) === t.levelId &&
+          a.cohortId === t.cohortId
       )
   );
   for (const target of toCreate) {
@@ -256,7 +285,7 @@ export async function updateMentor(
   const scope = await adminWriteScope(actor);
   const toDelete = mentor.mentorAssignments.filter(
     (a) =>
-      !wanted.has(`${a.programId}:${a.cohortId ?? ""}`) &&
+      !wanted.has(`${a.programId}:${a.levelId ?? ""}:${a.cohortId ?? ""}`) &&
       scopeCovers(scope, a.programId)
   );
   const remaining =
@@ -280,6 +309,7 @@ export async function updateMentor(
         data: toCreate.map((t) => ({
           mentorId,
           programId: t.programId,
+          levelId: t.levelId,
           cohortId: t.cohortId,
         })),
       });
@@ -328,7 +358,7 @@ export async function setBookingLink(
   const assignmentId = String(formData.get("assignmentId") ?? "");
   const assignment = await prisma.mentorAssignment.findUnique({
     where: { id: assignmentId },
-    include: { program: true, cohort: true },
+    include: { program: true, cohort: true, level: true },
   });
   if (!assignment || assignment.mentorId !== actor.id) {
     return { ok: false, error: "You can only edit your own booking links." };
@@ -351,9 +381,13 @@ export async function setBookingLink(
   });
 
   revalidatePath("/", "layout");
-  const label = assignment.cohort
-    ? `${assignment.program.name} / ${assignment.cohort.name}`
-    : assignment.program.name;
+  const label = [
+    assignment.program.name,
+    assignment.level?.name,
+    assignment.cohort?.name,
+  ]
+    .filter(Boolean)
+    .join(" / ");
   return { ok: true, message: `Booking link for ${label} saved.` };
 }
 
@@ -378,7 +412,7 @@ export async function assignMentorToProgram(
 
   const program = await prisma.program.findUnique({
     where: { id: programId },
-    include: { cohorts: true },
+    include: { cohorts: { include: { level: true } }, levels: true },
   });
   if (!program) return { ok: false, error: "Program not found." };
 
@@ -388,8 +422,16 @@ export async function assignMentorToProgram(
     return { ok: false, error: "Pick a mentor." };
   }
 
-  // Program-wide unless a cohort was named, which is only offered where the
-  // program has cohorts at all.
+  // Program-wide unless something narrower was named: a level, which covers
+  // every cohort under it, or a single cohort (the narrowest pairing — its
+  // level travels with the cohort and is not stored again).
+  const rawLevel = String(formData.get("levelId") ?? "").trim();
+  const level = rawLevel
+    ? (program.levels.find((l) => l.id === rawLevel) ?? null)
+    : null;
+  if (rawLevel && !level) {
+    return { ok: false, error: `Pick a level in ${program.name}.` };
+  }
   const rawCohort = String(formData.get("cohortId") ?? "").trim();
   const cohort = rawCohort
     ? program.cohorts.find((c) => c.id === rawCohort)
@@ -397,10 +439,24 @@ export async function assignMentorToProgram(
   if (rawCohort && !cohort) {
     return { ok: false, error: `Pick a cohort in ${program.name}.` };
   }
-  const label = cohort ? `${program.name} / ${cohort.name}` : program.name;
+  // A cohort under a level names it: agreeing with the level select is the
+  // form's job, and disagreeing is the request's problem, not the student's.
+  if (cohort && level && cohort.levelId !== level.id) {
+    return { ok: false, error: `That cohort is not in ${level.name}.` };
+  }
+  const label = cohort
+    ? [program.name, cohort.level?.name, cohort.name].filter(Boolean).join(" / ")
+    : level
+      ? `${program.name} / ${level.name}`
+      : program.name;
 
   const existing = await prisma.mentorAssignment.findFirst({
-    where: { mentorId, programId, cohortId: cohort?.id ?? null },
+    where: {
+      mentorId,
+      programId,
+      cohortId: cohort?.id ?? null,
+      levelId: cohort ? null : (level?.id ?? null),
+    },
   });
   if (existing) {
     return {
@@ -411,7 +467,12 @@ export async function assignMentorToProgram(
 
   await prisma.$transaction(async (tx) => {
     await tx.mentorAssignment.create({
-      data: { mentorId, programId, cohortId: cohort?.id ?? null },
+      data: {
+        mentorId,
+        programId,
+        levelId: cohort ? null : (level?.id ?? null),
+        cohortId: cohort?.id ?? null,
+      },
     });
     // Assignments are what activate a plain mentor; dual-role admins are
     // already ACTIVE and stay that way.

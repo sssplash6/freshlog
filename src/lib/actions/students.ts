@@ -44,11 +44,30 @@ import { deadlinePassed } from "@/lib/deadlines";
 import { pastHours } from "@/lib/hours";
 import { grantStandardHours } from "@/lib/standard-hours";
 import { carryForward } from "@/lib/carry-forward";
-import type { Cohort, Program } from "@/generated/prisma/client";
+import type { Cohort, Program, ProgramLevel } from "@/generated/prisma/client";
 
-/** "Program" or "Program / Cohort" display label. */
-function enrollmentLabel(programName: string, cohortName?: string | null) {
-  return cohortName ? `${programName} / ${cohortName}` : programName;
+/** "Program", "Program / Level" or "Program / Level / Cohort" display label. */
+function enrollmentLabel(
+  programName: string,
+  levelName?: string | null,
+  cohortName?: string | null
+) {
+  return [programName, levelName, cohortName].filter(Boolean).join(" / ");
+}
+
+/**
+ * Whose standard pair a grant was made under: the level's when it sets one,
+ * the program's otherwise — the same precedence `grantStandardHours` resolves
+ * by, so the sentence the action ends with describes the grant that actually
+ * went out.
+ */
+function standardOf(
+  program: Pick<Program, "standardMinutes" | "standardDays">,
+  level: Pick<ProgramLevel, "standardMinutes" | "standardDays"> | null
+): Pick<Program, "standardMinutes" | "standardDays"> {
+  return level && level.standardMinutes !== null && level.standardDays !== null
+    ? level
+    : program;
 }
 
 /**
@@ -70,28 +89,49 @@ function standardNote(
 }
 
 /**
- * Resolve the program (+ cohort, required only in programs that have
- * cohorts) submitted by an enrollment form.
+ * Resolve the program (+ level where it has them, + cohort where the level —
+ * or the program itself — has them) submitted by an enrollment form.
+ *
+ * The three selects form one answer: in a leveled program the cohort must
+ * belong to the level named, and a level whose cohorts exist requires picking
+ * one — the same rule a program with flat cohorts has always held, one step
+ * down. The agreement is enforced HERE rather than trusted to the form,
+ * because the two selects are two inputs an old form — or a hand-made request
+ * — could disagree about.
  */
 async function resolveEnrollment(
   formData: FormData
 ): Promise<
   | { error: string }
-  | { program: Program; cohort: Cohort | null }
+  | { program: Program; level: ProgramLevel | null; cohort: Cohort | null }
 > {
   const programId = String(formData.get("programId") ?? "");
   const program = await prisma.program.findUnique({
     where: { id: programId },
-    include: { cohorts: true },
+    include: { levels: { include: { cohorts: true } }, cohorts: true },
   });
   if (!program) return { error: "Pick a program." };
 
-  if (program.cohorts.length === 0) return { program, cohort: null };
+  // A program either has LEVELS (its cohorts live under them) or flat
+  // cohorts — never both, which is what keeps this a single path.
+  if (program.levels.length > 0) {
+    const levelId = String(formData.get("levelId") ?? "");
+    const level = program.levels.find((l) => l.id === levelId);
+    if (!level) return { error: `Pick a level in ${program.name}.` };
+
+    if (level.cohorts.length === 0) return { program, level, cohort: null };
+    const cohortId = String(formData.get("cohortId") ?? "");
+    const cohort = level.cohorts.find((c) => c.id === cohortId);
+    if (!cohort) return { error: `Pick a cohort in ${level.name}.` };
+    return { program, level, cohort };
+  }
+
+  if (program.cohorts.length === 0) return { program, level: null, cohort: null };
 
   const cohortId = String(formData.get("cohortId") ?? "");
   const cohort = program.cohorts.find((c) => c.id === cohortId);
   if (!cohort) return { error: `Pick a cohort in ${program.name}.` };
-  return { program, cohort };
+  return { program, level: null, cohort };
 }
 
 /**
@@ -117,7 +157,7 @@ export async function createStudents(
   // enrollment is resolved before any of the rest of the form is read.
   const enrollment = await resolveEnrollment(formData);
   if ("error" in enrollment) return { ok: false, error: enrollment.error };
-  const { program, cohort } = enrollment;
+  const { program, level, cohort } = enrollment;
 
   const denied = await assertProgramScope(actor, program.id);
   if (denied) return denied;
@@ -231,6 +271,7 @@ export async function createStudents(
         data: {
           studentId: profileId,
           programId: program.id,
+          levelId: level?.id ?? null,
           cohortId: cohort?.id ?? null,
           createdById: actor.id,
         },
@@ -238,6 +279,7 @@ export async function createStudents(
       const made = await grantStandardHours(tx, {
         studentId: profileId,
         programId: program.id,
+        levelId: level?.id,
         actorId: actor.id,
       });
       if (made) standardGranted++;
@@ -262,6 +304,7 @@ export async function createStudents(
           enrollments: {
             create: {
               programId: program.id,
+              levelId: level?.id ?? null,
               cohortId: cohort?.id ?? null,
               createdById: actor.id,
             },
@@ -271,6 +314,7 @@ export async function createStudents(
       const made = await grantStandardHours(tx, {
         studentId: created.id,
         programId: program.id,
+        levelId: level?.id,
         actorId: actor.id,
       });
       if (made) standardGranted++;
@@ -286,7 +330,7 @@ export async function createStudents(
       welcomeMail({
         to: email,
         name,
-        programLabel: enrollmentLabel(program.name, cohort?.name),
+        programLabel: enrollmentLabel(program.name, level?.name, cohort?.name),
         occasion: "enrolled",
       })
     )
@@ -307,7 +351,7 @@ export async function createStudents(
           type: NOTIFICATION_TYPES.ENROLLMENT_MOVED,
           actorId: actor.id,
           href: notificationHref.studentHome(),
-          message: `You were enrolled in ${enrollmentLabel(program.name, cohort?.name)}. Your time in your other programs is unchanged.`,
+          message: `You were enrolled in ${enrollmentLabel(program.name, level?.name, cohort?.name)}. Your time in your other programs is unchanged.`,
         });
       }
     });
@@ -330,9 +374,9 @@ export async function createStudents(
   return {
     ok: true,
     message:
-      `${added} student${added === 1 ? "" : "s"} added to ${enrollmentLabel(program.name, cohort?.name)}.` +
+      `${added} student${added === 1 ? "" : "s"} added to ${enrollmentLabel(program.name, level?.name, cohort?.name)}.` +
       alsoEnrolled +
-      standardNote(program, standardGranted, added) +
+      standardNote(standardOf(program, level), standardGranted, added) +
       ` They'll confirm their Telegram username when they first sign in.` +
       (emailConfigured()
         ? ` A welcome email is on its way to ${added === 1 ? "them" : "each of them"}.`
@@ -551,7 +595,7 @@ export async function completeOnboarding(
 
   const enrollment = await resolveEnrollment(formData);
   if ("error" in enrollment) return { ok: false, error: enrollment.error };
-  const { program, cohort } = enrollment;
+  const { program, level, cohort } = enrollment;
 
   // The people who administer the program this student just picked — not
   // every admin in the school, most of whom cannot approve them anyway.
@@ -570,6 +614,7 @@ export async function completeOnboarding(
         enrollments: {
           create: {
             programId: program.id,
+            levelId: level?.id ?? null,
             cohortId: cohort?.id ?? null,
             createdById: actor.id,
           },
@@ -583,7 +628,7 @@ export async function completeOnboarding(
       // Straight at the approval screen: a signup that needs approving should
       // be one click from the notice, not a search away.
       href: notificationHref.adminStudent(created.id),
-      message: `${name} (${actor.email}) signed up for ${enrollmentLabel(program.name, cohort?.name)} and is awaiting approval.`,
+      message: `${name} (${actor.email}) signed up for ${enrollmentLabel(program.name, level?.name, cohort?.name)} and is awaiting approval.`,
     });
   });
 
@@ -613,7 +658,7 @@ export async function setStudentEmail(
     where: { id: profileId },
     include: {
       user: true,
-      enrollments: { include: { program: true, cohort: true } },
+      enrollments: { include: { program: true, cohort: true, level: true } },
     },
   });
   if (!profile) return { ok: false, error: "Student not found." };
@@ -702,7 +747,7 @@ export async function moveStudent(
     where: { id: profileId },
     include: {
       user: true,
-      enrollments: { include: { program: true, cohort: true } },
+      enrollments: { include: { program: true, cohort: true, level: true } },
     },
   });
   if (!profile) return { ok: false, error: "Student not found." };
@@ -741,12 +786,16 @@ export async function moveStudent(
 
   const enrollment = await resolveEnrollment(formData);
   if ("error" in enrollment) return { ok: false, error: enrollment.error };
-  const { program, cohort } = enrollment;
+  const { program, level, cohort } = enrollment;
 
   const deniedTarget = await assertProgramScope(actor, program.id);
   if (deniedTarget) return deniedTarget;
 
-  if (program.id === from.programId && (cohort?.id ?? null) === from.cohortId) {
+  if (
+    program.id === from.programId &&
+    (level?.id ?? null) === from.levelId &&
+    (cohort?.id ?? null) === from.cohortId
+  ) {
     return { ok: true, message: "No change: they're already enrolled there." };
   }
   if (
@@ -772,17 +821,22 @@ export async function moveStudent(
     }
   }
 
-  const fromLabel = enrollmentLabel(from.program.name, from.cohort?.name);
-  const to = enrollmentLabel(program.name, cohort?.name);
+  const fromLabel = enrollmentLabel(from.program.name, from.level?.name, from.cohort?.name);
+  const to = enrollmentLabel(program.name, level?.name, cohort?.name);
 
   const studentName = profile.user.name ?? profile.user.email;
   const { granted, carried } = await prisma.$transaction(async (tx) => {
     await tx.studentEnrollment.update({
       where: { id: from.id },
-      data: { programId: program.id, cohortId: cohort?.id ?? null },
+      data: {
+        programId: program.id,
+        levelId: level?.id ?? null,
+        cohortId: cohort?.id ?? null,
+      },
     });
-    // A move between two cohorts of the same program arrives nowhere new: no
-    // standard grant, and nothing to carry.
+    // A move between levels or cohorts of the same program arrives nowhere
+    // new: the ledger is the program's, so no standard grant and nothing to
+    // carry — the promotion is a label change, which is the point of them.
     if (program.id === from.programId) {
       await notify(tx, {
         to: [profile.userId],
@@ -799,6 +853,7 @@ export async function moveStudent(
     const granted = await grantStandardHours(tx, {
       studentId: profile.id,
       programId: program.id,
+      levelId: level?.id,
       actorId: actor.id,
     });
     const carried = await carryForward(tx, {
@@ -840,7 +895,7 @@ export async function moveStudent(
     message:
       `${studentName} moved from ${fromLabel} to ${to}.` +
       carriedNote +
-      standardNote(program, granted ? 1 : 0, 1),
+      standardNote(standardOf(program, level), granted ? 1 : 0, 1),
   };
 }
 
@@ -872,7 +927,7 @@ export async function enrollStudent(
 
   const enrollment = await resolveEnrollment(formData);
   if ("error" in enrollment) return { ok: false, error: enrollment.error };
-  const { program, cohort } = enrollment;
+  const { program, level, cohort } = enrollment;
 
   const denied = await assertProgramScope(actor, program.id);
   if (denied) return denied;
@@ -881,12 +936,13 @@ export async function enrollStudent(
     return { ok: true, message: `They are already in ${program.name}.` };
   }
 
-  const label = enrollmentLabel(program.name, cohort?.name);
+  const label = enrollmentLabel(program.name, level?.name, cohort?.name);
   const granted = await prisma.$transaction(async (tx) => {
     await tx.studentEnrollment.create({
       data: {
         studentId: profile.id,
         programId: program.id,
+        levelId: level?.id ?? null,
         cohortId: cohort?.id ?? null,
         createdById: actor.id,
       },
@@ -901,6 +957,7 @@ export async function enrollStudent(
     return grantStandardHours(tx, {
       studentId: profile.id,
       programId: program.id,
+      levelId: level?.id,
       actorId: actor.id,
     });
   });
@@ -909,7 +966,7 @@ export async function enrollStudent(
   return {
     ok: true,
     message: granted
-      ? `${profile.user.name ?? profile.user.email} is now in ${label}.${standardNote(program, 1, 1)}`
+      ? `${profile.user.name ?? profile.user.email} is now in ${label}.${standardNote(standardOf(program, level), 1, 1)}`
       : `${profile.user.name ?? profile.user.email} is now in ${label}. Allocate their hours for it next.`,
   };
 }
@@ -941,6 +998,7 @@ export async function unenrollStudent(
     include: {
       program: true,
       cohort: true,
+      level: true,
       student: {
         include: {
           user: true,
@@ -1009,7 +1067,7 @@ export async function unenrollStudent(
     };
   }
 
-  const label = enrollmentLabel(enrollment.program.name, enrollment.cohort?.name);
+  const label = enrollmentLabel(enrollment.program.name, enrollment.level?.name, enrollment.cohort?.name);
   await prisma.$transaction(async (tx) => {
     // Nothing was logged and nothing was granted (both checked above), so the
     // only rows that can point at this program are agenda items that were
@@ -1125,7 +1183,7 @@ export async function approveStudent(
     where: { id: profileId },
     include: {
       user: true,
-      enrollments: { include: { program: true, cohort: true } },
+      enrollments: { include: { program: true, cohort: true, level: true } },
     },
   });
   if (!profile) return { ok: false, error: "Student not found." };
@@ -1156,15 +1214,16 @@ export async function approveStudent(
       href: notificationHref.studentHome(),
       message: `Your registration for ${programLabel} was approved. You'll be notified as mentor hours are allocated to you.`,
     });
-    const granted: Program[] = [];
+    const granted: { program: Program; level: ProgramLevel | null }[] = [];
     for (const e of profile.enrollments) {
       if (e.exchangeId) continue;
       const made = await grantStandardHours(tx, {
         studentId: profile.id,
         programId: e.programId,
+        levelId: e.levelId,
         actorId: actor.id,
       });
-      if (made) granted.push(e.program);
+      if (made) granted.push({ program: e.program, level: e.level });
     }
     return granted;
   });
@@ -1186,7 +1245,7 @@ export async function approveStudent(
       (grantedIn.length === 0
         ? " Now allocate their mentor hours."
         : grantedIn.length === 1
-          ? standardNote(grantedIn[0], 1, 1)
+          ? standardNote(standardOf(grantedIn[0].program, grantedIn[0].level), 1, 1)
           : " Each of their programs' standard hours is in place.") +
       (emailConfigured() ? " A welcome email is on its way to them." : ""),
   };

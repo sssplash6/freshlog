@@ -4,6 +4,10 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 ## 2026-10-03
 
+### New
+- The three research programs become one. **Research Program** now holds three levels — Emerging, Advanced and Frontiers — each with its own starting grant (2h, 15h and 20h), and each level can hold intake cohorts of its own, so two levels may both have a "Fall 2026". Enrolling or moving a student asks for program, then level, then cohort. Mentors can still be paired program-wide — one Research mentor may teach in every level — or narrowed to a level or a cohort, and each program's roster gains a level filter.
+- Moving a student between levels or intakes of the same program no longer touches their hours: the balance belongs to the program, so a promotion to Advanced is a label change rather than a transfer.
+
 ### Fixed
 - Creating an hour bank and choosing to include past hours no longer shrinks the bank: the number you enter is the bank's size, and the student's unused time with mentors folds into it instead of being taken out twice.
 - A program card on Analytics now says how much of the program's granted time has been delivered — "55% of the 8h granted" — instead of that program's share of every hour the school logged, which read as if a small program had barely started.

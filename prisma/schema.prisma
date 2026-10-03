@@ -137,6 +137,7 @@ model Program {
   // student joining afterwards gets it; changing it touches nobody already in.
   standardMinutes   Int?
   standardDays      Int?
+  levels            ProgramLevel[]
   cohorts           Cohort[]
   enrollments       StudentEnrollment[]
   mentorAssignments MentorAssignment[]
@@ -186,21 +187,63 @@ model ProgramStaff {
   @@unique([userId, programId])
 }
 
-model Cohort {
+// One level of a program — "Emerging" inside Research, where a cohort is one
+// intake of it.
+//
+// Why a row of its own rather than cohorts with a shared prefix, or programs
+// named "Emerging Researchers Program": the level is what the standard grant
+// belongs to (Emerging buys two hours, Advanced fifteen, Frontiers twenty —
+// the reason these were separate PROGRAMS until 3 October 2026), and a grant
+// typed onto every cohort of a level is the same figure re-entered, which is
+// the mistake `Program.standardMinutes` exists to prevent one row up.
+//
+// A program either has levels or has flat cohorts — never both. Global
+// Admissions' "Spring 25" needs no level above it, so `Cohort.levelId` stays
+// null there, and a level is refused while a program still holds level-less
+// cohorts (see createLevel): a cohort that could sit under two shapes is one
+// nobody has to ask about.
+model ProgramLevel {
   id        String @id @default(cuid())
-  name      String
   programId String
+  name      String
+  // The standard grant for THIS level — same pair as Program.standardMinutes /
+  // standardDays, resolved by grantStandardHours level-first. A leveled program
+  // leaves its own pair null: the level is what was bought.
+  standardMinutes Int?
+  standardDays    Int?
 
-  program           Program             @relation(fields: [programId], references: [id])
+  program           Program             @relation(fields: [programId], references: [id], onDelete: Cascade)
+  cohorts           Cohort[]
   enrollments       StudentEnrollment[]
   mentorAssignments MentorAssignment[]
 
   @@unique([programId, name])
 }
 
-// A mentor's assignment to a program — or to one cohort within it, for
-// programs that have cohorts (only Global Admissions). cohortId is null for
-// program-wide assignments. The Calendly booking link lives on the pairing
+model Cohort {
+  id        String @id @default(cuid())
+  name      String
+  programId String
+  // The level this intake sits under, in programs that have levels. Null in a
+  // program with flat cohorts (Global Admissions) — the only other shape a
+  // cohort takes.
+  levelId   String?
+
+  program           Program             @relation(fields: [programId], references: [id])
+  level             ProgramLevel?       @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  enrollments       StudentEnrollment[]
+  mentorAssignments MentorAssignment[]
+
+  // Per level, so "Fall 2026" under Emerging and "Fall 2026" under Advanced
+  // are two intakes, not a collision. NULLs are distinct in a unique index, so
+  // a flat program's names are guarded by the create action rather than here.
+  @@unique([programId, levelId, name])
+}
+
+// A mentor's assignment to a program — to one level or one cohort within it,
+// for programs that have them (levels in Research, cohorts in Global
+// Admissions). cohortId and levelId both null is program-wide. The Calendly
+// booking link lives on the pairing
 // but is set by the MENTOR (admins only create the pairing); it stays null
 // until the mentor fills it in.
 // NOTE: SQLite treats NULLs as distinct in unique indexes, so uniqueness of
@@ -209,15 +252,24 @@ model MentorAssignment {
   id          String   @id @default(cuid())
   mentorId    String
   programId   String
+  // A pairing names the WIDEST thing it covers: program-wide (both null), one
+  // level (levelId, every cohort under it now and later), or one cohort. A
+  // cohort pairing carries no levelId — the cohort names its own, and storing
+  // it twice would be a fact that could disagree.
   cohortId    String?
+  levelId     String?
   calendlyUrl String?
   createdAt   DateTime @default(now())
 
-  mentor  User    @relation("MentorUser", fields: [mentorId], references: [id])
-  program Program @relation(fields: [programId], references: [id])
-  cohort  Cohort? @relation(fields: [cohortId], references: [id])
+  mentor  User          @relation("MentorUser", fields: [mentorId], references: [id])
+  program Program       @relation(fields: [programId], references: [id])
+  cohort  Cohort?       @relation(fields: [cohortId], references: [id])
+  // Cascade, not SetNull: if a level somehow goes while a pairing still names
+  // it, the honest end is the pairing going with it — SetNull would quietly
+  // widen the mentor's reach to the whole program.
+  level   ProgramLevel? @relation(fields: [levelId], references: [id], onDelete: Cascade)
 
-  @@unique([mentorId, programId, cohortId])
+  @@unique([mentorId, programId, cohortId, levelId])
 }
 
 // The person. ONE row per student account, however many programs they study
@@ -276,7 +328,13 @@ model StudentEnrollment {
   id          String   @id @default(cuid())
   studentId   String
   programId   String
-  cohortId    String? // only set in programs that have cohorts (Global Admissions)
+  // The level within a leveled program (Emerging in Research). Required when
+  // the program has levels; null everywhere else. When cohortId is also set,
+  // the cohort must belong to this level — resolveEnrollment enforces the
+  // agreement rather than trusting the form's two selects to have been built
+  // consistently.
+  levelId     String?
+  cohortId    String? // set where the enrollment names an intake cohort — flat under Global Admissions, under a level in a leveled program
   // Who enrolled them. Null for the rows the migration created out of the old
   // single-program column, which nobody made — the same convention as
   // `ProgramStaff.createdById`.
@@ -291,12 +349,14 @@ model StudentEnrollment {
 
   student   StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   program   Program          @relation(fields: [programId], references: [id])
+  level     ProgramLevel?    @relation(fields: [levelId], references: [id], onDelete: SetNull)
   cohort    Cohort?          @relation(fields: [cohortId], references: [id])
   createdBy User?            @relation("EnrolledBy", fields: [createdById], references: [id])
   exchange  ProgramExchange? @relation(fields: [exchangeId], references: [id], onDelete: SetNull)
 
   @@unique([studentId, programId])
   @@index([programId])
+  @@index([levelId])
 }
 
 // One student, lent by one program to another for a capped number of hours.

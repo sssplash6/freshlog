@@ -81,6 +81,175 @@ export async function renameProgram(
 }
 
 /**
+ * An admin of the program adds a LEVEL to it — "Emerging" inside Research.
+ *
+ * Refused while the program holds flat cohorts: a program either has levels
+ * (and every cohort sits under one) or has cohorts directly, and mixing the
+ * two is the shape resolveEnrollment is written not to have to ask about.
+ * The research merge script moves a program's existing cohorts under the new
+ * level itself, which is why this door is only ever answered with an empty
+ * cohort list.
+ */
+export async function createLevel(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+
+  const programId = String(formData.get("programId") ?? "");
+  const denied = await assertProgramScope(actor, programId);
+  if (denied) return denied;
+
+  const program = await prisma.program.findUnique({
+    where: { id: programId },
+    include: { cohorts: { select: { id: true, levelId: true } }, levels: true },
+  });
+  if (!program) return { ok: false, error: "Program not found." };
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return { ok: false, error: "Give the level a name." };
+
+  if (program.cohorts.some((c) => c.levelId === null)) {
+    return {
+      ok: false,
+      error: `${program.name} still has cohorts outside any level. Move each of them under a level first.`,
+    };
+  }
+
+  const existing = program.levels.find(
+    (l) => l.name.toLowerCase() === name.toLowerCase()
+  );
+  if (existing) {
+    return {
+      ok: false,
+      error: `${program.name} already has a level called ${existing.name}.`,
+    };
+  }
+
+  await prisma.programLevel.create({ data: { programId, name } });
+
+  revalidatePath("/", "layout");
+  return { ok: true, message: `${name} added to ${program.name}.` };
+}
+
+/**
+ * Delete a level, once nothing is in it — the same rule as a cohort, one row
+ * up: students move between levels on the student page, pairings and cohorts
+ * are emptied first, so a level only goes when it genuinely holds nothing.
+ */
+export async function deleteLevel(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+
+  const levelId = String(formData.get("levelId") ?? "");
+  const level = await prisma.programLevel.findUnique({
+    where: { id: levelId },
+    include: {
+      _count: {
+        select: { enrollments: true, mentorAssignments: true, cohorts: true },
+      },
+    },
+  });
+  if (!level) return { ok: false, error: "Level not found." };
+
+  const denied = await assertProgramScope(actor, level.programId);
+  if (denied) return denied;
+
+  if (level._count.enrollments > 0) {
+    return {
+      ok: false,
+      error: `${level.name} still has ${level._count.enrollments} student${level._count.enrollments === 1 ? "" : "s"}. Move them to another level first.`,
+    };
+  }
+  if (level._count.mentorAssignments > 0) {
+    return {
+      ok: false,
+      error: `${level.name} still has mentors assigned to it. Unassign them first.`,
+    };
+  }
+  if (level._count.cohorts > 0) {
+    return {
+      ok: false,
+      error: `${level.name} still has ${level._count.cohorts} cohort${level._count.cohorts === 1 ? "" : "s"}. Empty and delete those first.`,
+    };
+  }
+
+  await prisma.programLevel.delete({ where: { id: levelId } });
+
+  revalidatePath("/", "layout");
+  return { ok: true, message: `${level.name} deleted.` };
+}
+
+/**
+ * The grant every student joining at THIS level receives — the pair
+ * `Program.standardMinutes`/`standardDays` holds for a flat program, one row
+ * down. Emerging's two hours and Advanced's fifteen live on the levels, not
+ * on Research: the level is what was bought. Both fields empty turns it off,
+ * and a level with no pair inherits the program's.
+ */
+export async function setLevelStandardHours(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+
+  const levelId = String(formData.get("levelId") ?? "");
+  const level = await prisma.programLevel.findUnique({
+    where: { id: levelId },
+    include: { program: true },
+  });
+  if (!level) return { ok: false, error: "Level not found." };
+
+  const denied = await assertProgramScope(actor, level.programId);
+  if (denied) return denied;
+
+  const rawMinutes = String(formData.get("minutes") ?? "").trim();
+  const rawDays = String(formData.get("days") ?? "").trim();
+
+  let standardMinutes: number | null = null;
+  let standardDays: number | null = null;
+  if (rawMinutes || rawDays) {
+    if (!rawMinutes || !rawDays) {
+      return {
+        ok: false,
+        error: "Give both the minutes and the days to use them in, or leave both empty to inherit the program's.",
+      };
+    }
+    const minutes = parseMinutesField(rawMinutes, { min: 1, label: "Minutes" });
+    if ("error" in minutes) return { ok: false, error: minutes.error };
+    const days = Number(rawDays);
+    if (!Number.isInteger(days) || days < 1 || days > STANDARD_DAYS_MAX) {
+      return {
+        ok: false,
+        error: `Days to use them in must be a whole number from 1 to ${STANDARD_DAYS_MAX}.`,
+      };
+    }
+    standardMinutes = minutes.value;
+    standardDays = days;
+  }
+
+  if (standardMinutes === level.standardMinutes && standardDays === level.standardDays) {
+    return { ok: true, message: "No change." };
+  }
+
+  await prisma.programLevel.update({
+    where: { id: levelId },
+    data: { standardMinutes, standardDays },
+  });
+
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message:
+      standardMinutes === null
+        ? `${level.name} no longer sets its own standard — it inherits ${level.program.name}'s.`
+        : `Students joining ${level.name} from now on get ${formatDuration(standardMinutes)} to use within ${standardDays} day${standardDays === 1 ? "" : "s"}. Students already in it keep what they have.`,
+  };
+}
+
+/**
  * Delete a cohort, once nothing is in it. Students and mentor pairings are
  * moved, not orphaned: an admin re-enrolls them (student page → Corrections)
  * before the cohort can go.
@@ -385,10 +554,13 @@ export async function deleteProgram(
   }
 
   // Mentor pairings and empty cohorts are part of the program's own setup, so
-  // they go with it; nothing was ever logged against them.
+  // they go with it; nothing was ever logged against them. Levels are the
+  // same and are checked empty by their own button — the cohorts under them
+  // went first.
   await prisma.$transaction(async (tx) => {
     await tx.mentorAssignment.deleteMany({ where: { programId } });
     await tx.cohort.deleteMany({ where: { programId } });
+    await tx.programLevel.deleteMany({ where: { programId } });
     await tx.program.delete({ where: { id: programId } });
   });
 
@@ -397,9 +569,10 @@ export async function deleteProgram(
 }
 
 /**
- * An admin of the program adds a cohort to it. The first cohort switches the
- * program to cohort-based enrollment for NEW students/assignments; existing
- * program-wide members are unaffected.
+ * An admin of the program adds a cohort to it — directly, or under a level in
+ * a program that has them. The first cohort switches the program to
+ * cohort-based enrollment for NEW students/assignments; existing program-wide
+ * members are unaffected.
  */
 export async function createCohort(
   _prev: ActionState,
@@ -411,14 +584,29 @@ export async function createCohort(
   const denied = await assertProgramScope(actor, programId);
   if (denied) return denied;
 
-  const program = await prisma.program.findUnique({ where: { id: programId } });
+  const program = await prisma.program.findUnique({
+    where: { id: programId },
+    include: { levels: true },
+  });
   if (!program) return { ok: false, error: "Program not found." };
+
+  // In a leveled program a cohort lives UNDER a level — a cohort with no
+  // level there is a shape resolveEnrollment refuses to ask about, so the
+  // level is required here and must be one of this program's.
+  const rawLevel = String(formData.get("levelId") ?? "");
+  const level = program.levels.find((l) => l.id === rawLevel) ?? null;
+  if (program.levels.length > 0 && !level) {
+    return { ok: false, error: `Pick a level in ${program.name}.` };
+  }
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { ok: false, error: "Give the cohort a name." };
 
-  const existing = await prisma.cohort.findUnique({
-    where: { programId_name: { programId, name } },
+  // Unique per (program, level) in the schema — NULL levelId is distinct
+  // there, so the flat-program half is checked here. Same name under a
+  // different level is a different intake, not a collision.
+  const existing = await prisma.cohort.findFirst({
+    where: { programId, name, levelId: level?.id ?? null },
   });
   if (existing) {
     return {
@@ -427,8 +615,15 @@ export async function createCohort(
     };
   }
 
-  await prisma.cohort.create({ data: { programId, name } });
+  await prisma.cohort.create({
+    data: { programId, name, levelId: level?.id ?? null },
+  });
 
   revalidatePath("/", "layout");
-  return { ok: true, message: `${name} added to ${program.name}.` };
+  return {
+    ok: true,
+    message: level
+      ? `${name} added to ${level.name} in ${program.name}.`
+      : `${name} added to ${program.name}.`,
+  };
 }

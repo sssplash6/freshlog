@@ -164,7 +164,13 @@ export function StudentPrograms({
 }: {
   studentProfileId: string;
   programs: ProgramOption[];
-  enrollments: { id: string; programId: string; cohortId: string | null; label: string }[];
+  enrollments: {
+    id: string;
+    programId: string;
+    levelId: string | null;
+    cohortId: string | null;
+    label: string;
+  }[];
 }) {
   return (
     <RowActionMenu trigger="pencil" label="Change programs">
@@ -202,13 +208,26 @@ function MoveEnrollment({
 }: {
   studentProfileId: string;
   programs: ProgramOption[];
-  enrollment: { id: string; programId: string; cohortId: string | null; label: string };
+  enrollment: {
+    id: string;
+    programId: string;
+    levelId: string | null;
+    cohortId: string | null;
+    label: string;
+  };
   removable: boolean;
 }) {
   const [, action, save] = useSaveState(moveStudent);
   const [, remove, removeSave] = useSaveState(unenrollStudent);
   const [programId, setProgramId] = useState(enrollment.programId);
-  const cohorts = programs.find((p) => p.id === programId)?.cohorts ?? [];
+  const program = programs.find((p) => p.id === programId) ?? null;
+  const [levelId, setLevelId] = useState(enrollment.levelId ?? "");
+  const level = program?.levels.find((l) => l.id === levelId) ?? null;
+  const cohorts = program
+    ? program.levels.length > 0
+      ? (level?.cohorts ?? [])
+      : program.cohorts
+    : [];
 
   return (
     <div className="space-y-2">
@@ -219,7 +238,10 @@ function MoveEnrollment({
           <select
             name="programId"
             value={programId}
-            onChange={(e) => setProgramId(e.target.value)}
+            onChange={(e) => {
+              setProgramId(e.target.value);
+              setLevelId("");
+            }}
             className={selectClass}
           >
             {programs.map((p) => (
@@ -229,14 +251,45 @@ function MoveEnrollment({
             ))}
           </select>
         </Field>
-        {cohorts.length > 0 && (
-          <Field label="Cohort">
+        {(program?.levels.length ?? 0) > 0 && (
+          <Field label="Level">
             <select
-              name="cohortId"
-              defaultValue={enrollment.cohortId ?? ""}
+              name="levelId"
+              required
+              value={levelId}
+              onChange={(e) => setLevelId(e.target.value)}
               className={selectClass}
             >
-              <option value="">No cohort</option>
+              <option value="" disabled>
+                Select…
+              </option>
+              {program?.levels.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        {cohorts.length > 0 && (
+          <Field label="Cohort">
+            {/* `key` remounts on a program or level change, so a cohort picked
+                under one cannot be submitted under another. */}
+            <select
+              key={`${programId}:${levelId}`}
+              name="cohortId"
+              required
+              defaultValue={
+                programId === enrollment.programId &&
+                levelId === enrollment.levelId
+                  ? (enrollment.cohortId ?? "")
+                  : ""
+              }
+              className={selectClass}
+            >
+              <option value="" disabled>
+                Select…
+              </option>
               {cohorts.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -271,7 +324,14 @@ function EnrollInProgram({
 }) {
   const [, action, save] = useSaveState(enrollStudent);
   const [programId, setProgramId] = useState(programs[0]?.id ?? "");
-  const cohorts = programs.find((p) => p.id === programId)?.cohorts ?? [];
+  const program = programs.find((p) => p.id === programId) ?? null;
+  const [levelId, setLevelId] = useState("");
+  const level = program?.levels.find((l) => l.id === levelId) ?? null;
+  const cohorts = program
+    ? program.levels.length > 0
+      ? (level?.cohorts ?? [])
+      : program.cohorts
+    : [];
 
   if (programs.length === 0) {
     return (
@@ -288,7 +348,10 @@ function EnrollInProgram({
         <select
           name="programId"
           value={programId}
-          onChange={(e) => setProgramId(e.target.value)}
+          onChange={(e) => {
+            setProgramId(e.target.value);
+            setLevelId("");
+          }}
           className={selectClass}
         >
           {programs.map((p) => (
@@ -298,10 +361,38 @@ function EnrollInProgram({
           ))}
         </select>
       </Field>
+      {(program?.levels.length ?? 0) > 0 && (
+        <Field label="Level">
+          <select
+            name="levelId"
+            required
+            value={levelId}
+            onChange={(e) => setLevelId(e.target.value)}
+            className={selectClass}
+          >
+            <option value="" disabled>
+              Select…
+            </option>
+            {program?.levels.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
       {cohorts.length > 0 && (
         <Field label="Cohort">
-          <select name="cohortId" defaultValue="" className={selectClass}>
-            <option value="">No cohort</option>
+          <select
+            key={`${programId}:${levelId}`}
+            name="cohortId"
+            required
+            defaultValue=""
+            className={selectClass}
+          >
+            <option value="" disabled>
+              Select…
+            </option>
             {cohorts.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}

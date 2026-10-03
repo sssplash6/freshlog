@@ -76,7 +76,7 @@ export async function studentsWithHours(
       user: true,
       enrollments: {
         ...(visible ? { where: { programId: { in: [...visible] } } } : {}),
-        include: { program: true, cohort: true },
+        include: { program: true, cohort: true, level: true },
         orderBy: { program: { name: "asc" } },
       },
     },
@@ -469,13 +469,14 @@ export async function taskOptionsForSessions(
 }
 
 /**
- * The programs (and, for Global Admissions, cohorts) a mentor is assigned
- * to, with booking links. cohort is null for program-wide assignments.
+ * The programs (and, where a program has them, levels and cohorts) a mentor
+ * is assigned to, with booking links. cohort and level are both null for
+ * program-wide assignments.
  */
 export async function mentorAssignments(mentorId: string) {
   return prisma.mentorAssignment.findMany({
     where: { mentorId },
-    include: { program: true, cohort: true },
+    include: { program: true, cohort: true, level: true },
     orderBy: { createdAt: "asc" },
   });
 }
@@ -707,19 +708,33 @@ export async function mentorsInProgram(programId: string) {
  * which is the honest answer rather than every mentor in the school.
  */
 export function assignmentsForStudentWhere(profile: {
-  enrollments: readonly { programId: string; cohortId: string | null }[];
+  enrollments: readonly {
+    programId: string;
+    levelId?: string | null;
+    cohortId: string | null;
+  }[];
 }): Prisma.MentorAssignmentWhereInput {
   return {
     OR: profile.enrollments.map((e) => ({
       programId: e.programId,
-      OR: [{ cohortId: null }, ...(e.cohortId ? [{ cohortId: e.cohortId }] : [])],
+      OR: [
+        // Program-wide pairing — both null, so a level or cohort pairing is
+        // not mistaken for one.
+        { cohortId: null, levelId: null },
+        // A pairing to the level this enrollment is in.
+        ...(e.levelId ? [{ levelId: e.levelId, cohortId: null }] : []),
+        // A pairing to the cohort itself.
+        ...(e.cohortId ? [{ cohortId: e.cohortId }] : []),
+      ],
     })),
   };
 }
 
 /**
- * All programs with their cohorts, for enrollment/assignment selects. Only
- * programs with cohorts (Global Admissions) require picking one.
+ * All programs with their levels and cohorts, for enrollment/assignment
+ * selects. A program with levels requires picking one (and a cohort when the
+ * level has them); a program with flat cohorts (Global Admissions) requires
+ * picking a cohort.
  */
 export async function programOptions(
   programIds?: readonly string[],
@@ -734,7 +749,13 @@ export async function programOptions(
       // offered. That is the whole difference between archiving and deleting.
       ...(includeArchived ? {} : { status: "ACTIVE" }),
     },
-    include: { cohorts: { orderBy: { name: "asc" } } },
+    include: {
+      cohorts: { where: { levelId: null }, orderBy: { name: "asc" } },
+      levels: {
+        orderBy: { name: "asc" },
+        include: { cohorts: { orderBy: { name: "asc" } } },
+      },
+    },
     orderBy: { name: "asc" },
   });
 }
@@ -743,6 +764,8 @@ export async function programOptions(
 export type ProgramOption = {
   id: string;
   name: string;
+  levels: { id: string; name: string; cohorts: { id: string; name: string }[] }[];
+  /** Level-less cohorts only — a program has levels or flat cohorts, not both. */
   cohorts: { id: string; name: string }[];
 };
 
@@ -752,6 +775,11 @@ export function toProgramOptions(
   return programs.map((p) => ({
     id: p.id,
     name: p.name,
+    levels: p.levels.map((l) => ({
+      id: l.id,
+      name: l.name,
+      cohorts: l.cohorts.map((c) => ({ id: c.id, name: c.name })),
+    })),
     cohorts: p.cohorts.map((c) => ({ id: c.id, name: c.name })),
   }));
 }
@@ -793,7 +821,11 @@ export function toProgramOptions(
  * because a mentor may log hours with anybody in a program they work in.
  */
 /** One of a mentor's pairings, as the students it lets them reach. */
-export type MentorPairing = { programId: string; cohortId: string | null };
+export type MentorPairing = {
+  programId: string;
+  cohortId: string | null;
+  levelId?: string | null;
+};
 
 /**
  * The five legs above, as one `where` — so "who are my students?" and "is this
@@ -837,10 +869,14 @@ export function mentorReachWhere(
     const inPairings: Prisma.StudentProfileWhereInput = {
       enrollments: {
         some: {
+          // Three widths of pairing, asked of the enrollment: one cohort, one
+          // level (every cohort under it), or the whole program.
           OR: pairings.map((p) =>
             p.cohortId
               ? { programId: p.programId, cohortId: p.cohortId }
-              : { programId: p.programId }
+              : p.levelId
+                ? { programId: p.programId, levelId: p.levelId }
+                : { programId: p.programId }
           ),
         },
       },
@@ -916,7 +952,7 @@ export async function reachablePrograms(
   const [pairings, allocations, sessions, tasks] = await Promise.all([
     prisma.mentorAssignment.findMany({
       where: { mentorId },
-      select: { programId: true, cohortId: true },
+      select: { programId: true, cohortId: true, levelId: true },
     }),
     prisma.hourAllocation.findMany({
       where: { studentId: profile.id, OR: [{ mentorId }, { mentorId: null }] },
@@ -976,8 +1012,10 @@ export type CaseloadStudent = {
     user: { name: string | null; email: string; status: string };
     enrollments: {
       programId: string;
+      levelId?: string | null;
       cohortId: string | null;
       program: { name: string };
+      level?: { name: string } | null;
       cohort: { name: string } | null;
     }[];
   };
@@ -1027,12 +1065,12 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
       mentorAssignments(mentorId),
       prisma.hourAllocation.findMany({
         where: { mentorId },
-        include: { program: true, student: { include: { user: true, enrollments: { include: { program: true, cohort: true } } } } },
+        include: { program: true, student: { include: { user: true, enrollments: { include: { program: true, cohort: true, level: true } } } } },
         orderBy: { createdAt: "asc" },
       }),
       prisma.hourAllocation.findMany({
         where: { mentorId: null },
-        include: { program: true, student: { include: { user: true, enrollments: { include: { program: true, cohort: true } } } } },
+        include: { program: true, student: { include: { user: true, enrollments: { include: { program: true, cohort: true, level: true } } } } },
         orderBy: { createdAt: "asc" },
       }),
       // Split by plan: in-plan rows are the balances (out-of-plan hours never
@@ -1203,7 +1241,7 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
     if (ids.length === 0) return new Map<string, CaseloadStudent["profile"]>();
     const rows = await prisma.studentProfile.findMany({
       where: { id: { in: ids } },
-      include: { user: true, enrollments: { include: { program: true, cohort: true } } },
+      include: { user: true, enrollments: { include: { program: true, cohort: true, level: true } } },
     });
     return new Map(rows.map((r) => [r.id, r]));
   };

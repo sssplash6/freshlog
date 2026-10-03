@@ -16,21 +16,44 @@ const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  // Programs and their starter cohorts
-  for (const { name, cohorts } of PROGRAMS) {
+  // Programs and their starter cohorts — and their levels, where the program
+  // is leveled. `findFirst` + `create`, not `upsert`: a cohort's name is
+  // unique per (program, level) now, and a level's per program — no single
+  // compound selector names them.
+  for (const { name, cohorts, levels } of PROGRAMS) {
     const program = await prisma.program.upsert({
       where: { name },
       update: {},
       create: { name },
     });
-    for (const cohortName of cohorts) {
-      await prisma.cohort.upsert({
-        where: { programId_name: { programId: program.id, name: cohortName } },
-        update: {},
-        create: { programId: program.id, name: cohortName },
+    for (const spec of levels ?? []) {
+      const level = await prisma.programLevel.findFirst({
+        where: { programId: program.id, name: spec.name },
       });
+      if (!level) {
+        await prisma.programLevel.create({
+          data: {
+            programId: program.id,
+            name: spec.name,
+            standardMinutes: spec.standardMinutes,
+            standardDays: spec.standardDays,
+          },
+        });
+      }
     }
-    console.log(`Program "${name}" (${cohorts.length} cohort(s))`);
+    for (const cohortName of cohorts) {
+      const existing = await prisma.cohort.findFirst({
+        where: { programId: program.id, levelId: null, name: cohortName },
+      });
+      if (!existing) {
+        await prisma.cohort.create({
+          data: { programId: program.id, name: cohortName },
+        });
+      }
+    }
+    console.log(
+      `Program "${name}" (${levels?.length ?? 0} level(s), ${cohorts.length} cohort(s))`
+    );
   }
 
   // The bootstrap admin. Everyone else who administers anything is a

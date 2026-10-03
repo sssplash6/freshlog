@@ -2,9 +2,12 @@ import { CreateCohortForm } from "@/components/forms/program-forms";
 import {
   ArchiveProgramButton,
   AssignMentorForm,
+  CreateLevelForm,
   DeleteCohortButton,
+  DeleteLevelButton,
   DeleteProgramButton,
   HourBankToggle,
+  LevelStandardHoursForm,
   RemoveMentorButton,
   RenameProgramForm,
   StandardHoursForm,
@@ -22,6 +25,7 @@ import {
   mentorPool,
   programCohorts,
   programGrants,
+  programLevels,
   programOf,
   programPairings,
   programStudents,
@@ -62,12 +66,13 @@ export default async function ProgramSettingsPage({
   const { id } = await params;
   const viewer = await requireProgramScope(id);
 
-  const [program, students, pairings, cohorts, grants, allMentors] =
+  const [program, students, pairings, cohorts, levels, grants, allMentors] =
     await Promise.all([
       programOf(id),
       programStudents(id),
       programPairings(id),
       programCohorts(id),
+      programLevels(id),
       programGrants(id),
       mentorPool(),
     ]);
@@ -76,7 +81,13 @@ export default async function ProgramSettingsPage({
   const eligibleMentors = allMentors
     .filter((m) => !paired.has(m.id))
     .map((m) => ({ value: m.id, label: m.name ?? m.email }));
-  const cohortOptions = cohorts.map((c) => ({ value: c.id, label: c.name }));
+  const flatCohorts = cohorts.filter((c) => c.levelId === null);
+  const cohortOptions = flatCohorts.map((c) => ({ value: c.id, label: c.name }));
+  const levelOptions = levels.map((l) => ({
+    id: l.id,
+    name: l.name,
+    cohorts: l.cohorts.map((c) => ({ value: c.id, label: c.name })),
+  }));
   const archived = program.status === PROGRAM_STATUS.ARCHIVED;
 
   const blockedReason =
@@ -113,9 +124,9 @@ export default async function ProgramSettingsPage({
                     size="sm"
                     href={`/mentors/${p.mentor.id}`}
                   />
-                  {p.cohort && (
+                  {(p.level || p.cohort) && (
                     <span className="text-[0.8125rem] text-muted-fg">
-                      {p.cohort.name}
+                      {[p.level?.name, p.cohort?.name].filter(Boolean).join(" / ")}
                     </span>
                   )}
                 </span>
@@ -129,56 +140,164 @@ export default async function ProgramSettingsPage({
             <AssignMentorForm
               programId={program.id}
               mentors={eligibleMentors}
+              levels={levelOptions}
               cohorts={cohortOptions}
             />
           </div>
         )}
       </Section>
 
-      <Section
-        title="Cohorts"
-        caption={
-          cohorts.length === 0
-            ? "Flat — students belong to the program directly"
-            : undefined
-        }
-        count={cohorts.length > 0 ? cohorts.length : undefined}
-      >
-        {cohorts.length > 0 && (
+      {levels.length > 0 ? (
+        <Section
+          title="Levels"
+          caption="Each level has its own standard grant, and its cohorts sit under it"
+          count={levels.length}
+        >
           <ul className="divide-y divide-line">
-            {cohorts.map((c) => {
-              const inUse =
-                c._count.enrollments > 0 || c._count.mentorAssignments > 0;
+            {levels.map((l) => {
+              const empty =
+                l._count.enrollments === 0 &&
+                l._count.mentorAssignments === 0 &&
+                l.cohorts.length === 0;
               return (
-                <li
-                  key={c.id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
-                >
-                  <div>
-                    <div className="text-[0.9375rem] font-medium text-ink">{c.name}</div>
-                    <div className="text-[0.8125rem] text-muted-fg">
-                      {c._count.enrollments} student
-                      {c._count.enrollments === 1 ? "" : "s"} ·{" "}
-                      {c._count.mentorAssignments} mentor
-                      {c._count.mentorAssignments === 1 ? "" : "s"}
+                <li key={l.id} className="px-4 py-3 sm:px-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[0.9375rem] font-medium text-ink">
+                        {l.name}
+                      </div>
+                      <div className="text-[0.8125rem] text-muted-fg">
+                        {l._count.enrollments} student
+                        {l._count.enrollments === 1 ? "" : "s"} ·{" "}
+                        {l._count.mentorAssignments} mentor
+                        {l._count.mentorAssignments === 1 ? "" : "s"} ·{" "}
+                        {l.cohorts.length} cohort{l.cohorts.length === 1 ? "" : "s"}
+                      </div>
                     </div>
+                    {empty ? (
+                      <DeleteLevelButton levelId={l.id} levelName={l.name} />
+                    ) : (
+                      <span className="text-[0.8125rem] text-muted-fg">
+                        Not empty — move its people and cohorts first
+                      </span>
+                    )}
                   </div>
-                  {inUse ? (
-                    <span className="text-[0.8125rem] text-muted-fg">
-                      Not empty — move its people first
-                    </span>
-                  ) : (
-                    <DeleteCohortButton cohortId={c.id} cohortName={c.name} />
+                  <div className="mt-2">
+                    <LevelStandardHoursForm
+                      levelId={l.id}
+                      levelName={l.name}
+                      standardMinutes={l.standardMinutes}
+                      standardDays={l.standardDays}
+                      hourBank={program.hourBank}
+                    />
+                  </div>
+                  {l.cohorts.length > 0 && (
+                    <ul className="mt-2 divide-y divide-line/60 border-t border-line/60">
+                      {l.cohorts.map((c) => {
+                        const inUse =
+                          c._count.enrollments > 0 ||
+                          c._count.mentorAssignments > 0;
+                        return (
+                          <li
+                            key={c.id}
+                            className="flex flex-wrap items-center justify-between gap-3 py-2"
+                          >
+                            <div>
+                              <div className="text-[0.9375rem] font-medium text-ink">
+                                {c.name}
+                              </div>
+                              <div className="text-[0.8125rem] text-muted-fg">
+                                {c._count.enrollments} student
+                                {c._count.enrollments === 1 ? "" : "s"} ·{" "}
+                                {c._count.mentorAssignments} mentor
+                                {c._count.mentorAssignments === 1 ? "" : "s"}
+                              </div>
+                            </div>
+                            {inUse ? (
+                              <span className="text-[0.8125rem] text-muted-fg">
+                                Not empty — move its people first
+                              </span>
+                            ) : (
+                              <DeleteCohortButton
+                                cohortId={c.id}
+                                cohortName={c.name}
+                              />
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   )}
+                  <div className="mt-1">
+                    <CreateCohortForm
+                      programId={program.id}
+                      levelId={l.id}
+                      levelName={l.name}
+                    />
+                  </div>
                 </li>
               );
             })}
           </ul>
-        )}
-        <div className="border-t border-line px-4 py-2 sm:px-5">
-          <CreateCohortForm programId={program.id} />
-        </div>
-      </Section>
+          <div className="border-t border-line px-4 py-2 sm:px-5">
+            <CreateLevelForm programId={program.id} />
+          </div>
+        </Section>
+      ) : (
+        <Section
+          title="Cohorts"
+          caption={
+            flatCohorts.length === 0
+              ? "Flat — students belong to the program directly"
+              : undefined
+          }
+          count={flatCohorts.length > 0 ? flatCohorts.length : undefined}
+        >
+          {flatCohorts.length > 0 && (
+            <ul className="divide-y divide-line">
+              {flatCohorts.map((c) => {
+                const inUse =
+                  c._count.enrollments > 0 || c._count.mentorAssignments > 0;
+                return (
+                  <li
+                    key={c.id}
+                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
+                  >
+                    <div>
+                      <div className="text-[0.9375rem] font-medium text-ink">{c.name}</div>
+                      <div className="text-[0.8125rem] text-muted-fg">
+                        {c._count.enrollments} student
+                        {c._count.enrollments === 1 ? "" : "s"} ·{" "}
+                        {c._count.mentorAssignments} mentor
+                        {c._count.mentorAssignments === 1 ? "" : "s"}
+                      </div>
+                    </div>
+                    {inUse ? (
+                      <span className="text-[0.8125rem] text-muted-fg">
+                        Not empty — move its people first
+                      </span>
+                    ) : (
+                      <DeleteCohortButton cohortId={c.id} cohortName={c.name} />
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <div className="border-t border-line px-4 py-2 sm:px-5">
+            <CreateCohortForm programId={program.id} />
+          </div>
+          {/* Becoming leveled is only ever offered on an empty program: the
+              action refuses while flat cohorts exist, since the two shapes do
+              not mix — the research merge moved each old cohort under its
+              level first, which is the path a program with people takes. */}
+          {flatCohorts.length === 0 && (
+            <div className="border-t border-line px-4 py-2 sm:px-5">
+              <CreateLevelForm programId={program.id} />
+            </div>
+          )}
+        </Section>
+      )}
 
       {/* Read-only, deliberately: `/settings/platform` is the ONE place a grant
           is made, changed or removed (§8.4), so this says who holds one and

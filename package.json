@@ -18,6 +18,7 @@
     "import:masters": "tsx prisma/import-masters.ts",
     "postinstall": "prisma generate",
     "admins": "tsx prisma/set-program-admins.ts",
+    "db:merge-research": "tsx prisma/merge-research-programs.ts",
     "brand:assets": "node scripts/generate-brand-assets.mjs"
   },
   "dependencies": {

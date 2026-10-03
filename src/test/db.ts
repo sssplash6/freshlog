@@ -30,6 +30,7 @@ export async function resetDb() {
   await prisma.bugReport.deleteMany();
   await prisma.user.deleteMany();
   await prisma.cohort.deleteMany();
+  await prisma.programLevel.deleteMany();
   await prisma.program.deleteMany();
 }
 
@@ -85,25 +86,55 @@ export async function grant(opts: {
   });
 }
 
-/** A mentor paired with a program, or with one cohort inside it. */
+/** A mentor paired with a program, or narrowed to one level or cohort in it. */
 export async function pairing(opts: {
   mentorId: string;
   programId: string;
+  levelId?: string | null;
   cohortId?: string | null;
 }) {
   return prisma.mentorAssignment.create({
     data: {
       mentorId: opts.mentorId,
       programId: opts.programId,
+      levelId: opts.levelId ?? null,
       cohortId: opts.cohortId ?? null,
     },
   });
 }
 
-/** A cohort inside a program, for the pairings that are scoped to one. */
-export async function cohort(opts: { programId: string; name?: string }) {
+/**
+ * A level inside a program — "Emerging" under "Research". The standard pair
+ * is optional: a level with no pair falls back to the program's grant.
+ */
+export async function level(opts: {
+  programId: string;
+  name?: string;
+  standardMinutes?: number | null;
+  standardDays?: number | null;
+}) {
+  return prisma.programLevel.create({
+    data: {
+      programId: opts.programId,
+      name: opts.name ?? `Level ${++seq}`,
+      standardMinutes: opts.standardMinutes ?? null,
+      standardDays: opts.standardDays ?? null,
+    },
+  });
+}
+
+/** A cohort inside a program — flat, or under one of its levels. */
+export async function cohort(opts: {
+  programId: string;
+  levelId?: string | null;
+  name?: string;
+}) {
   return prisma.cohort.create({
-    data: { programId: opts.programId, name: opts.name ?? `Cohort ${++seq}` },
+    data: {
+      programId: opts.programId,
+      levelId: opts.levelId ?? null,
+      name: opts.name ?? `Cohort ${++seq}`,
+    },
   });
 }
 
@@ -120,6 +151,7 @@ export async function student(
   opts: {
     programId?: string;
     name?: string;
+    levelId?: string | null;
     cohortId?: string | null;
     /** ACTIVE by default; PENDING is a self-signup nobody has approved. */
     status?: string;
@@ -142,7 +174,11 @@ export async function student(
       userId: user.id,
       createdById: createdBy.id,
       enrollments: {
-        create: { programId, cohortId: opts.cohortId ?? null },
+        create: {
+          programId,
+          levelId: opts.levelId ?? null,
+          cohortId: opts.cohortId ?? null,
+        },
       },
     },
     include: { enrollments: true },
@@ -153,12 +189,14 @@ export async function student(
 export async function enroll(opts: {
   studentId: string;
   programId: string;
+  levelId?: string | null;
   cohortId?: string | null;
 }) {
   return prisma.studentEnrollment.create({
     data: {
       studentId: opts.studentId,
       programId: opts.programId,
+      levelId: opts.levelId ?? null,
       cohortId: opts.cohortId ?? null,
     },
   });

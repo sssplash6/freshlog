@@ -77,7 +77,9 @@ export default async function StudentBookPage() {
     where: { userId: user.id },
     select: {
       id: true,
-      enrollments: { select: { programId: true, cohortId: true } },
+      enrollments: {
+        select: { programId: true, levelId: true, cohortId: true },
+      },
     },
   });
 

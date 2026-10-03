@@ -87,6 +87,14 @@ function StudentRows({
   const [rows, setRows] = useState<Row[]>([]);
   // Ids only advance in handlers, never during render.
   const [nextId, setNextId] = useState(0);
+  // In a leveled program the cohort select only offers the level the admin
+  // picked — one level, and the pick is already made.
+  const [levelId, setLevelId] = useState(
+    program.levels.length === 1 ? program.levels[0].id : ""
+  );
+  const selectedLevel = program.levels.find((l) => l.id === levelId) ?? null;
+  const cohorts =
+    program.levels.length > 0 ? (selectedLevel?.cohorts ?? []) : program.cohorts;
   const addRow = () => {
     setRows((rs) => [
       ...rs,
@@ -200,21 +208,45 @@ function StudentRows({
               )}
             </p>
             <div className="flex flex-wrap items-center gap-3">
-              {program.cohorts.length > 0 && (
+              {program.levels.length > 0 && (
+                <label className="flex items-center gap-2 text-sm text-muted-fg">
+                  Level
+                  <select
+                    name="levelId"
+                    required
+                    value={levelId}
+                    onChange={(e) => setLevelId(e.target.value)}
+                    className={cn(inputClasses, "w-auto")}
+                  >
+                    <option value="" disabled>
+                      Select…
+                    </option>
+                    {program.levels.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {cohorts.length > 0 && (
                 <label className="flex items-center gap-2 text-sm text-muted-fg">
                   Cohort
+                  {/* `key` remounts it on a level change, so a cohort picked
+                      under Emerging cannot be submitted under Advanced. */}
                   <select
+                    key={levelId}
                     name="cohortId"
                     required
                     defaultValue={
-                      program.cohorts.length === 1 ? program.cohorts[0].id : ""
+                      cohorts.length === 1 ? cohorts[0].id : ""
                     }
                     className={cn(inputClasses, "w-auto")}
                   >
                     <option value="" disabled>
                       Select…
                     </option>
-                    {program.cohorts.map((c) => (
+                    {cohorts.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>

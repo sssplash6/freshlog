@@ -50,19 +50,34 @@ export function CreateProgramForm() {
  *
  * Folded because programs are FLAT by default and most stay that way: the first
  * cohort changes how new enrollments work, which is a decision, not a field.
+ * In a leveled program the cohort sits under a level, and the form is rendered
+ * once per level with `levelId` already set rather than asking which.
  */
-export function CreateCohortForm({ programId }: { programId: string }) {
+export function CreateCohortForm({
+  programId,
+  levelId,
+  levelName,
+}: {
+  programId: string;
+  levelId?: string;
+  levelName?: string;
+}) {
   const [, action, save] = useSaveState(createCohort);
 
   return (
     <Disclosure
       label="Add a cohort"
-      hint="The first one switches NEW enrollments to cohorts; people already here stay put."
+      hint={
+        levelName
+          ? `It joins ${levelName}, and students enrolling at that level pick it.`
+          : "The first one switches NEW enrollments to cohorts; people already here stay put."
+      }
     >
       <form action={action} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="programId" value={programId} />
+        {levelId && <input type="hidden" name="levelId" value={levelId} />}
         <div className="w-56">
-          <Input name="name" type="text" required placeholder="e.g. Cohort 1" />
+          <Input name="name" type="text" required placeholder="e.g. Fall 2026" />
         </div>
         <SubmitButton pendingText="Adding…">Add cohort</SubmitButton>
       </form>

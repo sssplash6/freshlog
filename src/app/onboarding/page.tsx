@@ -89,7 +89,7 @@ export default async function OnboardingPage() {
     where: { userId: user.id },
     include: {
       enrollments: {
-        include: { program: true, cohort: true },
+        include: { program: true, cohort: true, level: true },
         orderBy: { program: { name: "asc" } },
       },
     },

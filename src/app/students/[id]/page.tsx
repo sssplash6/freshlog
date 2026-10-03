@@ -111,7 +111,7 @@ export default async function StudentWorkspacePage({
     include: {
       user: true,
       enrollments: {
-        include: { program: true, cohort: true },
+        include: { program: true, cohort: true, level: true },
         orderBy: { program: { name: "asc" } },
       },
     },
@@ -808,6 +808,7 @@ export default async function StudentWorkspacePage({
                       enrollments={enrollments.map((e) => ({
                         id: e.id,
                         programId: e.programId,
+                        levelId: e.levelId,
                         cohortId: e.cohortId,
                         label: enrollmentLabel(e),
                       }))}

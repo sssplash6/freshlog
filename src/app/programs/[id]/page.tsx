@@ -26,6 +26,7 @@ import {
   mentorPool,
   programCohorts,
   programGrants,
+  programLevels,
   programOf,
   programPairings,
   requestNow,
@@ -55,7 +56,10 @@ const MENTORS_SHOWN = 10;
  * September 2026): a search box over a program's own roster is the whole
  * control. The presets still work as URLs — `?time=expiring` from the bell
  * narrows this list exactly as it did — they are simply not offered as six
- * pills above a table that is usually shorter than they are.
+ * pills above a table that is usually shorter than they are. The one select a
+ * leveled program earns is LEVEL: with Emerging, Advanced and Frontiers under
+ * one Research program, "which level is this roster?" is a question the page
+ * has to be able to answer.
  */
 export default async function ProgramPage({
   params,
@@ -75,11 +79,12 @@ export default async function ProgramPage({
 
   // The first three are the layout's reads, memoised: opening a program asks
   // for its row, its roster and its pairings once between the two files.
-  const [program, pairings, cohorts, exchanges, grants, pool] =
+  const [program, pairings, cohorts, levels, exchanges, grants, pool] =
     await Promise.all([
       programOf(id),
       programPairings(id),
       programCohorts(id),
+      programLevels(id),
       programExchanges(id),
       programGrants(id),
       mentorPool(),
@@ -183,7 +188,14 @@ export default async function ProgramPage({
               program={{
                 id: program.id,
                 name: program.name,
-                cohorts: cohorts.map((c) => ({ id: c.id, name: c.name })),
+                levels: levels.map((l) => ({
+                  id: l.id,
+                  name: l.name,
+                  cohorts: l.cohorts.map((c) => ({ id: c.id, name: c.name })),
+                })),
+                cohorts: cohorts
+                  .filter((c) => c.levelId === null)
+                  .map((c) => ({ id: c.id, name: c.name })),
               }}
             />
           </div>
@@ -192,6 +204,18 @@ export default async function ProgramPage({
             basePath={basePath}
             params={query}
             q="students"
+            selects={
+              levels.length > 0
+                ? [
+                    {
+                      name: "level",
+                      label: "Level",
+                      all: "All levels",
+                      options: levels.map((l) => ({ value: l.id, label: l.name })),
+                    },
+                  ]
+                : []
+            }
           />
 
           {total === 0 ? (
@@ -315,7 +339,14 @@ export default async function ProgramPage({
               <AssignMentorForm
                 programId={program.id}
                 mentors={eligibleMentors}
-                cohorts={cohorts.map((c) => ({ value: c.id, label: c.name }))}
+                levels={levels.map((l) => ({
+                  id: l.id,
+                  name: l.name,
+                  cohorts: l.cohorts.map((c) => ({ value: c.id, label: c.name })),
+                }))}
+                cohorts={cohorts
+                  .filter((c) => c.levelId === null)
+                  .map((c) => ({ value: c.id, label: c.name }))}
               />
             </div>
           )}

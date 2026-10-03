@@ -19,7 +19,11 @@ async function requireStudentProfile() {
   if (!user || user.role !== ROLES.STUDENT) return null;
   const profile = await prisma.studentProfile.findUnique({
     where: { userId: user.id },
-    include: { enrollments: { select: { programId: true, cohortId: true } } },
+    include: {
+      enrollments: {
+        select: { programId: true, levelId: true, cohortId: true },
+      },
+    },
   });
   return profile;
 }

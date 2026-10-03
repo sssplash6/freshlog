@@ -31,7 +31,7 @@ export default async function AllocateStudentTimePage({
     include: {
       user: true,
       enrollments: {
-        include: { program: true, cohort: true },
+        include: { program: true, cohort: true, level: true },
         orderBy: { program: { name: "asc" } },
       },
     },

@@ -36,17 +36,48 @@ export function standardDeadline(today: string, days: number): Date {
  * back, or a second path into the same program, must not grant twice. Hours in
  * another program are that program's, and do not count.
  *
+ * The grant comes from the LEVEL the enrollment names when the level sets one
+ * — Emerging buys two hours where Advanced buys fifteen, inside one Research
+ * program — and from the program's own pair otherwise. A program either prices
+ * its levels or prices itself; a level that sets nothing inherits the
+ * program's, which is how a program of one priced level and three unpriced
+ * ones still reads honestly.
+ *
  * Returns what was granted, so the calling action can say so; null otherwise.
  */
 export async function grantStandardHours(
   tx: Tx,
-  opts: { studentId: string; programId: string; actorId: string; today?: string }
+  opts: {
+    studentId: string;
+    programId: string;
+    /** The level the new membership is in, where the program has them. */
+    levelId?: string | null;
+    actorId: string;
+    today?: string;
+  }
 ): Promise<{ minutes: number; deadline: Date } | null> {
-  const program = await tx.program.findUnique({
-    where: { id: opts.programId },
-    select: { name: true, standardMinutes: true, standardDays: true, hourBank: true },
-  });
-  if (!program || program.standardMinutes === null || program.standardDays === null) {
+  const [program, level] = await Promise.all([
+    tx.program.findUnique({
+      where: { id: opts.programId },
+      select: { name: true, standardMinutes: true, standardDays: true, hourBank: true },
+    }),
+    opts.levelId
+      ? tx.programLevel.findUnique({
+          where: { id: opts.levelId },
+          select: { name: true, standardMinutes: true, standardDays: true },
+        })
+      : null,
+  ]);
+  // The level's pair wins only as a PAIR: minutes without days is no standard
+  // at all, and a half-set level must not mix its days with the program's
+  // minutes. Setting nothing — or half a thing — inherits the program's pair.
+  const levelPair =
+    level && level.standardMinutes !== null && level.standardDays !== null
+      ? level
+      : null;
+  const minutes = levelPair?.standardMinutes ?? program?.standardMinutes ?? null;
+  const days = levelPair?.standardDays ?? program?.standardDays ?? null;
+  if (!program || minutes === null || days === null) {
     return null;
   }
 
@@ -61,8 +92,7 @@ export async function grantStandardHours(
   });
   if (!profile) return null;
 
-  const minutes = program.standardMinutes;
-  const deadline = standardDeadline(opts.today ?? programToday(), program.standardDays);
+  const deadline = standardDeadline(opts.today ?? programToday(), days);
 
   // In a program with an hour bank the standard IS the bank: every meeting
   // there draws the bank, and time granted beside it would never be spent. A

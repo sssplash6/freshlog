@@ -44,12 +44,15 @@ import type { User } from "@/generated/prisma/client";
 /** Sessions shown under the record; the figures above them stay complete. */
 const LOG_LIMIT = 10;
 
-/** "Global Admissions / Spring 25", or just the program where there is no cohort. */
+/** "Global Admissions / Spring 25", "Research / Advanced", or just the program name. */
 function labelOf(a: {
   program: { name: string };
+  level: { name: string } | null;
   cohort: { name: string } | null;
 }): string {
-  return a.cohort ? `${a.program.name} / ${a.cohort.name}` : a.program.name;
+  return [a.program.name, a.level?.name, a.cohort?.name]
+    .filter(Boolean)
+    .join(" / ");
 }
 
 /**
@@ -274,7 +277,11 @@ async function MentorRecord({
               name={mentor.name ?? ""}
               email={mentor.email}
               targets={pairings.map((a) =>
-                a.cohortId ? `c:${a.cohortId}` : `p:${a.programId}`
+                a.cohortId
+                  ? `c:${a.cohortId}`
+                  : a.levelId
+                    ? `l:${a.levelId}`
+                    : `p:${a.programId}`
               )}
               programs={toProgramOptions(pickerPrograms)}
               // `updateMentor` refuses a name or email change from anybody but
@@ -679,14 +686,16 @@ async function MentorCard({
   if (isStudent) {
     const profile = await prisma.studentProfile.findUnique({
       where: { userId: viewer.id },
-      include: { enrollments: { select: { programId: true, cohortId: true } } },
+      include: {
+        enrollments: { select: { programId: true, levelId: true, cohortId: true } },
+      },
     });
     // Not onboarded, or not approved yet — their home says what is next.
     if (!profile || viewer.status !== USER_STATUS.ACTIVE) redirect("/student");
     const [pairings, hours] = await Promise.all([
       prisma.mentorAssignment.findMany({
         where: { mentorId: mentor.id, ...assignmentsForStudentWhere(profile) },
-        include: { program: true, cohort: true },
+        include: { program: true, cohort: true, level: true },
         orderBy: { createdAt: "asc" },
       }),
       allocationSummary(profile.id),

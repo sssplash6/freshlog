@@ -15,8 +15,10 @@
 /** The least an enrollment has to carry to be named on screen. */
 export type NamedEnrollment = {
   programId: string;
+  levelId?: string | null;
   cohortId?: string | null;
   program: { name: string };
+  level?: { name: string } | null;
   cohort?: { name: string } | null;
   /**
    * Set when this membership is a VISIT: another program lent the student here
@@ -46,12 +48,14 @@ export function enrolledIn(
 }
 
 /**
- * One enrollment as a phrase: "Master's Program", or "Global Admissions /
- * Spring 25" where the program has cohorts — and "Global Admissions (on
- * exchange)" where the student is only visiting.
+ * One enrollment as a phrase: "Master's Program", "Research / Emerging" where
+ * the program has levels, "Global Admissions / Spring 25" where it has
+ * cohorts, "Research / Advanced / Fall 26" where it has both — and "(on
+ * exchange)" tacked on wherever the student is only visiting.
  */
 export function enrollmentLabel(e: NamedEnrollment): string {
-  const place = e.cohort ? `${e.program.name} / ${e.cohort.name}` : e.program.name;
+  const parts = [e.program.name, e.level?.name, e.cohort?.name].filter(Boolean);
+  const place = parts.join(" / ");
   return e.exchangeId ? `${place} (on exchange)` : place;
 }
 
