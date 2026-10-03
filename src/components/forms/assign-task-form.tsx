@@ -246,7 +246,6 @@ function BankChoice({
       </p>
     );
   }
-  const out = Math.max(past.allocated, past.logged);
   return (
     <fieldset className="min-w-0">
       <legend className={labelClass}>
@@ -261,11 +260,11 @@ function BankChoice({
         <BankRadio
           value="yes"
           title="Yes, include them"
-          detail={`The greater of the two, ${formatDuration(out)}, comes out of the bank. Time held with individual mentors is folded into it.`}
+          detail="Meetings already logged draw the bank from now on, and unused time held with mentors folds into it."
         />
         <BankRadio
           value="no"
-          title="No, start the bank full"
+          title="No, keep them separate"
           detail="Past meetings stay on the time they were logged against."
         />
       </div>
