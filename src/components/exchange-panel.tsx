@@ -56,7 +56,7 @@ export function ExchangeList({
                 {showStudent && (
                   <PersonChip
                     person={{
-                      id: e.studentId,
+                      id: e.student.userId,
                       name: e.student.user.name,
                       email: e.student.user.email,
                       avatarUpdatedAt: e.student.user.avatarUpdatedAt,

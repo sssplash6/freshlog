@@ -685,6 +685,27 @@ describe("rollUp", () => {
     expect(rollUp(many(4), v)).toHaveLength(1);
     expect(rollUp(many(4), v)[0].count).toBe(4);
   });
+
+  it("counts each program separately, so the row's link holds its count", () => {
+    // Keyed by type alone, four students in one program and four in another
+    // rolled into "8 students… · Program A", linking to A's list of four.
+    const inProgram = (programId: string, n: number) =>
+      Array.from({ length: n }, (_, i) =>
+        status("BALANCE_NONE", v, undefined, {
+          subject: { kind: "student" as const, id: `${programId}${i}`, name: `S${i}` },
+          program: { id: programId, name: programId },
+        })!
+      );
+    const rolled = rollUp([...inProgram("pA", 4), ...inProgram("pB", 4)], v);
+    expect(rolled).toHaveLength(2);
+    expect(rolled.map((r) => [r.program?.id, r.count]).sort()).toEqual([
+      ["pA", 4],
+      ["pB", 4],
+    ]);
+    expect(rolled.find((r) => r.program?.id === "pA")?.href).toBe(
+      "/students?time=none&program=pA"
+    );
+  });
 });
 
 describe("roll-up wording is the reader's, not the staff's", () => {

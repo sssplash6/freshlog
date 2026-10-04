@@ -2,12 +2,24 @@
 
 What we have added and fixed, newest first. Each commit that changes what you see or can do adds a line here.
 
+## 2026-10-04
+
+### Fixed
+- Student, mentor and feedback tables fit their page again. Long names and emails shorten instead of pushing the last columns — contact links, figures — out of view, and figures such as "45 min" or "15+ hours" no longer break across two lines.
+- On a laptop, a program's page puts its mentor list under the student roster instead of beside it, so the roster has room for every column.
+- A long name or an email address used as a page title now wraps on a phone instead of pushing the whole page sideways.
+- On a laptop, the top bar no longer draws the freshlog name over the Home link for students with longer names.
+- A notice such as "8 students have no time allocated" now counts only the program it names, and its link opens exactly those students.
+- Notifications no longer say "All caught up" above a list of things still to check.
+- A long task title no longer squeezes into a narrow column on the student's home page.
+- Small fixes: a missing space in "… hasn't offered any times yet", "1 mentor matches these filters", and initials no longer pick up brackets ("MS", not "M(").
+
 ## 2026-10-03
 
 ### New
-- The three research programs become one. **Research Program** now holds three levels — Emerging, Advanced and Frontiers — each with its own starting grant (2h, 15h and 20h), and each level can hold intake cohorts of its own, so two levels may both have a "Fall 2026". Enrolling or moving a student asks for program, then level, then cohort. Mentors can still be paired program-wide — one Research mentor may teach in every level — or narrowed to a level or a cohort, and each program's roster gains a level filter.
+- The three research programs become one. The Research Program now holds three levels — Emerging, Advanced and Frontiers — each with its own starting grant (2h, 15h and 20h), and each level can hold intake cohorts of its own, so two levels may both have a "Fall 2026". Enrolling or moving a student asks for program, then level, then cohort. Mentors can still be paired program-wide — one Research mentor may teach in every level — or narrowed to a level or a cohort, and each program's roster gains a level filter.
 - Moving a student between levels or intakes of the same program no longer touches their hours: the balance belongs to the program, so a promotion to Advanced is a label change rather than a transfer.
-- Research is now the **Research Institute** for the people who work only there. Its admins, the mentors paired only in Research and the students who study only in Research see the institute's name at the top of every page. Admins get Emerging, Advanced and Frontiers in the sidebar, a home page that splits students and remaining hours by level, and Analytics that opens on the institute with a "Whole school" button. Nobody gains or loses access, and everyone else still sees Research as one program among the others.
+- Research is now the Research Institute for the people who work only there. Its admins, the mentors paired only in Research and the students who study only in Research see the institute's name at the top of every page. Admins get Emerging, Advanced and Frontiers in the sidebar, a home page that splits students and remaining hours by level, and Analytics that opens on the institute with a "Whole school" button. Nobody gains or loses access, and everyone else still sees Research as one program among the others.
 - A leveled program's page now has a tab for each level, with that level's student count and a line saying what the level grants on joining. The tabs replace the level filter.
 - Platform admins can show any program as its own institute, or turn that off, from the program's settings.
 

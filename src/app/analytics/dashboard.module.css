@@ -19,6 +19,7 @@
 
 .chart {
   position: relative;
+  container-type: inline-size;
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr);
   gap: 0 8px;
@@ -161,6 +162,21 @@
   white-space: nowrap;
 }
 
+.xShort {
+  display: none;
+}
+
+/* Under ~32px a column, "Sep" is wider than its slot and the labels run
+   together; the initial is the convention a phone calendar uses. */
+@container (max-width: 420px) {
+  .xLong {
+    display: none;
+  }
+  .xShort {
+    display: inline;
+  }
+}
+
 .xLabelActive {
   color: var(--color-ink);
   font-weight: 600;
@@ -289,7 +305,9 @@
   width: 12px;
   height: 12px;
   border-radius: 3px;
-  background: var(--color-fill);
+  /* fill-strong, not fill: at 12% an empty day all but vanished on white,
+     and the grid of days is what the reader counts across. */
+  background: var(--color-fill-strong);
   border: 0;
   padding: 0;
   transition: transform 0.12s;
@@ -369,6 +387,13 @@
   height: 4px;
   border-radius: 999px;
   margin-right: 8px;
+}
+
+/* On a phone the bar is the width the last two columns need. */
+@media (max-width: 639px) {
+  .inlineBar {
+    display: none;
+  }
 }
 
 /* ---------- motion ---------- */

@@ -912,6 +912,29 @@ export type StudentStatusInput = {
   program?: { id: string; name: string };
 };
 
+/**
+ * The three time states a student's figures can be in, as one predicate the
+ * bell and the roster's `?time=` filter both ask.
+ *
+ * The filter used to be its own SQL guess — "has a grant dated in the past" —
+ * while the bell's row asked whether any time was actually LOST. A grant spent
+ * to the last minute before its date matched the first and not the second, so
+ * "5 students lost time to an expiry" opened a list of seven.
+ */
+export type TimeState = "none" | "expiring" | "expired";
+
+export function timeStateHolds(
+  state: TimeState,
+  s: Pick<StudentStatusInput, "allottedMinutes" | "forfeitedMinutes" | "expiring">,
+  v: Pick<ViewerContext, "audience" | "now">
+): boolean {
+  if (state === "none") return s.allottedMinutes === 0;
+  if (state === "expired") return s.forfeitedMinutes > 0;
+  if (!s.expiring || s.expiring.minutes <= 0) return false;
+  const days = daysUntil(s.expiring.date, v.now);
+  return days >= 0 && days <= EXPIRY_WINDOW_DAYS[v.audience];
+}
+
 export function studentStatuses(
   s: StudentStatusInput,
   v: ViewerContext
@@ -955,10 +978,10 @@ export function studentStatuses(
   if (s.remainingMinutes < 0) {
     out.push(of("BALANCE_OVERDRAWN", { minutes: s.remainingMinutes }));
   }
-  if (s.allottedMinutes === 0) {
+  if (timeStateHolds("none", s, v)) {
     out.push(of("BALANCE_NONE"));
   }
-  if (s.forfeitedMinutes > 0) {
+  if (timeStateHolds("expired", s, v)) {
     out.push(of("ALLOCATION_EXPIRED", { minutes: s.forfeitedMinutes }));
   }
   if ((s.poolMinutes ?? 0) > 0) {
@@ -972,17 +995,14 @@ export function studentStatuses(
   // behind THIS date: `soonestExpiry` has already excluded passed deadlines,
   // empty grants and every grant that runs later, so nothing here needs to
   // consult the total balance.
-  if (s.expiring && s.expiring.minutes > 0) {
-    const days = daysUntil(s.expiring.date, v.now);
-    if (days >= 0 && days <= EXPIRY_WINDOW_DAYS[v.audience]) {
-      out.push(
-        of(
-          "ALLOCATION_EXPIRING",
-          { minutes: s.expiring.minutes, date: s.expiring.date },
-          s.expiring.date
-        )
-      );
-    }
+  if (s.expiring && timeStateHolds("expiring", s, v)) {
+    out.push(
+      of(
+        "ALLOCATION_EXPIRING",
+        { minutes: s.expiring.minutes, date: s.expiring.date },
+        s.expiring.date
+      )
+    );
   }
 
   return out.filter((x): x is Status => x !== null);
@@ -1264,15 +1284,22 @@ export function rollUp(
   opts: { threshold?: number } = {}
 ): Status[] {
   const threshold = opts.threshold ?? 3;
-  const groups = new Map<StatusType, Status[]>();
+  // Keyed by type AND program. The rolled row names a program and links to
+  // that program's filtered list, so its count must be that program's: keyed
+  // by type alone, "8 students have no time allocated · Master's Program"
+  // counted every program's students under whichever came first, and the
+  // link it offered held four of the eight.
+  const groups = new Map<string, Status[]>();
   for (const s of list) {
-    const group = groups.get(s.type);
+    const key = `${s.type}:${s.program?.id ?? ""}`;
+    const group = groups.get(key);
     if (group) group.push(s);
-    else groups.set(s.type, [s]);
+    else groups.set(key, [s]);
   }
 
   const out: Status[] = [];
-  for (const [type, group] of groups) {
+  for (const group of groups.values()) {
+    const type = group[0].type;
         // This reader's wording first: a roll-up is still a sentence said to
     // somebody, and the shared fallback is written for staff.
     const many = META[type].voices[v.audience]?.many ?? META[type].many;

@@ -427,22 +427,28 @@ function SessionRowContent({
     >
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          {/* `min-w-0` on each name is what lets it truncate instead of the
-              pair wrapping; the mentor gives way first, being the quieter. */}
-          <div className="flex min-w-0 items-baseline gap-x-1.5 text-[0.9375rem] leading-snug">
+          {/* Student · mentor on one line from `sm` up. On a phone the
+              two shared one line beside the figure and both truncated until
+              neither could be told apart ("Ulugbek Alimuk… · Ulugbek …"),
+              so there the mentor drops to a line of their own, introduced
+              by "with" since the separator is gone. Each name still
+              truncates, but against the whole width rather than half of it. */}
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[0.9375rem] leading-snug sm:flex-nowrap">
             {lead && (
               <PersonName
                 person={lead}
-                className={cn("shrink truncate font-medium", textTone)}
+                className={cn("max-w-full truncate font-medium", textTone)}
               />
             )}
             {second && (
               <>
-                <Separator />
-                <PersonName
-                  person={second}
-                  className="min-w-0 shrink-[2] truncate text-muted-fg"
-                />
+                <span className="max-sm:hidden">
+                  <Separator />
+                </span>
+                <span className="flex min-w-0 basis-full items-baseline gap-x-1 text-[0.8125rem] text-muted-fg sm:shrink-[2] sm:basis-auto sm:text-[0.9375rem]">
+                  <span className="shrink-0 sm:hidden">with</span>
+                  <PersonName person={second} className="min-w-0 truncate" />
+                </span>
               </>
             )}
           </div>

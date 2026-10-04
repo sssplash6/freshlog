@@ -16,10 +16,12 @@ import { programOptions, toProgramOptions } from "@/lib/queries";
 /**
  * One step: what is being asked, why, and the form that answers it.
  *
- * `max-w-md` (448px) inside the shell's `max-w-2xl` (672px): two or three
- * fields stretched to the shell's full measure read as a page that has not
- * finished loading, and on the phone most of these readers are holding, the
- * two measures are the same thing anyway.
+ * The shell's own measure, not a narrower one inside it. It was `max-w-md`
+ * inside the shell's `max-w-2xl`, which left the wordmark and the h1 starting
+ * at two different left edges on a laptop and wrapped "Welcome to Global /
+ * Admissions Program" in a column narrower than the card under it. On a
+ * phone, where most of these readers are, the two measures were the same
+ * thing anyway.
  */
 function Step({
   eyebrow,
@@ -34,7 +36,7 @@ function Step({
   form?: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-md space-y-4">
+    <div className="space-y-4">
       <PageTitle eyebrow={eyebrow} title={title} subtitle={sentence} />
       {form && (
         <div className="rounded-xl bg-surface shadow-sm p-5 sm:p-6">
@@ -132,7 +134,14 @@ export default async function OnboardingPage() {
       <Step
         eyebrow={first?.cohort?.name}
         title={`Welcome to ${enrollmentsLabel(studies, "the academy")}`}
-        sentence="Confirm your name and how your mentors reach you."
+        sentence={
+          // Said here as well as on the step after it: a student an admin
+          // has not approved yet should not learn that there is a wait only
+          // once they have filled the form in.
+          user.status === USER_STATUS.PENDING
+            ? "Confirm your name and how your mentors reach you. An admin then approves your account."
+            : "Confirm your name and how your mentors reach you."
+        }
         form={<DetailsStepForm defaultName={user.name ?? ""} />}
       />
     );
@@ -142,8 +151,8 @@ export default async function OnboardingPage() {
     return (
       <Step
         eyebrow={enrollmentsLabel(studies, undefined)}
-        title="Registration received"
-        sentence="An admin will approve you shortly."
+        title="Waiting for approval"
+        sentence="Registration received. An admin will approve your account shortly."
       />
     );
   }

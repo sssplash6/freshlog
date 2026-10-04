@@ -37,6 +37,22 @@ import { cn } from "@/lib/cn";
  */
 
 /**
+ * HOW WIDE A PAGE IS, by what kind of page it is — two answers, no third.
+ *
+ *   full     (no class) a page of tables, rosters, boards and dashboards. It
+ *            takes the shell's whole measure (`max-w-6xl`), because its
+ *            columns are what it is for.
+ *   reading  `READING_WIDTH` — a page of one column read top to bottom: a
+ *            form, a settings list, a feed, a document. 48rem, left-aligned
+ *            on the title's edge, because a sentence or a field 1100px wide
+ *            is one the eye loses.
+ *
+ * Pages used to pick per page — 2xl centred, 3xl, 4xl, 5xl — so walking from
+ * Settings to Platform to Log a session moved the right edge three times.
+ */
+export const READING_WIDTH = "max-w-3xl";
+
+/**
  * A quiet line of context above a title. One size, one colour, everywhere.
  *
  * Sentence case, not tracked small caps. The caps version was on every page
@@ -81,7 +97,21 @@ export function PageTitle({
   className?: string;
 }) {
   return (
-    <div className={cn("space-y-2", className)}>
+    <div
+      className={cn(
+        "space-y-2",
+        // THE BELL'S LANE. At `lg` the staff shell pins the bell to the
+        // window's top right corner, level with the first line of the page. A
+        // page with a back link already starts its title row below it; one
+        // without started level with it, and so reserved `pr-14` down the
+        // whole row — which put "Log a session" 56px in from the right edge on
+        // some pages and flush on others. Starting every title on the same
+        // line instead, the one a back link would take, keeps the corner clear
+        // and every page's actions on the same right edge.
+        !backHref && "in-data-bell-lane:lg:pt-7",
+        className
+      )}
+    >
       {backHref && (
         <Link
           href={backHref}
@@ -99,21 +129,21 @@ export function PageTitle({
           {backLabel}
         </Link>
       )}
-      {/* `lg:pr-14` keeps the bell's lane clear. The bell is fixed to the
-          window's top right corner and this row is the only thing in the page
-          that reaches that height, so without it a page action — "Log a
-          session", "Add a student" — takes a 99+ badge through the middle of
-          itself. Reserved on every page rather than on the ones that have an
-          action today, because the collision arrives with the action. */}
-      <div className="flex flex-wrap items-end justify-between gap-x-5 gap-y-2 lg:pr-14">
+      {/* gap-y-3: on a phone the actions take their own line, and at 8px a
+          44px button sat against the descenders of a 32px title. */}
+      <div className="flex flex-wrap items-end justify-between gap-x-5 gap-y-3">
         {/* The picture and the words it belongs to are ONE group, centred on
             each other. They used to be siblings of the whole row, which is
             end-aligned so the actions sit on the baseline — so a 64px avatar
             lined its bottom edge up with the subtitle and read as sitting
             below the name it labels. */}
-        <div className="flex min-w-0 flex-1 items-center gap-4">
+        {/* Stacked on a phone: beside a 64px picture a 32px name had ~230px,
+            and "Konstantinopolskaya-Whitfield" broke mid-word across three
+            lines. Above it, the name gets the full width — the iOS contact
+            card's order. */}
+        <div className="flex min-w-0 flex-1 gap-4 max-sm:flex-col max-sm:items-start max-sm:gap-3 sm:items-center">
           {leading && <div className="shrink-0">{leading}</div>}
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 max-sm:w-full">
             {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
             {/* 24/26px, down from 28/32. The masthead is read once on arrival
                 and the table under it is read for the rest of the visit: at
@@ -128,11 +158,16 @@ export function PageTitle({
               // iOS's large title: 32px bold with the tightening SF applies at
               // display sizes. The one loud thing on the page, by design —
               // everything under it is quiet so it can be.
-              className="mt-0.5 text-[2rem] font-bold leading-[1.15] tracking-[-0.02em] text-ink"
+              // `wrap-anywhere`: a title is often a person, and a person with
+              // no name yet is an email address — one unbreakable word that,
+              // at 32px, pushed the whole page sideways on a phone.
+              // 28px under `sm`: at 32 a 20-letter word is wider than a 390px
+              // phone's column, and a name broken mid-word reads as a typo.
+              className="mt-0.5 text-[1.75rem] font-bold leading-[1.15] tracking-[-0.02em] text-ink wrap-anywhere sm:text-[2rem]"
             >
               {title}
             </h1>
-            {subtitle && <div className="mt-1 text-sm text-muted-fg">{subtitle}</div>}
+            {subtitle && <div className="mt-1.5 text-sm text-muted-fg wrap-anywhere">{subtitle}</div>}
           </div>
         </div>
         {actions && (
@@ -185,7 +220,10 @@ export function Section({
     <section className="min-w-0" {...props}>
       {/* items-end: the title is 20px and an action beside it 13-14px, so the
           two sit on the same last line rather than centred on each other. */}
-      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 px-1 pb-2 pt-2">
+      {/* No side padding: the heading starts on the page title's edge. It had
+          `px-1`, which set every section heading 4px right of the h1 above
+          it — close enough to look like a mistake rather than a choice. */}
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 pb-2 pt-2">
         <div className="min-w-0">
           <h2 className="flex items-baseline gap-2 text-[1.25rem] font-semibold tracking-[-0.01em] text-ink">
             {/* min-w-0 so the truncate actually truncates: on a flex child

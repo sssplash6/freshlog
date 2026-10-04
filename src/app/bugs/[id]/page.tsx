@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 
 import { BugTriageForm } from "@/components/forms/bug-triage-form";
-import { PageTitle, Section } from "@/components/ui/section";
+import { PageTitle, Section, READING_WIDTH } from "@/components/ui/section";
+import { cn } from "@/lib/cn";
 import { StatusChip } from "@/components/ui/status-chip";
 import { bugReportFor } from "@/lib/bug-queries";
 import {
@@ -29,7 +30,7 @@ export default async function BugPage({
   if (!report || !isBugStatus(report.status)) notFound();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
+    <div className={cn(READING_WIDTH, "space-y-4")}>
       <PageTitle
         backHref={user.platformAdmin ? "/bugs/triage" : "/bugs"}
         backLabel={user.platformAdmin ? "Triage" : "Bug reports"}

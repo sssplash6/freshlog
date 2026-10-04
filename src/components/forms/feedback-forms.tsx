@@ -9,6 +9,7 @@ import { inputClasses } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/cn";
+import { RequiredMark } from "@/components/ui/required-mark";
 
 // The shared field chrome — `text-base` under `sm`, so iOS does not zoom the
 // page when the comment box takes focus (it did, at the old 15px).
@@ -19,7 +20,7 @@ const inputClass = cn(inputClasses, "resize-y leading-relaxed");
 export function StarRating({
   name,
   idPrefix,
-  legend = "Rating *",
+  legend = "Rating",
   required = true,
 }: {
   name: string;
@@ -36,7 +37,10 @@ export function StarRating({
     <fieldset className="block">
       {/* The same label every `Field` wears, so the stars read as one field
           among the form's others rather than a caption above a picture. */}
-      <legend className="text-sm font-medium text-ink">{legend}</legend>
+      <legend className="text-sm font-medium text-ink">
+        {legend}
+        {required && <RequiredMark />}
+      </legend>
       <div
         // -ml-2 puts the first star's glyph, not its 44px target, on the
         // form's left edge, under the label it belongs to.
@@ -63,7 +67,10 @@ export function StarRating({
               htmlFor={`${idPrefix}-${n}`}
               className={cn(
                 "inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg transition-colors active:scale-90 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-[-2px] peer-focus-visible:outline-brand",
-                n <= shown ? "text-ink" : "text-fill-strong"
+                // Muted rather than the control fill: `fill-strong` is a 20%
+                // grey that all but vanished on a white card, so an empty
+                // picker read as no picker at all.
+                n <= shown ? "text-ink" : "text-muted-fg/40"
               )}
             >
               <StarIcon className="h-7 w-7 transition-transform" aria-hidden="true" />
@@ -98,7 +105,7 @@ export function MentorFeedbackForm({
       <div className="space-y-4">
         <div className="block">
           <span className="block text-sm font-medium text-ink">
-            Mentor <span className="text-accent-ink">*</span>
+            Mentor<RequiredMark />
           </span>
           <div className="mt-1.5">
             <Select

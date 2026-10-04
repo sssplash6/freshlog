@@ -477,7 +477,29 @@ body {
 }
 
 /* A horizontal row that scrolls instead of wrapping — the phone form of a
-   chip strip. The scrollbar is hidden; the right-edge fade hints more. */
+   chip strip. The scrollbar is hidden; the right-edge fade hints more.
+
+   Only when there IS more. The fade was unconditional, so a strip that fit
+   — the period chips on a laptop — still had its last chip ("This year")
+   dissolving into the page. A scroll-driven animation sets the fade's width:
+   a box that cannot scroll has an inactive timeline, the animation never
+   applies, and the width stays at its registered 0. Scrolled to the end, it
+   eases back to 0 too, since there is nothing left to hint at. A browser
+   without scroll timelines keeps the old always-on fade. */
+@property --scroll-x-fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@keyframes scroll-x-fade {
+  0%,
+  90% {
+    --scroll-x-fade: 2rem;
+  }
+  100% {
+    --scroll-x-fade: 0px;
+  }
+}
 @utility scroll-x {
   overflow-x: auto;
   /* A fling on the strip must not chain into the page and slide it
@@ -487,9 +509,14 @@ body {
   -webkit-overflow-scrolling: touch;
   mask-image: linear-gradient(
     to right,
-    black calc(100% - 2rem),
+    black calc(100% - var(--scroll-x-fade)),
     transparent
   );
+  animation: scroll-x-fade linear both;
+  animation-timeline: scroll(self inline);
+  @supports not (animation-timeline: scroll()) {
+    --scroll-x-fade: 2rem;
+  }
   &::-webkit-scrollbar {
     display: none;
   }

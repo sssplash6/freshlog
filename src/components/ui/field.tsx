@@ -4,6 +4,7 @@ import { useState, type ComponentProps } from "react";
 
 import { cn } from "@/lib/cn";
 import { FULL_NAME_RE, NAME_MAX } from "@/lib/actions/shared";
+import { RequiredMark } from "@/components/ui/required-mark";
 
 /**
  * The one text-field look, shared by Input, Textarea, Select and DateField.
@@ -27,7 +28,10 @@ import { FULL_NAME_RE, NAME_MAX } from "@/lib/actions/shared";
 export const fieldChrome =
   "rounded-lg border border-transparent bg-fill text-ink caret-brand transition-[background-color,border-color,box-shadow] hover:bg-fill-strong focus:border-brand focus:bg-surface focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand)_16%,transparent)] focus:outline-none";
 
-export const inputClasses = `${fieldChrome} min-h-11 w-full px-3.5 py-2.5 text-base placeholder:text-muted-fg sm:text-[0.9375rem]`;
+// The placeholder is the muted grey at 70%: at full `muted-fg` on the dark
+// fill, an empty "e.g. 600" and a typed 600 were the same grey on the same
+// well, and an Off setting read as switched on.
+export const inputClasses = `${fieldChrome} min-h-11 w-full px-3.5 py-2.5 text-base placeholder:text-muted-fg/70 sm:text-[0.9375rem]`;
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(inputClasses, className)} {...props} />;
@@ -183,7 +187,7 @@ export function Field({
     <label className={cn("block space-y-1.5", className)}>
       <span className="block text-sm font-medium text-ink">
         {label}
-        {required && <span className="text-accent-ink"> *</span>}
+        {required && <RequiredMark />}
       </span>
       {children}
       {hint && !error && (

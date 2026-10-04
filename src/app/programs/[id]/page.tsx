@@ -177,8 +177,10 @@ export default async function ProgramPage({
   return (
     <div className="space-y-4">
       {/* The roster, and the mentors beside it. Source order is the phone's
-          order: the students first, the rail under them. */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
+          order: the students first, the rail under them. Side by side
+          only from `xl`: at `lg` the nav rail and a 21rem panel left the
+          roster 456px for six columns, and it spilled under the panel. */}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start">
         <div className="min-w-0 space-y-4">
           {/* ONE way in, at the head of the roster it adds to. Adding students
               was a link in the header AND a text fold above the table, then a

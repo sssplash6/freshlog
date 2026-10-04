@@ -79,8 +79,11 @@ export type TaskEntry = {
   note: string | null;
   /** Null is a state, not missing data: budgeted work on nobody's list yet. */
   mentor?: RowPerson | null;
-  /** Present only on a list that spans students. */
-  student?: RowPerson | null;
+  /**
+   * Present only on a list that spans students. `id` is the USER's, like every
+   * face in the app; `profileId` is what their page and their statuses key on.
+   */
+  student?: (RowPerson & { profileId: string }) | null;
 };
 
 export type TaskColumn =
@@ -196,7 +199,7 @@ export function TaskRow({
       minuteLimit,
       loggedMinutes,
       dueOn: dueOn ?? null,
-      ...(student ? { student: { id: student.id, name: nameOf(student) } } : {}),
+      ...(student ? { student: { id: student.profileId, name: nameOf(student) } } : {}),
     },
     viewer,
   );
@@ -557,7 +560,7 @@ export type PlannedTask = {
   } | null;
   student?: {
     id: string;
-    user: { name: string | null; email: string; avatarUpdatedAt?: Date | null };
+    user: { id: string; name: string | null; email: string; avatarUpdatedAt?: Date | null };
   } | null;
 };
 
@@ -590,7 +593,8 @@ export function toTaskEntries(
       : null,
     student: t.student
       ? {
-          id: t.student.id,
+          id: t.student.user.id,
+          profileId: t.student.id,
           name: t.student.user.name,
           email: t.student.user.email,
           avatarUpdatedAt: t.student.user.avatarUpdatedAt,

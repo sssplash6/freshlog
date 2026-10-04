@@ -3,7 +3,7 @@ import { PersonCell } from "@/components/person-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { RowFold } from "@/components/ui/row-fold";
 import { StatusChip } from "@/components/ui/status-chip";
-import { Table, Td, Tr, type Column } from "@/components/ui/table";
+import { FILL_CELL, Table, Td, Tr, type Column } from "@/components/ui/table";
 import { mentorStatuses, type ViewerContext } from "@/lib/status";
 
 /**
@@ -103,7 +103,7 @@ export function MentorsTable({
             className="deal-in"
             style={{ animationDelay: `${Math.min(i, 14) * 24}ms` }}
           >
-            <Td>
+            <Td className={FILL_CELL}>
               <div className="flex items-center gap-1">
                 <PersonCell
                   className="min-w-0 flex-1"

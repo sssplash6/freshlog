@@ -7,7 +7,8 @@ import {
   OwnTelegramForm,
   WeeklyDigestForm,
 } from "@/components/forms/settings-forms";
-import { PageTitle, Section } from "@/components/ui/section";
+import { PageTitle, Section, READING_WIDTH } from "@/components/ui/section";
+import { cn } from "@/lib/cn";
 import { SettingsRow } from "@/components/ui/settings-row";
 import {
   EMAIL_BY_DEFAULT,
@@ -33,6 +34,24 @@ import { prisma } from "@/lib/prisma";
  * Sections appear only when they are yours: a student has no booking links, a
  * mentor has no Telegram row.
  */
+/**
+ * An address that breaks after its "@" when it has to break at all, rather
+ * than wherever the line runs out — "fresh / man.academy" is how a reader
+ * learns a domain they will then mistype. `wrap-anywhere` on the parent is the
+ * fallback for a half too long for one line by itself.
+ */
+function EmailText({ email }: { email: string }) {
+  const at = email.indexOf("@");
+  if (at < 0) return <>{email}</>;
+  return (
+    <>
+      {email.slice(0, at)}
+      <wbr />
+      {email.slice(at)}
+    </>
+  );
+}
+
 export default async function SettingsPage() {
   const user = await requireUser();
   const isMentor = canActAsMentor(user);
@@ -54,7 +73,7 @@ export default async function SettingsPage() {
   const prefOf = new Map(prefs.map((p) => [p.category, p]));
 
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className={cn(READING_WIDTH, "space-y-4")}>
       <PageTitle title="Settings" />
 
       <Section title="Profile">
@@ -73,13 +92,16 @@ export default async function SettingsPage() {
             }
           />
           <OwnNameForm defaultName={user.name ?? ""} />
+          {/* A field row, not a trailing one: an address is as long as it
+              is, and pinned right in a phone's half-width it broke into
+              "…@universit / y-mail.example.com". Here it lines up with the
+              name above it and has the whole column. */}
           <SettingsRow
             label="Sign-in email"
-            trailing
             control={
-              <span className="break-all text-[0.9375rem] text-muted-fg">
-                {user.email}
-              </span>
+              <p className="py-1 text-[0.9375rem] text-muted-fg wrap-anywhere">
+                <EmailText email={user.email} />
+              </p>
             }
           />
         </div>
@@ -115,16 +137,21 @@ export default async function SettingsPage() {
           worth a round trip. The account menu carries the same two rows. */}
       <Section title="Display">
         <div className="px-4 py-2 sm:px-5">
+          {/* Theme drops its hairline on a phone, where Density — the row
+              under it — is hidden and the line would rule off nothing. */}
           <SettingsRow
             label="Theme"
             description="Light or dark, for this browser."
-            control={<ThemeToggle inline className="sm:ml-auto sm:w-48" />}
+            trailing
+            className="max-sm:border-b-0"
+            control={<ThemeToggle inline className="w-32 sm:w-48" />}
           />
           <SettingsRow
             label="Density"
             description="How tightly tables and text pack on a larger screen. Phones always keep full-size controls."
+            trailing
             className="max-sm:hidden"
-            control={<DensityToggle inline className="sm:ml-auto sm:w-48" />}
+            control={<DensityToggle inline className="w-48" />}
           />
         </div>
       </Section>

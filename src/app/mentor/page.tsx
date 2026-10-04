@@ -9,11 +9,11 @@ import { ArrowLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
 import { TabLinks } from "@/components/ui/segmented";
 import { DeadlineText } from "@/components/ui/status-chip";
-import { Table, Td, Tr, type Column } from "@/components/ui/table";
+import { FILL_CELL, Table, Td, Tr, type Column } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import { SESSION_STATUS, USER_STATUS } from "@/lib/constants";
 import { requireMentor } from "@/lib/dal";
-import { formatDate, formatDuration, formatRough } from "@/lib/format";
+import { formatBalance, formatDate, formatDuration } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { applySort, readSort } from "@/lib/sort";
 import { mentorCaseload } from "@/lib/queries";
@@ -113,11 +113,11 @@ export default async function MentorHomePage({
 
   // -------------------------------------------------------------- Title figure
   //
-  // Only time that can still be spent: folding an overdraw into the sum would
-  // quietly cancel out someone else's balance, and the overdraw is already a
-  // row above with a name on it.
-  const spendable = inView.filter((s) => s.remaining > 0);
-  const remaining = spendable.reduce((sum, s) => sum + s.remaining, 0);
+  // The balance as every other page sums it — the mentor's own record, a
+  // program's header — so an overdraw nets against what is left. Summing only
+  // the positive rows made "Remaining" here 2h larger than the same mentor's
+  // record said, under a label counting one student above a table of three.
+  const remaining = inView.reduce((sum, s) => sum + s.remaining, 0);
   // Everything this mentor has actually delivered against the grants in view.
   // Lifetime, and it moves with the program tabs, because the question is
   // "what have I done here" and the tabs are how a mentor asks it of one
@@ -157,7 +157,7 @@ export default async function MentorHomePage({
   // narrowed to one program must not be thrown back to all of them for asking
   // to see more rows, and switching program must not silently re-fold them.
   // Nothing granted and nothing delivered: the strip would be two zeroes.
-  const hasFigures = completed > 0 || remaining > 0;
+  const hasFigures = completed > 0 || remaining !== 0;
 
   const homeHref = (opts: { program?: string; all?: boolean }) => {
     const q = new URLSearchParams();
@@ -191,9 +191,13 @@ export default async function MentorHomePage({
           ) : undefined
         }
         actions={
-          <LinkButton href="/sessions/new" className="w-full sm:w-auto">
-            Log a session
-          </LinkButton>
+          // Not above "No programs yet": with no program there is nobody to
+          // log a meeting with, and the form would say so one page later.
+          assignments.length > 0 ? (
+            <LinkButton href="/sessions/new" className="w-full sm:w-auto">
+              Log a session
+            </LinkButton>
+          ) : undefined
         }
       />
 
@@ -201,8 +205,9 @@ export default async function MentorHomePage({
           they have delivered, and what is still theirs to deliver. Both lead —
           a rule this page breaks on purpose, because they are two halves of
           one quantity and ranking one above the other would answer half the
-          question. `formatRough` because these orient rather than settle: the
-          exact figure is a row in the table below, with a name on it. */}
+          question. Exact, not `formatRough`: a mentor spends against this
+          balance, and "35+ hours" above a row saying 38h 45m read as two
+          different figures. */}
       {hasFigures && (
         // A stat row — label over figure, space between, no rules round it.
         // Two 42px bold orange numbers side by side were the loudest thing in
@@ -212,24 +217,22 @@ export default async function MentorHomePage({
           <div>
             <dt className="text-[0.8125rem] text-muted-fg">Completed</dt>
             <dd className="mt-0.5 text-[1.75rem] font-semibold leading-tight tracking-tight tabular-nums text-ink">
-              {formatRough(completed)}
+              {formatDuration(completed)}
             </dd>
           </div>
           <div>
-            <dt className="text-[0.8125rem] text-muted-fg">
-              {spendable.length > 0
-                ? `Remaining across ${spendable.length} ${
-                    spendable.length === 1 ? "student" : "students"
-                  }`
-                : "Remaining"}
-            </dt>
+            <dt className="text-[0.8125rem] text-muted-fg">Remaining</dt>
             <dd
               className={cn(
                 "mt-0.5 text-[1.75rem] font-semibold leading-tight tracking-tight tabular-nums",
-                remaining > 0 ? "text-accent-ink" : "text-muted-fg"
+                remaining > 0
+                  ? "text-accent-ink"
+                  : remaining < 0
+                    ? "text-danger-ink"
+                    : "text-muted-fg"
               )}
             >
-              {formatRough(remaining)}
+              {formatBalance(remaining)}
             </dd>
           </div>
         </dl>
@@ -298,14 +301,14 @@ export default async function MentorHomePage({
           <Table columns={studentColumns(showProgram)} framed={false}>
             {caseloadRows.map((s) => (
               <Tr key={s.profile.id}>
-                <Td>
+                <Td className={FILL_CELL}>
                   {/* The student IS this row, so they are a cell, not a chip
                       inside somebody else's link — which is also what this was:
                       a chip with no href of its own, made clickable by an
                       ancestor, the only place in the app that happened. */}
                   <PersonCell
                     person={{
-                      id: s.profile.id,
+                      id: s.profile.user.id,
                       name: s.profile.user.name,
                       email: s.profile.user.email,
                     }}
@@ -335,7 +338,7 @@ export default async function MentorHomePage({
                       ? // Nothing granted and nothing spent: an em dash, not
                         // "0h", which reads as time that ran out.
                         "—"
-                      : formatDuration(s.remaining)}
+                      : formatBalance(s.remaining)}
                   </span>
                 </Td>
                 <Td label="Use by">
@@ -347,7 +350,7 @@ export default async function MentorHomePage({
                     within={EXPIRY_WINDOW_DAYS.mentor}
                   />
                 </Td>
-                <Td label="Last session" className="text-muted-fg">
+                <Td label="Last session" className="whitespace-nowrap text-muted-fg">
                   {lastSeen.get(s.profile.id)
                     ? formatDate(lastSeen.get(s.profile.id) as Date)
                     : "—"}

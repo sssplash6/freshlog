@@ -86,7 +86,19 @@ export function ConfirmInline({
   pendingLabel?: string;
   /** `useActionState`'s third value, so Cancel can't be clicked mid-flight. */
   pending?: boolean;
-  /** `"quiet"` inside a menu panel, where an outlined red button is too loud. */
+  /**
+   * THE DESTRUCTIVE STYLE, in two sizes of the same idea — and nothing else
+   * deletes anything in this app.
+   *
+   *   button  (default) a page-level destructive action: "Delete Global
+   *           Admissions Program", "Remove student". Grey fill, red words, 44px
+   *           — `Button variant="danger"` — beside the grey-fill/blue-words of
+   *           a non-destructive peer such as Archive.
+   *   quiet   a red word in a list row or a menu panel, where a column of
+   *           filled buttons down a roster would be the loudest thing on it.
+   *
+   * Either way the second step is the same filled red confirm.
+   */
   variant?: "button" | "quiet";
   /**
    * `danger` is the default because most confirms are destructive; `primary`
@@ -191,7 +203,7 @@ export function ConfirmInline({
             className={
               variant === "quiet"
                 ? cn(
-                    "inline-flex min-h-10 items-center rounded-lg text-left text-xs font-medium transition-colors hover:underline disabled:cursor-not-allowed disabled:opacity-50",
+                    "inline-flex min-h-10 items-center rounded-lg text-left text-[0.8125rem] font-medium transition-colors hover:underline disabled:cursor-not-allowed disabled:opacity-50",
                     tone === "danger" ? "text-danger-ink" : "text-ink"
                   )
                 : buttonClasses(tone === "danger" ? "danger" : "secondary", stepSize)

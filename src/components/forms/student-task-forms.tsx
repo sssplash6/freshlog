@@ -19,6 +19,7 @@ import {
 } from "@/lib/actions/student-tasks";
 import { MAX_TASK_NOTE, MAX_TASK_TITLE, PERCENT_STEPS } from "@/lib/student-tasks";
 import { programToday } from "@/lib/when";
+import { RequiredMark } from "@/components/ui/required-mark";
 
 /**
  * The three controls a task has, and they belong to two different people.
@@ -121,7 +122,7 @@ export function SetStudentTaskForm({
           // <label> wrapping one has nothing to label.
           <div className="min-w-0">
             <span className="block text-sm font-medium text-ink">
-              Program <span className="text-accent-ink">*</span>
+              Program<RequiredMark />
             </span>
             <div className="mt-1.5">
               <Select

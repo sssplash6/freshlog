@@ -27,6 +27,27 @@ import { prisma } from "@/lib/prisma";
  * down to the one bootstrap account, so there is exactly one answer to "how
  * did this person get access".
  */
+/** "Admin" for "ADMIN" — a level as the editor names it. */
+function levelName(role: string): string {
+  return role.charAt(0) + role.slice(1).toLowerCase();
+}
+
+/**
+ * The phone's line under a name: what the grid's columns say across a row,
+ * as one sentence. Only the programs they hold — the "—" cells were the
+ * length of the old layout and said nothing.
+ */
+function accessSummary(
+  row: GrantRow,
+  programs: { id: string; name: string }[]
+): string {
+  if (row.platformAdmin) return "All programs";
+  const held = programs
+    .filter((p) => row.grants[p.id])
+    .map((p) => `${levelName(row.grants[p.id])}, ${p.name}`);
+  return held.length > 0 ? held.join(" · ") : "No program access";
+}
+
 export default async function PlatformPage() {
   const me = await requireUser();
   // Not a redirect: somebody who is not a platform admin has no business
@@ -72,7 +93,9 @@ export default async function PlatformPage() {
   ];
 
   return (
-    <div className="max-w-5xl space-y-4">
+    // Full width: a grid with a column per program is a table page, and grows a
+    // column with every program the school opens.
+    <div className="space-y-4">
       <PageTitle
         title="Platform"
         subtitle="Who administers which program, and how this deployment is set up."
@@ -93,10 +116,23 @@ export default async function PlatformPage() {
           <div className="overflow-x-auto">
           <Table framed={false} columns={columns}>
             {rows.map((row) => (
-              <Tr key={row.userId}>
-                <Td>
+              // On a phone a person is ONE row — who, what they hold, the
+              // pencil — instead of a card with a stacked line per program,
+              // every one of them "—". With a dozen mentors that was a
+              // 4,400px scroll to read what fits in a sentence each.
+              <Tr
+                key={row.userId}
+                className="max-sm:flex max-sm:items-center max-sm:gap-2"
+              >
+                <Td className="max-sm:min-w-0 max-sm:flex-1">
                   <PersonCell
                     person={{ id: row.userId, name: row.name, email: row.email }}
+                    secondary={
+                      <>
+                        <span className="sm:hidden">{accessSummary(row, programs)}</span>
+                        <span className="max-sm:hidden">{row.email}</span>
+                      </>
+                    }
                   >
                     {/* Muted words, not ✓ chips: a role is a fact about the
                         account, and a ticked pill beside a name reads as a
@@ -110,22 +146,21 @@ export default async function PlatformPage() {
                   </PersonCell>
                 </Td>
                 {programs.map((p) => (
-                  <Td key={p.id} label={p.name}>
+                  <Td key={p.id} className="max-sm:hidden">
                     {row.platformAdmin ? (
                       // Not a grant, and shown differently on purpose: the
                       // platform flag covers programs that do not exist yet.
                       <span className="text-muted-fg">All</span>
                     ) : row.grants[p.id] ? (
                       <span className="text-ink">
-                        {row.grants[p.id].charAt(0) +
-                          row.grants[p.id].slice(1).toLowerCase()}
+                        {levelName(row.grants[p.id])}
                       </span>
                     ) : (
                       <span className="text-muted-fg">—</span>
                     )}
                   </Td>
                 ))}
-                <Td align="right">
+                <Td align="right" className="max-sm:shrink-0">
                   <GrantsEditor
                     row={row}
                     programs={programs.map((p) => ({ id: p.id, name: p.name }))}

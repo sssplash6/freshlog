@@ -67,7 +67,12 @@ export function personTone(id: string): PersonTone {
  * "Global Admissions Program" reads GP and "Master's Program" MP.
  */
 export function monogramOf(text: string): string {
-  const words = text.trim().split(/\s+/).filter(Boolean);
+  // Letters and digits only: "Malika Vahobova (Scholars)" was "M(".
+  const words = text
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.replace(/[^\p{L}\p{N}]/gu, ""))
+    .filter(Boolean);
   if (words.length === 0) return "?";
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
   return (words[0][0] + words[words.length - 1][0]).toUpperCase();

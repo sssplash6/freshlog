@@ -39,8 +39,13 @@ let seq = 0;
 const nextEmail = (prefix: string) => `${prefix}-${++seq}@test.invalid`;
 
 export const DAY = 24 * 60 * 60 * 1000;
-/** A fixed clock: tests must never depend on the day they run. */
-export const NOW = new Date("2026-09-03T12:00:00.000Z");
+/**
+ * Offsets from today, not from a pinned day. The engine reads the real clock
+ * (`Date.now()`), so a deadline "30 days out" must be 30 real days out — a
+ * fixed NOW went stale on 4 October 2026, every fixture grant expired at
+ * once, and 22 tests failed for the day they ran on.
+ */
+export const NOW = new Date();
 export const inDays = (n: number) => new Date(NOW.getTime() + n * DAY);
 
 export async function program(name = "Test Program") {

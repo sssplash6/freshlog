@@ -16,6 +16,7 @@ import { SaveState, saveStateFrom } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/cn";
 import { programToday } from "@/lib/when";
+import { RequiredMark } from "@/components/ui/required-mark";
 
 /**
  * `min-h-11` for the same reason `Select` has it: 44px, and the two are
@@ -368,7 +369,7 @@ export function LogSessionForm({
 
   const minutesField = (
     <label className="block min-w-0 text-sm">
-      <span className={labelClass}>Minutes *</span>
+      <span className={labelClass}>Minutes<RequiredMark /></span>
       <input
         name="minutes"
         type="number"
@@ -376,7 +377,8 @@ export function LogSessionForm({
         step="1"
         required
         inputMode="numeric"
-        placeholder="90"
+        // No placeholder. A grey "90" in the box read as a value already
+        // given, and the mentor submitted a form the browser then refused.
         defaultValue={opening.minutes}
         aria-invalid={badField === "minutes" || undefined}
         className={cn(inputClass, badField === "minutes" && badInputClass)}
@@ -390,7 +392,7 @@ export function LogSessionForm({
   // — and twice on a click of the trigger itself. `DateField` names itself.
   const dateField = (
     <div className="block min-w-0 text-sm">
-      <span className={labelClass}>Date *</span>
+      <span className={labelClass}>Date<RequiredMark /></span>
       <DateField
         name="date"
         label="Date"
@@ -497,7 +499,7 @@ export function LogSessionForm({
             agenda. Absent for a mentor logging their own. */}
         {mentors.length > 0 && (
           <div className="block min-w-0 text-sm">
-            <span className={labelClass}>Mentor *</span>
+            <span className={labelClass}>Mentor<RequiredMark /></span>
             <Select
               name="mentorId"
               ariaLabel="Mentor"
@@ -531,7 +533,7 @@ export function LogSessionForm({
           </div>
         )}
         <div className="block min-w-0 text-sm">
-          <span className={labelClass}>Student *</span>
+          <span className={labelClass}>Student<RequiredMark /></span>
           <Select
             name="studentProfileId"
             ariaLabel="Student"
@@ -563,7 +565,7 @@ export function LogSessionForm({
         )}
         {programs.length > 1 && (
           <div className="block min-w-0 text-sm">
-            <span className={labelClass}>Program *</span>
+            <span className={labelClass}>Program<RequiredMark /></span>
             <Select
               key={studentId}
               name="programId"
@@ -626,7 +628,7 @@ export function LogSessionForm({
               desktop, where a bar the width of the form was the loudest thing
               on the page. */}
           <div className="mt-5 flex sm:justify-end">
-            <SubmitButton pendingText="Logging…" className="w-full sm:w-auto sm:min-w-40">
+            <SubmitButton pendingText="Logging…" className="w-full sm:w-auto sm:min-w-40" disabled={students.length === 0}>
               Log session
             </SubmitButton>
           </div>
@@ -642,7 +644,7 @@ export function LogSessionForm({
             />
             <TimeKindPicker key={`kind-${attempt}`} defaultValue={opening.timeKind} />
           </div>
-          <SubmitButton pendingText="Logging…" className="min-w-40">
+          <SubmitButton pendingText="Logging…" className="min-w-40" disabled={students.length === 0}>
             Log session
           </SubmitButton>
         </div>

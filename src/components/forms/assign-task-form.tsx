@@ -5,11 +5,13 @@ import { useState } from "react";
 import { TaskPicker, type OpenTask } from "@/components/forms/task-picker";
 import { Select, type SelectOption } from "@/components/select";
 import { Input, Textarea } from "@/components/ui/field";
+import { DateField } from "@/components/ui/date-field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { setMentorAllocation } from "@/lib/actions/students";
 import { formatDuration } from "@/lib/format";
 import { TASK_BANK } from "@/lib/tasks";
+import { RequiredMark } from "@/components/ui/required-mark";
 
 const labelClass =
   "block text-xs font-medium text-muted-fg";
@@ -92,7 +94,7 @@ export function AssignTaskForm({
         {programs.length > 1 && (
           <div className="min-w-0">
             <span className={labelClass}>
-              Program <span className="text-accent-ink">*</span>
+              Program<RequiredMark />
             </span>
             <div className="mt-1">
               <Select
@@ -167,7 +169,7 @@ export function AssignTaskForm({
         <div className="grid content-start gap-3">
           <label className="min-w-0">
             <span className={labelClass}>
-              Minutes <span className="text-accent-ink">*</span>
+              Minutes<RequiredMark />
             </span>
             <Input
               name="minutes"
@@ -181,22 +183,23 @@ export function AssignTaskForm({
             />
           </label>
 
-          <label className="min-w-0">
+          {/* A div, not a label: `DateField`'s trigger is a button that opens
+              our own calendar, the same one Log a session uses — the native
+              dd/mm/yyyy box was the only date in the app that looked like
+              this. */}
+          <div className="min-w-0">
             <span className={labelClass}>
-              Use by <span className="text-accent-ink">*</span>
+              Use by<RequiredMark />
             </span>
-            <Input
-              name="deadline"
-              type="date"
-              required
-              className="mt-1"
-            />
-          </label>
+            <div className="mt-1">
+              <DateField name="deadline" label="Use by" required />
+            </div>
+          </div>
 
           {showAmountPaid ? (
             <label className="min-w-0">
               <span className={labelClass}>
-                Paid for these hours ($) <span className="text-accent-ink">*</span>
+                Paid for these hours ($)<RequiredMark />
               </span>
               <Input
                 name="amountPaid"
@@ -249,8 +252,8 @@ function BankChoice({
   return (
     <fieldset className="min-w-0">
       <legend className={labelClass}>
-        Do we include past hours in this hour bank?{" "}
-        <span className="text-accent-ink">*</span>
+        Do we include past hours in this hour bank?
+        <RequiredMark />
       </legend>
       <p className="mt-1 text-xs text-muted-fg">
         Allocated to mentors {formatDuration(past.allocated)} · logged so far{" "}

@@ -1013,7 +1013,7 @@ export type CaseloadStudent = {
     id: string;
     telegramUsername: string | null;
     folderUrl: string | null;
-    user: { name: string | null; email: string; status: string };
+    user: { id: string; name: string | null; email: string; status: string };
     enrollments: {
       programId: string;
       levelId?: string | null;

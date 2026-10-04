@@ -8,7 +8,7 @@ import {
   CommandPaletteButton,
 } from "@/components/command-palette";
 import { ChevronDownIcon, LogOutIcon } from "@/components/icons";
-import { NavLinks } from "@/components/nav-links";
+import { NavCount, NavLinks } from "@/components/nav-links";
 import {
   NotificationBell as NotificationMenu,
   type BellNotification,
@@ -90,9 +90,12 @@ function NotificationBell({ count }: { count: number }) {
           d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
         />
       </svg>
+      {/* The rail's bell draws its count with `NavCount`, and so does this
+          one: it was a hand-made 16px badge here and the 20px one there, so
+          the same number changed size when the window crossed `lg`. */}
       {count > 0 && (
-        <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[0.625rem] font-bold text-on-brand">
-          {count > 99 ? "99+" : count}
+        <span className="absolute right-0 top-0.5">
+          <NavCount count={count} />
         </span>
       )}
     </Link>
@@ -117,8 +120,17 @@ function AccountMenu({
   lens,
   mentorProfile,
   whatsNew,
+  named = true,
 }: {
   user: User;
+  /**
+   * Print the name beside the avatar from `lg` up. The staff rail has the
+   * width for it; the student's top bar does not — a 2xl bar holding the
+   * wordmark, four links and a full name ran out of room at any name longer
+   * than about fifteen letters, and the wordmark was squeezed under "Home".
+   * The menu's own header names them either way.
+   */
+  named?: boolean;
   /** The lens to show as active, or null for somebody who has only one. */
   lens: Profile | null;
   /** Where a mentor edits their own name, picture and booking link, until /settings. */
@@ -127,7 +139,6 @@ function AccountMenu({
   whatsNew: boolean;
 }) {
   const label = user.name ?? user.email;
-  const initial = (user.name?.trim() || user.email).charAt(0).toUpperCase();
 
   return (
     <Popover
@@ -138,19 +149,12 @@ function AccountMenu({
       trigger={
         <>
           <span className="relative shrink-0">
-            {user.avatarUpdatedAt ? (
-              <Avatar person={user} className="h-8 w-8 shrink-0" />
-            ) : (
-              // The brand-soft initial rather than the identity tone used for a
-              // person in a list: this is your OWN chrome, not somebody you are
-              // being asked to tell apart from somebody else.
-              <span
-                aria-hidden="true"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand"
-              >
-                {initial}
-              </span>
-            )}
+            {/* The same circle you are everywhere else — two initials in your
+                identity colour, or your picture. It was a brand-blue disc with
+                ONE letter, so the chrome said "A" while Settings, the rosters
+                and every session row said "AT" in green: two faces for one
+                person, on the same screen. */}
+            <Avatar person={user} className="h-8 w-8 shrink-0 text-xs" />
             {/* Blue, not red: red is spent on hours that are gone. The bell
                 owns the corner's count; this is only "something to read". */}
             {whatsNew && (
@@ -160,10 +164,14 @@ function AccountMenu({
               />
             )}
           </span>
-          <span className="hidden min-w-0 flex-1 truncate text-left text-[0.9375rem] font-medium text-ink lg:inline">
-            {label}
-          </span>
-          <ChevronDownIcon className="hidden h-4 w-4 shrink-0 text-muted-fg transition-transform group-data-[open]:rotate-180 lg:block" />
+          {named && (
+            <>
+              <span className="hidden min-w-0 flex-1 truncate text-left text-[0.9375rem] font-medium text-ink lg:inline">
+                {label}
+              </span>
+              <ChevronDownIcon className="hidden h-4 w-4 shrink-0 text-muted-fg transition-transform group-data-[open]:rotate-180 lg:block" />
+            </>
+          )}
         </>
       }
     >
@@ -504,8 +512,12 @@ function StaffShell({
 
       {/* pb-24 clears the bottom bar (56px + the home-indicator inset);
           nothing sits under it at lg, where the bar is gone. */}
+      {/* `data-bell-lane`: the one shell with a bell fixed over the page's
+          top right corner — `PageTitle` reads this to start its row below it.
+          The student and public shells have no such bell. */}
       <main
         id="main"
+        data-bell-lane
         tabIndex={-1}
         className="mx-auto w-full max-w-6xl focus:outline-none flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:pb-10 lg:pt-8"
       >
@@ -563,6 +575,7 @@ function StudentShell({
             lens={null}
             mentorProfile={false}
             whatsNew={whatsNew}
+            named={false}
           />
         }
       />

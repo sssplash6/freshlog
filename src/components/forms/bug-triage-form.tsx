@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Field, Input, Textarea, inputClasses } from "@/components/ui/field";
+import { DateField } from "@/components/ui/date-field";
+import { Field, Textarea, inputClasses } from "@/components/ui/field";
 import { setBugStatus } from "@/lib/actions/bugs";
 import type { ActionState } from "@/lib/actions/shared";
 import {
@@ -97,7 +98,7 @@ export function BugTriageForm({
 
       {next === BUG_STATUS.FIXED && (
         <Field label="Shipped in the changelog on" error={fieldError("changelogDate")} hint="Defaults to today.">
-          <Input type="date" name="changelogDate" defaultValue={changelogDate ?? ""} />
+          <DateField name="changelogDate" label="Shipped on" defaultValue={changelogDate ?? ""} />
         </Field>
       )}
 

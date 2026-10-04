@@ -10,6 +10,7 @@
  */
 
 import type { AnalyticsRow } from "@/lib/analytics";
+import { formatDuration } from "@/lib/format";
 
 const KIND_COMPLETED = 0;
 const KIND_EXTRA = 1;
@@ -211,13 +212,19 @@ export function hoursByDay(rows: readonly AnalyticsRow[]): Map<number, number> {
   return out;
 }
 
-/** A roll-up in hours, short: 45 → "45m", 90 → "1.5h", 1100 → "18h", 30000 → "500h". */
+/**
+ * A roll-up in hours, short: 45 → "45 min", 90 → "1h 30m", 1100 → "18h",
+ * 30000 → "500h".
+ *
+ * Under ten hours it is `formatDuration`, word for word. It printed "3.5h"
+ * here until 4 October 2026 while the headline above it said "3h 30m" for the
+ * same extra time — two spellings of one figure on one card. Past ten hours
+ * the minutes stop mattering at a glance and only the hour survives.
+ */
 export function shortHours(minutes: number): string {
   const m = Math.round(minutes);
-  if (m < 60) return `${m}m`;
-  const h = m / 60;
-  if (h < 10) return `${Math.round(h * 10) / 10}h`;
-  return `${Math.round(h).toLocaleString("en-US")}h`;
+  if (Math.abs(m) < 600) return formatDuration(m);
+  return `${Math.round(m / 60).toLocaleString("en-US")}h`;
 }
 
 /** The step and top of a clean axis over `max` minutes, in whole hours. */

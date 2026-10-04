@@ -14,7 +14,7 @@ import {
   msOf,
   startOfMonth,
 } from "@/lib/calendar";
-import { MONTHS } from "@/lib/format";
+import { formatDate, MONTHS } from "@/lib/format";
 import { programToday } from "@/lib/when";
 
 /**
@@ -145,10 +145,13 @@ export function DateField({
   );
 }
 
-/** "17 September 2026" — the long form, because this is the only place it is read. */
+/**
+ * "September 17", the year only when it is not this one — `formatDate`, so
+ * the field reads the date the way every row it lands in will. It said
+ * "17 September 2026" here and "September 17" everywhere else.
+ */
 function human(ms: number): string {
-  const d = new Date(ms);
-  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  return formatDate(new Date(ms));
 }
 
 function Calendar({

@@ -16,7 +16,7 @@ import { Figure, FigureRow } from "@/components/ui/figure";
 import { ArrowLink, ExternalLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
 import { TabLinks } from "@/components/ui/segmented";
-import { Table, Td, Tr, type Column } from "@/components/ui/table";
+import { FILL_CELL, Table, Td, Tr, type Column } from "@/components/ui/table";
 import {
   adminScope,
   canAdministerMentor,
@@ -27,7 +27,7 @@ import { cn } from "@/lib/cn";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
-import { formatDate, formatDuration } from "@/lib/format";
+import { formatBalance, formatDate, formatDuration } from "@/lib/format";
 import { allocationSummary, canBookOn } from "@/lib/hours";
 import { mentorWindow } from "@/lib/mentor-window";
 import { prisma } from "@/lib/prisma";
@@ -493,7 +493,7 @@ async function MentorRecord({
                     row.remaining < 0 ? "text-danger-ink" : "text-ink"
                   )}
                 >
-                  {formatDuration(row.remaining)}
+                  {formatBalance(row.remaining)}
                 </Td>
               </Tr>
             ))}
@@ -526,7 +526,7 @@ async function MentorRecord({
                 className="deal-in"
                 style={{ animationDelay: `${Math.min(i, 14) * 24}ms` }}
               >
-                <Td>
+                <Td className={FILL_CELL}>
                   <PersonCell
                     person={{
                       id: s.student.user.id,
@@ -568,7 +568,7 @@ async function MentorRecord({
                     s.remaining < 0 ? "text-danger-ink" : "text-ink"
                   )}
                 >
-                  {formatDuration(s.remaining)}
+                  {formatBalance(s.remaining)}
                 </Td>
                 <Td
                   label="Assigned"

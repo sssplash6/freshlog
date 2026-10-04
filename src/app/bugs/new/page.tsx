@@ -1,5 +1,6 @@
 import { ReportBugForm } from "@/components/forms/bug-report-form";
-import { PageTitle } from "@/components/ui/section";
+import { PageTitle, READING_WIDTH } from "@/components/ui/section";
+import { cn } from "@/lib/cn";
 import { sanitizePagePath } from "@/lib/bugs";
 import { requireUser } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
@@ -13,7 +14,7 @@ export default async function NewBugPage({
   const from = sanitizePagePath(readParam(await searchParams, "from"));
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
+    <div className={cn(READING_WIDTH, "space-y-4")}>
       <PageTitle
         backHref="/bugs"
         backLabel="Bug reports"

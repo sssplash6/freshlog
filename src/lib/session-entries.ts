@@ -17,7 +17,9 @@ export type LoggedSession = {
   mentor: { id: string; name: string | null; email: string; avatarUpdatedAt?: Date | null };
   student?: {
     id: string;
-    user: { name: string | null; email: string; avatarUpdatedAt?: Date | null };
+    // The USER's id, for the face: identity colour and picture are keyed by
+    // the person, and the profile id gave one student two colours.
+    user: { id: string; name: string | null; email: string; avatarUpdatedAt?: Date | null };
     program?: { name: string } | null;
   } | null;
   assignment?: { id: string; purpose: string } | null;
@@ -48,7 +50,7 @@ export function toSessionEntries(
     },
     student: s.student
       ? {
-          id: s.student.id,
+          id: s.student.user.id,
           name: s.student.user.name,
           email: s.student.user.email,
           avatarUpdatedAt: s.student.user.avatarUpdatedAt,

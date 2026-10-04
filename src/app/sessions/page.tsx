@@ -29,7 +29,6 @@ import {
 import { requireUser } from "@/lib/dal";
 import { formatDuration, toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { profileOf } from "@/lib/profile";
 import { taskOptionsForSessions } from "@/lib/queries";
 
 /**
@@ -41,7 +40,7 @@ import { taskOptionsForSessions } from "@/lib/queries";
  * the whole school reads.
  *
  * Which rows exist is the reader's grants and reach. The lens only decides
- * whether "Mine" is on when you arrive.
+ * whether "Mine" is offered.
  */
 export default async function SessionsPage({
   searchParams,
@@ -49,7 +48,6 @@ export default async function SessionsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const user = await requireUser();
-  const lens = await profileOf(user);
   const scope = await adminScope(user);
   const programIds = scopeProgramFilter(scope);
   const administers = scope === "ALL" || scope.size > 0;
@@ -193,18 +191,22 @@ export default async function SessionsPage({
 
   return (
     <div className="space-y-4">
-      <Header lens={lens} />
+      <Header />
       {filters}
 
       {/* The headline as a stat row — label over figure, set apart by space —
           rather than a sentence of bolded fragments. It still reads the whole
-          filtered set, never the page. Missed and extra only when there are
-          any: a zero there is not news. */}
+          filtered set, never the page.
+
+          All four, always, zeros included. Missed and extra used to drop out
+          at zero, so the grid was four figures for one reader, three for
+          another and two under a filter — and on a phone three wrapped to a
+          row of two and an orphan. A fixed 2 × 2 on a phone, one row above. */}
       <div className="px-1">
-        <dl className="flex flex-wrap gap-x-10 gap-y-3">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:flex sm:flex-wrap sm:gap-x-10">
           <Stat label="Logged" value={formatDuration(logged)} />
-          {missed > 0 && <Stat label="Missed" value={formatDuration(missed)} />}
-          {extra > 0 && <Stat label="Extra" value={formatDuration(extra)} />}
+          <Stat label="Missed" value={formatDuration(missed)} />
+          <Stat label="Extra" value={formatDuration(extra)} />
           <Stat label="Sessions" value={String(total)} />
         </dl>
         {/* What the filters did, in words — only once something is on, since
@@ -218,7 +220,7 @@ export default async function SessionsPage({
 
       {total === 0 ? (
         activeFilterCount(params) > 0 ? (
-          <EmptyState variant="no-results">
+          <EmptyState variant="no-results" title="No sessions match">
             Reset the filters to see the rest.
           </EmptyState>
         ) : (
@@ -255,14 +257,14 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 /** The title and the one action. */
-function Header({ lens }: { lens: "admin" | "mentor" }) {
+function Header() {
   return (
     <PageTitle
       title="Sessions"
       actions={
         <LinkButton
           href="/sessions/new"
-          variant={lens === "mentor" ? "primary" : "secondary"}
+          variant="primary"
           size="md"
         >
           Log a session

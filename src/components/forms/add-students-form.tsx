@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { PlusIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { EmailInput, Input, inputClasses } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
@@ -275,7 +276,8 @@ function StudentRows({
         onClick={addRow}
         className="w-full"
       >
-        + Add students
+        <PlusIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+        Add students
       </Button>
     </>
   );

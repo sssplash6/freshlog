@@ -104,7 +104,7 @@ export default async function ClassmatePage({
       <Section title="Available interview times" count={slots.length || undefined}>
         {slots.length === 0 ? (
           <EmptyState framed={false} title="No times offered">
-            {first} hasn&apos;t offered any times yet.
+            {`${first} hasn’t offered any times yet.`}
           </EmptyState>
         ) : (
           <BookInterviewForm

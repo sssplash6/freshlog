@@ -6,6 +6,7 @@ import { Select, type SelectOption } from "@/components/select";
 import { Button } from "@/components/ui/button";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { Field, Input } from "@/components/ui/field";
+import { DateField } from "@/components/ui/date-field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { returnExchange, sendOnExchange } from "@/lib/actions/exchanges";
@@ -97,7 +98,7 @@ export function SendOnExchangeForm({
           <Input name="minutes" type="number" inputMode="numeric" min="1" step="1" required placeholder="420" />
         </Field>
         <Field label="Use by">
-          <Input name="deadline" type="date" required />
+          <DateField name="deadline" label="Use by" required />
         </Field>
         <div className="sm:col-span-2">
           <Field label="What they need">

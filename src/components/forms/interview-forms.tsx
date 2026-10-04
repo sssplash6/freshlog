@@ -40,23 +40,29 @@ export function OfferSlotForm({
 
   return (
     <form action={action} className="space-y-4 px-4 py-3 sm:px-5">
-      <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+      {/* Top-aligned, with each label a block line the legend's height and
+          the control the legend's `mt-1` under it. Bottom-aligned, the
+          segmented track — a few pixels taller than an input — lifted its
+          legend and itself off the line Day and Starts at sat on. */}
+      <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start">
         <div className="text-sm">
-          <span className="text-muted-fg">Day</span>
-          <div className="mt-0.5">
+          <span className="block text-muted-fg">Day</span>
+          <div className="mt-1">
             <DateField name="date" defaultValue={tomorrow} min={today} max={lastDay} required />
           </div>
         </div>
         <label className="block text-sm">
-          <span className="text-muted-fg">Starts at (Tashkent)</span>
-          <Input name="time" type="time" required defaultValue="15:00" className="mt-0.5" />
+          <span className="block text-muted-fg">Starts at (Tashkent)</span>
+          <Input name="time" type="time" required defaultValue="15:00" className="mt-1" />
         </label>
         <SegmentedRadio
           name="minutes"
           legend="Length"
           options={SLOT_LENGTHS.map((m) => ({ value: String(m), label: `${m} min` }))}
           defaultValue="45"
-          required
+          // Not `required`: it always holds a value, and the asterisk it
+          // drew was the only one on a form whose other fields are required
+          // too and wear none.
         />
       </div>
       <label className="block text-sm">

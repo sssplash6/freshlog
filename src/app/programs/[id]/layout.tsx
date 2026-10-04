@@ -76,15 +76,24 @@ export default async function ProgramLayout({
         // beside its own coloured dot — the same fact three times in forty
         // pixels of vertical space.
         title={
-          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <>
             {/* The mark, at the one place the program is the subject. Not a
-                wash and not a monogram — see `program-tone.ts`. */}
-            <ProgramDot program={program} className="h-3 w-3" />
+                wash and not a monogram — see `program-tone.ts`. Inline with
+                the name, not a flex sibling: a flex row wraps at ITEMS, so a
+                name too long for one line wrapped whole onto the second and
+                left the dot alone on the first. In the text flow it stays on
+                the first line whatever wraps under it. */}
+            <ProgramDot
+              program={program}
+              className="mr-3 inline-block h-3 w-3 align-[0.12em]"
+            />
             {program.name}
             {program.status === PROGRAM_STATUS.ARCHIVED && (
-              <StatusChip severity="neutral">Archived</StatusChip>
+              <span className="ml-3 inline-flex align-middle">
+                <StatusChip severity="neutral">Archived</StatusChip>
+              </span>
             )}
-          </span>
+          </>
         }
         actions={
           <span className="flex flex-wrap items-center gap-2">

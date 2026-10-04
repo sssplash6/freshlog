@@ -6,7 +6,7 @@ import {
   USER_STATUS,
 } from "@/lib/constants";
 import { mentorReachWhere } from "@/lib/queries";
-import { EXPIRY_WINDOW_DAYS, type Audience } from "@/lib/status";
+import { EXPIRY_WINDOW_DAYS, type Audience, type TimeState } from "@/lib/status";
 import { programWallClock } from "@/lib/when";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -577,6 +577,15 @@ export const MINE_PRESET: FilterPreset = {
   hint: "Only the people you hold time with.",
 };
 
+/** `?time=`, read as the state it names, or nothing. */
+export function readTimeState(params: SearchParams): TimeState | undefined {
+  return readChoice(params, "time", {
+    none: "none",
+    expiring: "expiring",
+    expired: "expired",
+  } as const);
+}
+
 /* -------------------------------------------------------- value spellings --- */
 
 /**
@@ -808,19 +817,32 @@ export function studentsWhere(
     });
   }
 
-  const time = readParam(params, "time");
+  // Asked of the grants in the programs being read, not of every grant the
+  // student holds: an admin of one program reading a two-program student was
+  // told "no time" was false because of hours in a program they cannot see.
+  // This is the coarse half — the page then asks `timeStateHolds` of the
+  // figures it shows (`readTimeState`), which is the rule the bell counts by.
+  const time = readTimeState(params);
   const today = startOfProgramDay(now);
+  const grantScope = program
+    ? { programId: program }
+    : scope.programIds
+      ? { programId: { in: [...scope.programIds] } }
+      : {};
   if (time === "none") {
-    and.push({ hourAllocations: { none: {} } });
+    and.push({ hourAllocations: { none: grantScope } });
   } else if (time === "expiring") {
     const days = EXPIRY_WINDOW_DAYS[scope.audience ?? "staff"];
     and.push({
       hourAllocations: {
-        some: { deadline: { gte: today, lte: endOfDay(new Date(today.getTime() + days * DAY_MS)) } },
+        some: {
+          ...grantScope,
+          deadline: { gte: today, lte: endOfDay(new Date(today.getTime() + days * DAY_MS)) },
+        },
       },
     });
   } else if (time === "expired") {
-    and.push({ hourAllocations: { some: { deadline: { lt: today } } } });
+    and.push({ hourAllocations: { some: { ...grantScope, deadline: { lt: today } } } });
   }
 
   const search = searchWhere(STUDENT_SEARCH, readParam(params, "q"));
@@ -853,7 +875,13 @@ export function mentorsWhere(
   if (program) and.push({ mentorAssignments: { some: { programId: program } } });
 
   if (readParam(params, "status") === "unassigned") {
-    and.push({ status: USER_STATUS.UNASSIGNED });
+    // The same test the bell's "not in any program" row makes
+    // (`mentorStatuses`): never placed, OR placed nowhere. The account status
+    // alone missed a mentor whose last pairing was removed, so the bell
+    // counted three and this chip found one.
+    and.push({
+      OR: [{ status: USER_STATUS.UNASSIGNED }, { mentorAssignments: { none: {} } }],
+    });
   }
   if (readParam(params, "link") === "missing") {
     // Scoped like everything else: a bare `calendlyUrl: null` would count a
@@ -1019,5 +1047,7 @@ export function filterSummary(
     return filtered ? `No ${unit.many} match these filters` : "";
   }
   if (q) return `${total} ${noun} for “${q}”`;
-  return filtered ? `${total} ${noun} match these filters` : `${total} ${noun}`;
+  return filtered
+    ? `${total} ${noun} ${total === 1 ? "matches" : "match"} these filters`
+    : `${total} ${noun}`;
 }

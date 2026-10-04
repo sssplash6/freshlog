@@ -191,15 +191,21 @@ export function StudentTaskRow({
           <span className="flex min-w-0 max-w-44">
             <PersonChip person={task.mentor} size="sm" href={task.mentor.href} />
           </span>
+          {/* Truncates, like the mentor beside it. At full width "Global
+              Admissions Program" took the line's slack and left the title a
+              column three words wide, seven lines tall. */}
           {task.program && (
-            <span className="shrink-0 text-xs text-muted-fg">
+            <span
+              title={task.program.name}
+              className="min-w-0 max-w-40 truncate text-xs text-muted-fg"
+            >
               {task.program.name}
             </span>
           )}
 
           {/* WHAT. The flexible middle, so progress lands against the right
               edge however short the title is. */}
-          <span className="min-w-0 flex-1 basis-full text-[0.9375rem] font-medium leading-snug text-ink max-sm:order-first @xl:basis-0">
+          <span className="min-w-0 flex-1 basis-full text-[0.9375rem] font-medium leading-snug text-ink max-sm:order-first @xl:min-w-60 @xl:basis-0">
             {task.title}
           </span>
         </div>

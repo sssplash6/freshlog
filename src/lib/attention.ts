@@ -9,6 +9,7 @@ import {
   canActAsMentor,
 } from "@/lib/constants";
 import { soonestExpiry } from "@/lib/deadlines";
+import { mentorsWhere } from "@/lib/filters";
 import { unallocatedExchanges } from "@/lib/exchanges";
 import { allocationSummary, type AllocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
@@ -220,8 +221,13 @@ export async function staffAttention(
     // The same pool the mentors list works from: plain mentors plus dual-role
     // admins who also mentor. A mentor missing from here is a mentor whose
     // missing booking link nobody is told about.
+    //
+    // And the same SCOPE: a scoped admin's list holds only mentors paired in
+    // their programs, so the bell must not count anyone else. Unscoped, it
+    // told a program admin "5 mentors are not in any program" — mentors their
+    // own list cannot show and they cannot place.
     prisma.user.findMany({
-      where: { OR: [{ role: ROLES.MENTOR }, { isMentor: true }] },
+      where: mentorsWhere({}, { programIds }),
       orderBy: { name: "asc" },
       select: { id: true, name: true, email: true, status: true },
     }),

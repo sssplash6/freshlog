@@ -46,18 +46,21 @@ export function SubmitButton({
   variant = "primary",
   size = "md",
   className,
+  disabled = false,
 }: {
   children: React.ReactNode;
   pendingText?: React.ReactNode;
   variant?: ButtonVariant;
   size?: ButtonSize;
   className?: string;
+  /** Off before there is anything the submit could succeed with. */
+  disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       aria-busy={pending}
       className={buttonClasses(variant, size, className)}
     >

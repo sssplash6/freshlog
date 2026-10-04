@@ -7,6 +7,7 @@ import { Select } from "@/components/select";
 import { Input } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
 import { MAX_TASK_LENGTH, TASK_BANK, TASK_OTHER, TASK_PRESETS } from "@/lib/tasks";
+import { RequiredMark } from "@/components/ui/required-mark";
 
 /** An open agenda item this pairing already has, offered so it can be topped up. */
 export type OpenTask = { purpose: string; hint?: string };
@@ -88,7 +89,7 @@ export function TaskPicker({
             : "text-xs font-medium text-muted-fg",
         )}
       >
-        Agenda{!optional && <span className="text-accent-ink"> *</span>}
+        Agenda{!optional && <RequiredMark />}
       </span>
       <div className="mt-1">
         <Select

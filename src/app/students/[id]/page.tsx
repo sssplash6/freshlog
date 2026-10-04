@@ -394,7 +394,7 @@ export default async function StudentWorkspacePage({
         leading={
           <Avatar
             person={{
-              id: profile.id,
+              id: profile.userId,
               name: profile.user.name,
               email: profile.user.email,
               avatarUpdatedAt: profile.user.avatarUpdatedAt,

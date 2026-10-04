@@ -9,7 +9,7 @@ import { FilterBar } from "@/components/ui/filter-bar";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
 import { PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
-import { Table, Td, Tr, type Column } from "@/components/ui/table";
+import { FILL_CELL, Table, Td, Tr, type Column } from "@/components/ui/table";
 import {
   adminScope,
   adminWriteScope,
@@ -607,7 +607,7 @@ type MentorStanding = {
 function MentorRow({ mentor }: { mentor: MentorStanding }) {
   return (
     <Tr>
-      <Td label="Mentor">
+      <Td label="Mentor" className={FILL_CELL}>
         <PersonCell person={mentor.who} href={`/mentors/${mentor.who.id}`}>
           {mentor.low && <StatusChip severity="attention">Low</StatusChip>}
         </PersonCell>

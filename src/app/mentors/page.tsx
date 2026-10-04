@@ -193,7 +193,7 @@ export default async function MentorsPage({
       {/* Under the title rather than in its actions row: the fold opens into a
           two-column form with a program picker in it, and a control that pushes
           the page's own heading sideways when it opens is not an action. */}
-      <Disclosure label="Register a mentor">
+      <Disclosure label="Register a mentor" variant="create">
         <RegisterMentorForm programs={toProgramOptions(programs)} />
       </Disclosure>
 

@@ -6,7 +6,7 @@ export function Rating({ value }: { value: number }) {
       aria-label={`${value} out of 5 stars`}
     >
       {"★".repeat(value)}
-      <span className="text-fill-strong">{"★".repeat(5 - value)}</span>
+      <span className="text-muted-fg/40">{"★".repeat(5 - value)}</span>
     </span>
   );
 }

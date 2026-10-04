@@ -212,20 +212,25 @@ export function Dashboard({
       <Crumb current={program == null && mentor == null} onClick={() => go({ program: null, mentor: null })}>
         {words.all}
       </Crumb>
+      {/* Each slash is held to the crumb after it, so a long name wraps
+          whole onto the next line instead of leaving a "/" at the end of
+          the one above it. */}
       {programRow && (
-        <>
+        <span className="inline-flex min-w-0 max-w-full items-center gap-1">
           <span className="text-muted-fg/50" aria-hidden>/</span>
           <Crumb current={mentor == null} onClick={() => go({ mentor: null })}>
             <Dot color={accent} />
-            {programRow.name}
+            <span className="min-w-0 truncate">{programRow.name}</span>
           </Crumb>
-        </>
+        </span>
       )}
       {mentorRow && (
-        <>
+        <span className="inline-flex min-w-0 max-w-full items-center gap-1">
           <span className="text-muted-fg/50" aria-hidden>/</span>
-          <Crumb current onClick={() => undefined}>{mentorRow.name}</Crumb>
-        </>
+          <Crumb current onClick={() => undefined}>
+            <span className="min-w-0 truncate">{mentorRow.name}</span>
+          </Crumb>
+        </span>
       )}
     </nav>
   );
@@ -475,9 +480,9 @@ function Hero({
       const rows = select(data.rows, { year: py, month: pm, ...scope }).filter(
         (r) => !running || dateOf(r[3]) <= today.day
       );
-      const label = running ? `vs ${MONTHS[pm]} 1–${today.day}` : `vs ${MONTHS_LONG[pm]}`;
+      const against = running ? `${MONTHS[pm]} 1–${today.day}` : MONTHS_LONG[pm];
       const nowRows = running ? periodRows.filter((r) => dateOf(r[3]) <= today.day) : periodRows;
-      return { before: totals(rows).hours, now: totals(nowRows).hours, label };
+      return { before: totals(rows).hours, now: totals(nowRows).hours, against };
     }
     const running = year === today.year;
     const rows = select(data.rows, { year: year - 1, ...scope }).filter(
@@ -489,7 +494,7 @@ function Hero({
     return {
       before: totals(rows).hours,
       now: t.hours,
-      label: running ? `vs same period ${year - 1}` : `vs ${year - 1}`,
+      against: running ? `the same period of ${year - 1}` : String(year - 1),
     };
   }, [data.rows, year, month, program, mentor, today, periodRows, t.hours]);
 
@@ -508,10 +513,10 @@ function Hero({
     return best < 0 ? null : { month: best, minutes: hoursOf(months[best]) };
   }, [yearRows]);
 
-  const period = month != null ? `${MONTHS_LONG[month]} ${year}` : String(year);
-
+  // No caption: the period is already in the header, in the year switcher and
+  // the month chip beside it, and "2026" printed twice read as two things.
   return (
-    <Section title="Hours with students" caption={period}>
+    <Section title="Hours with students">
       {/* ONE lead figure, in the orange that means hours everywhere else, and
           the six supporting figures under a hairline at a third of its size —
           they used to be six tinted tiles beside it, which read as seven
@@ -524,8 +529,17 @@ function Hero({
           <span className="text-[1.0625rem] font-medium text-muted-fg">hours</span>
         </div>
         <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted-fg">
-          <Delta value={delta} />
-          <span>{delta == null ? (compare.before === 0 ? `none ${compare.label.slice(3)}` : "") : compare.label}</span>
+          {/* It read "New none same period 2025": a badge and a fragment
+              that only parsed together. With nothing to compare against,
+              say so in a sentence instead of a figure. */}
+          {delta == null ? (
+            <span>Nothing logged in {compare.against} to compare with</span>
+          ) : (
+            <>
+              <Delta value={delta} />
+              <span>vs {compare.against}</span>
+            </>
+          )}
         </p>
         <p className="mt-0.5 text-[0.8125rem] text-muted-fg">
           <span className="font-medium tabular-nums text-ink">{formatDuration(t.completed)}</span> in plan
@@ -590,7 +604,12 @@ function Delta({ value }: { value: number | null }) {
 /* ---------------------------------------------------------------- columns */
 
 type Segment = { key: string; label: string; value: number; color: string; opacity?: number };
-type Column = { key: string; label: string; title: string; segments: Segment[]; tally: Tally; weekend?: boolean };
+type Column = {
+  key: string;
+  label: string;
+  /** A narrower label for a narrow chart: "S" for "Sep". */
+  short?: string;
+  title: string; segments: Segment[]; tally: Tally; weekend?: boolean };
 type LegendItem = { label: string; color: string; opacity: number };
 
 /** How one level stacks its hours: by program, or in plan against extra. */
@@ -649,6 +668,7 @@ function MonthsCard({
     return tallies.map((tally, i) => ({
       key: String(i),
       label: MONTHS[i],
+      short: MONTHS[i][0],
       title: `${MONTHS_LONG[i]} ${year}`,
       segments: segments(buckets[i], tally),
       tally,
@@ -851,7 +871,18 @@ function Columns({
             key={c.key}
             className={cn(s.xLabel, selected === i && s.xLabelActive, c.weekend && s.xLabelWeekend)}
           >
-            {i % labelEvery === 0 || i === columns.length - 1 ? c.label : ""}
+            {i % labelEvery !== 0 && i !== columns.length - 1 ? (
+              ""
+            ) : c.short ? (
+              // Both, and the chart's own width picks: twelve "Sep"s in a
+              // 300px phone chart ran together into "NovDec".
+              <>
+                <span className={s.xLong}>{c.label}</span>
+                <span className={s.xShort}>{c.short}</span>
+              </>
+            ) : (
+              c.label
+            )}
           </span>
         ))}
       </div>
@@ -891,14 +922,14 @@ function ProgramCards({
     .sort((a, b) => (b.r?.hours ?? 0) - (a.r?.hours ?? 0));
 
   return (
-    <section className="min-w-0">
+    <section className="@container min-w-0">
       {/* Section's own header, by hand: this group is a grid of cards rather
           than one card, and Section's body is always exactly one. */}
       <div className="px-1 pb-2 pt-2">
         <h2 className="text-[1.25rem] font-semibold tracking-[-0.01em] text-ink">{words.parts}</h2>
         <div className="mt-0.5 text-[0.8125rem] font-medium text-muted-fg">Open one to see which mentors carry it.</div>
       </div>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
+      <div className={cn("grid gap-3", cardColumns(order.length))}>
         {order.map(({ p, i, r }, n) => {
           const progress = p.granted > 0 ? delivered[i] / p.granted : 0;
           const color = colorOf(data, i);
@@ -935,8 +966,13 @@ function ProgramCards({
                 <span className={cn(s.shareFill, "block h-full rounded-full")} style={{ width: `${Math.min(100, progress * 100)}%`, background: color }} />
               </span>
               <Sparkline values={trends[i].slice(0, last + 1)} color={color} width={220} height={36} highlight={month} fluid />
-              <span className="text-[0.8125rem] tabular-nums text-muted-fg">
-                {r?.mentors ?? 0} mentors · {r?.students ?? 0} students · {r?.sessions ?? 0} sessions
+              {/* Pinned to the card's foot, and broken only between its three
+                  parts — it wrapped mid-phrase, so cards beside each other
+                  ended at different heights. */}
+              <span className="mt-auto flex flex-wrap gap-x-1.5 text-[0.8125rem] tabular-nums text-muted-fg">
+                <span className="whitespace-nowrap">{count(r?.mentors ?? 0, "mentor")} ·</span>
+                <span className="whitespace-nowrap">{count(r?.students ?? 0, "student")} ·</span>
+                <span className="whitespace-nowrap">{count(r?.sessions ?? 0, "session")}</span>
               </span>
             </button>
           );
@@ -944,6 +980,24 @@ function ProgramCards({
       </div>
     </section>
   );
+}
+
+/** "1 mentor", "13 mentors". */
+function count(n: number, noun: string): string {
+  return `${n.toLocaleString("en-US")} ${n === 1 ? noun : `${noun}s`}`;
+}
+
+/**
+ * Columns that never leave one card alone on the last row: four cards go
+ * one, two, then four across; three go one, then three. It was an auto-fill
+ * grid, which put four programs at 3 + 1 on a tablet. Container widths, not
+ * the viewport's, because the sidebar takes a different share at each size.
+ */
+function cardColumns(n: number): string {
+  if (n % 4 === 0) return "@lg:grid-cols-2 @4xl:grid-cols-4";
+  if (n % 3 === 0) return "@2xl:grid-cols-3";
+  if (n % 2 === 0) return "@lg:grid-cols-2";
+  return "@lg:grid-cols-2 @4xl:grid-cols-3";
 }
 
 /* ------------------------------------------------------------ leaderboard */
@@ -1130,13 +1184,15 @@ function MentorDetail({
 
   return (
     <>
-      <Section title={`Every day of ${year}`} eyebrow="Darker means more hours that day.">
+      <Section title={`Every day of ${year}`} eyebrow="Stronger colour means more hours that day.">
         <div className="px-4 py-3 sm:px-5">
           <Heatmap rows={yearRows} year={year} color={accent} selected={month} onPick={(m) => go({ month: m })} />
         </div>
       </Section>
       <Section title="What they logged each month" eyebrow="Pick a row to open that month.">
-        <div className="overflow-x-auto px-4 py-2 sm:px-5">
+        {/* `scroll-x` rather than a bare overflow: on a phone the last columns
+            run past the card, and the fade is what says there is more. */}
+        <div className="scroll-x px-4 py-2 sm:px-5">
           <table className={s.table}>
             <thead>
               <tr>
@@ -1167,7 +1223,10 @@ function MentorDetail({
                       }
                     }}
                   >
-                    <td>{MONTHS_LONG[i]}</td>
+                    <td>
+                      <span className="max-sm:hidden">{MONTHS_LONG[i]}</span>
+                      <span className="sm:hidden">{MONTHS[i]}</span>
+                    </td>
                     <td>
                       <span className={s.inlineBar} style={{ width: (h / maxMonth) * 48, background: accent }} />
                       <span className="font-medium">{h ? formatDuration(h) : "—"}</span>
@@ -1277,6 +1336,13 @@ function Heatmap({
 }) {
   const weeks = useMemo(() => weeksOf(year), [year]);
   const hours = useMemo(() => hoursByDay(rows), [rows]);
+  // A phone shows about twenty weeks of the fifty-three. Open on the end of
+  // the year, where the recent days are, rather than on an empty January.
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scroller.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [year]);
   const max = Math.max(...hours.values(), 1);
   const level = (m: number) => (m <= 0 ? 0 : m / max <= 0.25 ? 1 : m / max <= 0.5 ? 2 : m / max <= 0.75 ? 3 : 4);
   const mix = [0, 28, 52, 76, 100];
@@ -1285,7 +1351,7 @@ function Heatmap({
 
   return (
     <>
-      <div className={s.heat}>
+      <div ref={scroller} className={cn(s.heat, "scroll-x")}>
         <div className={s.heatGrid}>
           {weeks.map((week, w) => {
             // Label the week a month begins in, and the first week of the year.
@@ -1421,7 +1487,7 @@ function Crumb({ current, onClick, children }: { current: boolean; onClick: () =
     <button
       type="button"
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors",
+        "inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors",
         current ? "cursor-default font-medium text-ink" : "text-muted-fg hover:bg-fill hover:text-ink"
       )}
       onClick={current ? undefined : onClick}

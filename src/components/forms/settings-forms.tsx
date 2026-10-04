@@ -38,7 +38,7 @@ export function OwnTelegramForm({ defaultHandle }: { defaultHandle: string }) {
       htmlFor={id}
       state={<SaveState state={save} />}
       control={
-        <form action={action} className="flex flex-wrap items-center gap-2">
+        <form action={action} className="flex items-center gap-2">
           {/* Required here as it is at sign-in: the server refuses an empty
               handle either way, and a field that looks optional and is not is
               how a student learns the rule from an error message. */}
@@ -49,9 +49,11 @@ export function OwnTelegramForm({ defaultHandle }: { defaultHandle: string }) {
             value={handle}
             onChange={(e) => setHandle(e.target.value)}
             placeholder="username"
-            className="w-48"
+            className="min-w-0 flex-1"
           />
-          <SubmitButton size="sm">Save</SubmitButton>
+          {/* The same full-size Save beside the field that the name row
+              has — it was a small one dropped under the box. */}
+          <SubmitButton pendingText="Saving…">Save</SubmitButton>
         </form>
       }
     />
@@ -120,10 +122,23 @@ export function NotificationMatrix({
   }[];
 }) {
   return (
-    <div className="divide-y divide-line">
-      {categories.map((c) => (
-        <CategoryRow key={c.key} category={c} />
-      ))}
+    <div>
+      {/* The two columns are named once, over the switches, the way a matrix
+          is. Each row used to carry "In the app" and "Email" beside its own
+          switches, which wrapped the longer categories onto two lines on a
+          phone and left the switches at a different x in every row. */}
+      <div
+        aria-hidden="true"
+        className="flex justify-end gap-4 pt-2 text-center text-xs font-medium text-muted-fg"
+      >
+        <span className="w-[3.25rem]">In app</span>
+        <span className="w-[3.25rem]">Email</span>
+      </div>
+      <div className="divide-y divide-line">
+        {categories.map((c) => (
+          <CategoryRow key={c.key} category={c} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -145,31 +160,27 @@ function CategoryRow({
   return (
     <form
       action={setNotificationPreference}
-      className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 py-2"
+      className="flex min-h-11 items-center justify-between gap-x-4 py-2"
     >
       <input type="hidden" name="category" value={category.key} />
-      <div className="min-w-0">
-        <span className="text-[0.9375rem] font-medium text-ink">{category.label}</span>
-      </div>
-      <div className="flex items-center gap-4">
-        <label className="flex min-h-11 items-center gap-2 text-[0.8125rem] text-muted-fg">
-          <Switch
-            name="inApp"
-            checked={inApp}
-            onChange={flip(setInApp)}
-            aria-label={`${category.label} — in the app`}
-          />
-          In the app
-        </label>
-        <label className="flex min-h-11 items-center gap-2 text-[0.8125rem] text-muted-fg">
-          <Switch
-            name="email"
-            checked={email}
-            onChange={flip(setEmail)}
-            aria-label={`${category.label} — by email`}
-          />
-          Email
-        </label>
+      <span className="min-w-0 flex-1 text-[0.9375rem] font-medium text-ink">
+        {category.label}
+      </span>
+      {/* The last switch sits on the row's right edge, under the weekly
+          summary's switch above it, so all three columns line up. */}
+      <div className="flex shrink-0 items-center gap-4">
+        <Switch
+          name="inApp"
+          checked={inApp}
+          onChange={flip(setInApp)}
+          aria-label={`${category.label} — in the app`}
+        />
+        <Switch
+          name="email"
+          checked={email}
+          onChange={flip(setEmail)}
+          aria-label={`${category.label} — by email`}
+        />
       </div>
     </form>
   );

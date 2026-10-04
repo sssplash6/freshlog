@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDuration, formatRough } from "@/lib/format";
+import { formatBalance, formatDuration, formatMinutes, formatRough } from "@/lib/format";
 
 /**
  * The owner asked for rounding because the exact figures had become
@@ -37,9 +37,12 @@ describe("formatRough", () => {
     expect(formatRough(0)).toBe("0 min");
   });
 
-  it("keeps the hour precise below ten, where a five-hour step would erase it", () => {
+  it("keeps the hour precise below a hundred, where a five-hour step would erase it", () => {
     expect(formatRough(190)).toBe("3+ hours");
     expect(formatRough(599)).toBe("9+ hours");
+    // 38h 45m beside a table row saying so; "35+" read as a different figure.
+    expect(formatRough(2325)).toBe("38+ hours");
+    expect(formatRough(5999)).toBe("99+ hours");
   });
 
   it("rounds the size of an overdraw, not its sign", () => {
@@ -56,5 +59,32 @@ describe("formatRough", () => {
         digits(formatDuration(minutes))
       );
     }
+  });
+});
+
+/**
+ * One duration format app-wide: a row of "345 min" under a total of "5h 45m"
+ * made the reader do the division to see one was part of the other.
+ */
+describe("formatMinutes", () => {
+  it("reads like the totals beside it", () => {
+    expect(formatMinutes(345)).toBe("5h 45m");
+    expect(formatMinutes(120)).toBe("2h");
+    expect(formatMinutes(90)).toBe(formatDuration(90));
+    expect(formatMinutes(45)).toBe("45 min");
+    expect(formatMinutes(0)).toBe("0 min");
+  });
+});
+
+describe("formatBalance", () => {
+  it("says an overdraw as time over, never as negative time left", () => {
+    expect(formatBalance(-540)).toBe("9h over");
+    expect(formatBalance(-165)).toBe("2h 45m over");
+    expect(formatBalance(-30)).toBe("30 min over");
+  });
+
+  it("leaves a balance that has not run out exactly as formatDuration says it", () => {
+    expect(formatBalance(2325)).toBe("38h 45m");
+    expect(formatBalance(0)).toBe("0 min");
   });
 });

@@ -124,7 +124,15 @@ export default async function NotificationsPage({
   return (
     <div className="max-w-3xl space-y-4">
       <PageTitle
-        eyebrow={unread > 0 ? `${unread} unread` : "All caught up"}
+        // "All caught up" only when it is true of the whole page: above a
+        // list of three things still to check, it was a contradiction.
+        eyebrow={
+          unread > 0
+            ? `${unread} unread`
+            : attention.statuses.length > 0
+              ? "Nothing unread"
+              : "All caught up"
+        }
         title="Notifications"
       />
 

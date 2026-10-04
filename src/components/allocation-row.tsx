@@ -6,7 +6,7 @@ import { DeadlineText, StatusChip } from "@/components/ui/status-chip";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import { ASSIGNMENT_PROGRESS } from "@/lib/constants";
-import { formatDuration, formatMoney } from "@/lib/format";
+import { formatBalance, formatDuration, formatMoney } from "@/lib/format";
 import { EXPIRY_WINDOW_DAYS, type ViewerContext } from "@/lib/status";
 
 /**
@@ -382,7 +382,7 @@ export function AllocationRow({
           entry.remaining < 0 ? "text-danger-ink" : "text-ink"
         )}
       >
-        {formatDuration(entry.remaining)}
+        {formatBalance(entry.remaining)}
         {entry.forfeited > 0 && (
           // "3h expired unused" — the status model's own words, so a spent
           // balance and a forfeited one stop wearing the same 0m.

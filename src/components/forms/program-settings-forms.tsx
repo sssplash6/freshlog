@@ -196,7 +196,7 @@ export function CreateLevelForm({ programId }: { programId: string }) {
 
   return (
     <Disclosure
-      label="Add a level"
+      label="Add a level" variant="create"
       hint="The first one makes this a leveled program: new enrollments pick a level, and its cohorts sit under one."
     >
       <form action={action} className="flex flex-wrap items-center gap-2">
@@ -457,7 +457,7 @@ export function StandardHoursForm({
               inputMode="numeric"
               min="1"
               step="1"
-              placeholder="600"
+              placeholder="e.g. 600"
               value={minutes}
               onChange={(event) => setMinutes(event.target.value)}
               className="w-28"
@@ -475,7 +475,7 @@ export function StandardHoursForm({
               min="1"
               max="1095"
               step="1"
-              placeholder="90"
+              placeholder="e.g. 90"
               value={days}
               onChange={(event) => setDays(event.target.value)}
               className="w-28"
@@ -540,7 +540,7 @@ export function LevelStandardHoursForm({
               inputMode="numeric"
               min="1"
               step="1"
-              placeholder="600"
+              placeholder="e.g. 600"
               value={minutes}
               onChange={(event) => setMinutes(event.target.value)}
               className="w-28"
@@ -558,7 +558,7 @@ export function LevelStandardHoursForm({
               min="1"
               max="1095"
               step="1"
-              placeholder="90"
+              placeholder="e.g. 90"
               value={days}
               onChange={(event) => setDays(event.target.value)}
               className="w-28"
@@ -629,8 +629,12 @@ export function DeleteProgramButton({
 
   return (
     <div>
+      {/* The page-level destructive button — grey fill, red words, full
+          height — beside Archive's grey fill and blue words, so the two ends
+          of a program's life read as a pair. It was the menu-panel red word,
+          which at 12px beside a sentence of grey looked disabled even when it
+          was not. */}
       <ConfirmInline
-        variant="quiet"
         action={action}
         values={{ programId }}
         pending={save.kind === "saving"}

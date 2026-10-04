@@ -24,7 +24,7 @@ export function CreateProgramForm() {
 
   return (
     <Disclosure
-      label="New program"
+      label="New program" variant="create"
       hint="It starts flat and empty; grant its admins access afterwards."
     >
       <form action={action} className="flex flex-wrap items-center gap-2">
@@ -66,7 +66,7 @@ export function CreateCohortForm({
 
   return (
     <Disclosure
-      label="Add a cohort"
+      label="Add a cohort" variant="create"
       hint={
         levelName
           ? `It joins ${levelName}, and students enrolling at that level pick it.`

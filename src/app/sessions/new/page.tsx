@@ -70,23 +70,33 @@ export default async function LogSessionPage({
   // Mentors in the programs this admin holds — the only people they may put a
   // session's name to. An admin who mentors is in their own list, and is the
   // default, so the ordinary case is the form they have always seen.
+  // `?program=`, from a program's own page: the log is for that program, so
+  // the pickers offer only its people. Honoured only inside this reader's
+  // reach — anything else is ignored rather than refused, as the form was.
+  const asked = one("program");
   const mentors = administers
     ? await prisma.user.findMany({
-        where: mentorsWhere({}, { programIds: scopeProgramFilter(scope) }),
+        where: mentorsWhere(
+          asked ? { program: asked } : {},
+          { programIds: scopeProgramFilter(scope) },
+        ),
         orderBy: [{ name: "asc" }, { email: "asc" }],
         select: { id: true, name: true, email: true },
       })
     : [];
   const named = one("mentor");
+  // The admin is the default only when they are one of the mentors on offer.
+  // An admin who mentors in no program defaulted to themselves anyway, and the
+  // form opened on a mentor with nobody to log for under a live submit button.
   const mentorId = administers
     ? (mentors.find((m) => m.id === named)?.id ??
-      (canActAsMentor(user) ? user.id : ""))
+      (canActAsMentor(user) && mentors.some((m) => m.id === user.id) ? user.id : ""))
     : user.id;
   const acting = mentors.find((m) => m.id === mentorId);
   const onBehalf = mentorId !== "" && mentorId !== user.id;
 
   const caseload = mentorId ? await mentorCaseload(mentorId) : null;
-  const students = caseload
+  const reachable = caseload
     ? logSessionOptions(caseload, {
         // Only when it is somebody else's time. "3h remaining with you" is
         // right for a mentor and a lie on an admin's screen.
@@ -96,6 +106,22 @@ export default async function LogSessionPage({
         programIds: onBehalf ? scopeProgramFilter(scope) : undefined,
       })
     : [];
+  // Named when it is one this page may log into: a program the admin
+  // administers, or one the mentor has a student in.
+  const program = !asked
+    ? null
+    : administers && (scope === "ALL" || scope.has(asked))
+      ? await prisma.program.findUnique({
+          where: { id: asked },
+          select: { id: true, name: true },
+        })
+      : (reachable
+          .flatMap((s) => s.programs)
+          .map((p) => ({ id: p.value, name: p.label }))
+          .find((p) => p.id === asked) ?? null);
+  const students = program
+    ? reachable.filter((s) => s.programs.some((p) => p.value === program.id))
+    : reachable;
 
   // The student survives a change of mentor — somebody who arrived from a
   // student's file is still on that student's file afterwards — but only as
@@ -136,7 +162,12 @@ export default async function LogSessionPage({
     // "Attended / Came late / Absent / Rescheduled" on one row. Below `lg` the
     // form is one column and this cap never binds.
     <div className="max-w-4xl space-y-4">
-      <PageTitle backHref={back} backLabel="Back" title="Log a session" />
+      <PageTitle
+        backHref={back}
+        backLabel="Back"
+        title="Log a session"
+        subtitle={program ? `In ${program.name}` : undefined}
+      />
 
       {students.length === 0 && mentors.length === 0 ? (
         <EmptyState variant="blocked" title="No students to log for">
@@ -161,7 +192,9 @@ export default async function LogSessionPage({
             !mentorId
               ? "Pick a mentor first…"
               : students.length === 0
-                ? "Nobody they can log for here"
+                ? onBehalf
+                  ? "Nobody they can log for here"
+                  : "Nobody you can log for here"
                 : undefined
           }
           mode="page"

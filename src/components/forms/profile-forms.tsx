@@ -26,6 +26,7 @@ import {
 import { AVATAR_ACCEPT, AVATAR_PX } from "@/lib/avatar";
 import type { ActionState } from "@/lib/actions/shared";
 import type { ProgramOption } from "@/lib/queries";
+import { RequiredMark } from "@/components/ui/required-mark";
 
 /**
  * Every form that writes YOUR OWN record: the two on /settings, and the three
@@ -159,7 +160,7 @@ export function RegistrationStepForm({
       <div>
         <span className="block text-sm font-medium text-ink">
           Your program
-          <span className="text-accent-ink"> *</span>
+          <RequiredMark />
         </span>
         <div className="mt-1.5">
           <Select
@@ -175,7 +176,7 @@ export function RegistrationStepForm({
         <div>
           <span className="block text-sm font-medium text-ink">
             Your cohort
-            <span className="text-accent-ink"> *</span>
+            <RequiredMark />
           </span>
           <div className="mt-1.5">
             <Select
@@ -216,14 +217,14 @@ export function OwnNameForm({ defaultName }: { defaultName: string }) {
       label="Full name"
       htmlFor={id}
       control={
-        <form action={action} className="flex flex-wrap items-end gap-2">
+        <form action={action} className="flex items-center gap-2">
           <NameInput
             id={id}
             name="name"
             required
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="min-w-56 flex-1"
+            className="min-w-0 flex-1"
           />
           <SubmitButton pendingText="Saving…">Save</SubmitButton>
         </form>

@@ -4,7 +4,7 @@ import { Section } from "@/components/ui/section";
 import { staffLevel } from "@/lib/authz";
 import { requireProgramScope } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
-import { formatDuration, formatMinutes } from "@/lib/format";
+import { formatBalance, formatDuration, formatMinutes } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { pastHours } from "@/lib/hours";
 import { studentLedger } from "@/lib/queries";
@@ -97,7 +97,10 @@ export default async function AllocateInProgramPage({
               label: s.user.name ?? s.user.email,
               // What they hold here already: the figure an admin is about to
               // change, and the one they check before typing.
-              hint: `${formatDuration(s.remainingMinutes)} remaining`,
+              hint:
+                s.remainingMinutes < 0
+                  ? formatBalance(s.remainingMinutes)
+                  : `${formatDuration(s.remainingMinutes)} remaining`,
             }))}
           />
         </div>

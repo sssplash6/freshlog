@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { Field, GrowingField, Input } from "@/components/ui/field";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
+import { DateField } from "@/components/ui/date-field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { toDateInputValue } from "@/lib/format";
@@ -125,9 +126,9 @@ export function AllocationRowActions({
           </Field>
 
           <Field label="Use by">
-            <Input
+            <DateField
               name="deadline"
-              type="date"
+              label="Use by"
               required
               defaultValue={currentDeadline ?? ""}
             />

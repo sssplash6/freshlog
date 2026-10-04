@@ -99,8 +99,9 @@ describe("helpers", () => {
   });
 
   it("formats and scales hours", () => {
-    expect(shortHours(45)).toBe("45m");
-    expect(shortHours(90)).toBe("1.5h");
+    expect(shortHours(45)).toBe("45 min");
+    expect(shortHours(90)).toBe("1h 30m");
+    expect(shortHours(0)).toBe("0 min");
     expect(shortHours(1100)).toBe("18h");
     expect(niceAxis(7 * 60)).toEqual({ top: 8 * 60, step: 2 * 60 });
   });

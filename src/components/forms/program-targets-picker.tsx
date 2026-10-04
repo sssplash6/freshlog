@@ -6,6 +6,7 @@ import { ChevronDownIcon, SearchIcon } from "@/components/icons";
 import { fieldChrome } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
 import type { ProgramOption } from "@/lib/queries";
+import { RequiredMark } from "@/components/ui/required-mark";
 
 /** A pairing the server understands: "p:<programId>", "l:<levelId>" or "c:<cohortId>". */
 export type Target = string;
@@ -178,7 +179,7 @@ export function ProgramTargetsPicker({
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <legend className="text-sm font-medium text-ink">
           {legend}
-          {required && <span className="text-accent-ink"> *</span>}
+          {required && <RequiredMark />}
         </legend>
         <div className="flex items-center gap-3 text-xs">
           <button

@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
+import { RequiredMark } from "@/components/ui/required-mark";
 
 /**
  * One segmented control, for the six that were built by hand.
@@ -155,7 +156,7 @@ export function SegmentedRadio({
         )}
       >
         {legend}
-        {required && <span className="text-accent-ink"> *</span>}
+        {required && <RequiredMark />}
       </legend>
       {/* The radios are real radios, visually hidden inside their labels. A
           set of buttons would need its own keyboard handling and would submit

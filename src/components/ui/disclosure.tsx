@@ -1,4 +1,4 @@
-import { ChevronDownIcon } from "@/components/icons";
+import { ChevronDownIcon, PlusIcon } from "@/components/icons";
 import { buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
@@ -61,9 +61,16 @@ export function Disclosure({
    *           do next to reading it — adding students to a program — where a
    *           text link above a table is not an action anybody finds.
    *
+   *   create  the link's line with a plus in place of the chevron, for a fold
+           that holds a form making something new — "New program", "Add a
+           cohort", "Register a mentor". A chevron says "there is more to
+           read here"; these say "make one", and they now say it the way
+           "Set a task" and "Add students" do. The plus turns to a cross
+           while open, so the same control reads as the way back out.
+   *
    * It is still a `<details>`: the target grows, the semantics do not change.
    */
-  variant?: "link" | "button";
+  variant?: "link" | "button" | "create";
   /**
    * Rendered on the summary's own line, after the label.
    *
@@ -92,10 +99,17 @@ export function Disclosure({
           "[&::-webkit-details-marker]:hidden"
         )}
       >
-        <ChevronDownIcon
-          className="h-4 w-4 shrink-0 -rotate-90 transition-transform group-open:rotate-0"
-          aria-hidden="true"
-        />
+        {variant === "create" ? (
+          <PlusIcon
+            className="h-4 w-4 shrink-0 transition-transform group-open:rotate-45"
+            aria-hidden="true"
+          />
+        ) : (
+          <ChevronDownIcon
+            className="h-4 w-4 shrink-0 -rotate-90 transition-transform group-open:rotate-0"
+            aria-hidden="true"
+          />
+        )}
         <span>{label}</span>
         {count != null && (
           <span className="tabular-nums text-muted-fg">· {count}</span>

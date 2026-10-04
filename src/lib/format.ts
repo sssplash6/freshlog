@@ -1,16 +1,16 @@
 /** Client-safe formatting helpers. */
 
 /**
- * One duration, in the unit the team speaks: 90 → "90 min".
+ * One duration — a single meeting, one task's budget: 90 → "1h 30m".
  *
- * For a single meeting or one task's budget, the raw minute count is the most
- * useful thing on the page — it is what the mentor typed in, it sorts and
- * compares at a glance, and there is no arithmetic between what is stored and
- * what is read. Roll-up totals get `formatDuration` instead, where a
- * four-figure minute count stops meaning anything.
+ * It said "90 min" until 4 October 2026, on the theory that the raw count is
+ * what the mentor typed. But the same page then printed "345 min" in the row
+ * and "5h 45m" in the total above it, and a reader had to do the division to
+ * see that one was part of the other. One duration format app-wide, so this
+ * is `formatDuration` under the name its call sites already use.
  */
 export function formatMinutes(n: number): string {
-  return `${Math.round(n)} min`;
+  return formatDuration(n);
 }
 
 /**
@@ -32,6 +32,18 @@ export function formatDuration(n: number): string {
 }
 
 /**
+ * A balance, which can run past zero: 2325 → "38h 45m", -540 → "9h over".
+ *
+ * An overdraw is not a negative amount of time a person still has, and
+ * "-9h left" read as a typo for one. Said as what it is, it needs no minus sign
+ * and no colour to be understood — the colour then only has to agree.
+ */
+export function formatBalance(n: number): string {
+  const total = Math.round(n);
+  return total < 0 ? `${formatDuration(-total)} over` : formatDuration(total);
+}
+
+/**
  * A total to get your bearings by: 7,807 → "130+ hours".
  *
  * The owner's words: "very много цифр and I got a bit lost in them" — a page
@@ -48,9 +60,9 @@ export function formatDuration(n: number): string {
  * figure that overstates is worse than a figure that is long.
  *
  * Under an hour there is nothing to round — "45 min" is already the shortest
- * true thing — and under ten hours the hour is precise enough on its own, so
- * the five-hour step only starts where the digits actually stop meaning
- * anything.
+ * true thing — and under a hundred hours the whole hour is precise enough on
+ * its own, so the five-hour step only starts where the digits actually stop
+ * meaning anything.
  */
 export function formatRough(n: number): string {
   const total = Math.round(n);
@@ -60,7 +72,10 @@ export function formatRough(n: number): string {
   if (abs < 60) return `${sign}${abs} min`;
 
   const hours = abs / 60;
-  if (abs < 600) {
+  // Whole hours below a hundred. The five-hour step there cost more than the
+  // digit it saved: 38h 45m read "35+ hours" beside a table saying 38h 45m,
+  // and a reader who sees both trusts neither.
+  if (abs < 6000) {
     const whole = Math.floor(hours);
     // "3 hours" when it is exactly three; "3+ hours" when there is more.
     return `${sign}${whole}${abs % 60 === 0 ? "" : "+"} ${whole === 1 && abs % 60 === 0 ? "hour" : "hours"}`;

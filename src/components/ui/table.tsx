@@ -48,6 +48,19 @@ export type Column = {
  * Figures use tabular numerals so a column of balances lines up digit by
  * digit.
  */
+/**
+ * For the one column that should take whatever width the others leave — the
+ * person a row is about. An auto-layout table sizes a column to its widest
+ * unbreakable content, and a truncating name is still its full width to the
+ * table: a long email made the roster wider than its frame, squeezed "45 min"
+ * onto two lines and pushed the last column out. A zero max-width lets this
+ * column absorb the slack and the name truncate into it. The floor keeps it a
+ * column: without one, a tablet gave the slack to the Program column and cut
+ * every name to five letters, so the neighbours wrap instead. Pointer widths
+ * only; the stacked phone row is a block.
+ */
+export const FILL_CELL = "sm:w-full sm:max-w-0 sm:min-w-36";
+
 export function Table({
   columns,
   framed = true,
@@ -131,7 +144,10 @@ export function Td({
     <td
       className={cn(
         "block px-4 py-0.5 sm:table-cell sm:py-2",
-        align === "right" && "sm:text-right",
+        // A right-aligned cell holds a figure, and a figure on two lines —
+        // "45 / min", "15+ / hours" — reads as two values. The name column
+        // gives way instead (`FILL_CELL`).
+        align === "right" && "sm:whitespace-nowrap sm:text-right",
         className,
       )}
       {...props}

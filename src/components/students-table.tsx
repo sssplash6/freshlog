@@ -5,9 +5,9 @@ import { ProgramChip } from "@/components/program-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { RowFold } from "@/components/ui/row-fold";
 import { StatusChip } from "@/components/ui/status-chip";
-import { Table, Td, Tr, type Column } from "@/components/ui/table";
+import { FILL_CELL, Table, Td, Tr, type Column } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
-import { formatDate, formatDuration } from "@/lib/format";
+import { formatBalance, formatDate, formatDuration } from "@/lib/format";
 import { studentStatuses, type ViewerContext } from "@/lib/status";
 import type { StudentWithHours } from "@/lib/queries";
 
@@ -193,7 +193,7 @@ export function StudentsTable({
             className="deal-in"
             style={{ animationDelay: `${Math.min(i, 14) * 24}ms` }}
           >
-            <Td>
+            <Td className={FILL_CELL}>
               <div className="flex items-center gap-1">
                 <PersonCell
                   className="min-w-0 flex-1"
@@ -230,10 +230,10 @@ export function StudentsTable({
                           overdrawn ? "text-danger-ink" : "text-ink"
                         )}
                       >
-                        {formatDuration(s.remainingMinutes)}
+                        {formatDuration(Math.abs(s.remainingMinutes))}
                       </span>
                       <span className="text-xs font-medium text-muted-fg">
-                        left
+                        {overdrawn ? "over" : "left"}
                       </span>
                     </span>
                   ) : null}
@@ -250,11 +250,15 @@ export function StudentsTable({
                     string, because two enrollments is the case this column
                     exists for and "Global Admissions · Master's" is a sentence
                     the reader has to parse. */}
-                <span className="flex min-w-0 flex-col gap-0.5">
+                {/* Capped below `xl`: a table sizes this column to its
+                    longest program name, and on a tablet that left the
+                    student — the row's subject — five letters wide. The chip
+                    truncates into the cap (its title carries the full name). */}
+                <span className="flex min-w-0 flex-col gap-0.5 sm:max-w-36 xl:max-w-none">
                   {s.enrollments.map((e) => (
                     <span
                       key={e.program.id}
-                      className="flex min-w-0 items-center gap-1.5"
+                      className="flex min-w-0 flex-wrap items-center gap-x-1.5"
                     >
                       <ProgramChip program={e.program} className="text-[0.8125rem]" />
                       {/* A visitor another program lent us, not one of this
@@ -300,7 +304,7 @@ export function StudentsTable({
                   overdrawn ? "text-danger-ink" : "text-ink"
                 )}
               >
-                {formatDuration(s.remainingMinutes)}
+                {formatBalance(s.remainingMinutes)}
               </span>
             </Td>
 
