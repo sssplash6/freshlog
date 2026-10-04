@@ -14,6 +14,13 @@ What we have added and fixed, newest first. Each commit that changes what you se
 - Notifications no longer say "All caught up" above a list of things still to check.
 - A long task title no longer squeezes into a narrow column on the student's home page.
 - Small fixes: a missing space in "… hasn't offered any times yet", "1 mentor matches these filters", and initials no longer pick up brackets ("MS", not "M(").
+- Filtering students by time left ("expiring" or "expired") now matches what the bell counts. A grant that had been fully spent before its deadline no longer appears under "expiring", and filtering inside a program judges that program's hours instead of the student's everywhere.
+- A program's colored dot no longer drops onto a line of its own above the program's name on a phone.
+- The "Things to check" count on a student's home now counts what needs doing — 3 — the same number the bell shows for the same list, instead of every row including the ones that are just for information.
+- On a tablet-width roster, a status label such as "Not signed in" no longer swallows the student's name whole: the name keeps a few characters on the line, and the label drops underneath when the two cannot share it.
+- The void-session button's explanation — "keeps the row, returns the hours" — was cut off mid-word inside its panel. The whole sentence fits on two lines again.
+- The dropdown filters on Students, Mentors, Sessions and Feedback — program, kind, status, dates — now apply. Choosing an option used to show it in the control while the list stayed unfiltered, because the only way to submit was pressing Enter in the search box. An Apply button now sits beside the dropdowns.
+- With JavaScript off, pages no longer stop at the loading skeleton. The whole page — sidebar, tables, search — now renders and the search box still works, since every page is sent by the server complete; only the dropdown filters stay quiet without scripts.
 
 ## 2026-10-03
 

@@ -277,7 +277,11 @@ export function FilterBar({
                   />
                 </span>
               ))}
-              {inlineSelects.length > 0 && !q && (
+              {/* Apply is the select's only way to the URL: the search box
+                  debounces its own `q` and nothing else submits this form, so
+                  a program picked beside it used to sit in the control forever
+                  — displayed, never applied. */}
+              {inlineSelects.length > 0 && (
                 <Button type="submit" size="md">
                   Apply
                 </Button>
@@ -363,13 +367,12 @@ export function FilterBar({
                   </div>
                 )}
 
-                {/* Without a search box there is no always-visible row to sit
-                    in, so Apply follows the controls it applies. */}
-                {!q && (
-                  <Button type="submit" size="md">
-                    Apply
-                  </Button>
-                )}
+                {/* Apply follows the controls it applies, search box or no:
+                    only `q` debounces itself into the URL, so a select or a
+                    date picked here has no other gesture that submits. */}
+                <Button type="submit" size="md">
+                  Apply
+                </Button>
               </div>
             </Disclosure>
           )}

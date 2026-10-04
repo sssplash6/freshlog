@@ -149,6 +149,22 @@ export default function RootLayout({
         </Suspense>
         {children}
         <Toaster />
+        <noscript>
+          {/*
+            React streams each resolved Suspense segment into a hidden
+            <div id="S:…"> beside its boundary and swaps it over the
+            skeleton with a script. With JavaScript off the swap never
+            runs, so the page would sit behind a skeleton forever: reveal
+            the segments and drop the skeletons, and the whole page —
+            chrome and content — is already in the document. If React's
+            segment id scheme ever changes this rule simply stops
+            matching, which is today's behaviour anyway.
+          */}
+          <style>{`
+            div[id^="S:"][hidden] { display: block !important; }
+            .skeleton-in { display: none !important; }
+          `}</style>
+        </noscript>
       </body>
     </html>
   );

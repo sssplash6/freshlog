@@ -11,11 +11,13 @@ import {
   activeFilterCount,
   filterSummary,
   readParam,
+  readTimeState,
   studentsWhere,
   type SearchParams,
 } from "@/lib/filters";
 import { prisma } from "@/lib/prisma";
 import { applySort, readSort } from "@/lib/sort";
+import { timeStateHolds } from "@/lib/status";
 import { homeFor, profileOf } from "@/lib/profile";
 import { redirect } from "next/navigation";
 import { studentsWithHours } from "@/lib/queries";
@@ -80,6 +82,14 @@ export default async function StudentsPage({
   // after it has answered. Naming them here is what decides whether this page
   // pages in SQL or in JavaScript.
   const computedSort = asked != null && asked.key !== "student";
+  // A `?time=` chip asks the same question the bell's row does, and the
+  // `where` can only ask half of it: that a grant's DATE is in the window,
+  // not that its minutes survived to it. `timeStateHolds` answers the rest,
+  // row by row, on the same figures the table prints — which means reading
+  // every match and counting and paging here, the way a computed sort
+  // already does. A spent grant near its date used to count as "expiring".
+  const timeFilter = readTimeState(params);
+  const readAll = computedSort || timeFilter != null;
   // One instant for the whole page: the "expiring" and "expired" chips and the
   // forfeiture the table shows have to be judged against the same clock, or a
   // student can be in the filtered list and unexpired in the row.
@@ -132,7 +142,7 @@ export default async function StudentsPage({
     // serves has twelve. Ordering by name still slices in the database, because
     // the database can do that one itself.
     studentsWithHours(where, {
-      ...(computedSort
+      ...(readAll
         ? {}
         : { slice: { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE } }),
       now,
@@ -142,16 +152,30 @@ export default async function StudentsPage({
     prisma.studentProfile.count({ where }),
   ]);
 
+  const visible = timeFilter
+    ? matching.filter((s) => {
+        // Filtered to a program, the question is asked of THAT program's
+        // figures — a grant spent to its date in one program is not
+        // "expiring" because the student's other program still holds time.
+        const scoped = readParam(params, "program");
+        const figures = scoped ? s.byProgram.get(scoped) : s;
+        return figures != null && timeStateHolds(timeFilter, figures, lens);
+      })
+    : matching;
+  // What the summary, the empty branch and the pager count: the rows that
+  // remain, when a `?time=` chip has already said how many there are.
+  const shown = timeFilter ? visible.length : total;
+
   const ordered = computedSort
-    ? applySort(matching, asked, {
+    ? applySort(visible, asked, {
         student: (s) => s.user.name ?? s.user.email,
         completed: (s) => s.completedMinutes,
         total: (s) => s.allottedMinutes,
         remaining: (s) => s.remainingMinutes,
         seen: (s) => s.lastSessionAt,
       })
-    : matching;
-  const students = computedSort
+    : visible;
+  const students = readAll
     ? ordered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
     : ordered;
 
@@ -200,12 +224,12 @@ export default async function StudentsPage({
         // said twice.
         summary={
           activeFilterCount(params) > 0
-            ? filterSummary(total, { one: "student", many: "students" }, params)
+            ? filterSummary(shown, { one: "student", many: "students" }, params)
             : undefined
         }
       />
 
-      {total === 0 ? (
+      {shown === 0 ? (
         // No title: the bar above has just said in words that nothing matches,
         // and saying it twice makes one fact read as two. What is left to add
         // is the way out.
@@ -246,7 +270,7 @@ export default async function StudentsPage({
             basePath="/students"
             params={params}
             page={page}
-            total={total}
+            total={shown}
             unit="students"
             className="px-1"
           />

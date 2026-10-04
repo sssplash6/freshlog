@@ -15,13 +15,14 @@ import { programExchanges } from "@/lib/exchanges";
 import {
   activeFilterCount,
   readParam,
+  readTimeState,
   studentsWhere,
   type SearchParams,
 } from "@/lib/filters";
 import { programTone } from "@/lib/program-tone";
 import { applySort, readSort } from "@/lib/sort";
 import { studentsWithHours } from "@/lib/queries";
-import type { ViewerContext } from "@/lib/status";
+import { timeStateHolds, type ViewerContext } from "@/lib/status";
 
 import {
   mentorPool,
@@ -115,15 +116,25 @@ export default async function ProgramPage({
     },
     STUDENT_SORTS
   );
+  // The `?time=` chip asks the bell's question, so it gets the bell's answer:
+  // `studentsWhere` can only see that a grant's date is in the window, and
+  // `timeStateHolds` asks whether its minutes survived to it. The figures here
+  // are already this program's.
+  const timeFilter = readTimeState(query);
+  const visible = timeFilter
+    ? matching.filter((s) =>
+        timeStateHolds(timeFilter, s, { audience: "staff", now })
+      )
+    : matching;
   const ordered = asked
-    ? applySort(matching, asked, {
+    ? applySort(visible, asked, {
         student: (s) => s.user.name ?? s.user.email,
         completed: (s) => s.completedMinutes,
         total: (s) => s.allottedMinutes,
         remaining: (s) => s.remainingMinutes,
         seen: (s) => s.lastSessionAt,
       })
-    : matching;
+    : visible;
   const total = ordered.length;
   const students = ordered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 

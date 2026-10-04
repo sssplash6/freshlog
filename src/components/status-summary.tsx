@@ -4,7 +4,7 @@ import { ChevronRightIcon } from "@/components/icons";
 import { Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
-import type { Status } from "@/lib/status";
+import { actionableCount, type Status } from "@/lib/status";
 
 /**
  * What is true of the reader's own account, said on their home page.
@@ -47,8 +47,16 @@ export function StatusSummary({
   // white card under it. It drew its own bold header band inside the card,
   // the one lid left on the student home after the rest were taken off.
   if (many) {
+    // The same rows appear under this title in the bell's AttentionList,
+    // which numbers only the rows that ask something of the reader — an
+    // informational row under the same title counted "5" here and "3" there.
+    const count = actionableCount(statuses);
     return (
-      <Section title={title} count={statuses.length} className={className}>
+      <Section
+        title={title}
+        count={count > 0 ? count : undefined}
+        className={className}
+      >
         {rows}
       </Section>
     );

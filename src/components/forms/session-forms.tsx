@@ -245,7 +245,7 @@ export function SessionRowActions({
             size="sm"
             disabled={voiding}
             aria-busy={voiding || undefined}
-            className="h-auto min-h-8 w-full justify-start whitespace-normal py-1.5 text-left"
+            className="h-auto min-h-8 w-full justify-start py-1.5 text-left"
             onClick={() => {
               const formData = new FormData();
               formData.set("sessionId", session.id);
@@ -271,7 +271,14 @@ export function SessionRowActions({
               });
             }}
           >
-            {voiding ? "Voiding…" : "Void session — keeps the row, returns the hours"}
+            {/* `whitespace-normal` on the BUTTON does nothing: cn() joins
+                rather than merges, so Button's `whitespace-nowrap` is emitted
+                after it in the sheet and wins — the label clipped mid-word
+                instead of taking the second line this padding is built for.
+                `white-space` inherits, so the fix lives on the text itself. */}
+            <span className="whitespace-normal">
+              {voiding ? "Voiding…" : "Void session — keeps the row, returns the hours"}
+            </span>
           </Button>
         </RowActionGroup>
       )}

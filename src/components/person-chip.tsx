@@ -183,15 +183,23 @@ export function PersonCell({
     <>
       <Avatar person={person} className="h-8 w-8 shrink-0 text-[0.6875rem]" />
       <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-center gap-x-2 font-medium text-ink group-hover:text-brand">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2 font-medium text-ink group-hover:text-brand">
           <span className="min-w-0 truncate">{person.name ?? person.email}</span>
-          {/* The name gives way, never the chip. These used to wrap to a
-              second line when the two together outran the column, so a roster
-              of forty stood at two different heights depending on how long
-              somebody's name happened to be — and a ragged left edge reads as
-              a difference in kind rather than in spelling. The chips here are
-              short by contract (see above), so holding them on the line costs
-              the longest name a few characters and nothing else. */}
+          {/* The name gives way FIRST, never the chip. These used to wrap
+              freely to a second line, so a roster of forty stood at two
+              different heights depending on how long somebody's name happened
+              to be — and a ragged left edge reads as a difference in kind
+              rather than in spelling. The chips here are short by contract
+              (see above), so holding them on the line costs the longest name
+              a few characters and nothing else.
+
+              `flex-wrap` covers the case `nowrap` could not: with no room for
+              BOTH at their natural sizes — a long chip beside a long name on a
+              narrow table — an unwrapped line squeezed the name to zero width
+              and the student vanished. Wrapping only happens at that point,
+              because a new line starts only when an item cannot fit at its
+              own size; once the chip drops, the name keeps the whole line and
+              `min-w-0` can never starve it. */}
           {children && (
             <span className="flex shrink-0 items-center gap-x-2 whitespace-nowrap">
               {children}
