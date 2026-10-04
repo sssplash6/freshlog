@@ -5,6 +5,7 @@ What we have added and fixed, newest first. Each commit that changes what you se
 ## 2026-10-04
 
 ### Fixed
+- A student's sign-in email can now be changed to an address they already signed in with by mistake. The empty account that address held — never approved, nothing in it — is removed as part of the change, instead of blocking it with "already has an account". An address held by a real account still refuses.
 - Student, mentor and feedback tables fit their page again. Long names and emails shorten instead of pushing the last columns — contact links, figures — out of view, and figures such as "45 min" or "15+ hours" no longer break across two lines.
 - On a laptop, a program's page puts its mentor list under the student roster instead of beside it, so the roster has room for every column.
 - A long name or an email address used as a page title now wraps on a phone instead of pushing the whole page sideways.
