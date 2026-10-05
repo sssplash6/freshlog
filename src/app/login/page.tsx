@@ -1,7 +1,5 @@
 import { redirect } from "next/navigation";
 
-import pkg from "../../../package.json";
-import { BrandWordmark } from "@/components/brand-wordmark";
 import { Callout } from "@/components/ui/callout";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { signIn } from "@/lib/auth";
@@ -42,18 +40,25 @@ export default async function LoginPage({
         className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(38rem_28rem_at_50%_42%,color-mix(in_oklab,var(--color-brand)_15%,transparent),transparent_70%),radial-gradient(30rem_22rem_at_78%_88%,color-mix(in_oklab,var(--color-accent)_12%,transparent),transparent_70%)]"
       />
       <div className="w-full max-w-sm rounded-2xl bg-surface p-8 shadow-lg">
-        {/* The product's name once, as the wordmark every other page wears,
-            and the school's once, as the quiet line above the greeting. */}
+        {/* The product's name as a mark, at a size that reads as one — the
+            20px nav wordmark was the smallest thing on a screen that has
+            nothing else to show. The school's name is how the product is
+            introduced, not a second brand beside it. And "Sign in", not
+            "Welcome back": most people reaching this screen for the first
+            time are students who have never been here. */}
         <div className="mb-8 flex flex-col items-center text-center">
-          <BrandWordmark version={pkg.version} />
-          <div className="mt-6 text-[0.8125rem] font-medium text-muted-fg">
-            Freshman Academy
+          <div className="text-[2.25rem] font-bold leading-none tracking-[-0.03em] text-brand">
+            freshlog
           </div>
-          <h1 className="mt-1 text-[1.75rem] font-bold leading-tight tracking-[-0.02em] text-ink">
-            Welcome back
+          <div className="mt-2 text-[0.8125rem] font-medium text-muted-fg">
+            by Freshman Academy
+          </div>
+          <h1 className="mt-7 text-[1.5rem] font-bold leading-tight tracking-[-0.02em] text-ink">
+            Sign in
           </h1>
           <p className="mt-2 text-[0.9375rem] text-muted-fg">
-            Sign in to see your mentoring time and book your next session.
+            See how much time you have with your mentors, book your next
+            session and keep track of your tasks.
           </p>
         </div>
 
@@ -79,9 +84,13 @@ export default async function LoginPage({
           </SubmitButton>
         </form>
 
+        {/* Students first: they are most of the people who sign in, and the
+            one rule that trips them up is which Google account to use. */}
         <p className="mt-4 text-center text-[0.8125rem] text-muted-fg">
-          Students: use the email your program registered. Mentors: use your
-          @freshman.academy account.
+          Use the Google account your school has on file for you.
+          <span className="mt-1 block">
+            Mentors: sign in with your @freshman.academy account.
+          </span>
         </p>
 
         {/* Only when the server was started with DEV_LOGIN=1 (`npm run

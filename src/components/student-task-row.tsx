@@ -147,16 +147,13 @@ export function StudentTaskRow({
           is 36px tall regardless, and top-aligning the rest of it only moved
           the text seven pixels off the icon beside it. */}
       <div className="flex items-start gap-x-2">
-        {/* Below `sm` the title takes a line of its own, above the date and
-            the mentor: at 390px the one-line layout left the title a column
-            one word wide ("Draft / the / activities / section"), which is the
-            wrap this row was built to avoid, arrived at from the other side.
-            From `sm` up the line is exactly as described above. */}
-        {/* At every width the title takes the line below the date and the
-            mentor, full width. With the room it used to share their line, and
-            then the MENTOR was what gave way: "Dilnoza Yusupo…" truncated with
-            hundreds of pixels spare, because the flexible title claimed the
-            slack. On its own line the title wraps and the name does not. */}
+        {/* The title FIRST, on a line of its own, at every width. It was
+            first only below `sm`, so the same task read title-then-date on a
+            phone and date-then-title on a laptop — one row, two designs. The
+            title is what the row is; the date and who set it describe it.
+            On its own line the title wraps and the mentor's name does not:
+            sharing a line, the flexible title claimed the slack and
+            "Dilnoza Yusupo…" truncated with hundreds of pixels spare. */}
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5">
           {/* WHEN. First, because a to-do list is read by what is next, and
               the overdue chip replaces the plain date rather than sitting
@@ -197,7 +194,7 @@ export function StudentTaskRow({
 
           {/* WHAT. The flexible middle, so progress lands against the right
               edge however short the title is. */}
-          <span className="min-w-0 flex-1 basis-full text-[0.9375rem] font-medium leading-snug text-ink max-sm:order-first">
+          <span className="min-w-0 flex-1 basis-full text-[0.9375rem] font-medium leading-snug text-ink order-first">
             {task.title}
           </span>
         </div>
@@ -222,7 +219,10 @@ export function StudentTaskRow({
                 glyph={ASSIGNMENT_PROGRESS_GLYPH[progress]}
               />
             )
-          ) : (
+          ) : footer ? null : (
+            // Not beside the progress control: the control's selected
+            // segment already says "75%", and the same figure in the corner
+            // was one fact stated twice on one card.
             <span
               className="w-10 text-right text-[0.8125rem] font-medium tabular-nums text-muted-fg"
               aria-label={`${task.percent}% of the way through`}

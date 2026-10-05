@@ -392,12 +392,23 @@ export const WEEKLY_SUMMARY_PREF = "WEEKLY_SUMMARY";
 export type NotificationCategory =
   (typeof NOTIFICATION_CATEGORY)[keyof typeof NOTIFICATION_CATEGORY];
 
+// "Time" and "Accounts" said nothing on their own to the people choosing
+// them; each label now names what arrives, and a hint under it says when.
 export const NOTIFICATION_CATEGORY_LABELS: Record<NotificationCategory, string> = {
-  HOURS: "Time",
+  HOURS: "Hours",
   SESSIONS: "Sessions",
   TASKS: "Tasks and agenda",
   DEADLINES: "Deadlines",
-  ACCOUNTS: "Accounts",
+  ACCOUNTS: "Your account",
+};
+
+/** One line under each category on /settings: what it is about. */
+export const NOTIFICATION_CATEGORY_HINTS: Record<NotificationCategory, string> = {
+  HOURS: "When hours are added, changed or running low.",
+  SESSIONS: "When a session is logged, changed or needs your answer.",
+  TASKS: "When work is set, updated or finished.",
+  DEADLINES: "When a use-by date or a due date is coming up.",
+  ACCOUNTS: "Sign-in, approval and profile changes.",
 };
 
 /**

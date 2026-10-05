@@ -104,8 +104,12 @@ export default async function OnboardingPage() {
     const programs = await programOptions();
     return (
       <Step
+        // A step count, so the form reads as the first of two short things
+        // rather than an open-ended questionnaire — and so the wait after it
+        // is expected rather than a surprise.
+        eyebrow="Step 1 of 2"
         title="Complete your registration"
-        sentence="Tell us who you are and which program you're in."
+        sentence="Tell us who you are and which program you're in. Then a member of staff approves your account."
         form={
           <RegistrationStepForm
             defaultName={user.name ?? ""}
@@ -130,17 +134,25 @@ export default async function OnboardingPage() {
   // Before the approval step, not after: a reader who can still do something is
   // asked to do it before being told to wait.
   if (!user.name?.trim() || !profile.telegramUsername) {
+    const pending = user.status === USER_STATUS.PENDING;
+    // "Welcome to the Global Admissions Program", by the one program they
+    // study in — the joined list of every enrollment read as "Welcome to
+    // Global Admissions Program · Master's Program", missing its article and
+    // wrapping mid-name.
+    const where = first ? `the ${first.program.name}` : "Freshman Academy";
     return (
       <Step
-        eyebrow={first?.cohort?.name}
-        title={`Welcome to ${enrollmentsLabel(studies, "the academy")}`}
+        eyebrow={[pending ? "Step 1 of 2" : null, first?.cohort?.name]
+          .filter(Boolean)
+          .join(" · ") || undefined}
+        title={`Welcome to ${where}`}
         sentence={
           // Said here as well as on the step after it: a student an admin
           // has not approved yet should not learn that there is a wait only
           // once they have filled the form in.
-          user.status === USER_STATUS.PENDING
-            ? "Confirm your name and how your mentors reach you. An admin then approves your account."
-            : "Confirm your name and how your mentors reach you."
+          pending
+            ? "Confirm your name and your Telegram so your mentors can reach you. Then a member of staff approves your account."
+            : "One quick step: confirm your name and your Telegram so your mentors can reach you."
         }
         form={<DetailsStepForm defaultName={user.name ?? ""} />}
       />
@@ -150,9 +162,11 @@ export default async function OnboardingPage() {
   if (user.status === USER_STATUS.PENDING) {
     return (
       <Step
-        eyebrow={enrollmentsLabel(studies, undefined)}
-        title="Waiting for approval"
-        sentence="Registration received. An admin will approve your account shortly."
+        eyebrow={["Step 2 of 2", enrollmentsLabel(studies, "")]
+          .filter(Boolean)
+          .join(" · ")}
+        title="Almost there"
+        sentence="You're registered. A member of staff will approve your account next. Once they have, sign in again to see your hours and your mentors."
       />
     );
   }

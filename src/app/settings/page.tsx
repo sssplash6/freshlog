@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn";
 import { SettingsRow } from "@/components/ui/settings-row";
 import {
   EMAIL_BY_DEFAULT,
+  NOTIFICATION_CATEGORY_HINTS,
   NOTIFICATION_CATEGORY_LABELS,
   canActAsMentor,
   type NotificationCategory,
@@ -114,21 +115,19 @@ export default async function SettingsPage() {
         </Section>
       )}
 
+      {/* Its own card, no Section around it: the form carries its own
+          "Your booking links" title (it folds), and a "Booking links" heading
+          above it named the same thing twice, one line apart. */}
       {isMentor && assignments.length > 0 && (
-        <Section title="Booking links">
-          <div className="px-4 py-2 sm:px-5">
-            <BookingLinksForm
-              bare
-              assignments={assignments.map((a) => ({
-                id: a.id,
-                label: a.cohort
-                  ? `${a.program.name} · ${a.cohort.name}`
-                  : a.program.name,
-                calendlyUrl: a.calendlyUrl,
-              }))}
-            />
-          </div>
-        </Section>
+        <BookingLinksForm
+          assignments={assignments.map((a) => ({
+            id: a.id,
+            label: a.cohort
+              ? `${a.program.name} · ${a.cohort.name}`
+              : a.program.name,
+            calendlyUrl: a.calendlyUrl,
+          }))}
+        />
       )}
 
       {/* Kept in this browser rather than on the account: a laptop at a desk
@@ -155,7 +154,8 @@ export default async function SettingsPage() {
         </div>
       </Section>
 
-      <Section title="Notifications">
+      {/* `id` so the unsubscribe page can link straight here. */}
+      <Section id="notifications" title="Notifications">
         {/* One list: the Monday email, then a row per category, hairlines
             between — not two blocks with a rule through the card. */}
         <div className="px-4 py-2 sm:px-5">
@@ -166,6 +166,7 @@ export default async function SettingsPage() {
             ).map((key) => ({
               key,
               label: NOTIFICATION_CATEGORY_LABELS[key],
+              hint: NOTIFICATION_CATEGORY_HINTS[key],
               // No row is the default: in the app always, by email only where
               // `EMAIL_BY_DEFAULT` says so.
               inApp: prefOf.get(key)?.inApp ?? true,

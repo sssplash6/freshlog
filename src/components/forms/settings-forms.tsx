@@ -7,7 +7,7 @@ import {
   setWeeklyDigest,
 } from "@/lib/actions/email-prefs";
 import { setOwnTelegram } from "@/lib/actions/profile";
-import { Input } from "@/components/ui/field";
+import { inputClasses } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SettingsRow } from "@/components/ui/settings-row";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -30,30 +30,55 @@ export function OwnTelegramForm({ defaultHandle }: { defaultHandle: string }) {
   const [handle, setHandle] = useState(defaultHandle);
   // No reset needed: the action revalidates, so a saved handle comes back as a
   // new `defaultHandle` and the dirty flag clears itself.
-  const [, action, save] = useSaveState(setOwnTelegram, handle !== defaultHandle);
+  const dirty = handle.trim().replace(/^@/, "") !== defaultHandle;
+  const [, action, save] = useSaveState(setOwnTelegram, dirty);
 
   return (
     <SettingsRow
       label="Telegram"
       htmlFor={id}
+      description="Your mentors use it to message you."
       state={<SaveState state={save} />}
       control={
         <form action={action} className="flex items-center gap-2">
-          {/* Required here as it is at sign-in: the server refuses an empty
-              handle either way, and a field that looks optional and is not is
-              how a student learns the rule from an error message. */}
-          <Input
-            id={id}
-            name="telegramUsername"
-            required
-            value={handle}
-            onChange={(e) => setHandle(e.target.value)}
-            placeholder="username"
-            className="min-w-0 flex-1"
-          />
-          {/* The same full-size Save beside the field that the name row
-              has — it was a small one dropped under the box. */}
-          <SubmitButton pendingText="Saving…">Save</SubmitButton>
+          {/* The "@" is drawn, not typed: the server strips one anyway, and
+              a bare "username" placeholder left students unsure whether to
+              include it. Required here as it is at sign-in — a field that
+              looks optional and is not is how a student learns the rule from
+              an error message. */}
+          <div className="relative min-w-0 flex-1">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[0.9375rem] text-muted-fg"
+            >
+              @
+            </span>
+            {/* The field chrome with its left padding swapped rather than
+                overridden: `cn` does not merge, so a `pl-7` added after
+                `px-3.5` would race it on CSS order. */}
+            <input
+              id={id}
+              name="telegramUsername"
+              required
+              value={handle}
+              onChange={(e) => setHandle(e.target.value.replace(/^@/, ""))}
+              placeholder="your_username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className={inputClasses.replace("px-3.5", "pl-7 pr-3.5")}
+            />
+          </div>
+          {/* Only lit once there is something to save. An always-blue Save
+              beside an unchanged field asked to be pressed for nothing, and
+              two of them on one page was two primary buttons at rest. */}
+          <SubmitButton
+            pendingText="Saving…"
+            variant={dirty ? "primary" : "secondary"}
+            disabled={!dirty}
+          >
+            Save
+          </SubmitButton>
         </form>
       }
     />
@@ -76,6 +101,9 @@ export function WeeklyDigestForm({ defaultOn }: { defaultOn: boolean }) {
     <SettingsRow
       label="Weekly summary"
       htmlFor={id}
+      // Names its channel: the switch sat at the Email column's x, above the
+      // "In app / Email" header, and could be read as either.
+      description="An email every Monday with your week at a glance."
       trailing
       control={
         <form action={setWeeklyDigest} className="flex items-center gap-2">
@@ -117,6 +145,7 @@ export function NotificationMatrix({
   categories: {
     key: string;
     label: string;
+    hint?: string;
     inApp: boolean;
     email: boolean;
   }[];
@@ -146,7 +175,7 @@ export function NotificationMatrix({
 function CategoryRow({
   category,
 }: {
-  category: { key: string; label: string; inApp: boolean; email: boolean };
+  category: { key: string; label: string; hint?: string; inApp: boolean; email: boolean };
 }) {
   const [inApp, setInApp] = useState(category.inApp);
   const [email, setEmail] = useState(category.email);
@@ -163,8 +192,11 @@ function CategoryRow({
       className="flex min-h-11 items-center justify-between gap-x-4 py-2"
     >
       <input type="hidden" name="category" value={category.key} />
-      <span className="min-w-0 flex-1 text-[0.9375rem] font-medium text-ink">
-        {category.label}
+      <span className="min-w-0 flex-1">
+        <span className="block text-[0.9375rem] font-medium text-ink">{category.label}</span>
+        {category.hint && (
+          <span className="mt-0.5 block text-[0.8125rem] text-muted-fg">{category.hint}</span>
+        )}
       </span>
       {/* The last switch sits on the row's right edge, under the weekly
           summary's switch above it, so all three columns line up. */}

@@ -95,7 +95,7 @@ export default async function InterviewPage({
     <div className="space-y-4">
       <PageTitle
         backHref="/student/interviews"
-        backLabel="Practice interviews"
+        backLabel="Interviews"
         eyebrow={side === "host" ? "They booked your time" : "You booked their time"}
         title={template?.name ?? "Practice interview"}
         subtitle={`${formatSlotWhen(interview.slot.startsAt)} · ${formatSlotSpan(interview.slot)}`}

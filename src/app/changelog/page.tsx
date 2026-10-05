@@ -11,6 +11,7 @@ import {
   splitItem,
   type ChangelogEntry,
 } from "@/lib/changelog";
+import { ROLES } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import { formatDate } from "@/lib/format";
 
@@ -27,6 +28,11 @@ export default async function ChangelogPage() {
   const user = await requireUser();
   const entries = await readChangelog();
   const week = pastWeek(entries);
+  // Bug reports are a staff tool, and a "51 fixed" figure in the hero tells a
+  // student the app was broken rather than that it got better. The entries
+  // themselves are not tagged by who they are for, so the whole log stays;
+  // only the framing around it changes.
+  const student = user.role === ROLES.STUDENT;
 
   return (
     <div className="space-y-4">
@@ -35,12 +41,16 @@ export default async function ChangelogPage() {
       <PageTitle
         title="What's new"
         subtitle={
-          <>
-            What we have added and fixed.{" "}
-            <Link href="/bugs" className="text-brand underline underline-offset-2 hover:decoration-2">
-              Bug reports
-            </Link>
-          </>
+          student ? (
+            "What we've added and improved."
+          ) : (
+            <>
+              What we have added and fixed.{" "}
+              <Link href="/bugs" className="text-brand underline underline-offset-2 hover:decoration-2">
+                Bug reports
+              </Link>
+            </>
+          )
         }
       />
 
@@ -50,15 +60,18 @@ export default async function ChangelogPage() {
         <>
           {/* The week at a glance, before the detail: a reader who has been
               away can tell from the numbers whether it is worth scrolling. */}
+          {/* Resting, so `shadow-sm` like every other card — `shadow-lg` is
+              the height of a menu floating over the page. No ghost sparkle
+              behind the figures, and the eyebrow in sentence case like every
+              other eyebrow in the app. */}
           <section
             aria-label="This week"
-            className="hero-brand relative overflow-hidden rounded-2xl p-5 shadow-lg sm:p-6"
+            className="hero-brand relative overflow-hidden rounded-2xl p-5 shadow-sm sm:p-6"
           >
-            <SparklesIcon className="pointer-events-none absolute -right-3 -top-3 h-32 w-32 rotate-12 opacity-[0.12] sm:h-44 sm:w-44" />
-            <p className="text-[0.8125rem] font-semibold uppercase tracking-wide opacity-80">Past seven days</p>
+            <p className="text-[0.8125rem] font-medium opacity-80">Past seven days</p>
             <dl className="mt-3 flex flex-wrap items-end gap-x-8 gap-y-4 sm:gap-x-10">
               <HeroFigure value={week.new} label="added" />
-              <HeroFigure value={week.fixed} label="fixed" />
+              {!student && <HeroFigure value={week.fixed} label="fixed" />}
               <div className="min-w-0 sm:ml-auto">
                 <dt className="text-[0.8125rem] opacity-80">Last update</dt>
                 <dd className="text-[1.125rem] font-semibold">
@@ -91,7 +104,9 @@ export default async function ChangelogPage() {
                     )}
                   />
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-3">
-                    <h2 className="flex items-baseline gap-2 text-[1.25rem] font-semibold tracking-[-0.01em] text-ink">
+                    {/* The section-title size every `Section` uses (17px);
+                        at 20px these read as a level of their own. */}
+                    <h2 className="flex items-baseline gap-2 text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink">
                       {formatDate(new Date(`${entry.date}T00:00:00.000Z`))}
                       <FreshChip fresh={fresh} />
                     </h2>
@@ -149,7 +164,9 @@ const KIND = {
 function HeroFigure({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex items-baseline gap-2">
-      <dd className="order-1 text-[2.75rem] font-bold leading-none tracking-[-0.03em] tabular-nums sm:text-[3.25rem]">
+      {/* 42px, the app's one lead size. It was 44/52px bold — a second,
+          bigger lead than any page's own. */}
+      <dd className="order-1 text-[2.625rem] font-semibold leading-none tracking-[-0.025em] tabular-nums">
         {value}
       </dd>
       <dt className="order-2 text-[1.0625rem] font-medium opacity-90">{label}</dt>
