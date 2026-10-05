@@ -507,26 +507,6 @@ function StaffShell({
         place={place}
       />
 
-      {/* THE TOP RIGHT CORNER OF THE WINDOW, and nothing else's.
-
-          It used to be pinned to the right edge of the CONTENT MEASURE —
-          `inset-x-0` plus the rail's own width plus `mx-auto max-w-6xl`. Three
-          things it had to agree with, and it moved whenever any of them did:
-          collapsing the rail slid it 156px, and a page whose content did not
-          fill the measure put it somewhere else again. Pinned to the viewport
-          it has one position on every page, which is what a fixed control is
-          for. `right-4` is the same gutter the page uses.
-
-          `z-40` sits above the rail and the bottom bar (`z-30`) and below
-          anything that opens on top of chrome (`z-50`). */}
-      {/* A frosted pill, like the rail and the tab bar: it floats over the
-          page, and bare it let whatever scrolled beneath it — a title row's
-          "Updated …" stamp, a button — print straight through its words. */}
-      <div className="fixed right-4 top-4 z-40 hidden items-center gap-1 rounded-full border border-line/60 bg-surface/80 p-0.5 shadow-sm backdrop-blur-xl backdrop-saturate-150 lg:flex">
-        <WhatsNewLink unseen={whatsNew} />
-        <NotificationMenu unread={unread} recent={recent} now={now} />
-      </div>
-
       {/* The same measure as the page below it, so the wordmark lines up with
           the h1 rather than floating in from a narrower centre.
 
@@ -551,15 +531,29 @@ function StaffShell({
 
       {/* pb-24 clears the bottom bar (56px + the home-indicator inset);
           nothing sits under it at lg, where the bar is gone. */}
-      {/* `data-bell-lane`: the one shell with a bell fixed over the page's
-          top right corner — `PageTitle` reads this to start its row below it.
-          The student and public shells have no such bell. */}
       <main
         id="main"
-        data-bell-lane
         tabIndex={-1}
-        className="mx-auto w-full max-w-6xl focus:outline-none flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:pb-10 lg:pt-8"
+        className="mx-auto w-full max-w-6xl focus:outline-none flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:pb-10 lg:pt-4"
       >
+        {/* THE TOP RIGHT CORNER — "What's new" and the bell, at `lg` (below
+            it they live in the top bar).
+
+            A row of the page, not a control pinned over it. It was `fixed` to
+            the window's corner, and everything that scrolled — a table's
+            figures, a row's pencil — passed underneath it; at the top it sat
+            on the title row's own buttons ("Log a session"), because the lane
+            `PageTitle` reserved for a lone bell was narrower than the pill
+            once "What's new" joined it. In the flow it takes its own line,
+            nothing can be under it, and it scrolls away with the page the way
+            a page's header does. The bell's menu is portaled, so it still
+            opens over the page. */}
+        <div className="mb-2 hidden justify-end lg:flex">
+          <div className="flex items-center gap-1 rounded-full bg-surface p-0.5 shadow-sm">
+            <WhatsNewLink unseen={whatsNew} />
+            <NotificationMenu unread={unread} recent={recent} now={now} />
+          </div>
+        </div>
         <PageTransition>{children}</PageTransition>
       </main>
 

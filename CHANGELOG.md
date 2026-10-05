@@ -13,9 +13,10 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **What's new looks the part.** A summary of the past week, a timeline of days, a card for each change, and a soft glow behind every page. Blue buttons are lit from above and the current page is marked in the sidebar.
 - **What's new is quicker to skim.** Every update now has a short headline, with a line of detail under it.
 - **What's new beside the bell.** On a laptop it sits in the top right corner, with a blue dot when something is unread, instead of inside the account menu.
-- **Tables are easier to read.** Column headings sit on their own shaded band, every other row is lightly shaded, and each table and card has a clear edge. Names are bold, the figure you look for most (like hours remaining) sits in a highlighted column, and dates and totals step back in grey. Sort arrows show only on the column you sorted by, or when you point at a heading.
+- **Tables are easier to read.** Headings sit on a shaded band, every other row is shaded, and tables and cards have a clear edge. Names are bold, the figure that matters most (like hours remaining) gets a highlighted column, and dates and totals step back in grey.
 
 ### Fixed
+- **What's new and the bell no longer cover the page.** On a laptop they sit at the top of the page, above the title, instead of floating over tables and buttons as you scroll.
 - **Mentors can move to their sign-in address.** A mentor who signed in with a different Google account than the one on file was made a student there, and changing their email to it said "already has an account". The change now removes that empty student sign-up and the mentor gets their own pages back.
 - **Names are no longer clipped.** Letters with tails, like y, p and g, were cut off in the compact name chips on session rows and tables.
 - **Small text is easier to read.** Emails, captions and column headings are a little larger, initials in small avatars are bigger, and the sort arrows are clean chevrons.

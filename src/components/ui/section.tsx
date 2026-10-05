@@ -102,15 +102,6 @@ export function PageTitle({
         // A back link has to clear the title block under it: at 8px the eyebrow
         // sat hard against it, two lines of the same small grey.
         backHref ? "space-y-3" : "space-y-2",
-        // THE BELL'S LANE. At `lg` the staff shell pins the bell to the
-        // window's top right corner, level with the first line of the page. A
-        // page with a back link already starts its title row below it; one
-        // without started level with it, and so reserved `pr-14` down the
-        // whole row — which put "Log a session" 56px in from the right edge on
-        // some pages and flush on others. Starting every title on the same
-        // line instead, the one a back link would take, keeps the corner clear
-        // and every page's actions on the same right edge.
-        !backHref && "in-data-bell-lane:lg:pt-7",
         className
       )}
     >

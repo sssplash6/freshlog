@@ -115,7 +115,7 @@ export default async function ProgramsPage({
     { label: "Program" },
     { label: "Students", align: "right" },
     { label: "Mentors", align: "right" },
-    { label: "Remaining", align: "right" },
+    { label: "Remaining", align: "right", emphasis: "key" },
     // Minutes lost to passed deadlines — the figure that makes the ledger
     // honest, and the one a Remaining of zero used to hide entirely.
     { label: "Expired unused", align: "right" },
@@ -180,7 +180,7 @@ export default async function ProgramsPage({
                 <ProgramChip
                   program={{ id: p.id, name: p.name }}
                   href={`/programs/${p.id}`}
-                  className="min-h-11 font-medium sm:min-h-0"
+                  className="min-h-11 font-semibold sm:min-h-0"
                 />
               </Td>
               <Td label="Students" align="right" className="tabular-nums">

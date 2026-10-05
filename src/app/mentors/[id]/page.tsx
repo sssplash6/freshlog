@@ -217,7 +217,7 @@ async function MentorRecord({
     { label: "Student" },
     { label: "Completed", align: "right" },
     { label: "Missed", align: "right" },
-    { label: "Remaining", align: "right" },
+    { label: "Remaining", align: "right", emphasis: "key" },
     { label: "Assigned", align: "right" },
   ];
 
@@ -433,7 +433,7 @@ async function MentorRecord({
               { label: "Completed", align: "right" },
               { label: "Missed", align: "right" },
               { label: "Total", align: "right" },
-              { label: "Remaining", align: "right" },
+              { label: "Remaining", align: "right", emphasis: "key" },
             ]}
           >
             {byProgram.map((row, i) => (
@@ -447,12 +447,12 @@ async function MentorRecord({
                     <Link
                       href={`/programs/${row.id}`}
                       transitionTypes={["nav-forward"]}
-                      className="font-medium text-ink hover:text-brand"
+                      className="font-semibold text-ink hover:text-brand"
                     >
                       {row.name}
                     </Link>
                   ) : (
-                    <span className="font-medium text-ink">{row.name}</span>
+                    <span className="font-semibold text-ink">{row.name}</span>
                   )}
                 </Td>
                 <Td label="Students" align="right" className="tabular-nums">
@@ -461,7 +461,7 @@ async function MentorRecord({
                 <Td
                   label="Completed"
                   align="right"
-                  className="font-semibold tabular-nums text-ink"
+                  className="tabular-nums"
                 >
                   {formatDuration(row.delivered)}
                 </Td>
@@ -475,14 +475,15 @@ async function MentorRecord({
                 >
                   {row.missed > 0 ? formatDuration(row.missed) : "—"}
                 </Td>
-                <Td label="Total" align="right" className="tabular-nums">
+                <Td label="Total" align="right" tone="muted" className="tabular-nums">
                   {formatDuration(row.allocated)}
                 </Td>
                 <Td
                   label="Remaining"
                   align="right"
+                  tone="key"
                   className={cn(
-                    "font-medium tabular-nums",
+                    "tabular-nums",
                     // The tone this table lost in the palette sweep: without it
                     // an overdrawn program reads in plain ink, exactly like one
                     // in credit.
@@ -559,8 +560,9 @@ async function MentorRecord({
                 <Td
                   label="Remaining"
                   align="right"
+                  tone="key"
                   className={cn(
-                    "font-medium tabular-nums",
+                    "tabular-nums",
                     s.remaining < 0 ? "text-danger-ink" : "text-ink"
                   )}
                 >
@@ -569,7 +571,8 @@ async function MentorRecord({
                 <Td
                   label="Assigned"
                   align="right"
-                  className="tabular-nums text-muted-fg"
+                  tone="muted"
+                  className="tabular-nums"
                 >
                   {formatDuration(s.allocated)}
                 </Td>

@@ -442,7 +442,7 @@ async function AllRatings({
 
   const columns: Column[] = [
     { label: "Mentor" },
-    { label: "Average", align: "right" },
+    { label: "Average", align: "right", emphasis: "key" },
     { label: "Ratings", align: "right" },
     { label: "Lowest recent", align: "right" },
     { label: "Last rated", align: "right" },
@@ -612,13 +612,13 @@ function MentorRow({ mentor }: { mentor: MentorStanding }) {
           {mentor.low && <StatusChip severity="attention">Low</StatusChip>}
         </PersonCell>
       </Td>
-      <Td label="Average" align="right">
-        <span className="font-semibold tabular-nums text-ink">
+      <Td label="Average" align="right" tone="key">
+        <span className="tabular-nums text-ink">
           {mentor.average.toFixed(1)}
         </span>
         <AverageStars value={mentor.average} />
       </Td>
-      <Td label="Ratings" align="right" className="tabular-nums text-muted-fg">
+      <Td label="Ratings" align="right" tone="muted" className="tabular-nums">
         {mentor.total}
       </Td>
       <Td label="Lowest recent" align="right">
@@ -628,7 +628,7 @@ function MentorRow({ mentor }: { mentor: MentorStanding }) {
           <span className="tabular-nums text-ink">{mentor.recent}</span>
         )}
       </Td>
-      <Td label="Last rated" align="right" className="text-muted-fg">
+      <Td label="Last rated" align="right" tone="muted">
         {mentor.lastRated ? formatDate(mentor.lastRated) : "—"}
       </Td>
     </Tr>

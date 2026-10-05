@@ -232,7 +232,7 @@ export function TaskRow({
   // and an anchor wrapping an ExpandableText would put its "Show more" button
   // inside a link. The row's destinations are its people.
   const title = (
-    <ExpandableText text={purpose} lines={2} className="font-medium text-ink" />
+    <ExpandableText text={purpose} lines={2} className="font-semibold text-ink" />
   );
 
   const people = (

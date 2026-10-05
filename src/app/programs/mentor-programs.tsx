@@ -104,7 +104,7 @@ export async function MentorPrograms({ mentorId }: { mentorId: string }) {
     { label: "Program" },
     { label: "Students", align: "right" },
     { label: "Completed", align: "right" },
-    { label: "Remaining", align: "right" },
+    { label: "Remaining", align: "right", emphasis: "key" },
   ];
   return (
     <div className="space-y-4">
@@ -135,7 +135,7 @@ export async function MentorPrograms({ mentorId }: { mentorId: string }) {
                 <ProgramChip
                   program={{ id: row.id, name: row.name }}
                   href={`/sessions?program=${row.id}`}
-                  className="min-h-11 font-medium sm:min-h-0"
+                  className="min-h-11 font-semibold sm:min-h-0"
                 />
                 {row.cohort && (
                   <span className="ml-2 text-[0.8125rem] text-muted-fg">{row.cohort}</span>
@@ -144,13 +144,10 @@ export async function MentorPrograms({ mentorId }: { mentorId: string }) {
               <Td label="Students" align="right" className="tabular-nums">
                 {row.students}
               </Td>
-              <Td label="Completed" align="right">
-                <Figure
-                  size="inline"
-                  value={formatRough(row.completed)}
-                  tone="hours"
-                  className="sm:text-right"
-                />
+              {/* Plain: the balance beside it is the figure in orange. Two
+                  orange figures per row read as two things to look at. */}
+              <Td label="Completed" align="right" className="tabular-nums">
+                {formatRough(row.completed)}
               </Td>
               <Td label="Remaining" align="right">
                 <Figure
