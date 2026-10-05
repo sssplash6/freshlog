@@ -1,5 +1,5 @@
 import { STUDENT_SORTS, StudentsTable } from "@/components/students-table";
-import { LinkButton } from "@/components/ui/button";
+import { CreateLink } from "@/components/create-link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
@@ -185,11 +185,29 @@ export default async function StudentsPage({
         title="Students"
         subtitle={
           administers
-            ? undefined
+            ? // The roster's size, in the same place `/mentors` says its own.
+              // Filtered, the bar below says how many matched instead.
+              activeFilterCount(params) === 0
+              ? `${shown} ${shown === 1 ? "student" : "students"}`
+              : undefined
             : // Reach, said plainly: this list is everyone a mentor may log a
               // meeting with, which is wider than the students whose time
               // they hold — those are the caseload on their home page.
               "Everyone in your programs, whoever holds their time."
+        }
+        // Adding students was only offered by the EMPTY roster, so it vanished
+        // the moment the first one arrived. It happens on a program (where the
+        // cohort is chosen): one program links straight to its form, several
+        // to the list to pick from.
+        actions={
+          administers && programs.length > 0 ? (
+            <CreateLink
+              href={
+                programs.length === 1 ? `/programs/${programs[0].id}?add=1` : "/programs"
+              }
+              label="Add students"
+            />
+          ) : undefined
         }
       />
 
@@ -230,31 +248,29 @@ export default async function StudentsPage({
       />
 
       {shown === 0 ? (
-        // No title: the bar above has just said in words that nothing matches,
-        // and saying it twice makes one fact read as two. What is left to add
-        // is the way out.
+        // Titled the way `/mentors` titles its own, so the two empty searches
+        // read as one pattern rather than an icon and a stray sentence.
         activeFilterCount(params) > 0 ? (
-          <EmptyState variant="no-results">
+          <EmptyState variant="no-results" title="No students match">
             Check the spelling, or reset to see everyone.
           </EmptyState>
         ) : (
-          <EmptyState title="No students yet">
-            {administers ? (
-              <>
-                <p>Add them on a program; each confirms their name on first sign-in.</p>
-                {/* Registration lives on the program, where the cohort is
-                    chosen. One program is a direct link to its form; several
-                    is the list to pick from. */}
-                <LinkButton
-                  href={programs.length === 1 ? `/programs/${programs[0].id}` : "/programs"}
-                  className="mt-3"
-                >
-                  Add students
-                </LinkButton>
-              </>
-            ) : (
-              "You hold time with nobody yet, and nobody's work is on your list."
-            )}
+          <EmptyState
+            title="No students yet"
+            action={
+              administers && programs.length > 0 ? (
+                <CreateLink
+                  href={
+                    programs.length === 1 ? `/programs/${programs[0].id}?add=1` : "/programs"
+                  }
+                  label="Add students"
+                />
+              ) : undefined
+            }
+          >
+            {administers
+              ? "Add them on a program; each confirms their name on first sign-in."
+              : "You hold time with nobody yet, and nobody's work is on your list."}
           </EmptyState>
         )
       ) : (
@@ -266,14 +282,18 @@ export default async function StudentsPage({
             from={readParam(params, "program") || undefined}
             sorts={STUDENT_SORTS}
           />
-          <Pagination
-            basePath="/students"
-            params={params}
-            page={page}
-            total={shown}
-            unit="students"
-            className="px-1"
-          />
+          {/* Only when there is a page to turn to: on one page it was the
+              roster's size said a second time. */}
+          {shown > PAGE_SIZE && (
+            <Pagination
+              basePath="/students"
+              params={params}
+              page={page}
+              total={shown}
+              unit="students"
+              className="px-1"
+            />
+          )}
         </>
       )}
     </div>

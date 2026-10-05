@@ -7,11 +7,7 @@ import {
   toAllocationEntries,
 } from "@/components/allocation-row";
 import { ApproveStudentButtons } from "@/components/forms/approve-student-buttons";
-import {
-  AllocationMinutesEditor,
-  AllocationRowActions,
-  TaskRowActions,
-} from "@/components/forms/hours-forms";
+import { AllocationRowActions, TaskRowActions } from "@/components/forms/hours-forms";
 import {
   RemoveStudentButton,
   StudentEmailChange,
@@ -32,6 +28,7 @@ import {
 import { Avatar } from "@/components/avatar";
 import { PersonChip } from "@/components/person-chip";
 import { LinkButton } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FactList } from "@/components/ui/fact-list";
@@ -61,7 +58,7 @@ import {
 import { enrollmentLabel, enrollmentsLabel, studiesIn } from "@/lib/enrollments";
 import { visibleExchanges } from "@/lib/exchanges";
 import { requireUser } from "@/lib/dal";
-import { deadlinePassed } from "@/lib/deadlines";
+import { deadlinePassed, soonestExpiry } from "@/lib/deadlines";
 import {
   formatDate,
   formatDuration,
@@ -248,7 +245,8 @@ export default async function StudentWorkspacePage({
       ? "You hold no time with them — a session you log here counts as extra time or an overdraw."
       : mine && (mine.expired || mine.remaining < 0)
         ? mine.expired
-          ? "Their time with you has expired — a session that counts toward it adds to the overdraw. Log it as extra to charge nothing."
+          ? // Expired is not overdrawn, and the sentence used to call it one.
+            `Their time with you expired${mine.deadline ? ` on ${formatDate(mine.deadline)}` : ""}. Log the session as extra, or ask an admin to extend it.`
           : "Their time with you is already overdrawn — a session that counts toward it adds to the overdraw. Log it as extra to charge nothing."
         : undefined;
 
@@ -366,22 +364,99 @@ export default async function StudentWorkspacePage({
       )
     ).filter((v): v is string => v !== null)
   );
-  // Back to the program the reader came from — named by the roster's link — or,
-  // failing that, to a program of the student's that the reader administers:
-  // their own before one they are only visiting, then by name. The list of
-  // students is only for a reader who administers none of them (a mentor).
+  // Back to where the reader came from. A program's roster names itself in the
+  // link (`?from=`), and only then is the program the way back. Otherwise it is
+  // the reader's own list: Students for an admin, Home for a mentor — whose
+  // caseload lives there, and who has no Students in their navigation. It used
+  // to guess a program the student was in, so an admin arriving from /students
+  // was offered "← Global Admissions Program", a page they had never been on.
   const administered = enrollments.filter((e) => scopeCovers(scope, e.programId));
-  const backProgram =
-    administered.find((e) => e.programId === from) ??
-    administered.find((e) => !e.exchangeId) ??
-    administered[0] ??
-    null;
+  const backProgram = from ? administered.find((e) => e.programId === from) : undefined;
+  const mentorLens = !manages || lens === "mentor";
   const back = backProgram
     ? { href: `/programs/${backProgram.programId}`, label: backProgram.program.name }
-    : { href: "/students", label: "Students" };
+    : mentorLens
+      ? { href: "/mentor", label: "Home" }
+      : { href: "/students", label: "Students" };
   // Two primary actions at most, in either lens — the admin's power lives in
   // the ⋮ menus on the rows it belongs to.
   const primaryIsLog = lens === "mentor";
+
+  /**
+   * The line the page is opened for, first under the name: how much is left
+   * and until when.
+   *
+   * A mentor reads THEIR balance with this student — "8h remaining with you · use
+   * by October 17" — which used to be the last row of a table at the foot of
+   * the page, under a progress card summing all three mentors. An admin reads
+   * the student's whole balance in the programs they can see, with the soonest
+   * date that will take some of it.
+   */
+  const headline: { figure: string; rest?: string; danger: boolean } | null = (() => {
+    if (mentorLens && reaches) {
+      const rows = hours.perMentor.filter((m) => m.mentor?.id === me.id);
+      if (rows.length === 0) return null;
+      const left = rows.reduce((sum, m) => sum + m.remaining, 0);
+      const lost = rows.reduce((sum, m) => sum + m.forfeited, 0);
+      const soon = soonestExpiry(rows, viewer.now);
+      if (left < 0) return { figure: `${formatDuration(-left)} over with you`, danger: true };
+      if (left === 0 && lost > 0) {
+        return { figure: `${formatDuration(lost)} expired unused`, rest: "with you", danger: true };
+      }
+      return {
+        figure: `${formatDuration(left)} remaining with you`,
+        rest: soon ? `use by ${formatDate(soon.date)}` : undefined,
+        danger: false,
+      };
+    }
+    if (hours.allotted === 0 && hours.used === 0) return null;
+    if (hours.remaining < 0) {
+      return { figure: `${formatDuration(-hours.remaining)} over`, danger: true };
+    }
+    return {
+      figure: `${formatDuration(hours.remaining)} remaining`,
+      rest: hours.expiring
+        ? `${formatDuration(hours.expiring.minutes)} to use by ${formatDate(hours.expiring.date)}`
+        : undefined,
+      danger: false,
+    };
+  })();
+
+  // The warning about logging against time that is gone — said once, as a
+  // callout with its glyph, rather than a bare amber sentence under the title.
+  const logWarns = Boolean(mine && (mine.expired || mine.remaining < 0));
+
+  const logButton = reaches ? (
+    <LinkButton
+      key="log"
+      href={`/sessions/new?student=${profile.id}`}
+      variant={primaryIsLog ? "primary" : "secondary"}
+      size="md"
+      // The one control on the page that spends the student's hours, marked by
+      // a filament of the colour those hours are drawn in.
+      className="liquid-edge"
+      {...(canLog ? {} : { "aria-disabled": true, title: logReason })}
+    >
+      Log a session
+    </LinkButton>
+  ) : null;
+  const allocateButton =
+    writes && mentorOptions.length > 0 ? (
+      // The admin lens's one primary action, as logging is the mentor's: a
+      // masthead of two grey buttons had no answer to "what is this page for".
+      <LinkButton
+        key="allocate"
+        href={`/students/${profile.id}/allocate${from ? `?from=${from}` : ""}`}
+        variant={primaryIsLog ? "secondary" : "primary"}
+        size="md"
+      >
+        Allocate time
+      </LinkButton>
+    ) : null;
+  // The primary is always LAST — the right end, where every page keeps it. The
+  // mentor lens put its primary first and the program page put its own last,
+  // so the same two buttons swapped places between pages.
+  const headerButtons = primaryIsLog ? [allocateButton, logButton] : [logButton, allocateButton];
 
   return (
     <div className="space-y-4">
@@ -428,6 +503,18 @@ export default async function StudentWorkspacePage({
         }
         subtitle={
           <>
+            {headline && (
+              <span className="mb-0.5 block text-[0.9375rem]">
+                <span
+                  className={
+                    headline.danger ? "font-semibold text-danger-ink" : "font-semibold text-ink"
+                  }
+                >
+                  {headline.figure}
+                </span>
+                {headline.rest && <> · {headline.rest}</>}
+              </span>
+            )}
             {profile.user.email}
             {handle && (
               <>
@@ -461,54 +548,26 @@ export default async function StudentWorkspacePage({
         }
         actions={
           <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
-            {reaches && (
-              // One action in the masthead, not two. Scheduling was the
-              // secondary of a pair and the only one that opened a form in the
-              // header rather than going somewhere; the meetings already in
-              // the diary still read on the board below.
-              <LinkButton
-                href={`/sessions/new?student=${profile.id}`}
-                variant={primaryIsLog ? "primary" : "secondary"}
-                size="md"
-                // The one control on the page that spends the student's hours,
-                // marked by a filament of the colour those hours are drawn in.
-                className="liquid-edge"
-                {...(canLog ? {} : { "aria-disabled": true, title: logReason })}
-              >
-                Log a session
-              </LinkButton>
-            )}
-            {writes && mentorOptions.length > 0 && (
-              // The admin lens's one primary action, as logging is the
-              // mentor's: a masthead of two grey buttons had no answer to
-              // "what is this page for".
-              <LinkButton
-                href={`/students/${profile.id}/allocate${from ? `?from=${from}` : ""}`}
-                variant={primaryIsLog ? "secondary" : "primary"}
-                size="md"
-              >
-                Allocate time
-              </LinkButton>
-            )}
             {isPending && writes && (
               <ApproveStudentButtons studentProfileId={profile.id} />
             )}
+            {headerButtons}
           </div>
         }
       />
 
       {reaches && logReason && (
-        // Warn-toned when the log would add to an overdraw: a grey hint under
-        // the button is the one place that sentence was easiest to scroll past.
-        <p
-          className={
-            mine && (mine.expired || mine.remaining < 0)
-              ? "text-sm font-medium text-warn-ink"
-              : "text-sm text-muted-fg"
-          }
-        >
-          {logReason}
-        </p>
+        // When the log would add to an overdraw it is a warning, and it reads
+        // as one: a callout with its glyph. A bare amber sentence under the
+        // title was the easiest thing on the page to scroll past, and colour
+        // alone said it was a warning at all.
+        logWarns ? (
+          <Callout tone="warn" row>
+            {logReason}
+          </Callout>
+        ) : (
+          <p className="text-sm text-muted-fg">{logReason}</p>
+        )
       )}
 
       {/* The tracking sheet's whole tab: what happened on the left, what the
@@ -646,39 +705,15 @@ export default async function StudentWorkspacePage({
           mentor opens this page for nothing else. It is the one section whose
           rows can belong to a program the reader does not administer — see
           `visibleExchanges`, which decides exactly which. */}
-      {(exchanges.length > 0 || sendableFrom.length > 0) && (
-        <Section
-          title="Exchange"
-          count={exchanges.length || undefined}
-        >
-          {exchanges.length > 0 ? (
-            <>
-              <ExchangeList
-                exchanges={exchanges}
-                viewer={viewer}
-                canReturn={isParty}
-              />
-              {sendForm && (
-                <div className="border-t border-line px-4 py-3 sm:px-5">
-                  {sendForm}
-                </div>
-              )}
-            </>
-          ) : (
-            // The sentence and the action on ONE line: a band of its own for a
-            // button under a band holding six words was two rows of chrome to
-            // say that nothing has happened yet. `justify-between` with wrap,
-            // so the form drops to a line of its own when it is opened and
-            // needs the width.
-            // The group's empty state: one sentence and the one action, on one
-            // line, wrapping so the form drops below it when it is opened and
-            // needs the width.
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-5">
-              <p className="min-w-0 text-[0.9375rem] text-muted-fg">
-                Nobody has lent {name} to another program.
-              </p>
-              {sendForm}
-            </div>
+      {/* A titled card only when there is a placement to list. With none it
+          was a whole section to say "Nobody has lent … to another program";
+          the one thing left to do — lend them — is now the last row of "Time
+          by mentor" below, beside the hours it would add to. */}
+      {exchanges.length > 0 && (
+        <Section title="Exchange" count={exchanges.length}>
+          <ExchangeList exchanges={exchanges} viewer={viewer} canReturn={isParty} />
+          {sendForm && (
+            <div className="border-t border-line px-4 py-3 sm:px-5">{sendForm}</div>
           )}
         </Section>
       )}
@@ -750,24 +785,19 @@ export default async function StudentWorkspacePage({
                     ) : null
                 : undefined
             }
-            renderAssignedActions={
-              writes
-                ? (entry) =>
-                    entry.deadline && (!entry.bank || bankAdmin.has(entry.program.id)) ? (
-                      <AllocationMinutesEditor
-                        bank={entry.bank}
-                        studentProfileId={profile.id}
-                        programId={entry.program.id}
-                        mentorId={entry.mentor?.id ?? ""}
-                        currentMinutes={entry.allocated}
-                        currentDeadline={toDateInputValue(entry.deadline)}
-                        showAmountPaid={paymentPrograms.has(entry.program.id)}
-                        currentAmountPaid={entry.amountPaid ?? null}
-                      />
-                    ) : undefined
-                : undefined
-            }
+            // No pencil beside Assigned: the row's ⋮ already changes the total,
+            // the use-by date and removal. Two controls for one edit on every
+            // row, and the pencil pushed the figures 28px off their heading.
           />
+        )}
+
+        {exchanges.length === 0 && sendForm && (
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line px-4 py-3 sm:px-5">
+            <p className="min-w-0 text-[0.8125rem] text-muted-fg">
+              Lend {name} to another program for a set number of hours.
+            </p>
+            {sendForm}
+          </div>
         )}
 
         {manages && changes.length > 0 && (

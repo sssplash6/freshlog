@@ -169,11 +169,9 @@ export function StudentsTable({
       // student who has had the least teaching.
       ...(on("completed") ? { sort: "completed", sortDir: "desc" as const } : {}),
     },
-    {
-      label: "Total",
-      align: "right",
-      ...(on("total") ? { sort: "total", sortDir: "desc" as const } : {}),
-    },
+    // NO TOTAL. It was Completed + Remaining printed as a third figure, and a
+    // seventh column — past the six a roster can carry before the name starts
+    // losing its width. The student's own page has the full breakdown.
     {
       // Just "Remaining": the figure is the student's total across EVERY
       // mentor's grant (`studentsWithHours`), so "with you" would claim a
@@ -244,49 +242,54 @@ export function StudentsTable({
                     avatarUpdatedAt: s.user.avatarUpdatedAt,
                   }}
                   href={`${href}/${s.id}${from ? `?from=${from}` : ""}`}
-                  // The chip lives on the SECOND line, beside the address, in
-                  // every roster. Beside the name it fitted in a wide table and
-                  // wrapped under it in a narrow one, so row heights wandered
-                  // between 47 and 56px. A fixed-height second line makes every
-                  // row the same, and the name keeps its whole line.
+                  // The address keeps the WHOLE second line. "Not signed in"
+                  // used to share it, and it truncated the one thing an admin
+                  // needs to chase that student — "akobiroblokulov@g…". The
+                  // chip rides the name's line instead, where `PersonCell`
+                  // lets the name give way first and wraps the chip under it
+                  // only when the two cannot both fit.
                   secondary={
-                    top || visiting || s.user.name ? (
+                    visiting && s.user.name ? (
                       <span className="flex h-5 min-w-0 items-center gap-x-2">
-                        {s.user.name && (
-                          <span className="min-w-0 truncate">{s.user.email}</span>
-                        )}
-                        {top && <StatusChip status={top} className="shrink-0" />}
+                        <span className="min-w-0 truncate">{s.user.email}</span>
                         {/* A visitor, where the Program column is not there to
                             say so — a program's own roster, which drops that
                             column, and the page where the distinction matters
                             most: the hours beside this name are capped by
                             another program, and the student goes home when
                             they run out. */}
-                        {visiting && (
-                          <span className="shrink-0 whitespace-nowrap text-xs font-normal text-muted-fg">
-                            on exchange
-                          </span>
-                        )}
+                        <span className="shrink-0 whitespace-nowrap text-xs font-normal text-muted-fg">
+                          on exchange
+                        </span>
                       </span>
                     ) : undefined
                   }
-                />
+                >
+                  {top && <StatusChip status={top} className="shrink-0" />}
+                  {visiting && !s.user.name && (
+                    <span className="shrink-0 whitespace-nowrap text-xs font-normal text-muted-fg">
+                      on exchange
+                    </span>
+                  )}
+                </PersonCell>
                 {/* On a phone the rest of the row folds away and this is the
                     figure it folds to: the balance that runs out. The full
                     columns — completed, total, the last visit, contact — are
                     one tap behind the chevron. */}
                 <RowFold label={s.user.name ?? s.user.email}>
+                  {/* One line — "4h 48m left". Stacked as figure over word it
+                      was a two-line cell the chevron floated beside. */}
                   {s.allottedMinutes > 0 || s.remainingMinutes !== 0 ? (
-                    <span className="flex flex-col items-end leading-tight">
+                    <span className="whitespace-nowrap text-sm tabular-nums">
                       <span
                         className={cn(
-                          "text-sm font-semibold tabular-nums",
+                          "font-semibold",
                           overdrawn ? "text-danger-ink" : "text-ink"
                         )}
                       >
                         {formatDuration(Math.abs(s.remainingMinutes))}
-                      </span>
-                      <span className="text-xs font-medium text-muted-fg">
+                      </span>{" "}
+                      <span className="text-xs text-muted-fg">
                         {overdrawn ? "over" : "left"}
                       </span>
                     </span>
@@ -318,13 +321,11 @@ export function StudentsTable({
             )}
 
             <Td label="Completed" align="right" className="tabular-nums" data-fold>
-              <span className={cn(s.completedMinutes > 0 ? "text-ink" : "text-muted-fg")}>
-                {formatDuration(s.completedMinutes)}
-              </span>
-            </Td>
-
-            <Td label="Total" align="right" tone="muted" className="tabular-nums" data-fold>
-              {formatDuration(s.allottedMinutes)}
+              {s.completedMinutes > 0 ? (
+                formatDuration(s.completedMinutes)
+              ) : (
+                <span className="text-muted-fg">—</span>
+              )}
             </Td>
 
             <Td label="Remaining" align="right" tone="key" className="tabular-nums" data-fold>
@@ -334,7 +335,9 @@ export function StudentsTable({
             </Td>
 
             <Td label="Last session" tone="muted" className="whitespace-nowrap" data-fold>
-              {s.lastSessionAt ? formatDate(s.lastSessionAt) : "never"}
+              {/* A dash for "nothing has happened", the one way every table
+                  writes it — not "never" here and "—" in the next column. */}
+              {s.lastSessionAt ? formatDate(s.lastSessionAt) : "—"}
             </Td>
 
             <Td label="Contact" data-fold>

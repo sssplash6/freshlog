@@ -1,11 +1,13 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 
 import { Avatar } from "@/components/avatar";
 import { BookingLinksForm } from "@/components/forms/booking-link-form";
 import { EditMentorForm } from "@/components/forms/mentor-forms";
 import { AvatarForm, OwnNameForm } from "@/components/forms/profile-forms";
+import { CreateButton, CreatePanel, CreateSlot } from "@/components/page-create";
 import { PersonCell } from "@/components/person-chip";
+import { ProgramChip } from "@/components/program-chip";
+import { StatusChip } from "@/components/ui/status-chip";
 import { SessionsLog } from "@/components/session-row";
 import { sessionsCaption, toSessionEntries } from "@/lib/session-entries";
 import { Disclosure } from "@/components/ui/disclosure";
@@ -200,6 +202,17 @@ async function MentorRecord({
   // this reader does not hold.
   const students = overview.students.filter((s) => inReach(s.program.id));
   const sessions = overview.sessions.filter((s) => inReach(s.programId));
+  // Every program the header names gets a row, even one with nothing in it
+  // yet. The header listed "efde" and the table did not, so the two halves of
+  // the page disagreed about where this mentor works.
+  const listed = new Set(byProgram.map((row) => row.id));
+  const idle = [
+    ...new Map(
+      pairings
+        .filter((a) => !listed.has(a.programId))
+        .map((a) => [a.programId, { id: a.programId, name: a.program.name }])
+    ).values(),
+  ];
   const sum = (pick: (row: (typeof byProgram)[number]) => number) =>
     byProgram.reduce((total, row) => total + pick(row), 0);
   const entries = toSessionEntries(sessions, { studentBase: "/students" });
@@ -227,33 +240,41 @@ async function MentorRecord({
   );
 
   return (
+    <CreateSlot>
     <div className="space-y-4">
       <div className="space-y-2">
+        {/* The same masthead the student's page has: face, name, the facts
+            under it, and the one change control in the title's actions. It
+            had a "Mentor" eyebrow nobody needed on a page reached from
+            Mentors, and its Edit was a fold under the header while the
+            student's was a pencil beside the name. */}
         <PageTitle
           backHref={manages ? "/mentors" : undefined}
           backLabel={manages ? "Mentors" : undefined}
-          eyebrow="Mentor"
           title={name}
           subtitle={
             /*
-              Programs as text, each carrying whether a student can book
-              through it. This is the ONLY place that says WHICH pairing has no
-              link — the attention row below says that one is missing, and the
-              old page's per-pairing chips said which. A mentor in three
-              programs with one link needs both halves.
+              Programs, each carrying whether a student can book through it.
+              This is the ONLY place that says WHICH pairing has no link — the
+              attention row says that one is missing, and a mentor in three
+              programs with one link needs to know which. A chip with its
+              glyph, not amber text in brackets: colour alone was the only
+              thing marking it.
             */
             <>
               <span className="block">
                 {mentor.email} · registered {formatDate(mentor.createdAt)}
               </span>
               {pairings.length > 0 && (
-                <span className="block">
-                  {pairings.map((a, i) => (
-                    <span key={a.id}>
-                      {i > 0 && " · "}
-                      {labelOf(a)}
+                <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  {pairings.map((a) => (
+                    <span key={a.id} className="inline-flex items-center gap-1.5">
+                      <ProgramChip program={a.program} className="text-sm text-ink" />
+                      {a.level || a.cohort ? (
+                        <span>/ {[a.level?.name, a.cohort?.name].filter(Boolean).join(" / ")}</span>
+                      ) : null}
                       {!a.calendlyUrl && (
-                        <span className="text-warn-ink"> (no booking link)</span>
+                        <StatusChip severity="attention">No booking link</StatusChip>
                       )}
                     </span>
                   ))}
@@ -268,10 +289,11 @@ async function MentorRecord({
               className="h-16 w-16 text-2xl"
             />
           }
+          actions={edits ? <CreateButton label="Edit" icon="edit" /> : undefined}
         />
 
         {edits && (
-          <Disclosure label="Edit">
+          <CreatePanel title="Edit mentor" hint="Their name, sign-in email and programs.">
             <EditMentorForm
               mentorId={mentor.id}
               name={mentor.name ?? ""}
@@ -289,7 +311,7 @@ async function MentorRecord({
               // another admin's sign-in can become them.
               canEditIdentity={viewer.platformAdmin}
             />
-          </Disclosure>
+          </CreatePanel>
         )}
 
         {/*
@@ -418,7 +440,7 @@ async function MentorRecord({
           </p>
         </div>
 
-        {byProgram.length === 0 ? (
+        {byProgram.length === 0 && idle.length === 0 ? (
           <EmptyState framed={false} title="No time in these programs">
             A line appears for each program once this mentor holds a
             student&apos;s time or logs a session.
@@ -443,17 +465,14 @@ async function MentorRecord({
                 style={{ animationDelay: `${Math.min(i, 14) * 24}ms` }}
               >
                 <Td className="sm:min-w-52">
-                  {manages ? (
-                    <Link
-                      href={`/programs/${row.id}`}
-                      transitionTypes={["nav-forward"]}
-                      className="font-semibold text-ink hover:text-brand"
-                    >
-                      {row.name}
-                    </Link>
-                  ) : (
-                    <span className="font-semibold text-ink">{row.name}</span>
-                  )}
+                  {/* The program the way every roster draws one: its dot and
+                      its name. Bare bold text here was the third look a
+                      program had on one page. */}
+                  <ProgramChip
+                    program={{ id: row.id, name: row.name }}
+                    href={manages ? `/programs/${row.id}` : undefined}
+                    className="font-semibold"
+                  />
                 </Td>
                 <Td label="Students" align="right" className="tabular-nums">
                   {row.students}
@@ -465,13 +484,12 @@ async function MentorRecord({
                 >
                   {formatDuration(row.delivered)}
                 </Td>
+                {/* Plain ink. The heading says what it is; amber with no
+                    word or glyph beside it was colour alone saying "bad". */}
                 <Td
                   label="Missed"
                   align="right"
-                  className={cn(
-                    "tabular-nums",
-                    row.missed > 0 ? "text-warn-ink" : "text-muted-fg"
-                  )}
+                  className={cn("tabular-nums", row.missed > 0 ? "text-ink" : "text-muted-fg")}
                 >
                   {row.missed > 0 ? formatDuration(row.missed) : "—"}
                 </Td>
@@ -494,6 +512,23 @@ async function MentorRecord({
                 </Td>
               </Tr>
             ))}
+            {idle.map((p) => (
+              <Tr key={p.id}>
+                <Td className="sm:min-w-52">
+                  <ProgramChip
+                    program={p}
+                    href={manages ? `/programs/${p.id}` : undefined}
+                    className="font-semibold"
+                  />
+                  <span className="block text-xs text-muted-fg">Nothing granted or logged yet</span>
+                </Td>
+                <Td label="Students" align="right" tone="muted">—</Td>
+                <Td label="Completed" align="right" tone="muted">—</Td>
+                <Td label="Missed" align="right" tone="muted">—</Td>
+                <Td label="Total" align="right" tone="muted">—</Td>
+                <Td label="Remaining" align="right" tone="muted">—</Td>
+              </Tr>
+            ))}
           </Table>
         )}
       </Section>
@@ -501,7 +536,7 @@ async function MentorRecord({
       <Section
         title="Students"
         count={holders.length || undefined}
-        caption="Holding time from them"
+        caption={isSelf ? "Students with time on you" : "Students with time on this mentor"}
       >
         {holders.length === 0 ? (
           <EmptyState framed={false} title="Nobody holds their time">
@@ -538,9 +573,9 @@ async function MentorRecord({
                     secondary={`${s.student.user.email} · ${s.program.name}`}
                   >
                     {s.student.user.status === USER_STATUS.PENDING && (
-                      <span className="shrink-0 text-xs font-normal text-warn-ink">
+                      <StatusChip severity="attention" className="shrink-0">
                         Pending approval
-                      </span>
+                      </StatusChip>
                     )}
                   </PersonCell>
                 </Td>
@@ -550,10 +585,7 @@ async function MentorRecord({
                 <Td
                   label="Missed"
                   align="right"
-                  className={cn(
-                    "tabular-nums",
-                    s.missed > 0 ? "text-warn-ink" : "text-muted-fg"
-                  )}
+                  className={cn("tabular-nums", s.missed > 0 ? "text-ink" : "text-muted-fg")}
                 >
                   {s.missed > 0 ? formatDuration(s.missed) : "—"}
                 </Td>
@@ -636,7 +668,7 @@ async function MentorRecord({
               href={isSelf ? "/feedback" : `/feedback?mentor=${mentor.id}`}
               className="text-[0.9375rem]"
             >
-              Read them
+              {feedback._count === 1 ? "Read it" : "Read them"}
             </ArrowLink>
           </div>
         ) : (
@@ -646,6 +678,7 @@ async function MentorRecord({
         )}
       </Section>
     </div>
+    </CreateSlot>
   );
 }
 

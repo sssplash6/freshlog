@@ -1,6 +1,6 @@
 import { RegisterMentorForm } from "@/components/forms/mentor-forms";
 import { MentorsTable, type MentorRow } from "@/components/mentors-table";
-import { Disclosure } from "@/components/ui/disclosure";
+import { CreateButton, CreatePanel, CreateSlot } from "@/components/page-create";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
@@ -182,20 +182,25 @@ export default async function MentorsPage({
   });
 
   return (
+    <CreateSlot>
     <div className="space-y-4">
-      {/* The roster's size as the eyebrow, not a grey "· 5" set in the 32px
-          title, where a count read as part of the name. */}
+      {/* The roster's size as the subtitle, not a grey "· 5" set in the 32px
+          title, where a count read as part of the name — and only here: the
+          pager under the table no longer repeats it on a one-page list.
+          Registering is the title's one action; its form opens as a card
+          under the title (page-create.tsx), so the heading never moves. */}
       <PageTitle
         title="Mentors"
         subtitle={`${roster} ${roster === 1 ? "mentor" : "mentors"}`}
+        actions={<CreateButton label="Register a mentor" />}
       />
 
-      {/* Under the title rather than in its actions row: the fold opens into a
-          two-column form with a program picker in it, and a control that pushes
-          the page's own heading sideways when it opens is not an action. */}
-      <Disclosure label="Register a mentor" variant="create">
+      <CreatePanel
+        title="Register a mentor"
+        hint="They sign in with this email. Pick the programs they work in."
+      >
         <RegisterMentorForm programs={toProgramOptions(programs)} />
-      </Disclosure>
+      </CreatePanel>
 
       <FilterBar
         basePath="/mentors"
@@ -238,14 +243,19 @@ export default async function MentorsPage({
         }
       />
 
-      <Pagination
-        basePath="/mentors"
-        params={params}
-        page={page}
-        total={total}
-        unit="mentors"
-        className="px-1"
-      />
+      {/* Only when there is a second page to reach. On one page the pager was
+          a third "5 mentors" under the table. */}
+      {total > PAGE_SIZE && (
+        <Pagination
+          basePath="/mentors"
+          params={params}
+          page={page}
+          total={total}
+          unit="mentors"
+          className="px-1"
+        />
+      )}
     </div>
+    </CreateSlot>
   );
 }

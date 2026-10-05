@@ -15,8 +15,13 @@ const programTarget = (programId: string) => `p:${programId}`;
 const levelTarget = (levelId: string) => `l:${levelId}`;
 const cohortTarget = (cohortId: string) => `c:${cohortId}`;
 
-/** Show the filter once the list is long enough that scanning it costs something. */
-const SEARCH_THRESHOLD = 6;
+/**
+ * Show the filter once the list is long enough that scanning it costs
+ * something. Counted in PROGRAMS, the rows a reader actually scans: at six
+ * rows-including-cohorts a school of five programs got a search box for a
+ * list that fits on one screen.
+ */
+const SEARCH_THRESHOLD = 8;
 
 function labelFor(programs: ProgramOption[], target: Target): string | null {
   for (const p of programs) {
@@ -99,7 +104,7 @@ export function ProgramTargetsPicker({
         p.levels.reduce((m, l) => m + 1 + l.cohorts.length, 0),
       0,
     );
-  const withSearch = rows > SEARCH_THRESHOLD;
+  const withSearch = programs.length > SEARCH_THRESHOLD || rows > SEARCH_THRESHOLD * 3;
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -205,8 +210,12 @@ export function ProgramTargetsPicker({
           not the same as being told. */}
       <div className="mt-1.5 flex min-h-8 flex-wrap items-center gap-1.5">
         {selected.length === 0 ? (
+          // A required picker must not say that picking nothing is fine: the
+          // asterisk and "the mentor stays unassigned" contradicted each other.
           <span className="text-xs text-muted-fg">
-            Nothing selected yet — the mentor stays unassigned.
+            {required
+              ? "Pick at least one program."
+              : "Nothing selected yet — the mentor stays unassigned."}
           </span>
         ) : (
           selected.map((t) => {
@@ -222,7 +231,9 @@ export function ProgramTargetsPicker({
                   type="button"
                   onClick={() => remove(t)}
                   aria-label={`Remove ${label}`}
-                  className="flex h-5 w-5 items-center justify-center rounded-full text-brand/70 transition-colors hover:bg-brand/10 hover:text-brand"
+                  // 20px drawn, 44px to a thumb: the pseudo-element is the
+                  // target on a phone, so the chip itself stays small.
+                  className="relative flex h-5 w-5 items-center justify-center rounded-full text-brand/70 transition-colors hover:bg-brand/10 hover:text-brand max-sm:after:absolute max-sm:after:-inset-3"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -285,7 +296,9 @@ export function ProgramTargetsPicker({
           return (
             <li key={p.id}>
               <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-                <label className="flex min-w-0 items-center gap-2.5 text-sm text-ink">
+                {/* The whole row is the label, 44px tall on a phone, so the
+                    16px box is never the only thing to hit. */}
+                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-sm text-ink max-sm:min-h-11">
                   <input
                     ref={i === 0 ? firstControlRef : undefined}
                     type="checkbox"
@@ -343,7 +356,7 @@ export function ProgramTargetsPicker({
                       <li key={l.id}>
                         <label
                           className={cn(
-                            "flex items-center gap-2.5 py-1 text-sm",
+                            "flex cursor-pointer items-center gap-2.5 py-1 text-sm max-sm:min-h-11",
                             wide ? "text-muted-fg" : "text-ink",
                           )}
                         >
@@ -371,7 +384,7 @@ export function ProgramTargetsPicker({
                               <li key={c.id}>
                                 <label
                                   className={cn(
-                                    "flex items-center gap-2.5 py-1 text-sm",
+                                    "flex cursor-pointer items-center gap-2.5 py-1 text-sm max-sm:min-h-11",
                                     wide || levelWide ? "text-muted-fg" : "text-ink",
                                   )}
                                 >
@@ -395,7 +408,7 @@ export function ProgramTargetsPicker({
                     <li key={c.id}>
                       <label
                         className={cn(
-                          "flex items-center gap-2.5 py-1 text-sm",
+                          "flex cursor-pointer items-center gap-2.5 py-1 text-sm max-sm:min-h-11",
                           wide ? "text-muted-fg" : "text-ink",
                         )}
                       >

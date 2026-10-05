@@ -178,7 +178,8 @@ export function AssignTaskForm({
               min="1"
               step="1"
               required
-              placeholder="180"
+              // "e.g.", or a bare 180 reads as a value already filled in.
+              placeholder="e.g. 180"
               className="mt-1"
             />
           </label>
@@ -196,7 +197,7 @@ export function AssignTaskForm({
             </div>
           </div>
 
-          {showAmountPaid ? (
+          {showAmountPaid && (
             <label className="min-w-0">
               <span className={labelClass}>
                 Paid for these hours ($)<RequiredMark />
@@ -207,24 +208,22 @@ export function AssignTaskForm({
                 min="0"
                 step="0.01"
                 required
-                placeholder="1200"
+                placeholder="e.g. 1200"
                 className="mt-1"
               />
             </label>
-          ) : (
-            <SubmitButton className="w-full" pendingText="Allocating…">
-              Allocate time
-            </SubmitButton>
           )}
         </div>
       </div>
 
-      {/* Only where Paid took the slot the button would have had. */}
-      {showAmountPaid && (
-        <div className="mt-3">
-          <SubmitButton pendingText="Allocating…">Allocate time</SubmitButton>
-        </div>
-      )}
+      {/* ONE place for the submit, whatever the program asks: under the
+          fields, at the right, where Log a session keeps its own. It was a
+          full-width button in the grid's last cell — or, when Paid took that
+          cell, an auto-width one under it — so the same form moved its button
+          between programs. */}
+      <div className="mt-3 flex justify-end">
+        <SubmitButton pendingText="Allocating…">Allocate time</SubmitButton>
+      </div>
       <SaveState state={save} />
     </form>
   );

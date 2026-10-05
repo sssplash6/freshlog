@@ -9,7 +9,8 @@ import { toast } from "@/components/toaster";
 import { Button } from "@/components/ui/button";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { DateField } from "@/components/ui/date-field";
-import { Field, GrowingField, Input, inputClasses } from "@/components/ui/field";
+import { Select } from "@/components/select";
+import { Field, GrowingField, Input } from "@/components/ui/field";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -198,22 +199,23 @@ export function SessionRowActions({
             <input type="hidden" name="sessionId" value={session.id} />
 
             {goals.length > 0 && (
-              <Field label="Agenda item">
-                <select
+              // The app's own Select, not a native <select>: the OS chevron
+              // and menu were the one foreign control among this panel's
+              // fills. Its value lives in a hidden input, which raises no
+              // `change` for the form's autosave, so it says so itself — the
+              // same arrangement the date field below has.
+              <div className="space-y-1.5">
+                <span className="block text-sm font-medium text-ink">Agenda item</span>
+                <Select
                   name="assignmentId"
-                    defaultValue={currentAssignmentId ?? ""}
-                  className={inputClasses}
-                >
-                  {/* Blank keeps whatever the session already has, so fixing
-                      the hours never forces a task onto a row without one. */}
-                  <option value="">Leave unchanged</option>
-                  {goals.map((g) => (
-                    <option key={g.value} value={g.value}>
-                      {g.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+                  ariaLabel="Agenda item"
+                  defaultValue={currentAssignmentId ?? ""}
+                  // Blank keeps whatever the session already has, so fixing
+                  // the hours never forces a task onto a row without one.
+                  options={[{ value: "", label: "Leave unchanged" }, ...goals]}
+                  onChange={() => queueSave("assignmentId")}
+                />
+              </div>
             )}
 
             <div className="flex gap-2">

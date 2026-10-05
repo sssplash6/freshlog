@@ -60,7 +60,9 @@ export function SendOnExchangeForm({
   if (!open) {
     return (
       <div>
-        <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+        {/* The page's own button size: at `sm` it was a 32px button among
+            44px ones, the only small action on a page of full-size ones. */}
+        <Button variant="secondary" onClick={() => setOpen(true)}>
           Send on exchange
         </Button>
         {/* The last result outlives the form closing, so somebody who submits
@@ -95,7 +97,7 @@ export function SendOnExchangeForm({
           />
         </Field>
         <Field label="Minutes">
-          <Input name="minutes" type="number" inputMode="numeric" min="1" step="1" required placeholder="420" />
+          <Input name="minutes" type="number" inputMode="numeric" min="1" step="1" required placeholder="e.g. 420" />
         </Field>
         <Field label="Use by">
           <DateField name="deadline" label="Use by" required />

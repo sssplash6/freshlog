@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { CreateProgramForm } from "@/components/forms/program-forms";
+import { CreateButton, CreatePanel, CreateSlot } from "@/components/page-create";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Figure } from "@/components/ui/figure";
 import { ProgramChip } from "@/components/program-chip";
@@ -89,6 +90,9 @@ export default async function ProgramsPage({
     }),
   ]);
 
+  // By name as people read it, not by code point ("efde" after "Research").
+  programs.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+
   const active = programs.filter((p) => p.status !== PROGRAM_STATUS.ARCHIVED);
   const shown = archived
     ? programs.filter((p) => p.status === PROGRAM_STATUS.ARCHIVED)
@@ -122,23 +126,27 @@ export default async function ProgramsPage({
   ];
 
   return (
+    <CreateSlot>
     <div className="space-y-4">
+      {/* No count in the title: the Active and Archived tabs under it carry
+          one each, and "Programs · 5" over "Active 5" was the same fact twice.
+          Creating is the title's one action, the same button in the same
+          place as every other page's "new" (page-create.tsx). Platform admins
+          only — a program is the unit access is granted in, and a new one
+          arrives with nobody administering it (§8.3). */}
       <PageTitle
-        title={
-          <>
-            Programs{" "}
-            <span className="font-semibold tabular-nums text-muted-fg">
-              · {shown.length}
-            </span>
-          </>
-        }
+        title="Programs"
+        actions={user.platformAdmin ? <CreateButton label="New program" /> : undefined}
       />
 
-      {/* Under the title rather than in its actions row, matching `/mentors`: a
-          control that pushes the page's own heading sideways when it opens is
-          not an action. Platform admins only — a program is the unit access is
-          granted in, and a new one arrives with nobody administering it (§8.3). */}
-      {user.platformAdmin && <CreateProgramForm />}
+      {user.platformAdmin && (
+        <CreatePanel
+          title="New program"
+          hint="It starts with no students or mentors. Grant its admins access afterwards."
+        >
+          <CreateProgramForm />
+        </CreatePanel>
+      )}
 
       <TabLinks
         label="Programs"
@@ -161,7 +169,7 @@ export default async function ProgramsPage({
         ) : (
           <EmptyState title="No programs">
             {user.platformAdmin
-              ? "Open one above, then grant the people who will run it access to it."
+              ? "Create one with New program, then grant the people who run it access."
               : "Nobody has granted you a program to work in."}
           </EmptyState>
         )
@@ -169,7 +177,7 @@ export default async function ProgramsPage({
         <Table columns={columns}>
           {rows.map((p) => (
             <Tr key={p.id}>
-              <Td label="Program">
+              <Td>
                 {/* The NAME is the way in, the rule `PersonCell` already
                     follows on every roster in the app: an "Open" link at the
                     far right of the row made the reader cross four columns of
@@ -177,19 +185,35 @@ export default async function ProgramsPage({
                     the program itself looking like inert text. `min-h-11` only
                     while stacked — on a phone this anchor is the row's one
                     target, and a table row does not need the height. */}
-                <ProgramChip
-                  program={{ id: p.id, name: p.name }}
-                  href={`/programs/${p.id}`}
-                  className="min-h-11 font-semibold sm:min-h-0"
-                />
+                {/* One line on a phone — the name and what is left in it —
+                    with the counts quiet underneath, instead of five stacked
+                    labelled lines per program. */}
+                <span className="flex items-center justify-between gap-3">
+                  <ProgramChip
+                    program={{ id: p.id, name: p.name }}
+                    href={`/programs/${p.id}`}
+                    className="min-h-11 font-semibold sm:min-h-0"
+                  />
+                  <Figure
+                    size="inline"
+                    value={formatRough(p.remaining)}
+                    tone={p.remaining < 0 ? "danger" : "hours"}
+                    className="shrink-0 sm:hidden"
+                  />
+                </span>
+                <span className="-mt-2 block pb-1 text-xs text-muted-fg sm:hidden">
+                  {p.students} {p.students === 1 ? "student" : "students"} · {p.mentors}{" "}
+                  {p.mentors === 1 ? "mentor" : "mentors"}
+                  {p.forfeited > 0 && ` · ${formatRough(p.forfeited)} expired unused`}
+                </span>
               </Td>
-              <Td label="Students" align="right" className="tabular-nums">
+              <Td align="right" className="tabular-nums max-sm:hidden">
                 {p.students}
               </Td>
-              <Td label="Mentors" align="right" className="tabular-nums">
+              <Td align="right" className="tabular-nums max-sm:hidden">
                 {p.mentors}
               </Td>
-              <Td label="Remaining" align="right">
+              <Td align="right" className="max-sm:hidden">
                 <Figure
                   size="inline"
                   value={formatRough(p.remaining)}
@@ -197,11 +221,12 @@ export default async function ProgramsPage({
                   className="sm:text-right"
                 />
               </Td>
-              <Td label="Expired unused" align="right" className="tabular-nums">
+              <Td align="right" className="tabular-nums max-sm:hidden">
+                {/* Plain ink: the heading already says these hours were lost,
+                    and amber with no word or glyph beside it was colour doing
+                    the talking alone. */}
                 {p.forfeited > 0 ? (
-                  <span className="font-medium text-warn-ink">
-                    {formatRough(p.forfeited)}
-                  </span>
+                  formatRough(p.forfeited)
                 ) : (
                   <span className="text-muted-fg">—</span>
                 )}
@@ -211,5 +236,6 @@ export default async function ProgramsPage({
         </Table>
       )}
     </div>
+    </CreateSlot>
   );
 }
