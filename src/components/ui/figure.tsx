@@ -17,8 +17,8 @@ import { cn } from "@/lib/cn";
  *
  * `hours` IS THE ONLY COLOURED TONE, and it is the orange that means hours
  * throughout the app. It is deliberately restricted to figures of 24px and up:
- * #f18d05 on white is 2.46:1, which the owner has accepted for large readouts
- * as brand fidelity and which is genuinely unreadable at 13px.
+ * the text orange (#a35200) is 5.6:1 on white, so it also passes at small sizes,
+ * but a big coloured number is what makes it read as "hours" rather than a flag.
  */
 const TONE = {
   ink: "text-ink",

@@ -486,9 +486,9 @@ function TaskPanel({
             {/* The half a clock can read. Only this one can make a task
                 overdue, which is why it is a date field and not more prose. */}
             <Field label="Due date" className="min-w-0 flex-1">
-              <Input
+              <DateField
                 name="dueOn"
-                type="date"
+                label="Due date"
                 defaultValue={task.dueOn ? toDateInputValue(task.dueOn) : ""}
               />
             </Field>

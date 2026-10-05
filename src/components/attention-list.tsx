@@ -101,7 +101,7 @@ export function AttentionList({
     // here because `Section` owns exactly one card.
     return (
       <section className={cn("min-w-0 space-y-2", className)}>
-        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 px-1 pt-2">
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 pb-0 pt-2">
           <h2 className="flex items-baseline gap-2 text-[1.25rem] font-semibold tracking-[-0.01em] text-ink">
             <span className="min-w-0 truncate">{title}</span>
             {count > 0 && (
@@ -190,18 +190,33 @@ function AttentionRow({
     </>
   );
 
+  // The chevron belongs to the ROW, not to the link inside it: pinned to the
+  // row's right padding edge, where a notification's chevron sits, and
+  // vertically centred — whether or not a Dismiss button stands to its left.
+  const chevron = Boolean(href && !action);
+
   return (
-    <li className="group/row flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 transition-colors has-[:active]:bg-fill sm:px-5">
+    <li
+      className={cn(
+        "group/row relative flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3 transition-colors has-[:active]:bg-fill",
+        chevron ? "pl-4 pr-10 sm:pl-5 sm:pr-11" : "px-4 sm:px-5",
+      )}
+    >
+      {chevron && (
+        <ChevronRightIcon
+          aria-hidden="true"
+          className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg/60 transition-colors group-hover/row:text-brand sm:right-5"
+        />
+      )}
       {href && !action ? (
         // The row is the target. `min-w-0` so the subject's truncate works;
         // without it the name sets the width and pushes the chevron off.
         <Link
           href={href}
           transitionTypes={["nav-forward"]}
-          className="group -my-1 flex min-w-0 flex-1 items-center justify-between gap-3 py-1"
+          className="-my-1 min-w-0 flex-1 py-1"
         >
-          <span className="min-w-0">{body}</span>
-          <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg/60 transition-colors group-hover:text-brand" />
+          {body}
         </Link>
       ) : (
         <span className={cn("min-w-0", action ? "" : "flex-1")}>{body}</span>

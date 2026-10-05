@@ -476,7 +476,7 @@ export function CommandPaletteButton({ label }: { label: string }) {
       onClick={openCommandPalette}
       aria-label={label}
       aria-keyshortcuts="Meta+K Control+K"
-      className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-fg transition hover:bg-brand-soft hover:text-brand hover:ring-2 hover:ring-brand/15"
+      className="flex h-11 min-w-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-fg transition hover:bg-brand-soft hover:text-brand hover:ring-2 hover:ring-brand/15"
     >
       <SearchIcon className="h-5 w-5" />
     </button>

@@ -35,7 +35,9 @@ function subscribeToNothing(): () => void {
 export function NavSearch({ mentors }: { mentors: boolean }) {
   // `mentors` still decides the wording: somebody who cannot see the mentors
   // list should not be told this box could find one.
-  const placeholder = mentors ? "Find a student or mentor…" : "Find a student…";
+  // Short enough for the 207px rail beside the shortcut hint; the spoken name
+  // below stays the full sentence.
+  const placeholder = mentors ? "Find a person…" : "Find a student…";
   const enhanced = useSyncExternalStore(subscribeToNothing, () => true, () => false);
   const shortcut = useSyncExternalStore(
     subscribeToNothing,
@@ -49,6 +51,7 @@ export function NavSearch({ mentors }: { mentors: boolean }) {
         type="button"
         onClick={openCommandPalette}
         aria-keyshortcuts="Meta+K Control+K"
+        aria-label={mentors ? "Find a student or mentor" : "Find a student"}
         className="relative flex min-h-10 w-full cursor-pointer items-center gap-2 rounded-lg bg-fill py-2 pl-2.5 pr-2 text-left text-[0.9375rem] text-muted-fg transition-colors hover:bg-fill-strong"
       >
         <SearchIcon className="h-4 w-4 shrink-0" />

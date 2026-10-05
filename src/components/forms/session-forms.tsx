@@ -8,6 +8,7 @@ import { useLiveSession } from "@/components/session-live-context";
 import { toast } from "@/components/toaster";
 import { Button } from "@/components/ui/button";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
+import { DateField } from "@/components/ui/date-field";
 import { Field, GrowingField, Input, inputClasses } from "@/components/ui/field";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
@@ -94,7 +95,10 @@ export function SessionRowActions({
 
   function autosave(event: React.FormEvent<HTMLFormElement>) {
     const target = event.target as HTMLInputElement;
-    const field = target.name || null;
+    queueSave(target.name || null);
+  }
+
+  function queueSave(field: string | null) {
     setSavingField(field);
     if (editTimer.current) clearTimeout(editTimer.current);
     editTimer.current = setTimeout(() => {
@@ -224,15 +228,22 @@ export function SessionRowActions({
                    defaultValue={currentMinutes}
                 />
               </Field>
-              <Field label="Date" className="min-w-0 flex-1">
-                <Input
+              {/* A div, not a `Field` (a <label>): the date field's trigger is
+                  a button, and a label around it would toggle the calendar on
+                  every click of the word. Its value is a hidden input, which
+                  raises no `change` for the form's autosave, so it says so
+                  itself. */}
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <span className="block text-sm font-medium text-ink">Date</span>
+                <DateField
                   name="date"
-                  type="date"
+                  label="Date"
                   required
                   max={programToday()}
-                   defaultValue={currentDate}
+                  defaultValue={currentDate}
+                  onChange={() => queueSave("date")}
                 />
-              </Field>
+              </div>
             </div>
 
             <Field label="Notes">

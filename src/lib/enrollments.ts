@@ -82,12 +82,18 @@ export function enrollmentsLabel(
   return sortEnrollments(enrollments).map(enrollmentLabel).join(" · ");
 }
 
-/** Alphabetical by program, so two readings of the same student agree. */
+/**
+ * The student's own programs first, alphabetical, then any visits, alphabetical
+ * — so two readings of the same student agree, and a visit never leads a list
+ * of programs the student actually belongs to.
+ */
 export function sortEnrollments<T extends NamedEnrollment>(
   enrollments: readonly T[]
 ): T[] {
-  return [...enrollments].sort((a, b) =>
-    a.program.name.localeCompare(b.program.name)
+  return [...enrollments].sort(
+    (a, b) =>
+      Number(Boolean(a.exchangeId)) - Number(Boolean(b.exchangeId)) ||
+      a.program.name.localeCompare(b.program.name)
   );
 }
 

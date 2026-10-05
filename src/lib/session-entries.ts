@@ -88,3 +88,24 @@ export function sessionsCaption(sessions: readonly SessionEntry[]): string {
     extra > 0 ? ` · ${formatDuration(extra)} extra` : ""
   }`;
 }
+
+/**
+ * How many MEETINGS a list holds: the ones that actually happened. A voided or
+ * rescheduled row is a line in the history, not a meeting, so it is not
+ * counted. One definition, so the student's home, the meetings page's caption
+ * and its footer cannot give three numbers for the same five rows.
+ */
+export function meetingCount(sessions: readonly { status: string }[]): number {
+  return sessions.filter((s) => s.status === SESSION_STATUS.ACTIVE).length;
+}
+
+/** What the rows that are not meetings were, for a footer: "1 voided". */
+export function notHeldNote(sessions: readonly { status: string }[]): string | undefined {
+  const voided = sessions.filter((s) => s.status === SESSION_STATUS.VOIDED).length;
+  const moved = sessions.filter((s) => s.status === SESSION_STATUS.RESCHEDULED).length;
+  const parts = [
+    voided > 0 ? `${voided} voided` : null,
+    moved > 0 ? `${moved} rescheduled` : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : undefined;
+}

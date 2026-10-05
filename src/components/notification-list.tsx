@@ -87,7 +87,7 @@ function NotificationRow({
           </span>
         </span>
         {n.href && (
-          <ChevronRightIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-fg/60 transition-colors group-hover:text-brand" />
+          <ChevronRightIcon className="h-4 w-4 self-center shrink-0 text-muted-fg/60 transition-colors group-hover:text-brand" />
         )}
       </a>
     </li>

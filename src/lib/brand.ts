@@ -27,7 +27,7 @@ export const BRAND = {
 
   /** Text: primary, then secondary. */
   ink: "#1c1c1e",
-  muted: "#6e6e73",
+  muted: "#63636a",
 
   /** Borders and the two grounds. */
   line: "#e5e5ea",
@@ -50,9 +50,9 @@ export const BRAND = {
    * orange and danger red, and `ink` on `soft` clears 6:1 in all three.
    */
   tones: [
-    { name: "teal", soft: "#dcefe6", ink: "#175f4a", dot: "#2e8468" },
+    { name: "teal", soft: "#dcefe6", ink: "#175f4a", dot: "#2a7a5f" },
     { name: "plum", soft: "#f1e6ef", ink: "#6f2d68", dot: "#8f4b88" },
-    { name: "moss", soft: "#e8eedb", ink: "#485c1c", dot: "#5f7a2b" },
+    { name: "moss", soft: "#e8eedb", ink: "#485c1c", dot: "#55701f" },
   ],
 } as const;
 

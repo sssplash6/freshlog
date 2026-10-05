@@ -11,6 +11,16 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **What's new beside the bell.** On a laptop it sits in the top right corner, with a blue dot when something is unread, instead of inside the account menu.
 
 ### Fixed
+- **Sign out is always in reach.** The account menu opens as tall as it needs to, so Theme, Density and Sign out are no longer hidden below a scroll, and the session edit panel shows its Done, Void and Delete buttons.
+- **Mentors list reads properly.** Program names and the booking-link badge no longer squash into tall columns.
+- **Students fit a tablet.** The student lists no longer scroll sideways at tablet width, and a student's page keeps "Allocate time" in view.
+- **Exchange visits read the same everywhere.** A student's own programs come first, then the program they are visiting, with "on exchange" beside it.
+- **Easier to read in daylight.** Amber figures, grey labels and avatar initials now have enough contrast on the light theme, and links in the changelog are underlined.
+- **Add students has room for the email.** The email box is the widest, and on a phone the boxes use the full width.
+- **Cleaner phone screens.** A long back link no longer runs into the page title, small buttons are easier to tap, and rows of filter chips show that they scroll.
+- **Dates look the same everywhere.** Filters, session edits and task deadlines use the same date picker as Log a session.
+- **Student meetings add up.** Home and the Meetings page count the same meetings, rated sessions offer "Change rating", and a voided session reads the same to everyone.
+- **Tidier Analytics, Notifications and Settings.** Program totals stay on one line, headings and arrows line up, and the Theme and Density controls look usable.
 - **Adding a student who already signed in.** A student who signed in with Google before an admin added them can now be added by their email: their account becomes a student in the program, with its standard hours. Addresses that belong to a mentor or admin are still refused, and the message now says which.
 - **Bell count clear of the bell.** A number like "99+" now hangs off the bell's corner so the bell stays visible.
 - **Overdrawn time says "over".** A program that has spent more than it was given now reads "65+ hours over" instead of "-65+ hours", on Home, Programs and a program's page.

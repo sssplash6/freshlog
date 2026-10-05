@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 
-import { SortHeader } from "@/components/ui/sort-header";
+import { SortHeader, SortTh } from "@/components/ui/sort-header";
 import { cn } from "@/lib/cn";
 
 export type Column = {
@@ -18,6 +18,8 @@ export type Column = {
    * top — the biggest balance, the most hours taught — and a name opens A to Z.
    */
   sortDir?: "asc" | "desc";
+  /** Extra classes for the heading cell — to hide it where its column is hidden. */
+  className?: string;
 };
 
 /**
@@ -83,8 +85,9 @@ export function Table({
         <thead className="hidden text-xs font-medium text-muted-fg sm:table-header-group">
           <tr>
             {columns.map((c, i) => (
-              <th
+              <SortTh
                 key={i}
+                sortKey={c.sort && c.label ? c.sort : undefined}
                 className={cn(
                   // The tint and hairline live on the cells, not the <thead>:
                   // a sticky cell paints its own background, a sticky group's
@@ -92,6 +95,7 @@ export function Table({
                   "sticky top-(--sticky-top) z-10 border-b border-line bg-surface/90 px-4 pb-2 pt-3 text-[0.75rem] font-medium backdrop-blur-md",
                   framed && "first:rounded-tl-xl last:rounded-tr-xl",
                   c.align === "right" && "text-right",
+                  c.className,
                 )}
               >
                 {c.sort && c.label ? (
@@ -105,7 +109,7 @@ export function Table({
                 ) : (
                   c.label
                 )}
-              </th>
+              </SortTh>
             ))}
           </tr>
         </thead>

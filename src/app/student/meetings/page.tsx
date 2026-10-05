@@ -22,7 +22,11 @@ import {
 } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
 import { studentLedger } from "@/lib/queries";
-import { sessionsCaption, toSessionEntries } from "@/lib/session-entries";
+import {
+  notHeldNote,
+  sessionsCaption,
+  toSessionEntries,
+} from "@/lib/session-entries";
 import {
   sessionStatuses,
   status,
@@ -203,13 +207,17 @@ export default async function StudentMeetingsPage({
                     actions={
                       // A quiet Rate link, and only where a rating would make
                       // sense — a voided session is a meeting that did not
-                      // happen, so there is nobody's evening to grade.
+                      // happen, so there is nobody's evening to grade. Once
+                      // the row shows its stars (the same condition as
+                      // `SessionRow`'s own), the link says "Change rating".
                       session.status !== SESSION_STATUS.VOIDED ? (
                         <Link
                           href={`/student/feedback?mentor=${session.mentor.id}`}
                           className="text-[0.8125rem] font-medium text-brand hover:text-brand-dark"
                         >
-                          Rate
+                          {session.studentAnswer && session.studentRating
+                            ? "Change rating"
+                            : "Rate"}
                         </Link>
                       ) : undefined
                     }
@@ -232,6 +240,7 @@ export default async function StudentMeetingsPage({
               pageSize={MEETINGS_PER_PAGE}
               total={entries.length}
               unit="sessions"
+              note={notHeldNote(entries)}
               className="border-t border-line px-4 py-2 sm:px-5"
             />
           </>

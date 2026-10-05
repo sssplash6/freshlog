@@ -185,7 +185,7 @@ export function ProgramTargetsPicker({
           <button
             type="button"
             onClick={selectAllVisible}
-            className="text-brand transition-colors hover:text-brand-dark"
+            className="relative text-brand transition-colors hover:text-brand-dark max-sm:after:absolute max-sm:after:-inset-x-1.5 max-sm:after:-inset-y-3.5"
           >
             {query ? "Select all shown" : "Select all"}
           </button>
@@ -193,7 +193,7 @@ export function ProgramTargetsPicker({
             <button
               type="button"
               onClick={() => set([])}
-              className="text-muted-fg transition-colors hover:text-ink"
+              className="relative text-muted-fg transition-colors hover:text-ink max-sm:after:absolute max-sm:after:-inset-x-1.5 max-sm:after:-inset-y-3.5"
             >
               Clear
             </button>

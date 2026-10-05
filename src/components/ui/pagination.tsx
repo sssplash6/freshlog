@@ -55,6 +55,7 @@ export function Pagination({
   total,
   unit,
   param = "page",
+  note,
   className,
 }: {
   basePath: string;
@@ -68,6 +69,8 @@ export function Pagination({
   unit: string;
   /** Query key for the page number, for pages that paginate two lists. */
   param?: string;
+  /** Said after the count, for rows in the total that are not what `unit` names. */
+  note?: string;
   className?: string;
 }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
@@ -118,10 +121,12 @@ export function Pagination({
         {total <= pageSize ? (
           <>
             {total} {total === 1 ? unit.replace(/s$/, "") : unit}
+            {note ? ` · ${note}` : ""}
           </>
         ) : (
           <>
-            {first}–{last} of {total} {unit} · page {page} of {pages}
+            {first}–{last} of {total} {unit}
+            {note ? ` · ${note}` : ""} · page {page} of {pages}
           </>
         )}
       </p>

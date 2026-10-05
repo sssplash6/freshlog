@@ -6,7 +6,8 @@ import { PlusIcon } from "@/components/icons";
 import { Select, type SelectOption } from "@/components/select";
 import { Button } from "@/components/ui/button";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
-import { Field, GrowingField, Input } from "@/components/ui/field";
+import { DateField } from "@/components/ui/date-field";
+import { Field, GrowingField } from "@/components/ui/field";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -114,9 +115,14 @@ export function SetStudentTaskForm({
       </Field>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Deadline" required>
-          <Input name="dueOn" type="date" required min={today} />
-        </Field>
+        {/* A div, not a `Field`: the date field's trigger is a button, and a
+            label around it would toggle the calendar on every click. */}
+        <div className="min-w-0 space-y-1.5">
+          <span className="block text-sm font-medium text-ink">
+            Deadline<RequiredMark />
+          </span>
+          <DateField name="dueOn" label="Deadline" required min={today} />
+        </div>
         {programs.length > 1 && (
           // Not a `Field`: `Select` is a combobox built from buttons, and a
           // <label> wrapping one has nothing to label.
@@ -202,14 +208,15 @@ function TaskPanel({ task, canDelete }: { task: TaskFields; canDelete: boolean }
             />
           </Field>
 
-          <Field label="Deadline">
-            <Input
+          <div className="min-w-0 space-y-1.5">
+            <span className="block text-sm font-medium text-ink">Deadline</span>
+            <DateField
               name="dueOn"
-              type="date"
+              label="Deadline"
               required
               defaultValue={toDateInputValue(task.dueOn)}
             />
-          </Field>
+          </div>
 
           <Field label="Notes">
             <GrowingField

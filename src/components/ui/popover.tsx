@@ -88,11 +88,15 @@ const WIDTHS = {
 } as const;
 
 /**
- * Tall enough for a correction form, short enough to leave the trigger's row
- * visible. Past this the panel scrolls; without it a menu on the last row of a
- * long table opens off the bottom of the screen.
+ * A ceiling on the cap, not the cap. `useAnchoredPosition` already limits the
+ * panel to the room on whichever side of the trigger it opened (less a margin),
+ * so this only has to be out of the way: it was 440, and the account menu is
+ * 575px of content — Theme, Density and Sign out sat below the fold of a panel
+ * that had the whole screen to use. A panel now takes the space the viewport
+ * gives it and scrolls only when the viewport is genuinely too small, with a
+ * fade at its foot to say so.
  */
-const MAX_HEIGHT = 440;
+const MAX_HEIGHT = 10_000;
 
 export type PopoverContents = "actions" | "fields";
 
@@ -138,6 +142,8 @@ export function Popover({
   // than a ref so `close` captures nothing but setters — it is handed to
   // `children` during render, and a function that reads a ref must not be.
   const [restoring, setRestoring] = useState(false);
+  // Whether there is more panel below the fold: the cue that it scrolls.
+  const [more, setMore] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
@@ -245,6 +251,22 @@ export function Popover({
     panel.addEventListener("mousedown", claim);
     return () => panel.removeEventListener("mousedown", claim);
   }, [open, measured]);
+
+  // Track whether the panel is cut off at the bottom, so the fade can say so.
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!open || sheet || !panel) return;
+    const measure = () =>
+      setMore(panel.scrollHeight - panel.scrollTop - panel.clientHeight > 4);
+    measure();
+    panel.addEventListener("scroll", measure, { passive: true });
+    const observer = new ResizeObserver(measure);
+    observer.observe(panel);
+    return () => {
+      panel.removeEventListener("scroll", measure);
+      observer.disconnect();
+    };
+  }, [open, sheet, measured]);
 
   // Move into the panel once it has been placed. A panel is `visibility:
   // hidden` for the frame before it is measured, and a hidden element cannot
@@ -408,6 +430,14 @@ export function Popover({
               {typeof children === "function"
                 ? children({ close: () => close(true) })
                 : children}
+              {/* Net-zero height (the negative margin eats it), stuck to the
+                  panel's bottom edge while there is more to scroll to. */}
+              {more && !sheet && (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none sticky bottom-0 -mt-8 h-8 bg-linear-to-t from-surface to-surface/0"
+                />
+              )}
             </div>
           </>,
           document.body,

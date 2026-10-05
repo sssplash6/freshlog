@@ -91,11 +91,13 @@ function StudentRows({
   // In a leveled program the cohort select only offers the level the admin
   // picked — one level, and the pick is already made.
   const [levelId, setLevelId] = useState(
-    program.levels.length === 1 ? program.levels[0].id : ""
+    program.levels.length === 1 ? program.levels[0].id : "",
   );
   const selectedLevel = program.levels.find((l) => l.id === levelId) ?? null;
   const cohorts =
-    program.levels.length > 0 ? (selectedLevel?.cohorts ?? []) : program.cohorts;
+    program.levels.length > 0
+      ? (selectedLevel?.cohorts ?? [])
+      : program.cohorts;
   const addRow = () => {
     setRows((rs) => [
       ...rs,
@@ -116,7 +118,7 @@ function StudentRows({
 
   // Why nothing is ready, for the row somebody has started filling in.
   const started = rows.filter(
-    (r) => r.email.trim() || r.first.trim() || r.last.trim()
+    (r) => r.email.trim() || r.first.trim() || r.last.trim(),
   );
   const blocking =
     started.length === 0
@@ -130,60 +132,71 @@ function StudentRows({
     field: "email" | "first" | "last" | "folderUrl",
     value: string,
   ) =>
-    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
+    setRows((rs) =>
+      rs.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
+    );
 
   return (
     <>
       {rows.length > 0 && (
         <div className="space-y-2 rounded-xl bg-surface p-4 shadow-sm sm:p-5">
           {rows.map((r, i) => (
-            <div key={r.id} className="flex items-start gap-2">
-              <div className="grid flex-1 gap-2 sm:grid-cols-4">
-                <EmailInput
-                  name="email"
-                  value={r.email}
-                  onChange={(e) => update(r.id, "email", e.target.value)}
-                  placeholder="student@example.com"
-                  aria-label={`Student ${i + 1} email`}
-                  autoFocus={i === rows.length - 1}
-                />
-                <Input
-                  name="firstName"
-                  type="text"
-                  autoComplete="off"
-                  maxLength={NAME_MAX}
-                  value={r.first}
-                  onChange={(e) => update(r.id, "first", e.target.value)}
-                  placeholder="First name"
-                  aria-label={`Student ${i + 1} first name`}
-                />
-                <Input
-                  name="lastName"
-                  type="text"
-                  autoComplete="off"
-                  maxLength={NAME_MAX}
-                  value={r.last}
-                  onChange={(e) => update(r.id, "last", e.target.value)}
-                  placeholder="Last name"
-                  aria-label={`Student ${i + 1} last name`}
-                />
-                {/* Not type="url": native validation would reject a pasted
+            /* One grid per row, not four equal tracks: the email is the longest
+               value and the one that matters, so it gets the widest track and
+               the names share the rest. The folder link takes a line of its
+               own from `sm` up. Below `sm` every field is full width and the
+               remove button sits in the row's top-right corner, over the
+               email's own padding, instead of reserving a column. */
+            <div
+              key={r.id}
+              className="relative grid gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem]"
+            >
+              <EmailInput
+                name="email"
+                value={r.email}
+                onChange={(e) => update(r.id, "email", e.target.value)}
+                placeholder="student@example.com"
+                aria-label={`Student ${i + 1} email`}
+                autoFocus={i === rows.length - 1}
+                className="max-sm:pr-11"
+              />
+              <Input
+                name="firstName"
+                type="text"
+                autoComplete="off"
+                maxLength={NAME_MAX}
+                value={r.first}
+                onChange={(e) => update(r.id, "first", e.target.value)}
+                placeholder="First name"
+                aria-label={`Student ${i + 1} first name`}
+              />
+              <Input
+                name="lastName"
+                type="text"
+                autoComplete="off"
+                maxLength={NAME_MAX}
+                value={r.last}
+                onChange={(e) => update(r.id, "last", e.target.value)}
+                placeholder="Last name"
+                aria-label={`Student ${i + 1} last name`}
+              />
+              {/* Not type="url": native validation would reject a pasted
                     `drive.google.com/…`, which the action accepts and https-fixes. */}
-                <Input
-                  name="folderUrl"
-                  type="text"
-                  inputMode="url"
-                  value={r.folderUrl}
-                  onChange={(e) => update(r.id, "folderUrl", e.target.value)}
-                  placeholder="Student folder (link)"
-                  aria-label={`Student ${i + 1} folder link`}
-                />
-              </div>
+              <Input
+                name="folderUrl"
+                type="text"
+                inputMode="url"
+                value={r.folderUrl}
+                onChange={(e) => update(r.id, "folderUrl", e.target.value)}
+                placeholder="Student folder (link)"
+                aria-label={`Student ${i + 1} folder link`}
+                className="sm:col-span-4"
+              />
               <button
                 type="button"
                 onClick={() => setRows((rs) => rs.filter((x) => x.id !== r.id))}
                 aria-label={`Remove student ${i + 1}`}
-                className="flex h-11 w-9 shrink-0 items-center justify-center rounded-lg text-muted-fg transition-colors hover:bg-canvas hover:text-danger-ink"
+                className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center rounded-lg text-muted-fg transition-colors hover:bg-canvas hover:text-danger-ink sm:static sm:col-start-4 sm:row-start-1 sm:w-9"
               >
                 ✕
               </button>
@@ -239,9 +252,7 @@ function StudentRows({
                     key={levelId}
                     name="cohortId"
                     required
-                    defaultValue={
-                      cohorts.length === 1 ? cohorts[0].id : ""
-                    }
+                    defaultValue={cohorts.length === 1 ? cohorts[0].id : ""}
                     className={cn(inputClasses, "w-auto")}
                   >
                     <option value="" disabled>

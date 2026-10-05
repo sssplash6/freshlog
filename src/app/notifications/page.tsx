@@ -195,7 +195,7 @@ export default async function NotificationsPage({
           newAction={
             unread > 0 ? (
               <form action={markAllNotificationsRead}>
-                <Button type="submit" variant="ghost" size="sm">
+                <Button type="submit" variant="ghost" size="sm" className="sm:-mr-3">
                   Mark all read
                 </Button>
               </form>

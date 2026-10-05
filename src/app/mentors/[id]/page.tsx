@@ -11,7 +11,7 @@ import { sessionsCaption, toSessionEntries } from "@/lib/session-entries";
 import { Disclosure } from "@/components/ui/disclosure";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/field";
+import { DateField } from "@/components/ui/date-field";
 import { Figure, FigureRow } from "@/components/ui/figure";
 import { ArrowLink, ExternalLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
@@ -373,22 +373,18 @@ async function MentorRecord({
             <input type="hidden" name="period" value="custom" />
             <label className="min-w-0 flex-1 text-sm sm:w-40 sm:flex-none">
               <span className="block text-muted-fg">From</span>
-              <Input
-                type="date"
+              <DateField
                 name="from"
+                label="Completed from"
                 defaultValue={win.fromValue}
-                aria-label="Completed from"
-                className="mt-1 block"
               />
             </label>
             <label className="min-w-0 flex-1 text-sm sm:w-40 sm:flex-none">
               <span className="block text-muted-fg">To</span>
-              <Input
-                type="date"
+              <DateField
                 name="to"
+                label="Completed to"
                 defaultValue={win.toValue}
-                aria-label="Completed to"
-                className="mt-1 block"
               />
             </label>
             <Button type="submit" size="md">

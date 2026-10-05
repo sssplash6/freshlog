@@ -237,7 +237,16 @@ export function Section({
           </h2>
           {eyebrow && <Eyebrow className="mt-0.5">{eyebrow}</Eyebrow>}
         </div>
-        {action ?? (caption ? <p className="text-[0.8125rem] text-muted-fg">{caption}</p> : null)}
+        {/* An action carries its own 44px touch target (`ArrowLink` is
+            min-h-11), taller than the 30px title it sits beside; with
+            `items-end` that pushed the title down 14px and made every section
+            that had one start lower than the ones that did not. The negative
+            margin gives the target back to the row without shrinking it. */}
+        {action ? (
+          <div className="-my-2 min-w-0">{action}</div>
+        ) : caption ? (
+          <p className="text-[0.8125rem] text-muted-fg">{caption}</p>
+        ) : null}
       </div>
       <div className={cn("overflow-clip rounded-xl bg-surface shadow-sm", className)}>
         {children}

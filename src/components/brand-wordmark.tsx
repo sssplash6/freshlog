@@ -28,7 +28,7 @@ export function BrandWordmark({
     <span className={cn("relative shrink-0", className)}>
       <Link
         href="/"
-        className="brand-sheen block shrink-0 text-base font-bold tracking-tight text-brand"
+        className="brand-sheen block shrink-0 text-base max-sm:-mx-2 max-sm:px-2 max-sm:py-3 font-bold tracking-tight text-brand"
         onPointerDown={() => {
           held.current = false;
           holdTimer.current = window.setTimeout(async () => {

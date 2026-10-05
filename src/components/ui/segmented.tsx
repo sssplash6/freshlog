@@ -58,7 +58,9 @@ const SEGMENT_DENSE =
 const TRACK_TAB =
   "flex w-fit max-w-full flex-wrap gap-0.5 rounded-lg bg-fill p-0.5";
 const SEGMENT_TAB =
-  "inline-flex min-h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-[0.8125rem] transition-colors";
+  "inline-flex min-h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-[0.8125rem] transition-colors " +
+  // 32px to the eye, 44px to a thumb: a pseudo-element reaches 6px past it.
+  "max-sm:relative max-sm:after:absolute max-sm:after:inset-x-0 max-sm:after:-inset-y-1.5";
 // The thumb: white on the grey track, iOS's segmented control. `shadow-sm`
 // is the resting-card shadow, which is exactly the lift a thumb has.
 const ON = "bg-surface font-semibold text-ink shadow-sm";
@@ -291,10 +293,7 @@ export function TabLinks({
             {item.label}
             {item.count != null && (
               <span
-                className={cn(
-                  "text-[0.6875rem] tabular-nums",
-                  active ? "text-muted-fg" : "text-muted-fg/70"
-                )}
+                className="text-[0.6875rem] tabular-nums text-muted-fg"
               >
                 {item.count}
               </span>

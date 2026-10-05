@@ -47,7 +47,7 @@ export type MentorRow = {
 const COLUMNS: Column[] = [
   { label: "Mentor" },
   { label: "Programs" },
-  { label: "Booking links" },
+  { label: "Booking links", className: "whitespace-nowrap" },
   { label: "Students", align: "right" },
 ];
 
@@ -145,7 +145,7 @@ export function MentorsTable({
               </div>
             </Td>
 
-            <Td label="Programs" className="text-ink" data-fold>
+            <Td label="Programs" className="text-ink sm:min-w-56 lg:min-w-72" data-fold>
               {m.programs.length > 0 ? (
                 m.programs.join(" · ")
               ) : (
@@ -153,7 +153,7 @@ export function MentorsTable({
               )}
             </Td>
 
-            <Td label="Booking links" data-fold>
+            <Td label="Booking links" className="sm:whitespace-nowrap" data-fold>
               {m.pairings === 0 ? (
                 <span className="text-muted-fg">—</span>
               ) : (

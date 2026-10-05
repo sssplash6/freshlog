@@ -324,7 +324,12 @@ export default async function MentorHomePage({
                 </Td>
                 {showProgram && (
                   <Td label="Program">
-                    <ProgramChip program={s.program} />
+                    {/* Capped below `xl` like the students roster: a table
+                        sizes this column to the longest program name, and at
+                        tablet width that pushed the last column out. */}
+                    <span className="flex min-w-0 sm:max-w-36 xl:max-w-none">
+                      <ProgramChip program={s.program} />
+                    </span>
                   </Td>
                 )}
                 <Td label="Remaining with you" align="right" className="tabular-nums">

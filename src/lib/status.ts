@@ -607,7 +607,7 @@ const META: Record<StatusType, Meta> = {
     voices: {
       staff: { kind: "informational", label: () => "Voided, time returned" },
       mentor: { kind: "informational", label: () => "Voided, time returned" },
-      student: { kind: "informational", label: () => "Cancelled, time returned" },
+      student: { kind: "informational", label: () => "Voided, time returned" },
     },
   },
 

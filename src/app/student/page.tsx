@@ -12,7 +12,7 @@ import {
 import { TaskProgressControl } from "@/components/forms/student-task-forms";
 import { Disclosure } from "@/components/ui/disclosure";
 import { SessionRow } from "@/components/session-row";
-import { toSessionEntries } from "@/lib/session-entries";
+import { meetingCount, toSessionEntries } from "@/lib/session-entries";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowLink } from "@/components/ui/link";
 import { Meter } from "@/components/ui/meter";
@@ -413,7 +413,7 @@ export default async function StudentHomePage() {
       {held.length > 0 && (
         <Section
           title="Meetings you've had"
-          count={held.length}
+          count={meetingCount(held)}
           // The way to the full list sits beside the group's title, where iOS
           // puts a "See all", rather than wedged against the fold's own label.
           action={

@@ -44,12 +44,15 @@
   --color-danger-soft: #fef2f2;
   --color-danger-line: #ffc9c9;
   --color-danger-ink: #b42318; /* 6.57:1 on surface — the only red for text */
-  /* Orange text/readouts use the same vivid brand orange, not a darkened
-     brown — brand fidelity is preferred over the AA text-contrast bump. */
-  --color-accent-ink: #f18d05;
+  /* Orange TEXT is a darker amber than the accent fill: the vivid #f18d05 is
+     2.2:1 on the canvas and 2.46:1 on white, which fails even for 24px
+     readouts (3:1). #a35200 is 5.0:1 on canvas, 5.58:1 on white and 4.77:1 on
+     accent-soft, and still reads as orange rather than brown. The bright
+     accent stays for fills (progress bars, rings). */
+  --color-accent-ink: #a35200;
 
   --color-ink: #1c1c1e; /* primary text */
-  --color-muted-fg: #6e6e73; /* secondary text */
+  --color-muted-fg: #63636a; /* secondary text — 4.66:1 on the strongest fill (#e3e3e9) */
 
   /* ---- Person identity ------------------------------------------------ *
    * One stable colour per person, so the same mentor is the same colour in
@@ -72,7 +75,7 @@
    * a programme colour must never be mistaken for. */
   --color-tone-teal-soft: #dcefe6;
   --color-tone-teal-ink: #175f4a;
-  --color-tone-teal-dot: #2e8468;
+  --color-tone-teal-dot: #2a7a5f;
 
   --color-tone-plum-soft: #f1e6ef;
   --color-tone-plum-ink: #6f2d68;
@@ -80,7 +83,7 @@
 
   --color-tone-moss-soft: #e8eedb;
   --color-tone-moss-ink: #485c1c;
-  --color-tone-moss-dot: #5f7a2b;
+  --color-tone-moss-dot: #55701f;
 
   /* Program hues. Same three-part shape as a person tone, so one chip
      component can wear either. */
@@ -90,7 +93,7 @@
 
   --color-prog-cyan-soft: #dceef2;
   --color-prog-cyan-ink: #145c6b;
-  --color-prog-cyan-dot: #1f7f93;
+  --color-prog-cyan-dot: #1b7487;
 
   --color-prog-violet-soft: #eee5f6;
   --color-prog-violet-ink: #5d3187;
@@ -219,9 +222,8 @@
   --color-accent: #eb9d4b;
   --color-accent-dark: #f2b06a;
   --color-accent-soft: #3a3027;
-  /* The one place light and dark genuinely disagree: light keeps the vivid
-     #f18d05 for orange readouts as brand fidelity, accepting 2.46:1. On this
-     ground a softened orange is already legible, so dark gets the contrast free. */
+  /* Light darkens the orange for text (#a35200); on this ground a softened
+     orange is already legible at 7.8:1. */
   --color-accent-ink: #eda154;
 
   /* Off-white, not white: 13.2:1 on the card is past AAA with nothing to

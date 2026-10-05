@@ -146,26 +146,18 @@ export function StudentTaskRow({
       {/* One axis — see the meeting row. The ⋮ is a 36px target, so the row
           is 36px tall regardless, and top-aligning the rest of it only moved
           the text seven pixels off the icon beside it. */}
-      <div className="flex items-start gap-x-2 @xl:items-center">
-        {/* NO WRAPPING, for the reason the meeting row's line carries: with
-            `flex-wrap` the title dropped to a line of its own or did not,
-            depending on how long that row's mentor happened to be called. The
-            title is `flex-1` on a zero basis, so the leftover width is its and
-            the MENTOR is what gives way — a long name truncates inside its own
-            chip rather than pushing the work this row is about onto a line of
-            its own. */}
+      <div className="flex items-start gap-x-2">
         {/* Below `sm` the title takes a line of its own, above the date and
             the mentor: at 390px the one-line layout left the title a column
             one word wide ("Draft / the / activities / section"), which is the
             wrap this row was built to avoid, arrived at from the other side.
             From `sm` up the line is exactly as described above. */}
-        {/* And the width that matters is the ROW's, not the screen's: in the
-            board's half-width column a desktop still left the title a narrow
-            two-line block wedged between the mentor and the figure. Under
-            36rem of row the title takes the line below the date and the
-            mentor, full width, so the order reads the same and nothing is
-            squeezed; with the room, it is one line as described above. */}
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5 @xl:flex-nowrap">
+        {/* At every width the title takes the line below the date and the
+            mentor, full width. With the room it used to share their line, and
+            then the MENTOR was what gave way: "Dilnoza Yusupo…" truncated with
+            hundreds of pixels spare, because the flexible title claimed the
+            slack. On its own line the title wraps and the name does not. */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5">
           {/* WHEN. First, because a to-do list is read by what is next, and
               the overdue chip replaces the plain date rather than sitting
               beside a second copy of it — its own label already carries the
@@ -188,7 +180,7 @@ export function StudentTaskRow({
           )}
 
           {/* WHO set it. */}
-          <span className="flex min-w-0 max-w-44">
+          <span className="flex min-w-0 max-w-44 @xl:max-w-72">
             <PersonChip person={task.mentor} size="sm" href={task.mentor.href} />
           </span>
           {/* Truncates, like the mentor beside it. At full width "Global
@@ -205,7 +197,7 @@ export function StudentTaskRow({
 
           {/* WHAT. The flexible middle, so progress lands against the right
               edge however short the title is. */}
-          <span className="min-w-0 flex-1 basis-full text-[0.9375rem] font-medium leading-snug text-ink max-sm:order-first @xl:min-w-60 @xl:basis-0">
+          <span className="min-w-0 flex-1 basis-full text-[0.9375rem] font-medium leading-snug text-ink max-sm:order-first">
             {task.title}
           </span>
         </div>
@@ -222,7 +214,7 @@ export function StudentTaskRow({
         {/* On the FIRST line when the title has wrapped under it: centred on
             the pair of lines it read as belonging to neither. The ⋮ is taller
             than the chips, and would otherwise sit a pixel low. */}
-        <span className="-mt-px flex shrink-0 items-center gap-1.5 @xl:mt-0">
+        <span className="-mt-px flex shrink-0 items-center gap-1.5">
           {done ? (
             progressStatus && (
               <StatusChip

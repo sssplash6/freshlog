@@ -4,8 +4,8 @@ import Link from "next/link";
 import { SearchIcon } from "@/components/icons";
 import { Select } from "@/components/select";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { Disclosure } from "@/components/ui/disclosure";
-import { Input } from "@/components/ui/field";
 import { SearchField } from "@/components/ui/search-field";
 import { cn } from "@/lib/cn";
 import {
@@ -72,6 +72,18 @@ import {
  * most often wants, and folding away the cheap control to save the room the
  * expensive one wastes would be the wrong half.
  */
+
+/**
+ * The chip strip. It scrolls sideways rather than wrapping, so on a phone it
+ * has to LOOK like it scrolls: it bleeds to the screen's edge (the page
+ * gutter is 1rem) so the chip that does not fit is seen cut off by the glass
+ * and not by an invisible line 16px short of it, it snaps chip by chip, and
+ * `scroll-x` fades its trailing edge while there is more to see. The vertical
+ * padding is the room the chips' 44px touch targets spill into.
+ */
+const CHIP_STRIP =
+  "scroll-x -mx-1 flex flex-nowrap snap-x gap-1.5 px-1 max-sm:-my-1.5 max-sm:py-1.5";
+const CHIP_STRIP_BLEED = "max-sm:-mx-4 max-sm:px-4 max-sm:scroll-px-4";
 
 /** One select in the bar. Its `name` must be in `FILTER_PARAMS`. */
 export type FilterSelect = {
@@ -190,7 +202,7 @@ export function FilterBar({
   // native app gives a filter strip.
   const chips =
     presets.length > 0 ? (
-      <div className="scroll-x -mx-1 flex min-w-0 max-w-full flex-nowrap gap-1.5 px-1 max-sm:basis-full">
+      <div className={cn(CHIP_STRIP, "min-w-0 max-w-full max-sm:basis-full", framed && !folded.length && CHIP_STRIP_BLEED)}>
         {presets.map((preset) => (
           <Chip
             key={Object.entries(preset.params).map(([k, v]) => `${k}=${v}`).join("&")}
@@ -339,31 +351,29 @@ export function FilterBar({
 
                 {dateRange && (
                   <div className="flex min-w-0 basis-full items-end gap-2 sm:basis-auto">
-                    <label className="min-w-0 flex-1 text-sm sm:w-40 sm:flex-none">
+                    <div className="min-w-0 flex-1 text-sm sm:w-40 sm:flex-none">
                       <span className="block text-muted-fg">From</span>
-                      {/* The value has to be YYYY-MM-DD — the control accepts
+                      {/* The value has to be YYYY-MM-DD — the field posts
                           nothing else — and it is the string out of the URL,
                           never a Date reformatted here. It shows only what was
-                          typed: a preset leaves these empty so nobody submits a
+                          picked: a preset leaves these empty so nobody submits a
                           range they never chose. */}
-                      <Input
-                        type="date"
+                      <DateField
                         name="from"
                         defaultValue={dateRange.fromValue}
-                        aria-label="Filter from"
-                        className="mt-1 block"
+                        label="Filter from"
+                        className="mt-1"
                       />
-                    </label>
-                    <label className="min-w-0 flex-1 text-sm sm:w-40 sm:flex-none">
+                    </div>
+                    <div className="min-w-0 flex-1 text-sm sm:w-40 sm:flex-none">
                       <span className="block text-muted-fg">To</span>
-                      <Input
-                        type="date"
+                      <DateField
                         name="to"
                         defaultValue={dateRange.toValue}
-                        aria-label="Filter to"
-                        className="mt-1 block"
+                        label="Filter to"
+                        className="mt-1"
                       />
-                    </label>
+                    </div>
                   </div>
                 )}
 
@@ -382,7 +392,7 @@ export function FilterBar({
       {/* Only reached when there is no form to carry them — otherwise the
           chips sit on the controls row beside the selects they narrow. */}
       {presets.length > 0 && !showValues && (
-        <div className="scroll-x flex flex-nowrap gap-1.5">
+        <div className={cn(CHIP_STRIP, framed && CHIP_STRIP_BLEED)}>
           {presets.map((preset) => (
             <Chip
               key={Object.entries(preset.params).map(([k, v]) => `${k}=${v}`).join("&")}
@@ -425,8 +435,9 @@ export function FilterBar({
 /**
  * One chip: a filter you either want or do not.
  *
- * `aria-pressed` rather than `aria-current`: a lit chip is a toggle that is on,
- * not the page you are on, and the link's own href is what turns it off again.
+ * `aria-current`, not `aria-pressed`: the chip is a link, and `aria-pressed` is
+ * not allowed on one (it belongs to a button). The lit chip is the current
+ * choice among its siblings, and the link's own href is what turns it off.
  */
 function Chip({
   href,
@@ -446,7 +457,7 @@ function Chip({
       // looking. See the same note on `TabLinks`.
       scroll={false}
       title={hint}
-      aria-pressed={active}
+      aria-current={active ? "true" : undefined}
       className={cn(
         // rounded-lg, not rounded-full. A pill reads as a status, and these are
         // controls: they sit beside a select and a button that are both 8px,
@@ -462,7 +473,10 @@ function Chip({
         // A pill on the grey fill, iOS's filter chip. (The note above was
         // written against bordered 8px controls; the fields are fills now,
         // and a fill chip beside a fill field is one family.)
-        "inline-flex min-h-8 shrink-0 items-center whitespace-nowrap rounded-full px-3.5 text-[0.8125rem] font-medium transition-colors",
+        "inline-flex min-h-8 shrink-0 snap-start items-center whitespace-nowrap rounded-full px-3.5 text-[0.8125rem] font-medium transition-colors",
+        // 44px to a thumb, 32px to the eye: the hit area is a pseudo-element
+        // that reaches 6px past the chip, into the strip's own padding.
+        "max-sm:relative max-sm:after:absolute max-sm:after:inset-x-0 max-sm:after:-inset-y-1.5",
         active
           ? "bg-brand text-on-brand"
           : "bg-fill text-ink hover:bg-fill-strong"

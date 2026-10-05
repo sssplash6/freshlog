@@ -134,24 +134,34 @@ export function PhoneChrome({ brand }: { brand: React.ReactNode }) {
         {brand}
       </div>
       {back && (
-        // `‹ Back` — where iOS puts it.
+        // `‹ Back` — where iOS puts it. A 44px-tall hit area: the glyphs are
+        // 24px, the padding around them is the rest of the target.
         <Link
           href={back.href}
           transitionTypes={["nav-back"]}
-          className="-ml-1 inline-flex shrink-0 items-center text-[0.9375rem] font-medium text-brand sm:hidden"
+          aria-label={collapsed ? `Back to ${back.label}` : undefined}
+          className="-ml-1 inline-flex min-h-11 min-w-0 shrink items-center pr-2 text-[0.9375rem] font-medium text-brand sm:hidden"
         >
-          <ChevronLeftIcon className="-mr-0.5 h-6 w-6" />
-          <span className="max-w-28 truncate">{back.label}</span>
+          <ChevronLeftIcon className="-mr-0.5 h-6 w-6 shrink-0" />
+          {/* Once the title shows, the label steps aside to the chevron, the
+              way iOS shortens a long back title: the two sat in the same few
+              dozen pixels and drew over each other. */}
+          <span className={cn("max-w-28 truncate", collapsed && "hidden")}>
+            {back.label}
+          </span>
         </Link>
       )}
+      {/* In the row, not absolutely centred over it: it takes whatever the
+          back link and the buttons leave, so it can truncate but never
+          overlap them. */}
       <span
         aria-hidden="true"
         className={cn(
-          "pointer-events-none absolute inset-x-14 inset-y-0 flex items-center justify-center text-[0.9375rem] font-semibold text-ink transition-[opacity,transform] duration-200 sm:hidden",
+          "pointer-events-none min-w-0 flex-1 text-center text-[0.9375rem] font-semibold text-ink transition-[opacity,transform] duration-200 sm:hidden",
           collapsed ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
         )}
       >
-        <span className="max-w-full truncate">{title}</span>
+        <span className="block min-w-0 truncate">{title}</span>
       </span>
     </>
   );

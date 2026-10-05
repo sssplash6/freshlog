@@ -245,7 +245,7 @@ export default async function StudentWorkspacePage({
   const logReason = !active
     ? "This student is not approved yet."
     : !mine && !pool
-      ? "No time is allocated for you with them — a session you log here will be an overdraw, or extra hours."
+      ? "You hold no time with them — a session you log here counts as extra time or an overdraw."
       : mine && (mine.expired || mine.remaining < 0)
         ? mine.expired
           ? "Their time with you has expired — a session that counts toward it adds to the overdraw. Log it as extra to charge nothing."
@@ -456,7 +456,7 @@ export default async function StudentWorkspacePage({
           </>
         }
         actions={
-          <div className="flex flex-wrap items-center gap-2 lg:-mr-14">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
             {reaches && (
               // One action in the masthead, not two. Scheduling was the
               // secondary of a pair and the only one that opened a form in the

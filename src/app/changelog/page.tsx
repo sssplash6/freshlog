@@ -34,7 +34,7 @@ export default async function ChangelogPage() {
         subtitle={
           <>
             What we have added and fixed.{" "}
-            <Link href="/bugs" className="text-brand hover:underline">
+            <Link href="/bugs" className="text-brand underline underline-offset-2 hover:decoration-2">
               Bug reports
             </Link>
           </>

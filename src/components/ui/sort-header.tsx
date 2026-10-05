@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ComponentProps } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { cn } from "@/lib/cn";
@@ -62,7 +63,6 @@ export function SortHeader({
     <Link
       href={`${pathname}?${next.toString()}`}
       scroll={false}
-      aria-sort={active ? (descending ? "descending" : "ascending") : "none"}
       className={cn(
         "group inline-flex items-center gap-1 transition-colors hover:text-ink",
         active && "text-ink",
@@ -88,4 +88,26 @@ export function SortHeader({
       </span>
     </Link>
   );
+}
+
+/**
+ * The `<th>` of a sortable column. `aria-sort` is a columnheader property, so
+ * it lives here rather than on the link inside `SortHeader` (where it was
+ * invalid). Pass `sortKey` for a sortable column; without one this is a plain
+ * `<th>`.
+ */
+export function SortTh({
+  sortKey,
+  ...props
+}: ComponentProps<"th"> & { sortKey?: string }) {
+  const params = useSearchParams();
+  const active = sortKey != null && params.get("sort") === sortKey;
+  const sort = sortKey == null
+    ? undefined
+    : active
+      ? params.get("dir") === "desc"
+        ? "descending"
+        : "ascending"
+      : "none";
+  return <th aria-sort={sort} {...props} />;
 }

@@ -56,7 +56,13 @@ export function useAnchoredPosition(
       if (!trigger) return;
       const rect = trigger.getBoundingClientRect();
       const panel = panelRef.current;
-      const panelH = panel?.offsetHeight ?? 0;
+      // scrollHeight, not just offsetHeight: once the panel is capped to the
+      // room available, its box is the cap and only scrollHeight still says how
+      // tall it wants to be. Deciding to flip on the capped box lets a panel
+      // that was sent above "fit" below again and bounce between the two.
+      const panelH = panel
+        ? Math.max(panel.offsetHeight, panel.scrollHeight)
+        : 0;
       const panelW = panel?.offsetWidth ?? rect.width;
 
       const below = window.innerHeight - rect.bottom;

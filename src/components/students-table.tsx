@@ -7,6 +7,7 @@ import { RowFold } from "@/components/ui/row-fold";
 import { StatusChip } from "@/components/ui/status-chip";
 import { FILL_CELL, Table, Td, Tr, type Column } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
+import { sortEnrollments } from "@/lib/enrollments";
 import { formatBalance, formatDate, formatDuration } from "@/lib/format";
 import { studentStatuses, type ViewerContext } from "@/lib/status";
 import type { StudentWithHours } from "@/lib/queries";
@@ -69,6 +70,37 @@ const ICON_LINK =
 export const STUDENT_SORTS = ["student", "completed", "total", "remaining", "seen"] as const;
 export type StudentSort = (typeof STUDENT_SORTS)[number];
 
+/**
+ * One chip per program, own programs first and visits last (`sortEnrollments`),
+ * with the visit's "(on exchange)" beside ITS chip rather than on a line of its
+ * own — under the last chip it was ambiguous which one it belonged to.
+ */
+function ProgramChips({
+  enrollments,
+  className,
+}: {
+  enrollments: StudentWithHours["enrollments"];
+  className?: string;
+}) {
+  if (enrollments.length === 0) {
+    return <span className={cn("text-muted-fg", className)}>—</span>;
+  }
+  return (
+    <span className={cn("flex min-w-0", className)}>
+      {enrollments.map((e) => (
+        <span key={e.program.id} className="flex min-w-0 items-center gap-x-1.5">
+          <ProgramChip program={e.program} className="text-[0.8125rem]" />
+          {e.exchangeId && (
+            <span className="shrink-0 whitespace-nowrap text-[0.6875rem] text-muted-fg">
+              (on exchange)
+            </span>
+          )}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export function StudentsTable({
   students,
   viewer,
@@ -124,7 +156,12 @@ export function StudentsTable({
     // roster into pages, so ordering by them here would order one page of
     // forty and call it the list.
     { label: "Student", ...(on("student") ? { sort: "student" } : {}) },
-    ...(showProgram ? [{ label: "Program" } as Column] : []),
+    // Folded into the student's own cell between `sm` and `xl`: with the rail
+    // beside it a 1024px window gives the table ~770px, and a Program column
+    // cost the name its width and the page a sideways scroll.
+    ...(showProgram
+      ? [{ label: "Program", className: "sm:max-xl:hidden" } as Column]
+      : []),
     {
       label: "Completed",
       align: "right",
@@ -181,6 +218,8 @@ export function StudentsTable({
         );
         const top = statuses.find((x) => x.type === "STUDENT_NOT_SIGNED_IN");
         const overdrawn = s.remainingMinutes < 0;
+        const visiting = !showProgram && s.enrollments.some((e) => e.exchangeId);
+        const enrollments = sortEnrollments(s.enrollments);
 
         const telegramHref = s.telegramUsername
           ? webHref(`https://t.me/${s.telegramUsername.replace(/^@/, "")}`)
@@ -204,19 +243,33 @@ export function StudentsTable({
                     avatarUpdatedAt: s.user.avatarUpdatedAt,
                   }}
                   href={`${href}/${s.id}${from ? `?from=${from}` : ""}`}
-                >
-                  {top && <StatusChip status={top} />}
-                  {/* A visitor, where the Program column is not there to say
-                      so — a program's own roster, which drops that column, and
-                      the page where the distinction matters most: the hours
-                      beside this name are capped by another program, and the
-                      student goes home when they run out. */}
-                  {!showProgram && s.enrollments.some((e) => e.exchangeId) && (
-                    <span className="shrink-0 text-xs font-normal text-muted-fg">
-                      on exchange
-                    </span>
-                  )}
-                </PersonCell>
+                  // The chip lives on the SECOND line, beside the address, in
+                  // every roster. Beside the name it fitted in a wide table and
+                  // wrapped under it in a narrow one, so row heights wandered
+                  // between 47 and 56px. A fixed-height second line makes every
+                  // row the same, and the name keeps its whole line.
+                  secondary={
+                    top || visiting || s.user.name ? (
+                      <span className="flex h-5 min-w-0 items-center gap-x-2">
+                        {s.user.name && (
+                          <span className="min-w-0 truncate">{s.user.email}</span>
+                        )}
+                        {top && <StatusChip status={top} className="shrink-0" />}
+                        {/* A visitor, where the Program column is not there to
+                            say so — a program's own roster, which drops that
+                            column, and the page where the distinction matters
+                            most: the hours beside this name are capped by
+                            another program, and the student goes home when
+                            they run out. */}
+                        {visiting && (
+                          <span className="shrink-0 whitespace-nowrap text-xs font-normal text-muted-fg">
+                            on exchange
+                          </span>
+                        )}
+                      </span>
+                    ) : undefined
+                  }
+                />
                 {/* On a phone the rest of the row folds away and this is the
                     figure it folds to: the balance that runs out. The full
                     columns — completed, total, the last visit, contact — are
@@ -239,10 +292,19 @@ export function StudentsTable({
                   ) : null}
                 </RowFold>
               </div>
+              {showProgram && (
+                // Between `sm` and `xl` the Program column is not there (see
+                // the column list); its chips sit under the name instead, in
+                // line with the text above (avatar 32 + gap 10).
+                <ProgramChips
+                  enrollments={enrollments}
+                  className="hidden flex-wrap gap-x-3 pl-[2.625rem] sm:max-xl:flex"
+                />
+              )}
             </Td>
 
             {showProgram && (
-              <Td label="Program" data-fold>
+              <Td label="Program" className="sm:max-xl:hidden" data-fold>
                 {/* Every program the READER may see them in — the rows were
                     narrowed to the reader's scope before they got here, so a
                     student in a program this person doesn't administer shows
@@ -250,33 +312,7 @@ export function StudentsTable({
                     string, because two enrollments is the case this column
                     exists for and "Global Admissions · Master's" is a sentence
                     the reader has to parse. */}
-                {/* Capped below `xl`: a table sizes this column to its
-                    longest program name, and on a tablet that left the
-                    student — the row's subject — five letters wide. The chip
-                    truncates into the cap (its title carries the full name). */}
-                <span className="flex min-w-0 flex-col gap-0.5 sm:max-w-36 xl:max-w-none">
-                  {s.enrollments.map((e) => (
-                    <span
-                      key={e.program.id}
-                      className="flex min-w-0 flex-wrap items-center gap-x-1.5"
-                    >
-                      <ProgramChip program={e.program} className="text-[0.8125rem]" />
-                      {/* A visitor another program lent us, not one of this
-                          program's students. Said on the row, because a roster
-                          that shows a visit as an enrollment is a roster that
-                          has quietly gained a student — and their hours are
-                          capped by somebody else. */}
-                      {e.exchangeId && (
-                        <span className="shrink-0 text-[0.6875rem] text-muted-fg">
-                          on exchange
-                        </span>
-                      )}
-                    </span>
-                  ))}
-                  {s.enrollments.length === 0 && (
-                    <span className="text-muted-fg">—</span>
-                  )}
-                </span>
+                <ProgramChips enrollments={enrollments} className="flex-col gap-y-0.5" />
               </Td>
             )}
 
