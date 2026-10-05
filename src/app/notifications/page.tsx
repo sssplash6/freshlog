@@ -121,20 +121,60 @@ export default async function NotificationsPage({
   const present = CATEGORY_ORDER.filter((c) => countOf.has(c));
   const blurb = BLURB[user.role] ?? "Everything that changed for you.";
 
+  // ORDER (October 2026): what is new, then what to act on, then the history
+  // with its filter directly above it. The one unread notice used to sit
+  // under a five-row copy of the home page's checklist, below the fold on a
+  // phone — the page's subtitle said "1 unread" about something you could
+  // not see.
+  const issues = attention.statuses.filter((s) => s.type !== "ALL_CLEAR").length;
+  const unreadRows = notifications.filter((n) => !n.read);
+  const readRows = notifications.filter((n) => n.read);
+  // A pager only when there is more than one page: on one page its "12
+  // notifications" just repeated the count above it.
+  const pager =
+    total > PER_PAGE ? (
+      <Pagination
+        basePath="/notifications"
+        params={category ? { category } : {}}
+        page={page}
+        pageSize={PER_PAGE}
+        total={total}
+        unit="notifications"
+        className="border-t border-line px-4 py-2 sm:px-5"
+      />
+    ) : undefined;
+  const markAll =
+    unread > 0 ? (
+      <form action={markAllNotificationsRead}>
+        <Button type="submit" variant="ghost" size="sm" className="sm:-mr-3">
+          Mark all read
+        </Button>
+      </form>
+    ) : undefined;
+
   return (
     <div className="max-w-3xl space-y-4">
       <PageTitle
-        // "All caught up" only when it is true of the whole page: above a
-        // list of three things still to check, it was a contradiction.
+        // Both counts, each in its own words. "Nothing unread" above six
+        // issues read as "nothing to do", which was the opposite of the page.
         title="Notifications"
         subtitle={
-          unread > 0
-            ? `${unread} unread`
-            : attention.statuses.length > 0
-              ? "Nothing unread"
-              : "All caught up"
+          [
+            issues > 0 ? `${issues} to act on` : null,
+            unread > 0 ? `${unread} unread` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ") || "All caught up"
         }
       />
+
+      {unreadRows.length > 0 && (
+        <NotificationList
+          notifications={unreadRows}
+          newAction={markAll}
+          footer={readRows.length === 0 ? pager : undefined}
+        />
+      )}
 
       <AttentionList
         statuses={attention.statuses}
@@ -190,29 +230,9 @@ export default async function NotificationsPage({
           </EmptyState>
         </Section>
       ) : (
-        <NotificationList
-          notifications={notifications}
-          newAction={
-            unread > 0 ? (
-              <form action={markAllNotificationsRead}>
-                <Button type="submit" variant="ghost" size="sm" className="sm:-mr-3">
-                  Mark all read
-                </Button>
-              </form>
-            ) : undefined
-          }
-          footer={
-            <Pagination
-              basePath="/notifications"
-              params={category ? { category } : {}}
-              page={page}
-              pageSize={PER_PAGE}
-              total={total}
-              unit="notifications"
-              className="border-t border-line px-4 py-2 sm:px-5"
-            />
-          }
-        />
+        readRows.length > 0 && (
+          <NotificationList notifications={readRows} footer={pager} />
+        )
       )}
 
       {/* The feed's other half — which of these also reach the reader's inbox

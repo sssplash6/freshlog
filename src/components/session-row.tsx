@@ -139,6 +139,7 @@ export function SessionRow({
   actions,
   footer,
   index,
+  chipSlot = false,
 }: {
   session: SessionEntry;
   /** Whose words the chips are in. Never who may act — that is `lib/authz.ts`. */
@@ -156,6 +157,8 @@ export function SessionRow({
   footer?: React.ReactNode;
   /** Position in the list, for the entrance stagger and nothing else. */
   index?: number;
+  /** `log` only: reserve the chip column, because some row in this list has a chip. */
+  chipSlot?: boolean;
 }) {
   return (
     <SessionLiveProvider initialSession={session}>
@@ -167,6 +170,7 @@ export function SessionRow({
         actions={actions}
         footer={footer}
         index={index}
+        chipSlot={chipSlot}
       />
     </SessionLiveProvider>
   );
@@ -180,6 +184,7 @@ function SessionRowContent({
   actions,
   footer,
   index,
+  chipSlot = false,
 }: {
   session: SessionEntry;
   viewer: ViewerContext;
@@ -188,6 +193,7 @@ function SessionRowContent({
   actions?: React.ReactNode;
   footer?: React.ReactNode;
   index?: number;
+  chipSlot?: boolean;
 }) {
   const live = useLiveSession()?.session;
   session = live ?? session;
@@ -225,16 +231,34 @@ function SessionRowContent({
   // lands in. Colour is absent too — hours are orange only as a `Figure` of
   // 24px and up, because #f18d05 is 2.46:1 on white and the two list renderers
   // this replaces both painted a 13px duration in it.
+  //
+  // STRUCK ONLY WHEN VOIDED (October 2026). Extra and rescheduled time used to
+  // wear the same strike as a voided row, but extra time HAPPENED — a strike
+  // reads as "this did not count", which is only true of a void. Uncharged
+  // time is muted; its chip says why.
   const duration = (
     <span
       className={cn(
         "tabular-nums",
-        charged ? "font-semibold text-ink" : "text-muted-fg line-through",
+        charged
+          ? "font-semibold text-ink"
+          : voided
+            ? "text-muted-fg line-through"
+            : "text-muted-fg",
       )}
     >
       {formatMinutes(minutes)}
     </span>
   );
+
+  // ANONYMOUS TO MENTORS. `/feedback` tells a mentor "Students' names are
+  // never shown to you", and a rating printed on a session row beside the
+  // student's name broke that promise on every student page. A mentor reads
+  // the record; what the student said about it is for the student and staff.
+  const showFeedback = viewer.audience !== "mentor";
+  // The viewer's own name on their own log is the one name the row need not
+  // carry: "Dilnoza Yusupova" five times down Dilnoza's student page.
+  const showMentorChip = mentor.id !== viewer.userId;
 
   if (variant === "line") {
     const summary = (
@@ -326,7 +350,10 @@ function SessionRowContent({
                 width is its and the MENTOR is what gives way: a long name
                 truncates inside its own chip (capped at 11rem) rather than
                 pushing the work this row is about onto another line. */}
-            <div className="flex min-w-0 flex-1 items-center gap-x-2.5 text-[0.8125rem]">
+            {/* Under `sm` the agenda item takes a line of its own: on a 390px
+                screen, squeezed between the date, the mentor and the figure,
+                it truncated to a single stray letter ("U"). */}
+            <div className="flex min-w-0 flex-1 items-center gap-x-2.5 gap-y-1 text-[0.8125rem] max-sm:flex-wrap">
               {/* Its own width, and no minimum. It was a 96px column, so
                   that "September 30" would fit and every date would start the
                   mentor chip at the same x — which meant "July 30" sat in 55px
@@ -337,9 +364,11 @@ function SessionRowContent({
               <span className="shrink-0 whitespace-nowrap tabular-nums text-muted-fg">
                 {formatDate(date)}
               </span>
-              <span className="flex min-w-0 max-w-44">
-                <PersonChip person={mentor} size="sm" href={mentor.href} />
-              </span>
+              {showMentorChip && (
+                <span className="flex min-w-0 max-w-44">
+                  <PersonChip person={mentor} size="sm" href={mentor.href} />
+                </span>
+              )}
               {/* ONE LINE, always. An agenda item is capped at 100 characters
                   and is a name rather than a sentence, so the tail an ellipsis
                   eats is the end of "…research as a field" — and a log is read
@@ -349,7 +378,10 @@ function SessionRowContent({
               {task && (
                 <span
                   title={task.purpose}
-                  className={cn("min-w-0 flex-1 truncate font-medium", textTone)}
+                  className={cn(
+                    "min-w-0 flex-1 truncate font-medium max-sm:basis-full",
+                    textTone,
+                  )}
                 >
                   {task.purpose}
                 </span>
@@ -373,7 +405,7 @@ function SessionRowContent({
           {note && <ExpandableNote text={note} className="mt-0.5" />}
           {/* What the student said back. It sits under the mentor's own note
               on purpose: the row reads as the record, then the answer to it. */}
-          {session.studentAnswer && (session.studentRating || session.studentNote) && (
+          {showFeedback && session.studentAnswer && (session.studentRating || session.studentNote) && (
             <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[0.8125rem]">
               {session.studentRating ? <Rating value={session.studentRating} /> : null}
               {session.studentNote && (
@@ -441,10 +473,19 @@ function SessionRowContent({
               neither could be told apart ("Ulugbek Alimuk… · Ulugbek …"),
               so there the mentor drops to a line of their own, introduced
               by "with" since the separator is gone. */}
+          {/* A MINIMUM, not a width. Fixed at 24rem, a long double-barrelled
+              name truncated ("Dilshodbek Abdurakhmonov-Yulda…") beside four
+              hundred pixels of empty note column. Now the people take what
+              they need and the topic — the column that can afford to — gives
+              way first; with no topic at all, the people take the row. */}
           <div
             className={cn(
-              "flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[0.9375rem] leading-snug sm:shrink-0 sm:flex-nowrap sm:text-sm",
-              second ? "sm:w-[19rem] lg:w-[24rem]" : "sm:w-52 lg:w-60",
+              "flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[0.9375rem] leading-snug sm:flex-nowrap sm:text-sm",
+              topic.length > 0
+                ? second
+                  ? "sm:max-w-[60%] sm:shrink-0 sm:basis-auto sm:min-w-[19rem] lg:min-w-[24rem]"
+                  : "sm:max-w-[60%] sm:shrink-0 sm:basis-auto sm:min-w-52 lg:min-w-60"
+                : "sm:flex-1",
             )}
           >
             {lead && (
@@ -460,21 +501,38 @@ function SessionRowContent({
               </span>
             )}
           </div>
+          {/* The separator is glued to the word AFTER it (a no-break space),
+              so a wrap starts the next line with "· note" rather than leaving
+              "October 5 ·" dangling at the end of the first. */}
           <ExpandableText
-            text={[when, ...topic].join(" · ")}
+            text={[when, ...topic].join(" · ")}
             lines={2}
             className="mt-0.5 text-[0.8125rem] leading-snug text-muted-fg sm:hidden"
           />
           <div className="hidden min-w-0 flex-1 sm:block">
             {topic.length > 0 && (
               <ExpandableText
-                text={topic.join(" · ")}
+                text={topic.join(" · ")}
                 lines={1}
                 className="text-[0.8125rem] leading-snug text-muted-fg"
               />
             )}
           </div>
-          {chips && <div className="mt-1.5 sm:mt-0 sm:shrink-0">{chips}</div>}
+          {/* A fixed slot when any row in the list has a chip, right-aligned,
+              so "Show more", the chip and the figure land at the same x down
+              the page instead of wherever each row's chip happened to end. */}
+          {chips ? (
+            <div
+              className={cn(
+                "mt-1.5 sm:mt-0 sm:shrink-0",
+                chipSlot && "sm:flex sm:w-48 sm:justify-end",
+              )}
+            >
+              {chips}
+            </div>
+          ) : (
+            chipSlot && <div aria-hidden="true" className="hidden shrink-0 sm:block sm:w-48" />
+          )}
         </div>
         {/* The figure in a fixed column so 12, 45 and 150 stack into one
             edge, then the menu — which, on a pointer, waits for the row to
@@ -603,6 +661,7 @@ export function SessionsList({
     return c !== "actions";
   });
   if (withActions) resolved.push("actions");
+  const chipSlot = sessions.some((s) => sessionStatuses(s, viewer).length > 0);
 
   return (
     <ul
@@ -620,6 +679,7 @@ export function SessionsList({
           columns={resolved}
           actions={rowActions[i]}
           index={i}
+          chipSlot={chipSlot}
         />
       ))}
     </ul>
@@ -654,7 +714,7 @@ export type ManageSessions = {
 export function SessionsLog({
   sessions,
   viewer,
-  title = "Meetings log",
+  title = "Sessions",
   eyebrow = "Logged by mentors",
   caption,
   empty,
@@ -707,7 +767,7 @@ export function SessionsLog({
         framed={false}
         empty={
           empty ?? (
-            <EmptyState framed={false} title="No meetings logged yet">
+            <EmptyState framed={false} title="No sessions logged yet">
               A mentor logs each meeting once it has happened.
             </EmptyState>
           )

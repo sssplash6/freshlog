@@ -4,18 +4,16 @@ import { cn } from "@/lib/cn";
 /**
  * Where a student's time actually went, as one bar and its key.
  *
- * FOUR VALUES, AND THERE IS NO FIFTH: the total that was granted, the part of
- * it that was delivered, the part charged for meetings nobody turned up to, and
- * — when it happens — what was drawn BEYOND the total. It carried six, and the
- * two that went were the two nobody could place: "Expired unused" and
- * "Overdrawn" were both red, sat beside each other, and are different enough
- * that a reader had to stop and work out which was which. An expiry is a fact
- * about ONE grant and its deadline, so it belongs on that grant's row and in
- * the bell, not in a sum over every grant a student holds.
+ * THE TRACK IS THE TOTAL, and every part of it is named: delivered, charged
+ * for a meeting nobody turned up to, expired unused, and what remains. Beyond
+ * the total, when it happens, sits what was overdrawn.
  *
- * THE TRACK IS THE TOTAL. Completed and missed fill it; whatever is left of it
- * is simply unfilled, and the bar makes no claim about that remainder — the
- * ring beside the student's own name is the figure for what is still theirs.
+ * Expired came back in October 2026. It had been dropped as "a fact about ONE
+ * grant", but dropping it from the key did not drop it from the track: its
+ * share stayed the same unfilled grey as time still to use, and a reader took
+ * expired hours for available ones. Expired and overdrawn are both red but
+ * never sit side by side in one bar — expiry is inside the track, an
+ * overdraw past its end — so the old confusion between them cannot recur.
  *
  * AN OVERDRAW IS DRAWN PAST THE TRACK, after a gap, as a block of its own. It
  * is not a slice of the total — it is the amount by which the total was
@@ -46,13 +44,27 @@ export function HoursBreakdown({
   allotted,
   completed,
   missed,
+  expired = 0,
   remaining,
   className,
 }: {
   allotted: number;
   completed: number;
   missed: number;
-  /** Negative when the student has been charged past what they hold. */
+  /**
+   * Minutes a passed deadline took (`forfeited` in `hours.ts`).
+   *
+   * Drawn, in red, after the charged slices (October 2026). Leaving it out
+   * of the bar did not leave it out of the TRACK: the expired part was the
+   * same unfilled grey as time still to use, so a mentor read four expired
+   * hours as four hours the student could still book.
+   */
+  expired?: number;
+  /**
+   * Negative when the student has been charged past what they hold. When it
+   * is positive it gets its own entry in the key, so the unfilled tail of the
+   * bar says what it is.
+   */
   remaining: number;
   className?: string;
 }) {
@@ -86,6 +98,13 @@ export function HoursBreakdown({
       style: stripedAccent,
       ink: "text-ink",
       swatch: "striped",
+    },
+    {
+      key: "expired",
+      label: "Expired unused",
+      minutes: expired,
+      fill: "bg-danger",
+      ink: "text-danger-ink",
     },
   ];
   const shown = segments.filter((s) => s.minutes > 0.001);
@@ -150,6 +169,21 @@ export function HoursBreakdown({
             </dd>
           </div>
         ))}
+        {remaining > 0 && (
+          <div>
+            <dt className="flex items-center gap-1.5 text-[0.8125rem] text-muted-fg">
+              {/* Hollow: the unfilled tail of the track, drawn as what it is. */}
+              <span
+                aria-hidden="true"
+                className="h-2 w-2 shrink-0 rounded-full bg-fill ring-1 ring-inset ring-line-strong"
+              />
+              Remaining
+            </dt>
+            <dd className="mt-0.5 text-[1.0625rem] font-semibold tabular-nums text-ink">
+              {formatDuration(remaining)}
+            </dd>
+          </div>
+        )}
         {over > 0 && (
           <div>
             <dt className="flex items-center gap-1.5 text-[0.8125rem] text-muted-fg">

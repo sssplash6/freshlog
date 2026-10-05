@@ -494,8 +494,10 @@ const META: Record<StatusType, Meta> = {
   ALLOCATION_EXPIRED: {
     severity: "problem",
     voices: {
+      // Actionable for staff: the row's own sentence asks them to grant more,
+      // and counting it as information made the bell's "6" sit over 8 rows.
       staff: {
-        kind: "informational",
+        kind: "actionable",
         label: (d) => `${dur(d)} expired unused`,
         explanation: () => "Forfeited on its use-by date. Grant more to replace it.",
       },
@@ -518,7 +520,14 @@ const META: Record<StatusType, Meta> = {
     voices: {
       staff: { kind: "informational", label: () => "No-show, time charged" },
       mentor: { kind: "informational", label: () => "No-show, time charged" },
-      student: { kind: "informational", label: () => "Missed, time charged" },
+      // The why, on the row: "time charged" alone read as a penalty with no
+      // reason given.
+      student: {
+        kind: "informational",
+        label: () => "Missed, time charged",
+        explanation: () =>
+          "It wasn't cancelled in time, so the time counts as used.",
+      },
     },
   },
 
@@ -679,7 +688,9 @@ const META: Record<StatusType, Meta> = {
       student: {
         kind: "actionable",
         label: (d) => `Was due ${when(d)}`,
-        explanation: () => "Still outstanding.",
+        // The next step, not a verdict: "Still outstanding." read like a red
+        // pen and told nobody what to do.
+        explanation: () => "Update your progress, or tell your mentor if you're stuck.",
       },
     },
     many: (n) => `${n} tasks are overdue`,

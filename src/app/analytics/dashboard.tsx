@@ -90,6 +90,12 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** The colour of a figure that belongs to no one program. */
 const DEFAULT = "var(--color-brand)";
+/**
+ * Hours, in the one colour hours wear: a mentor's bar on the leaderboard is
+ * an amount of time, and in this app time-as-a-fill is orange. It was brand
+ * blue, the colour of things you press.
+ */
+const HOURS = "var(--color-accent)";
 /** Extra time is the same hue, lighter — never a second colour. */
 const EXTRA_OPACITY = 0.35;
 
@@ -206,6 +212,10 @@ export function Dashboard({
 
   const mentorRow = mentor != null ? data.mentors[mentor] : null;
   const programRow = program != null ? data.programs[program] : null;
+  // A mentor reading their own year. The page was written for an admin
+  // looking at somebody else — the mentor's own name as the h1, "What they
+  // logged each month" — so it spoke about the reader in the third person.
+  const self = mentor != null && mentor === selfIndex;
 
   const crumbs = (programRow || mentorRow) && (
     <nav className="flex flex-wrap items-center gap-1" aria-label="Where you are">
@@ -228,7 +238,7 @@ export function Dashboard({
         <span className="inline-flex min-w-0 max-w-full items-center gap-1">
           <span className="text-muted-fg/50" aria-hidden>/</span>
           <Crumb current onClick={() => undefined}>
-            <span className="min-w-0 truncate">{mentorRow.name}</span>
+            <span className="min-w-0 truncate">{self ? "You" : mentorRow.name}</span>
           </Crumb>
         </span>
       )}
@@ -238,10 +248,12 @@ export function Dashboard({
   return (
     <div className={cn(s.root, "space-y-4")}>
       <PageTitle
-        eyebrow={programRow || mentorRow ? "Analytics" : undefined}
-        leading={mentorRow ? <MentorAvatar mentor={mentorRow} large /> : undefined}
+        eyebrow={(programRow || mentorRow) && !self ? "Analytics" : undefined}
+        leading={mentorRow && !self ? <MentorAvatar mentor={mentorRow} large /> : undefined}
         title={
-          programRow && !mentorRow ? (
+          self ? (
+            "Your analytics"
+          ) : programRow && !mentorRow ? (
             <span className="inline-flex max-w-full items-center gap-3">
               <Dot color={accent} className="h-3 w-3" />
               <span className="min-w-0 truncate">{programRow.name}</span>
@@ -274,7 +286,7 @@ export function Dashboard({
             <div className="inline-flex items-center rounded-lg bg-fill p-0.5">
               <button
                 type="button"
-                className="grid h-7 w-7 place-items-center rounded-md text-muted-fg transition-colors hover:bg-surface hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"
+                className="grid h-11 w-11 place-items-center rounded-md text-muted-fg transition-colors hover:bg-surface hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent sm:h-8 sm:w-8"
                 aria-label="Previous year"
                 disabled={year <= years[years.length - 1]}
                 onClick={() => go({ year: year - 1, month: null })}
@@ -286,7 +298,7 @@ export function Dashboard({
               </span>
               <button
                 type="button"
-                className="grid h-7 w-7 place-items-center rounded-md text-muted-fg transition-colors hover:bg-surface hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"
+                className="grid h-11 w-11 place-items-center rounded-md text-muted-fg transition-colors hover:bg-surface hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent sm:h-8 sm:w-8"
                 aria-label="Next year"
                 disabled={year >= today.year}
                 onClick={() => go({ year: year + 1, month: null })}
@@ -355,7 +367,7 @@ export function Dashboard({
               last={last}
             />
           )}
-          {mentor != null && <MentorDetail view={view} today={today} go={go} yearRows={yearRows} accent={accent} />}
+          {mentor != null && <MentorDetail view={view} today={today} go={go} yearRows={yearRows} accent={accent} self={self} />}
         </div>
       )}
     </div>
@@ -499,7 +511,10 @@ function Hero({
   }, [data.rows, year, month, program, mentor, today, periodRows, t.hours]);
 
   const delta = change(compare.now, compare.before);
-  const hours = useCountUp(t.hours / 60);
+  // Counted up in MINUTES and printed the way every other total in the app
+  // is: "110h 39m". It was decimal hours — "73.2 hours" over a bar labelled
+  // "73h" and a footer saying "73h 10m" — one quantity in three formats.
+  const minutesShown = useCountUp(t.hours);
   const avg = t.sessions ? t.hours / t.sessions : 0;
   const noShowRate = t.noShows / Math.max(1, t.sessions + t.noShows);
 
@@ -521,13 +536,12 @@ function Hero({
           the six supporting figures under a hairline at a third of its size —
           they used to be six tinted tiles beside it, which read as seven
           numbers of equal weight. */}
-      <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4 bg-[radial-gradient(26rem_11rem_at_0%_0%,var(--color-accent-soft),transparent_75%)] px-4 py-3 sm:px-5">
+      <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4 px-4 py-3 sm:px-5">
         <div className="min-w-0">
           <div className="flex items-baseline gap-1.5 tabular-nums" aria-label={formatDuration(t.hours)}>
             <span className="text-[2.625rem] font-semibold leading-none tracking-tight text-accent-ink">
-              {hours < 100 ? hours.toFixed(1) : Math.round(hours).toLocaleString("en-US")}
+              {formatDuration(Math.round(minutesShown))}
             </span>
-            <span className="text-[1.0625rem] font-medium text-muted-fg">hours</span>
           </div>
           <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted-fg">
             {/* It read "New none same period 2025": a badge and a fragment
@@ -548,21 +562,42 @@ function Hero({
             thing about a period's hours that is a proportion, so it is a bar. */}
         <PlanSplit completed={t.completed} extra={t.extra} />
       </div>
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-line px-4 py-3 sm:grid-cols-3 sm:px-5 lg:grid-cols-6">
-        <Stat label="Sessions" value={t.sessions.toLocaleString("en-US")} hint={`${shortHours(avg)} on average`} />
-        <Stat label="Students met" value={t.students.toLocaleString("en-US")} hint={t.students ? `${shortHours(t.hours / t.students)} each` : "—"} />
+      {/* THREE figures under the lead, not six (October 2026). Six of equal
+          weight is the stat strip DESIGN.md bans: nothing ranked, so nothing
+          read. Extra time is already the bar beside the lead; no-shows and
+          no-shows ride as the hint of the figure they qualify. */}
+      <dl className="grid grid-cols-3 gap-x-6 gap-y-3 border-t border-line px-4 py-3 sm:px-5">
+        <Stat
+          label="Sessions"
+          value={t.sessions.toLocaleString("en-US")}
+          hint={
+            t.noShows > 0
+              ? `${formatDuration(avg)} on average · ${t.noShows} no-show${t.noShows === 1 ? "" : "s"} (${Math.round(noShowRate * 100)}%)`
+              : `${formatDuration(avg)} on average`
+          }
+        />
+        <Stat
+          label="Students met"
+          value={t.students.toLocaleString("en-US")}
+          hint={t.students ? `${formatDuration(t.hours / t.students)} each` : "—"}
+        />
         {mentor == null ? (
-          <Stat label="Mentors active" value={t.mentors.toLocaleString("en-US")} hint={t.mentors ? `${shortHours(t.hours / t.mentors)} each` : "—"} />
+          <Stat
+            label="Mentors active"
+            value={t.mentors.toLocaleString("en-US")}
+            hint={t.mentors ? `${formatDuration(t.hours / t.mentors)} each` : "—"}
+          />
         ) : (
           <Stat
             label="Busiest month"
-            value={busiest ? MONTHS[busiest.month] : "—"}
-            hint={busiest ? shortHours(busiest.minutes) : "no sessions"}
+            value={busiest ? MONTHS_LONG[busiest.month] : "—"}
+            hint={
+              busiest
+                ? formatDuration(busiest.minutes)
+                : "no sessions"
+            }
           />
         )}
-        <Stat label="Extra time" value={shortHours(t.extra)} hint="out of plan" />
-        <Stat label="No-shows" value={t.noShows.toLocaleString("en-US")} hint={`${Math.round(noShowRate * 100)}% of sessions`} />
-        <Stat label="Per week" value={shortHours(t.hours / weeksSpanned(year, month, today))} hint="average" />
       </dl>
     </Section>
   );
@@ -603,21 +638,14 @@ function PlanSplit({ completed, extra }: { completed: number; extra: number }) {
   );
 }
 
-/** Weeks the period has actually run for — a running year is not 52 weeks old. */
-function weeksSpanned(year: number, month: number | null, today: Today): number {
-  const start = Date.UTC(year, month ?? 0, 1);
-  const naturalEnd = month == null ? Date.UTC(year + 1, 0, 1) : Date.UTC(year, month + 1, 1);
-  const now = Date.UTC(today.year, today.month, today.day + 1);
-  const end = Math.min(naturalEnd, now);
-  return Math.max(1, (end - start) / (7 * 86400000));
-}
-
 function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <div className="min-w-0">
       <dt className="min-w-0 truncate text-[0.8125rem] text-muted-fg">{label}</dt>
       <dd className="mt-0.5 text-[1.375rem] font-semibold leading-tight tabular-nums text-ink">{value}</dd>
-      <dd className="min-w-0 truncate text-xs text-muted-fg">{hint}</dd>
+      {/* Wraps rather than truncating: a third of a phone is narrow, and the
+          hint now carries the no-shows the strip used to give a column. */}
+      <dd className="min-w-0 text-xs text-muted-fg">{hint}</dd>
     </div>
   );
 }
@@ -729,6 +757,16 @@ function MonthsCard({
     });
   }, [yearRows, year, month, segments]);
 
+  // The year starts at its first month with anything in it. Six empty columns
+  // before July were half the chart spent saying "nothing happened yet" —
+  // true, but said once by the axis starting where the record does. A picked
+  // month earlier than that (from the URL) still shows from there.
+  const firstActive = columns.findIndex(
+    (c) => hoursOf(c.tally) > 0 || c.tally.sessions > 0 || c.tally.noShows > 0,
+  );
+  const from = Math.max(0, Math.min(firstActive < 0 ? 0 : firstActive, month ?? 11));
+  const shown = columns.slice(from);
+
   const monthTally = month != null ? columns[month].tally : null;
   const activeDays = days?.filter((d) => hoursOf(d.tally) > 0).length ?? 0;
   const bestDay = days?.reduce<Column | null>((best, d) => (!best || hoursOf(d.tally) > hoursOf(best.tally) ? d : best), null);
@@ -744,10 +782,10 @@ function MonthsCard({
       <div className="px-4 py-3 sm:px-5">
         <Columns
           key={`${year}`}
-          columns={columns}
+          columns={shown}
           height={220}
-          selected={month}
-          onSelect={(i) => go({ month: month === i ? null : i })}
+          selected={month == null ? null : month - from}
+          onSelect={(i) => go({ month: month === i + from ? null : i + from })}
           hint="Click to open this month"
         />
       </div>
@@ -764,7 +802,7 @@ function MonthsCard({
               </span>
               {bestDay && hoursOf(bestDay.tally) > 0 && (
                 <span>
-                  busiest <span className="font-medium text-ink">{bestDay.title.split(",")[1].trim()}</span> · {shortHours(hoursOf(bestDay.tally))}
+                  busiest <span className="font-medium text-ink">{bestDay.title.split(",")[1].trim()}</span> · {formatDuration(hoursOf(bestDay.tally))}
                 </span>
               )}
             </div>
@@ -841,7 +879,16 @@ function Columns({
                   selected === i && s.colActive,
                   selected != null && selected !== i && s.dim
                 )}
-                onClick={onSelect ? () => onSelect(i) : undefined}
+                // The tooltip goes with the click: left up after picking a bar,
+                // it sat over the stat strip the click had just changed.
+                onClick={
+                  onSelect
+                    ? () => {
+                        setHover(null);
+                        onSelect(i);
+                      }
+                    : undefined
+                }
                 onMouseEnter={() => setHover(i)}
                 onMouseLeave={() => setHover(null)}
                 onFocus={() => setHover(i)}
@@ -952,18 +999,25 @@ function ProgramCards({
   // program is barely started when March is picked.
   const delivered = useMemo(() => hoursByProgram(data.rows, data.programs.length), [data.rows, data.programs.length]);
 
-  // Busiest first; a program with no hours this period still gets a card, last.
-  const order = data.programs
+  // Busiest first. A program with nothing logged in the period is not a card:
+  // a full-height card of "0 min · 0 mentors · 0 students · 0 sessions" with
+  // a flat sparkline is a lot of furniture to say "nothing yet", so those
+  // are one quiet line each under the grid.
+  const all = data.programs
     .map((p, i) => ({ p, i, r: ranked.get(i) }))
     .filter(({ p, r }) => !p.archived || r)
     .sort((a, b) => (b.r?.hours ?? 0) - (a.r?.hours ?? 0));
+  const order = all.filter(({ r }) => (r?.hours ?? 0) > 0);
+  const idle = all.filter(({ r }) => (r?.hours ?? 0) === 0);
+  const period = month != null ? MONTHS_LONG[month] : String(year);
 
   return (
     <section className="@container min-w-0">
       {/* Section's own header, by hand: this group is a grid of cards rather
-          than one card, and Section's body is always exactly one. */}
-      <div className="pb-2 pt-2">
-        <h2 className="text-[1.25rem] font-semibold tracking-[-0.01em] text-ink">{words.parts}</h2>
+          than one card, and Section's body is always exactly one. Section's
+          size, too — it was 20px, a step above every other heading. */}
+      <div className="pb-2.5 pt-2">
+        <h2 className="text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink">{words.parts}</h2>
         <div className="mt-0.5 text-[0.8125rem] font-medium text-muted-fg">Open one to see which mentors carry it.</div>
       </div>
       <div className={cn("grid gap-3", cardColumns(order.length))}>
@@ -976,7 +1030,9 @@ function ProgramCards({
               type="button"
               className={cn(
                 s.rise,
-                "group flex min-w-0 flex-col gap-3 rounded-xl bg-surface p-4 text-left shadow-sm transition-shadow hover:shadow-lg"
+                // Resting elevation on hover, plus a wash — `shadow-lg` is the
+                // floating-menu height, and a card is not a menu.
+                "group flex min-w-0 flex-col gap-3 rounded-xl bg-surface p-4 text-left shadow-sm transition-colors hover:bg-fill/40"
               )}
               style={{ ["--delay" as string]: `${n * 60}ms` }}
               onClick={() => go({ program: i, mentor: null })}
@@ -987,17 +1043,21 @@ function ProgramCards({
                 {p.archived && (
                   <span className="shrink-0 rounded-full bg-fill px-2.5 py-[0.1875rem] text-xs font-medium text-muted-fg">Archived</span>
                 )}
-                <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg/60 transition-transform group-hover:translate-x-0.5" />
+                <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg transition-transform group-hover:translate-x-0.5" />
               </span>
               {/* The figure never breaks ("9h / 30m"); the caption is what
                   gives way, wrapping beneath it when the card is narrow. */}
               <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                 <span className="shrink-0 whitespace-nowrap text-[1.75rem] font-semibold leading-none tracking-tight tabular-nums text-ink">
-                  {shortHours(r?.hours ?? 0)}
+                  {formatDuration(r?.hours ?? 0)}
                 </span>
+                {/* "TO DATE", said: the gauge is all-time on purpose (a grant
+                    is a stock, not a flow), but beside a figure for the picked
+                    period it read as that period's share — September and the
+                    whole year both "13% of the 734h granted". */}
                 <span className="min-w-0 text-[0.8125rem] tabular-nums text-muted-fg">
                   {p.granted > 0
-                    ? `${Math.round(progress * 100)}% of the ${shortHours(p.granted)} granted`
+                    ? `${Math.round(progress * 100)}% of ${formatDuration(p.granted)} granted, to date`
                     : "no time granted"}
                 </span>
               </span>
@@ -1017,6 +1077,27 @@ function ProgramCards({
           );
         })}
       </div>
+      {idle.length > 0 && (
+        <ul className={cn("overflow-clip rounded-xl bg-surface shadow-sm divide-y divide-line", order.length > 0 && "mt-3")}>
+          {idle.map(({ p, i }) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                onClick={() => go({ program: i, mentor: null })}
+                className="group flex min-h-11 w-full items-center gap-2 px-4 py-2 text-left text-[0.8125rem] text-muted-fg transition-colors hover:bg-fill/40 sm:px-5"
+              >
+                <Dot color={colorOf(data, i)} />
+                <span className="min-w-0 truncate font-medium text-ink">{p.name}</span>
+                <span className="min-w-0 flex-1 truncate">
+                  · nothing logged in {period}
+                  {p.granted > 0 ? ` · ${formatDuration(p.granted)} granted` : ""}
+                </span>
+                <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -1084,8 +1165,8 @@ function Leaderboard({
         <Legend
           className="py-2.5"
           items={[
-            { label: "In plan", color: DEFAULT, opacity: 1 },
-            { label: "Extra", color: DEFAULT, opacity: EXTRA_OPACITY },
+            { label: "In plan", color: HOURS, opacity: 1 },
+            { label: "Extra", color: HOURS, opacity: EXTRA_OPACITY },
           ]}
         />
       }
@@ -1167,17 +1248,17 @@ function MentorRow({
       <span className="flex min-w-0 flex-col">
         <span className="min-w-0 truncate text-[0.9375rem] font-medium text-ink">{mentor.name}</span>
         <span className="mt-1.5 flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-fill" aria-hidden>
-          <span className={s.barSeg} style={{ width: grown ? `${r.completed * scale}%` : 0, background: DEFAULT }} />
+          <span className={s.barSeg} style={{ width: grown ? `${r.completed * scale}%` : 0, background: HOURS }} />
           {r.extra > 0 && (
             <span
               className={s.barSeg}
-              style={{ width: grown ? `${r.extra * scale}%` : 0, background: DEFAULT, opacity: EXTRA_OPACITY }}
+              style={{ width: grown ? `${r.extra * scale}%` : 0, background: HOURS, opacity: EXTRA_OPACITY }}
             />
           )}
         </span>
         <span className="mt-1 min-w-0 truncate text-[0.8125rem] text-muted-fg">
           {r.sessions} {r.sessions === 1 ? "session" : "sessions"} · {r.students} {r.students === 1 ? "student" : "students"}
-          {r.sessions ? ` · ${shortHours(r.hours / r.sessions)} avg` : ""}
+          {r.sessions ? ` · ${formatDuration(r.hours / r.sessions)} avg` : ""}
         </span>
       </span>
       <span className="flex items-center gap-3">
@@ -1185,15 +1266,15 @@ function MentorRow({
           <Sparkline
             values={r.trend.slice(0, last + 1)}
             color="var(--color-muted-fg)"
-            dotColor={DEFAULT}
+            dotColor={HOURS}
             width={72}
             height={24}
             highlight={highlight}
           />
         </span>
-        <span className="min-w-12 text-right text-[0.9375rem] font-semibold tabular-nums text-ink">{shortHours(r.hours)}</span>
+        <span className="min-w-12 whitespace-nowrap text-right text-[0.9375rem] font-semibold tabular-nums text-ink">{formatDuration(r.hours)}</span>
       </span>
-      <ChevronRightIcon className="h-4 w-4 text-muted-fg/60 transition-transform group-hover:translate-x-0.5" />
+      <ChevronRightIcon className="h-4 w-4 text-muted-fg transition-transform group-hover:translate-x-0.5" />
     </button>
   );
 }
@@ -1206,12 +1287,15 @@ function MentorDetail({
   go,
   yearRows,
   accent,
+  self = false,
 }: {
   view: View;
   today: Today;
   go: (next: Partial<View>) => void;
   yearRows: AnalyticsRow[];
   accent: string;
+  /** The reader is this mentor: speak to them, not about them. */
+  self?: boolean;
 }) {
   const { year, month } = view;
 
@@ -1223,6 +1307,16 @@ function MentorDetail({
   }, [yearRows]);
   const maxMonth = Math.max(...months.map(hoursOf), 1);
   const lastMonth = year === today.year ? today.month : 11;
+  // The table starts at the first month with a session in it: six rows of
+  // "—" from January to June were the first thing a mentor who started in
+  // July read about their own year.
+  const firstMonth = Math.max(
+    0,
+    months.findIndex((m) => hoursOf(m) > 0 || m.sessions > 0 || m.noShows > 0),
+  );
+  // The month in progress gets no change figure: "▼ 99%" on October 5 was a
+  // fall that had not happened, measured against a month that had finished.
+  const running = year === today.year ? today.month : -1;
 
   return (
     <>
@@ -1231,7 +1325,10 @@ function MentorDetail({
           <Heatmap rows={yearRows} year={year} color={accent} selected={month} onPick={(m) => go({ month: m })} />
         </div>
       </Section>
-      <Section title="What they logged each month" eyebrow="Pick a row to open that month.">
+      <Section
+        title={self ? "What you logged each month" : "What they logged each month"}
+        eyebrow="Pick a row to open that month."
+      >
         {/* `scroll-x` rather than a bare overflow: on a phone the last columns
             run past the card, and the fade is what says there is more. */}
         <div className="scroll-x px-4 py-2 sm:px-5">
@@ -1248,7 +1345,7 @@ function MentorDetail({
             </thead>
             <tbody>
               {months.map((m, i) => {
-                if (i > lastMonth) return null;
+                if (i > lastMonth || i < firstMonth) return null;
                 const h = hoursOf(m);
                 const prev = i > 0 ? hoursOf(months[i - 1]) : 0;
                 const d = change(h, prev);
@@ -1276,7 +1373,13 @@ function MentorDetail({
                     <td>{m.sessions || "—"}</td>
                     <td>{students[i] || "—"}</td>
                     <td>{m.sessions ? formatDuration(h / m.sessions) : "—"}</td>
-                    <td className="text-[0.8125rem]">{i === 0 || (h === 0 && prev === 0) ? "" : <Delta value={d} />}</td>
+                    <td className="text-[0.8125rem]">
+                      {i === firstMonth || i === running || (h === 0 && prev === 0) ? (
+                        i === running ? <span className="text-muted-fg">so far</span> : ""
+                      ) : (
+                        <Delta value={d} />
+                      )}
+                    </td>
                   </tr>
                 );
               })}

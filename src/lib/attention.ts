@@ -611,7 +611,12 @@ export async function studentRows(
         dueOn: task.dueOn,
       },
       viewer
-    ).filter((s) => s.type === "TASK_OVERDUE")
+    )
+      .filter((s) => s.type === "TASK_OVERDUE")
+      // To the item itself, lower on the same page: an overdue row was the one
+      // kind in this list with nowhere to go, and the place it can be dealt
+      // with is a scroll away. (`AgendaRow` carries the id.)
+      .map((s) => ({ ...s, href: `#agenda-${task.id}` }))
   );
 
   // And the tasks their mentors set them, where the same state is never
@@ -629,7 +634,11 @@ export async function studentRows(
         mentorId: task.mentorId,
       },
       viewer
-    ).filter((s) => s.type === "TASK_OVERDUE")
+    )
+      .filter((s) => s.type === "TASK_OVERDUE")
+      // `StudentTaskRow` renders as `#student-task-<id>`, where the progress
+      // control that answers this row lives.
+      .map((s) => ({ ...s, href: `#student-task-${task.id}` }))
   );
 
   // The product's worst dead end, from the student's side: they hold time with
