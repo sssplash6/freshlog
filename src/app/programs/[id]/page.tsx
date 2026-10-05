@@ -193,15 +193,13 @@ export default async function ProgramPage({
           roster 456px for six columns, and it spilled under the panel. */}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start">
         <div className="min-w-0 space-y-4">
-          {/* ONE way in, at the head of the roster it adds to. Adding students
-              was a link in the header AND a text fold above the table, then a
-              grey bar the width of the page — which read as a banner rather
-              than a button. It hugs its label now, as a secondary action
-              should; the rows it opens still take the column's width. The
-              selector reaches the trigger, a direct child of the form, and
-              not the submit nested inside the rows. */}
-          <div className="[&_form>button]:w-auto">
+          {/* ONE way in, at the head of the roster it adds to: the same
+              plus-button every page uses for "new", which the form REPLACES
+              when it opens (add-students-form.tsx). `?add=1` — the link from
+              Students — arrives with it open. */}
+          <div>
             <AddStudentsForm
+              defaultOpen={readParam(query, "add") === "1"}
               program={{
                 id: program.id,
                 name: program.name,
@@ -267,13 +265,16 @@ export default async function ProgramPage({
                 from={id}
                 sorts={STUDENT_SORTS}
               />
-              <Pagination
-                basePath={basePath}
-                params={query}
-                page={page}
-                total={total}
-                unit="students"
-              />
+              {/* Only with a second page: the tab above already counts them. */}
+              {total > PAGE_SIZE && (
+                <Pagination
+                  basePath={basePath}
+                  params={query}
+                  page={page}
+                  total={total}
+                  unit="students"
+                />
+              )}
             </>
           )}
 
@@ -286,7 +287,7 @@ export default async function ProgramPage({
             <Section
               title="Exchange"
               count={lent.length}
-              caption="Hours one program promises, another delivers"
+              caption="Students lent to or from this program"
             >
               <ExchangeList
                 exchanges={lent}

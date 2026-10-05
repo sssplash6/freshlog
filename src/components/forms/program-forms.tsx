@@ -18,19 +18,23 @@ import { createCohort, createProgram } from "@/lib/actions/programs";
  * when a browser finds text inside it.
  */
 
-/** Open a new program. Platform admins only, gated in the action (§8.3). */
+/**
+ * Open a new program. Platform admins only, gated in the action (§8.3).
+ *
+ * The bare form: the page puts it in its `CreatePanel`, under the title, with
+ * the button that opens it in the title's actions (`page-create.tsx`). Its
+ * hint — what happens next — is the panel's, so it lines up with the title
+ * rather than sitting indented past a plus sign.
+ */
 export function CreateProgramForm() {
   const [, action, save] = useSaveState(createProgram);
 
   return (
-    <Disclosure
-      label="New program" variant="create"
-      hint="It starts flat and empty; grant its admins access afterwards."
-    >
+    <>
       <form action={action} className="flex flex-wrap items-end gap-2">
         {/* A visible label, not the placeholder alone: a placeholder is not a
             name, and it is gone the moment somebody starts typing. */}
-        <Field label="Program name" required className="w-56">
+        <Field label="Program name" required className="w-full max-w-sm flex-1 sm:min-w-72">
           <Input
             name="name"
             type="text"
@@ -43,7 +47,7 @@ export function CreateProgramForm() {
         <SubmitButton pendingText="Creating…">Create program</SubmitButton>
       </form>
       <SaveState state={save} />
-    </Disclosure>
+    </>
   );
 }
 

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { GrantsEditor, type GrantRow } from "@/components/forms/grants-editor";
 import { PersonCell } from "@/components/person-chip";
+import { ProgramChip } from "@/components/program-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FactList } from "@/components/ui/fact-list";
 import { PageTitle, Section } from "@/components/ui/section";
@@ -41,7 +42,7 @@ function accessSummary(
   row: GrantRow,
   programs: { id: string; name: string }[]
 ): string {
-  if (row.platformAdmin) return "All programs";
+  if (row.platformAdmin) return "Platform admin · all programs";
   const held = programs
     .filter((p) => row.grants[p.id])
     .map((p) => `${levelName(row.grants[p.id])}, ${p.name}`);
@@ -86,9 +87,12 @@ export default async function PlatformPage() {
     (r) => r.platformAdmin || Object.keys(r.grants).length > 0
   );
 
+  // THREE columns, however many programs the school runs: who, what they hold,
+  // the pencil. One column per program was seven at five programs, mostly "—",
+  // and grew sideways with every program the school opened.
   const columns: Column[] = [
     { label: "Person" },
-    ...programs.map((p) => ({ label: p.name })),
+    { label: "Programs" },
     { label: "", align: "right" as const },
   ];
 
@@ -102,18 +106,14 @@ export default async function PlatformPage() {
       />
 
       <Section
-        eyebrow={`${withAccess.length}/${rows.length} have access`}
+        eyebrow={`${withAccess.length} of ${rows.length} people have access. Each admin manages only the programs listed.`}
         title="Program access"
-        caption="Admins here manage only their selected programs."
       >
         {rows.length === 0 ? (
           <EmptyState framed={false} title="Nobody to grant yet">
             Register a mentor or a staff account first.
           </EmptyState>
         ) : (
-          // One column per program: as wide as the programs are many. Sideways
-          // scroll costs the sticky heading (it binds to the nearest scroller).
-          <div className="overflow-x-auto">
           <Table framed={false} columns={columns}>
             {rows.map((row) => (
               // On a phone a person is ONE row — who, what they hold, the
@@ -140,26 +140,33 @@ export default async function PlatformPage() {
                         mentors roster makes for "Admin". */}
                     {row.platformAdmin && (
                       <span className="shrink-0 text-xs font-normal text-muted-fg">
-                        Platform
+                        Platform admin
                       </span>
                     )}
                   </PersonCell>
                 </Td>
-                {programs.map((p) => (
-                  <Td key={p.id} className="max-sm:hidden">
-                    {row.platformAdmin ? (
-                      // Not a grant, and shown differently on purpose: the
-                      // platform flag covers programs that do not exist yet.
-                      <span className="text-muted-fg">All</span>
-                    ) : row.grants[p.id] ? (
-                      <span className="text-ink">
-                        {levelName(row.grants[p.id])}
-                      </span>
-                    ) : (
-                      <span className="text-muted-fg">—</span>
-                    )}
-                  </Td>
-                ))}
+                <Td className="max-sm:hidden">
+                  {row.platformAdmin ? (
+                    // Not a grant, and shown differently on purpose: the
+                    // platform flag covers programs that do not exist yet.
+                    <span className="text-muted-fg">All programs, including new ones</span>
+                  ) : programs.some((p) => row.grants[p.id]) ? (
+                    <span className="flex flex-col gap-y-1">
+                      {programs
+                        .filter((p) => row.grants[p.id])
+                        .map((p) => (
+                          <span key={p.id} className="flex min-w-0 items-center gap-2">
+                            <ProgramChip program={p} />
+                            <span className="shrink-0 text-xs text-muted-fg">
+                              {levelName(row.grants[p.id])}
+                            </span>
+                          </span>
+                        ))}
+                    </span>
+                  ) : (
+                    <span className="text-muted-fg">—</span>
+                  )}
+                </Td>
                 <Td align="right" className="max-sm:shrink-0">
                   <GrantsEditor
                     row={row}
@@ -169,7 +176,6 @@ export default async function PlatformPage() {
               </Tr>
             ))}
           </Table>
-          </div>
         )}
       </Section>
 

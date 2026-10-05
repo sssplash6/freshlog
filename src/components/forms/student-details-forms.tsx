@@ -456,6 +456,9 @@ export function RemoveStudentButton({
     <div className="space-y-2">
       <ConfirmInline
         variant="quiet"
+        // Red only while it can be pressed. Disabled, a dimmed red word still
+        // read as a live destructive action beside its "can't" reason.
+        tone={hasSessions ? "primary" : "danger"}
         label="Remove student"
         question={`${name}'s record goes, with their agenda, their tasks and any time granted to them.`}
         confirmLabel="Yes, remove them"

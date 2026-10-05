@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { Suspense } from "react";
 
-import { CheckIcon, LayersIcon, UsersIcon } from "@/components/icons";
+import { CheckIcon, ChevronRightIcon, LayersIcon, UsersIcon } from "@/components/icons";
+import { CreateButton, CreatePanel, CreateSlot } from "@/components/page-create";
 import { Figure } from "@/components/ui/figure";
 import { ArrowLink } from "@/components/ui/link";
 import { CreateProgramForm } from "@/components/forms/program-forms";
@@ -24,7 +26,7 @@ import { programTotals, totalsByLevel, type ProgramTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { studentsWithHours } from "@/lib/queries";
 import { spaceOf, type Space } from "@/lib/space";
-import { actionableCount, status, type ViewerContext } from "@/lib/status";
+import { status, type Status, type ViewerContext } from "@/lib/status";
 import { formatProgramStamp, programStampISO } from "@/lib/when";
 import type { User } from "@/generated/prisma/client";
 
@@ -45,20 +47,28 @@ import type { User } from "@/generated/prisma/client";
  */
 
 /**
- * How many things are waiting on this reader, and the way to them.
+ * What is waiting on this reader: the first three, in place, and the way to
+ * the rest.
  *
- * A count and a link, not the rows: the rows live behind the bell, and a
- * second inbox on this page is what the bell replaced. But a home page that
- * cannot say whether anything is waiting sends every reader to the bell to
- * find out, which is the question a home page is for. Streamed, so the
- * program table never waits on the mentors, tasks and ratings the count also
- * reads — the roster it already has is handed over rather than read twice.
+ * It was a count and a link — "6 items need your attention · Review in
+ * notifications" — which made the one thing on this page anybody acts on the
+ * only thing it would not show. The three worst rows now sit here, already
+ * sorted problems-first by `staffAttention`, in the shape the bell's page
+ * gives them (state, who, what to do), so the reader can tell from Home
+ * whether to stop and look. The rest stay behind the bell, which is still
+ * the one full list. Streamed, so the program table never waits on the
+ * mentors, tasks and ratings these rows also read — the roster it already has
+ * is handed over rather than read twice.
  */
-async function NeedsYou({ user, preload }: { user: User; preload: StaffPreload }) {
-  const { statuses } = await staffAttention(user, preload);
-  const n = actionableCount(statuses);
+const HOME_ISSUES = 3;
 
-  if (n === 0) {
+async function NeedsYou({ user, preload }: { user: User; preload: StaffPreload }) {
+  const { statuses, spilled } = await staffAttention(user, preload);
+  // The count is the rows that exist, not a subset of them: a heading that
+  // says 6 over a list of 8 reads as a bug.
+  const total = statuses.length + spilled;
+
+  if (total === 0) {
     return (
       <p className="flex items-center gap-2 rounded-xl bg-surface px-4 py-3 text-[0.9375rem] text-muted-fg shadow-sm sm:px-5">
         <CheckIcon className="h-4 w-4 shrink-0 text-ink/60" />
@@ -67,15 +77,58 @@ async function NeedsYou({ user, preload }: { user: User; preload: StaffPreload }
     );
   }
   return (
-    // One row in a card of its own — the grouped-list shape for a single
-    // fact with a way through it.
-    <p className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl bg-surface px-4 py-3 text-[0.9375rem] text-ink shadow-sm sm:px-5">
-      <span>
-        <span className="font-semibold tabular-nums">{n}</span>{" "}
-        {n === 1 ? "item needs" : "items need"} your attention
+    <Section
+      title="Needs you"
+      count={total}
+      action={
+        <ArrowLink href="/notifications" className="text-[0.8125rem]">
+          {total > HOME_ISSUES ? `All ${total}` : "Notifications"}
+        </ArrowLink>
+      }
+    >
+      <ul className="divide-y divide-line">
+        {statuses.slice(0, HOME_ISSUES).map((s, i) => (
+          <IssueRow key={`${s.type}-${s.subject?.id ?? i}`} status={s} />
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
+/** One issue: the state and who it is about on one line, what to do under it. */
+function IssueRow({ status }: { status: Status }) {
+  const body = (
+    <>
+      <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+        <StatusChip status={{ ...status, explanation: undefined }} />
+        {status.subject && (
+          <span className="min-w-0 truncate text-[0.9375rem] font-semibold text-ink">
+            {status.subject.name}
+          </span>
+        )}
+        {status.program && (
+          <span className="min-w-0 truncate text-xs text-muted-fg">{status.program.name}</span>
+        )}
       </span>
-      <ArrowLink href="/notifications">Review in notifications</ArrowLink>
-    </p>
+      {status.explanation && (
+        <span className="mt-0.5 block text-[0.8125rem] text-muted-fg">{status.explanation}</span>
+      )}
+    </>
+  );
+  if (!status.href) {
+    return <li className="px-4 py-3 sm:px-5">{body}</li>;
+  }
+  return (
+    <li className="relative">
+      <Link
+        href={status.href}
+        transitionTypes={["nav-forward"]}
+        className="group block min-h-11 py-3 pl-4 pr-10 transition-colors hover:bg-fill/60 sm:pl-5 sm:pr-11"
+      >
+        {body}
+        <ChevronRightIcon className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg transition-colors group-hover:text-brand sm:right-5" />
+      </Link>
+    </li>
   );
 }
 
@@ -157,6 +210,10 @@ export default async function AdminHomePage({
     }),
   ]);
 
+  // By name as people read it: SQLite orders by code point, which put "efde"
+  // after "Research Program".
+  programs.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+
   const overall = programTotals(students);
 
   // A reader whose whole scope is one institute gets the institute: the same
@@ -232,13 +289,24 @@ export default async function AdminHomePage({
   ];
 
   return (
+    <CreateSlot>
     <div className="space-y-4">
+      {/* The freshness stamp is the subtitle, not an action: the actions slot
+          is where every page keeps its one "new" button. */}
       <PageTitle
         title="Home"
-        actions={
-          <UpdatedAt now={now} />
-        }
+        subtitle={<UpdatedAt now={now} />}
+        actions={user.platformAdmin ? <CreateButton label="New program" /> : undefined}
       />
+
+      {user.platformAdmin && (
+        <CreatePanel
+          title="New program"
+          hint="It starts with no students or mentors. Grant its admins access afterwards."
+        >
+          <CreateProgramForm />
+        </CreatePanel>
+      )}
 
       {/* The school in three figures. Remaining leads, in the hours orange,
           because it is the one of the three anybody acts on. */}
@@ -257,8 +325,6 @@ export default async function AdminHomePage({
       <Suspense fallback={null}>
         <NeedsYou user={user} preload={{ now, programs, students }} />
       </Suspense>
-
-      {user.platformAdmin && <CreateProgramForm />}
 
       {/* One program is the whole scope, and a table of one row that repeats
           the figures above it is furniture. */}
@@ -282,27 +348,43 @@ export default async function AdminHomePage({
           <Table columns={columns} framed={false}>
             {rows.map((p) => (
               <Tr key={p.id}>
-                <Td label="Program">
+                <Td>
                   {/* The name is the way in — the same rule as `/programs`,
-                      which this table is the short version of. */}
-                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <ProgramChip
-                      program={p}
-                      href={`/programs/${p.id}`}
-                      className="min-h-11 font-semibold sm:min-h-0"
+                      which this table is the short version of.
+                      On a phone the row is ONE line — name, then the figure
+                      at the right edge — with the counts quiet under it. The
+                      stacked version repeated "Program / Students / Mentors /
+                      Remaining" labels down five 170px cards. */}
+                  <span className="flex items-center justify-between gap-3">
+                    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                      <ProgramChip
+                        program={p}
+                        href={`/programs/${p.id}`}
+                        className="min-h-11 font-semibold sm:min-h-0"
+                      />
+                      {p.remaining < 0 && (
+                        <StatusChip severity="problem">Over capacity</StatusChip>
+                      )}
+                    </span>
+                    <Figure
+                      size="inline"
+                      value={formatRough(p.remaining)}
+                      tone={p.remaining < 0 ? "danger" : "hours"}
+                      className="shrink-0 sm:hidden"
                     />
-                    {p.remaining < 0 && (
-                      <StatusChip severity="problem">Over capacity</StatusChip>
-                    )}
+                  </span>
+                  <span className="-mt-2 block pb-1 text-xs text-muted-fg sm:hidden">
+                    {p.students} {p.students === 1 ? "student" : "students"} · {p.mentors}{" "}
+                    {p.mentors === 1 ? "mentor" : "mentors"}
                   </span>
                 </Td>
-                <Td label="Students" align="right" className="tabular-nums">
+                <Td align="right" className="tabular-nums max-sm:hidden">
                   {p.students}
                 </Td>
-                <Td label="Mentors" align="right" className="tabular-nums">
+                <Td align="right" className="tabular-nums max-sm:hidden">
                   {p.mentors}
                 </Td>
-                <Td label="Remaining" align="right">
+                <Td align="right" className="max-sm:hidden">
                   <Figure
                     size="inline"
                     value={formatRough(p.remaining)}
@@ -316,6 +398,7 @@ export default async function AdminHomePage({
         </Section>
       )}
     </div>
+    </CreateSlot>
   );
 }
 
@@ -381,12 +464,7 @@ function InstituteHome({
 
   return (
     <div className="space-y-4">
-      <PageTitle
-        title={space.name}
-        actions={
-          <UpdatedAt now={now} />
-        }
-      />
+      <PageTitle title={space.name} subtitle={<UpdatedAt now={now} />} />
 
       <StatStrip
         lead={{

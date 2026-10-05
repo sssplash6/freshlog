@@ -129,16 +129,15 @@ export function MentorsTable({
                     the students who met them said back. Programs, booking
                     links and the headcount are a tap behind the chevron. */}
                 <RowFold label={m.name ?? m.email}>
+                  {/* One line, and the star in ink: orange is the hours'
+                      colour, and /feedback already draws its stars in ink. */}
                   {m.averageRating != null && (
-                    <span className="flex flex-col items-end leading-tight">
-                      <span className="flex items-center gap-0.5 text-sm font-semibold tabular-nums text-ink">
-                        <StarIcon className="h-3.5 w-3.5 text-accent" />
+                    <span className="flex items-center gap-1 whitespace-nowrap text-sm tabular-nums">
+                      <StarIcon className="h-3.5 w-3.5 text-ink" />
+                      <span className="font-semibold text-ink">
                         {m.averageRating.toFixed(1)}
                       </span>
-                      <span className="text-xs font-medium text-muted-fg">
-                        {m.ratingCount}{" "}
-                        {m.ratingCount === 1 ? "rating" : "ratings"}
-                      </span>
+                      <span className="text-xs text-muted-fg">({m.ratingCount})</span>
                     </span>
                   )}
                 </RowFold>
