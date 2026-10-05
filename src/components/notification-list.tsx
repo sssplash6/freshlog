@@ -79,7 +79,7 @@ function NotificationRow({
           </span>
           <span className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted-fg">
             {n.actor && (
-              <PersonBadge person={n.actor} className="h-6 w-6 text-[0.6875rem]" />
+              <PersonBadge person={n.actor} className="h-6 w-6 text-[0.75rem]" />
             )}
             <span>{meta.label}</span>
             <span aria-hidden="true">·</span>
@@ -87,7 +87,7 @@ function NotificationRow({
           </span>
         </span>
         {n.href && (
-          <ChevronRightIcon className="h-4 w-4 self-center shrink-0 text-muted-fg/60 transition-colors group-hover:text-brand" />
+          <ChevronRightIcon className="h-4 w-4 self-center shrink-0 text-muted-fg transition-colors group-hover:text-brand" />
         )}
       </a>
     </li>

@@ -276,7 +276,9 @@ export function AllocationMeter({
       />
       <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-[0.8125rem] text-muted-fg">
         <span className="tabular-nums">
-          {formatDuration(entry.completed)}/{formatDuration(entry.allocated)}{" "}
+          {/* "4h of 12h", not "4h/12h": a slash between two durations read as
+              a ratio, and beside "0 min/2h" as a typo. */}
+          {formatDuration(entry.completed)} of {formatDuration(entry.allocated)}{" "}
           completed
           {entry.missed > 0 ? ` · ${formatDuration(entry.missed)} missed` : ""}
         </span>
@@ -361,17 +363,15 @@ export function AllocationRow({
           />
         )}
       </Td>
+      {/* ONE ZERO RULE: "—" where nothing happened (no session, no miss), a
+          duration only where there is one. A balance is the exception — "0
+          min" there is a fact (it was spent down), not an absence. */}
       <Td label="Completed" align="right" className="tabular-nums">
-        {formatDuration(entry.completed)}
+        {entry.completed > 0 ? formatDuration(entry.completed) : <Dash />}
       </Td>
-      <Td
-        label="Missed"
-        align="right"
-        className={cn(
-          "tabular-nums",
-          entry.missed > 0 ? "text-warn-ink" : "text-muted-fg"
-        )}
-      >
+      {/* Ink, not amber: a figure in a column headed "Missed" already says what
+          it is, and amber text with no glyph was status by colour alone. */}
+      <Td label="Missed" align="right" className="tabular-nums">
         {entry.missed > 0 ? formatDuration(entry.missed) : <Dash />}
       </Td>
       <Td
@@ -386,19 +386,29 @@ export function AllocationRow({
         {formatBalance(entry.remaining)}
         {entry.forfeited > 0 && (
           // "3h expired unused" — the status model's own words, so a spent
-          // balance and a forfeited one stop wearing the same 0m.
-          <span className="block text-[0.8125rem] font-normal text-muted-fg">
+          // balance and a forfeited one stop wearing the same 0 min. Red, and
+          // a word: this is time that is gone, not a detail.
+          <span className="block text-[0.8125rem] font-normal text-danger-ink">
             {formatDuration(entry.forfeited)} expired unused
           </span>
         )}
       </Td>
-      {/* Last, and muted: the commitment (the grant, or the plan past it) is
-          context for the three delivery figures before it. */}
-      <Td label="Assigned" align="right" tone="muted" className="tabular-nums">
+      {/* GRANTED, and only the grant — so the row adds up: completed + missed
+          + remaining + expired = granted. It was "Assigned", the LARGER of the
+          grant and the open agenda's plan, and a 4h row read 6h because two
+          tasks planned past it; nobody could make the figures reconcile. The
+          plan, when it runs past the grant, is said underneath in its own
+          words. */}
+      <Td label="Granted" align="right" tone="muted" className="tabular-nums">
         <span className="inline-flex items-center justify-end gap-1.5">
-          {formatDuration(entry.assigned ?? entry.allocated)}
+          {entry.allocated > 0 ? formatDuration(entry.allocated) : <Dash />}
           {assignedActions}
         </span>
+        {(entry.assigned ?? 0) > entry.allocated && (
+          <span className="block text-[0.8125rem] font-normal">
+            {formatDuration(entry.assigned ?? 0)} planned
+          </span>
+        )}
       </Td>
       {showAmountPaid && (
         <Td label="Paid" align="right" className="tabular-nums">
@@ -440,7 +450,7 @@ export function AllocationsTable({
     { label: "Completed", align: "right" },
     { label: "Missed", align: "right" },
     { label: "Remaining", align: "right", emphasis: "key" },
-    { label: "Assigned", align: "right" },
+    { label: "Granted", align: "right" },
     ...(showAmountPaid ? [{ label: "Paid", align: "right" } as Column] : []),
     ...(withActions ? [{ label: "", align: "right" } as Column] : []),
   ];

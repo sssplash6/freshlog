@@ -47,15 +47,19 @@ export function HoursRing({
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  // Time that is gone is time that is gone, whether it was spent or forfeited:
-  // the sweep shows what the student can no longer book.
-  const gone = used + forfeited;
-  const pct = allotted > 0 ? Math.min(1, Math.max(0, gone / allotted)) : 0;
+  // Two arcs, because spent and forfeited are not the same loss. The sweep
+  // used to paint `used + forfeited` in one orange, so a student whose hours
+  // EXPIRED saw a full orange ring and "0 min remaining" — which reads as
+  // "you used it all", the opposite of what happened. Spent time is orange;
+  // the part that ran out unused follows it in red, the colour the Your time
+  // bar under the ring already gives it.
+  const clamp = (n: number) => (allotted > 0 ? Math.min(1, Math.max(0, n / allotted)) : 0);
   const overdrawn = remaining < 0;
   // A full sweep when overdrawn: the ring can't show more than all of it, and
   // the red number below carries the rest of the message.
-  const sweep = overdrawn ? 1 : pct;
-  const offset = circumference * (1 - sweep);
+  const spentSweep = overdrawn ? 1 : clamp(used);
+  const goneSweep = overdrawn ? 1 : clamp(used + forfeited);
+  const expired = !overdrawn && forfeited > 0;
 
   return (
     <div
@@ -75,23 +79,38 @@ export function HoursRing({
           r={radius}
           fill="none"
           strokeWidth={stroke}
-          className="stroke-fill"
+          // `line-strong`, not `fill`: on the dark canvas the fill track all but
+          // vanished and the ring read as a loose arc.
+          className="stroke-line-strong"
         />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          style={{ ["--ring-circumference" as string]: `${circumference}` }}
-          className={cn(
-            "ring-draw",
-            overdrawn ? "stroke-danger" : "stroke-accent",
-          )}
-        />
+        {expired && (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference * (1 - goneSweep)}
+            style={{ ["--ring-circumference" as string]: `${circumference}` }}
+            className="ring-draw stroke-danger"
+          />
+        )}
+        {spentSweep > 0 && (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference * (1 - spentSweep)}
+            style={{ ["--ring-circumference" as string]: `${circumference}` }}
+            className={cn("ring-draw", overdrawn ? "stroke-danger" : "stroke-accent")}
+          />
+        )}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div
@@ -110,14 +129,18 @@ export function HoursRing({
           className="mt-1 font-medium text-muted-fg"
           // Scaled with the figure, so a 96px ring's caption is not the 12px a
           // 132px one wears — it crowded the stroke.
-          style={{ fontSize: Math.max(11, Math.round(size * 0.1)) }}
+          // 12px floor: DESIGN.md's smallest size; 11 was below it.
+          style={{ fontSize: Math.max(12, Math.round(size * 0.1)) }}
         >
           {overdrawn ? "over" : "remaining"}
         </div>
       </div>
       {/* The ring is decorative; the numbers it encodes are stated for readers
           who never see it. */}
-      <span className="sr-only">of {formatDuration(allotted)} total.</span>
+      <span className="sr-only">
+        of {formatDuration(allotted)} total
+        {expired ? `; ${formatDuration(forfeited)} expired unused` : ""}.
+      </span>
     </div>
   );
 }

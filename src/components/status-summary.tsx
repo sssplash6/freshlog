@@ -3,8 +3,7 @@ import Link from "next/link";
 import { ChevronRightIcon } from "@/components/icons";
 import { Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
-import { cn } from "@/lib/cn";
-import { actionableCount, type Status } from "@/lib/status";
+import type { Status } from "@/lib/status";
 
 /**
  * What is true of the reader's own account, said on their home page.
@@ -16,8 +15,7 @@ import { actionableCount, type Status } from "@/lib/status";
  * in a tooltip, because on a phone there is no hover and "No time yet" alone
  * does not say whether to wait or to ask.
  *
- * One row needs no heading — the row is the heading. Two or more are a list,
- * and a list is named. Nothing true renders nothing: the ring beside the h1
+ * Always titled and counted, one row or ten. Nothing true renders nothing: the ring beside the h1
  * already says the account is fine, and a tick under it would be a second
  * statement of the same news.
  */
@@ -33,42 +31,28 @@ export function StatusSummary({
   className?: string;
 }) {
   if (statuses.length === 0) return null;
-  const many = statuses.length > 1;
 
-  const rows = (
-    <ul className="divide-y divide-line">
-      {statuses.map((s, i) => (
-        <SummaryRow key={`${s.type}-${s.subject?.id ?? i}`} status={s} />
-      ))}
-    </ul>
-  );
+  // What to do first, then what is merely so. Sorted already within each
+  // kind; this only keeps a "to do" from sitting under a piece of news.
+  const ordered = [
+    ...statuses.filter((s) => s.kind === "actionable"),
+    ...statuses.filter((s) => s.kind !== "actionable"),
+  ];
 
-  // A list is named the way every group is: title on the page ground, one
-  // white card under it. It drew its own bold header band inside the card,
-  // the one lid left on the student home after the rest were taken off.
-  if (many) {
-    // The same rows appear under this title in the bell's AttentionList,
-    // which numbers only the rows that ask something of the reader — an
-    // informational row under the same title counted "5" here and "3" there.
-    const count = actionableCount(statuses);
-    return (
-      <Section
-        title={title}
-        count={count > 0 ? count : undefined}
-        className={className}
-      >
-        {rows}
-      </Section>
-    );
-  }
-
+  // Always named, and the count is the rows you can see (October 2026).
+  //
+  // It counted only the actionable rows, so "Things to check 3" sat over five
+  // — which a reader takes for a bug, not a policy — and a single row had no
+  // heading at all, so the same card was titled on one student's home and
+  // anonymous on the next.
   return (
-    <section
-      aria-label={title}
-      className={cn("overflow-clip rounded-xl bg-surface shadow-sm", className)}
-    >
-      {rows}
-    </section>
+    <Section title={title} count={ordered.length} className={className}>
+      <ul className="divide-y divide-line">
+        {ordered.map((s, i) => (
+          <SummaryRow key={`${s.type}-${s.subject?.id ?? i}`} status={s} />
+        ))}
+      </ul>
+    </Section>
   );
 }
 
@@ -82,7 +66,20 @@ function SummaryRow({ status }: { status: Status }) {
           wrapped or not depending on how long a name happened to be, so two
           rows of the same kind never looked alike on a phone. */}
       <span className="flex flex-col items-start gap-y-1">
-        <StatusChip status={{ ...status, explanation: undefined }} />
+        {/* Amber only where the reader has something to do. Five amber "!"
+            chips on one screen — two of them a mentor's missing calendar,
+            which the student cannot fix — meant none of them stood out; a
+            row that is only news wears the neutral chip. */}
+        <StatusChip
+          status={{
+            ...status,
+            explanation: undefined,
+            severity:
+              status.kind === "actionable" || status.severity === "problem"
+                ? status.severity
+                : "neutral",
+          }}
+        />
         {subject && (
           <span className="min-w-0 max-w-full truncate text-[0.9375rem] font-medium text-ink">
             {subject.name}
@@ -107,7 +104,9 @@ function SummaryRow({ status }: { status: Status }) {
           className="group -my-1 flex min-h-11 items-center justify-between gap-3 py-1"
         >
           {body}
-          <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg/60 transition-colors group-hover:text-brand" />
+          {/* Full muted-fg: at /60 the chevron was 2.6:1, under the 3:1 a
+              control's only affordance needs. */}
+          <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg transition-colors group-hover:text-brand" />
         </Link>
       ) : (
         body

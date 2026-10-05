@@ -6,7 +6,6 @@ import { StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
 import { DismissStatus } from "@/components/forms/dismiss-status";
 import {
-  actionableCount,
   groupStatuses,
   STATUS_GROUP_LABELS,
   type Status,
@@ -61,7 +60,9 @@ export function AttentionList({
   moreLabel?: string;
   className?: string;
 }) {
-  const count = actionableCount(statuses);
+  // The rows the reader can see, not the subset that is actionable: "6" over
+  // eight rows read as a bug. ALL_CLEAR is a message, not a row.
+  const count = statuses.filter((s) => s.type !== "ALL_CLEAR").length;
   // Null when the list is short enough, or single-minded enough, that headings
   // would be more furniture than signpost.
   const groups = groupStatuses(statuses);
@@ -101,20 +102,25 @@ export function AttentionList({
     // here because `Section` owns exactly one card.
     return (
       <section className={cn("min-w-0 space-y-2", className)}>
-        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 pb-0 pt-2">
-          <h2 className="flex items-baseline gap-2 text-[1.25rem] font-semibold tracking-[-0.01em] text-ink">
+        {/* `Section`'s own heading, to the pixel: 17px title, the count in
+            the same size at regular weight. This one was 20px over a 15px
+            medium count, a heading a size up from every other on the page. */}
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-0.5 pt-2">
+          <h2 className="flex items-baseline gap-2 text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink">
             <span className="min-w-0 truncate">{title}</span>
             {count > 0 && (
-              <span className="shrink-0 text-[0.9375rem] font-medium tabular-nums text-muted-fg">
+              <span className="shrink-0 font-normal tabular-nums text-muted-fg">
                 {count}
               </span>
             )}
           </h2>
-          {action}
+          {action && <div className="-my-2 min-w-0">{action}</div>}
         </div>
         {groups.map(({ group, rows }) => (
           <div key={group}>
-            <h3 className="flex items-baseline gap-1.5 px-4 pb-1.5 pt-1 text-[0.8125rem] text-muted-fg sm:px-5">
+            {/* On the card's edge, like every heading on the page ground —
+                indented it read as belonging inside the card above. */}
+            <h3 className="flex items-baseline gap-1.5 pb-1.5 pt-1 text-[0.8125rem] text-muted-fg">
               {STATUS_GROUP_LABELS[group]}
               <span className="tabular-nums">{rows.length}</span>
             </h3>
@@ -205,7 +211,7 @@ function AttentionRow({
       {chevron && (
         <ChevronRightIcon
           aria-hidden="true"
-          className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg/60 transition-colors group-hover/row:text-brand sm:right-5"
+          className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg transition-colors group-hover/row:text-brand sm:right-5"
         />
       )}
       {href && !action ? (

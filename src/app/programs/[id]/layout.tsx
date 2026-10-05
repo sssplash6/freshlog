@@ -7,7 +7,7 @@ import { ProgramDot } from "@/components/program-chip";
 import { StatusChip } from "@/components/ui/status-chip";
 import { adminScope } from "@/lib/authz";
 import { requireProgramScope } from "@/lib/dal";
-import { formatRough } from "@/lib/format";
+import { formatBalance, formatDuration } from "@/lib/format";
 import { programTotals } from "@/lib/hours";
 
 import {
@@ -98,11 +98,6 @@ export default async function ProgramLayout({
         }
         actions={
           <span className="flex flex-wrap items-center gap-2">
-            {/* One primary: granting time is what a program admin opens this
-                page to do that no other page does for the whole program. */}
-            <LinkButton href={`${base}/allocate`} variant="primary" size="md">
-              Allocate time
-            </LinkButton>
             {/* The program travels with it: a student in two of them has two
                 balances, and the one being looked at is the one this log
                 should land in. */}
@@ -113,6 +108,13 @@ export default async function ProgramLayout({
             >
               Log a session
             </LinkButton>
+            {/* One primary, and LAST — the right-hand end, where the student
+                page puts its own. The two pages had the same pair in opposite
+                orders. Granting time is what a program admin opens this page
+                to do that no other page does for the whole program. */}
+            <LinkButton href={`${base}/allocate`} variant="primary" size="md">
+              Allocate time
+            </LinkButton>
           </span>
         }
       />
@@ -121,17 +123,34 @@ export default async function ProgramLayout({
           between, no boxes. Four figures and nothing else, at the owner's
           request: Total is what the students hold in all — the hour bank,
           where the program has one. Colour is on the VALUE and only where the
-          value is a problem. */}
+          value is a problem.
+
+          EXACT, and it adds up (October 2026). Each figure was rounded down
+          on its own, so "7+ hours" completed and "3+ hours" remaining sat
+          beside an 11-hour total that is neither their sum nor the whole
+          story — missed and expired time were nowhere. A program admin grants
+          against these figures, so they are the record, not a bearing; and
+          what the other two leave out of the total is said in the hint, so
+          the strip reconciles without arithmetic. */}
       <StatStrip
         lead={{
           label: "Remaining",
-          value: formatRough(totals.remaining),
+          value: formatBalance(totals.remaining),
           tone: totals.remaining < 0 ? "danger" : "hours",
+          hint:
+            totals.missed + totals.forfeited > 0
+              ? [
+                  totals.missed > 0 ? `${formatDuration(totals.missed)} missed` : null,
+                  totals.forfeited > 0 ? `${formatDuration(totals.forfeited)} expired unused` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : undefined,
         }}
         items={[
           { label: "Students", value: String(totals.students), icon: <UsersIcon className="h-4 w-4" /> },
-          { label: "Completed", value: formatRough(totals.completed), icon: <CheckIcon className="h-4 w-4" /> },
-          { label: "Total", value: formatRough(totals.allotted), icon: <LayersIcon className="h-4 w-4" /> },
+          { label: "Completed", value: formatDuration(totals.completed), icon: <CheckIcon className="h-4 w-4" /> },
+          { label: "Granted", value: formatDuration(totals.allotted), icon: <LayersIcon className="h-4 w-4" /> },
         ]}
       />
 
@@ -146,7 +165,9 @@ export default async function ProgramLayout({
           {
             href: base,
             label: levels.length > 0 ? "All students" : "Students",
-            count: totals.students,
+            // Only beside level tabs, where it is the sum they split. Alone,
+            // it was the strip's Students figure said a second time.
+            count: levels.length > 0 ? totals.students : undefined,
           },
           ...levels.map((l) => ({
             href: `${base}?level=${l.id}`,

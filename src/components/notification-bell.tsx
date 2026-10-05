@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { BellIcon } from "@/components/icons";
+import { BellIcon, ChevronRightIcon } from "@/components/icons";
 import { NavCount } from "@/components/nav-links";
 import { Popover } from "@/components/ui/popover";
 import { NOTIFICATION_META } from "@/lib/constants";
@@ -37,15 +37,28 @@ export function NotificationBell({
   unread,
   recent,
   now,
+  issues = 0,
 }: {
   unread: UnreadSummary;
   recent: BellNotification[];
   /** One instant for every "3h ago" in the panel. */
   now: Date;
+  /**
+   * How many active issues `/notifications` lists for this reader — the rows
+   * that ask something of them, as opposed to news.
+   *
+   * The panel showed only the feed, so a reader whose Home said "6 items need
+   * your attention" opened the bell and was told "none unread". The issues are
+   * the panel's first row now, and the button's label says them too.
+   */
+  issues?: number;
 }) {
+  const label = issues > 0
+    ? `${unreadLabel(unread)}; ${issues} active ${issues === 1 ? "issue" : "issues"}`
+    : unreadLabel(unread);
   return (
     <Popover
-      label={unreadLabel(unread)}
+      label={label}
       origin="end"
       width="lg"
       triggerClassName="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-fg transition hover:bg-fill hover:text-ink data-[open]:bg-fill data-[open]:text-ink"
@@ -70,6 +83,20 @@ export function NotificationBell({
           </span>
         )}
       </div>
+
+      {issues > 0 && (
+        <Link
+          href="/notifications"
+          transitionTypes={["nav-forward"]}
+          className="mx-1 mb-2 flex min-h-11 items-center justify-between gap-3 rounded-lg bg-warn-soft px-3 text-[0.8125rem] font-semibold text-warn-ink transition-opacity hover:opacity-90"
+        >
+          <span>
+            <span aria-hidden="true">! </span>
+            {issues} to act on
+          </span>
+          <ChevronRightIcon aria-hidden="true" className="h-4 w-4 shrink-0" />
+        </Link>
+      )}
 
       {/* What the number is made of, deadlines first: 157 unread is mostly
           session logs, and the three that have a clock on them should not have

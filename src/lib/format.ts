@@ -147,7 +147,9 @@ export function formatAgo(d: Date, now: Date = new Date()): string {
   const seconds = Math.max(0, Math.round((now.getTime() - d.getTime()) / 1000));
   if (seconds < 45) return "just now";
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  // "min", the word every other duration on the page uses — "5m ago" in the
+  // feed read as a different unit from "45 min" in the row beside it.
+  if (minutes < 60) return `${minutes} min ago`;
   const hours = Math.round(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
   const days = Math.round(hours / 24);
@@ -156,11 +158,19 @@ export function formatAgo(d: Date, now: Date = new Date()): string {
   return formatDate(d);
 }
 
-/** Timestamps (notifications, audit entries): "8 July 2026, 14:32 UTC". */
+/**
+ * Timestamps (notifications, audit entries): "July 8, 2026, 19:32 Tashkent".
+ *
+ * Month first and on the program's clock, like every other date and time in
+ * the app. It said "8 July 2026, 14:32 UTC" — the one day-first date and the
+ * one UTC time a reader ever saw. Uzbekistan is UTC+5 all year (`when.ts`), so
+ * a fixed offset is exact.
+ */
 export function formatDateTime(d: Date): string {
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  const mm = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${hh}:${mm} UTC`;
+  const wall = new Date(d.getTime() + 5 * 60 * 60 * 1000);
+  const hh = String(wall.getUTCHours()).padStart(2, "0");
+  const mm = String(wall.getUTCMinutes()).padStart(2, "0");
+  return `${MONTHS[wall.getUTCMonth()]} ${wall.getUTCDate()}, ${wall.getUTCFullYear()}, ${hh}:${mm} Tashkent`;
 }
 
 
