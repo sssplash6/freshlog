@@ -138,7 +138,7 @@ export async function MentorPrograms({ mentorId }: { mentorId: string }) {
                   className="min-h-11 font-semibold sm:min-h-0"
                 />
                 {row.cohort && (
-                  <span className="ml-2 text-[0.8125rem] text-muted-fg">{row.cohort}</span>
+                  <span className="ml-2 text-xs text-muted-fg">{row.cohort}</span>
                 )}
               </Td>
               <Td label="Students" align="right" className="tabular-nums">

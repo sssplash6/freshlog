@@ -504,7 +504,7 @@ export default async function StudentWorkspacePage({
         subtitle={
           <>
             {headline && (
-              <span className="mb-0.5 block text-[0.9375rem]">
+              <span className="mb-0.5 block text-body">
                 <span
                   className={
                     headline.danger ? "font-semibold text-danger-ink" : "font-semibold text-ink"
@@ -734,7 +734,7 @@ export default async function StudentWorkspacePage({
         // the heading it totals, the way every other card here reads.
         action={
           tracksPayment && manages ? (
-            <span className="text-[0.8125rem] text-muted-fg">
+            <span className="text-xs text-muted-fg">
               <span className="font-semibold tabular-nums text-ink">
                 {formatMoney(hours.paid)}
               </span>{" "}
@@ -793,7 +793,7 @@ export default async function StudentWorkspacePage({
 
         {exchanges.length === 0 && sendForm && (
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line px-4 py-3 sm:px-5">
-            <p className="min-w-0 text-[0.8125rem] text-muted-fg">
+            <p className="min-w-0 text-xs text-muted-fg">
               Lend {name} to another program for a set number of hours.
             </p>
             {sendForm}
@@ -805,7 +805,7 @@ export default async function StudentWorkspacePage({
             {/* The last row of the group, folded: who changed a grant and to
                 what is asked after something looks wrong, not on every visit. */}
             <Disclosure label="History" count={changes.length}>
-              <ul className="divide-y divide-line text-[0.8125rem]">
+              <ul className="divide-y divide-line text-xs">
                 {changes.map((c) => (
                   <li key={c.id} className="flex flex-wrap gap-x-2 py-2">
                     <span className="tabular-nums text-muted-fg">

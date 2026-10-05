@@ -52,13 +52,13 @@ export default async function UnsubscribePage({
       <div className="w-full max-w-md overflow-hidden rounded-2xl bg-surface text-center shadow-sm">
         <div className="p-6 sm:p-7">
           <div className="text-base font-bold tracking-tight text-brand">freshlog</div>
-          <h1 className="mt-4 text-[1.5rem] font-bold leading-tight tracking-[-0.01em] text-ink">
+          <h1 className="mt-4 text-figure-lg font-bold leading-tight tracking-[-0.01em] text-ink">
             {body.title}
           </h1>
 
           {armed && !state ? (
             <>
-              <p className="mt-2.5 text-[0.9375rem] leading-relaxed text-muted-fg">
+              <p className="mt-2.5 text-body leading-relaxed text-muted-fg">
                 You&apos;ll stop getting the Monday email about time you&apos;ve
                 used and time still to book. Deadline reminders inside the app
                 carry on.
@@ -76,7 +76,7 @@ export default async function UnsubscribePage({
             </>
           ) : (
             <>
-              <p className="mt-2.5 text-[0.9375rem] leading-relaxed text-muted-fg">
+              <p className="mt-2.5 text-body leading-relaxed text-muted-fg">
                 {body.blurb}
               </p>
               {/* Straight to the switch when the link failed, rather than

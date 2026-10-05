@@ -452,7 +452,7 @@ export function LogSessionForm({
                 touched({ minutes: String(m) });
               }}
               className={cn(
-                "inline-flex min-h-8 items-center rounded-full px-3 text-[0.8125rem] font-medium tabular-nums transition-colors max-sm:min-h-10",
+                "inline-flex min-h-8 items-center rounded-full px-3 text-xs font-medium tabular-nums transition-colors max-sm:min-h-10",
                 on ? "bg-brand-soft text-brand" : "bg-fill text-muted-fg hover:text-ink"
               )}
             >
@@ -497,10 +497,11 @@ export function LogSessionForm({
         Mentor
         <RequiredMark />
       </span>
-      <div className={cn(fieldErrors.mentorId && INVALID_SELECT)}>
+      <div>
         <Select
           name="mentorId"
           ariaLabel="Mentor"
+          invalid={Boolean(fieldErrors.mentorId)}
           defaultValue={mentorId}
           placeholder="Whose session was this?"
           // Always, rather than past the six-option threshold: a school with
@@ -532,10 +533,11 @@ export function LogSessionForm({
         Student
         <RequiredMark />
       </span>
-      <div className={cn(fieldErrors.studentProfileId && INVALID_SELECT)}>
+      <div>
         <Select
           name="studentProfileId"
           ariaLabel="Student"
+          invalid={Boolean(fieldErrors.studentProfileId)}
           defaultValue={studentId}
           placeholder={studentPlaceholder ?? "Choose a student"}
           onChange={(value) => {
@@ -575,7 +577,7 @@ export function LogSessionForm({
   const warning = warn && balance && (
     <div
       role="status"
-      className="flex items-start gap-2.5 rounded-lg bg-warn-soft px-3.5 py-2.5 text-[0.8125rem] text-warn-ink sm:col-span-2"
+      className="flex items-start gap-2.5 rounded-lg bg-warn-soft px-3.5 py-2.5 text-xs text-warn-ink sm:col-span-2"
     >
       <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
       <div className="min-w-0 flex-1">
@@ -745,7 +747,7 @@ export function LogSessionForm({
           do own it, a count of them, so a mentor scrolled to the button knows
           to look up. It said "it is marked in red" over a field that was not. */}
       {errorCount > 0 ? (
-        <p role="alert" className="mt-4 text-[0.8125rem] font-medium text-danger-ink">
+        <p role="alert" className="mt-4 text-xs font-medium text-danger-ink">
           {errorCount === 1
             ? "Fix the field marked above."
             : `Fix the ${errorCount} fields marked above.`}
@@ -791,13 +793,6 @@ type FieldErrors = Partial<Record<string, string>>;
 /** The lengths offered as one-tap answers under Minutes. */
 const MINUTE_PRESETS = [30, 45, 60, 90] as const;
 
-/**
- * A `Select` cannot be told it is wrong — its own invalid state listens for the
- * browser's check, which this form no longer runs — so the field around it
- * paints its trigger the way `badInputClass` paints an input.
- */
-const INVALID_SELECT =
-  "[&_[aria-haspopup]]:border-danger-line [&_[aria-haspopup]]:bg-danger-soft/40";
 
 /**
  * Every required answer, checked at once, in the words a field shows under

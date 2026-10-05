@@ -54,7 +54,7 @@ export function RowActionMenu({
   children: React.ReactNode | ((api: { close: () => void }) => React.ReactNode);
   /** `"actions"` only when the panel holds no fields at all. See `Popover`. */
   contents?: PopoverContents;
-  width?: "sm" | "md" | "lg";
+  width?: "sm" | "md" | "lg" | "xl";
 }) {
   return (
     // The menu is the last cell of a row, so it is pinned right and the panel

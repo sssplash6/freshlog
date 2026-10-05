@@ -140,7 +140,7 @@ export function PhoneChrome({ brand }: { brand: React.ReactNode }) {
           href={back.href}
           transitionTypes={["nav-back"]}
           aria-label={collapsed ? `Back to ${back.label}` : undefined}
-          className="-ml-1 inline-flex min-h-11 min-w-0 shrink items-center pr-2 text-[0.9375rem] font-medium text-brand sm:hidden"
+          className="-ml-1 inline-flex min-h-11 min-w-0 shrink items-center pr-2 text-body font-medium text-brand sm:hidden"
         >
           <ChevronLeftIcon className="-mr-0.5 h-6 w-6 shrink-0" />
           {/* Once the title shows, the label steps aside to the chevron, the
@@ -160,7 +160,7 @@ export function PhoneChrome({ brand }: { brand: React.ReactNode }) {
       <span
         aria-hidden="true"
         className={cn(
-          "pointer-events-none min-w-0 flex-1 text-center text-[0.9375rem] font-semibold text-ink transition-[opacity,transform] duration-200 sm:hidden",
+          "pointer-events-none min-w-0 flex-1 text-center text-body font-semibold text-ink transition-[opacity,transform] duration-200 sm:hidden",
           collapsed ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
         )}
       >

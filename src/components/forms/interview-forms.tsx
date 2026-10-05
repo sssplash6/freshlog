@@ -135,7 +135,7 @@ export function BookInterviewForm({
         <div className="mt-2 space-y-3">
           {days.map((day) => (
             <div key={day}>
-              <p className="text-[0.8125rem] font-semibold text-ink">{day}</p>
+              <p className="text-xs font-semibold text-ink">{day}</p>
               <div className="mt-1 flex flex-wrap gap-2">
                 {slots
                   .filter((s) => s.day === day)
@@ -150,7 +150,7 @@ export function BookInterviewForm({
                         onChange={() => setSlotId(s.id)}
                         className="peer sr-only"
                       />
-                      <span className="inline-flex h-11 cursor-pointer items-center rounded-full bg-fill px-4 text-[0.9375rem] font-medium tabular-nums text-ink transition-colors hover:bg-fill-strong peer-checked:bg-brand peer-checked:text-on-brand peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand">
+                      <span className="inline-flex h-11 cursor-pointer items-center rounded-full bg-fill px-4 text-body font-medium tabular-nums text-ink transition-colors hover:bg-fill-strong peer-checked:bg-brand peer-checked:text-on-brand peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand">
                         {/* The day and its zone are the heading above, which a
                             screen reader does not attach to the radio — so the
                             radio's own name carries them. */}
@@ -180,9 +180,9 @@ export function BookInterviewForm({
                 className="peer sr-only"
               />
               <span className="flex w-full cursor-pointer flex-col rounded-lg bg-fill px-3.5 py-2.5 transition-colors hover:bg-fill-strong peer-checked:bg-brand-soft peer-checked:ring-2 peer-checked:ring-brand peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand">
-                <span className="text-[0.9375rem] font-semibold text-ink">{t.name}</span>
-                <span className="mt-0.5 text-[0.8125rem] text-muted-fg">{t.summary}</span>
-                <span className="mt-1 text-[0.8125rem] text-muted-fg">
+                <span className="text-body font-semibold text-ink">{t.name}</span>
+                <span className="mt-0.5 text-xs text-muted-fg">{t.summary}</span>
+                <span className="mt-1 text-xs text-muted-fg">
                   {t.questions.length} questions
                 </span>
               </span>
@@ -281,7 +281,7 @@ export function InterviewNotesForm({
         onChange={(event) => setNotes(event.target.value)}
         className={cn("min-h-32 px-2.5 py-2")}
       />
-      <p className="text-[0.8125rem] text-muted-fg">Only you can read these.</p>
+      <p className="text-xs text-muted-fg">Only you can read these.</p>
       <div className="flex flex-wrap items-center gap-3">
         <SubmitButton pendingText="Saving…">Save notes</SubmitButton>
         <SaveState state={save} />

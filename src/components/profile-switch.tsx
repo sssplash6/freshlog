@@ -120,7 +120,7 @@ export function ProfileSwitch({ active }: { active: Profile }) {
           <span
             key={it.value}
             aria-current="true"
-            className="flex min-h-8 flex-1 items-center justify-center rounded-md bg-surface px-2.5 text-[0.8125rem] font-semibold text-ink shadow-sm"
+            className="flex min-h-8 flex-1 items-center justify-center rounded-md bg-surface px-2.5 text-xs font-semibold text-ink shadow-sm"
           >
             {/* Said in full to a screen reader: "Admin" beside a "Mentor"
                 button left the destination — and which one you are in —
@@ -136,7 +136,7 @@ export function ProfileSwitch({ active }: { active: Profile }) {
             value={it.value}
             title={`Switch to ${it.label} (${shortcut})`}
             aria-label={`Switch to ${it.label}`}
-            className="flex min-h-8 flex-1 cursor-pointer items-center justify-center rounded-md px-2.5 text-[0.8125rem] font-medium text-muted-fg transition-colors hover:text-ink"
+            className="flex min-h-8 flex-1 cursor-pointer items-center justify-center rounded-md px-2.5 text-xs font-medium text-muted-fg transition-colors hover:text-ink"
           >
             {it.label}
           </button>
@@ -165,7 +165,7 @@ export function ProfileSwitchMenu({ active }: { active: Profile }) {
       aria-keyshortcuts="Alt+M"
     >
       <input type="hidden" name="path" value={pathname} />
-      <p className="flex items-baseline justify-between gap-2 px-3 pb-0.5 pt-1 text-[0.8125rem] text-muted-fg">
+      <p className="flex items-baseline justify-between gap-2 px-3 pb-0.5 pt-1 text-xs text-muted-fg">
         Viewing as
         <span className="font-medium">
           {shortcut}
@@ -176,7 +176,7 @@ export function ProfileSwitchMenu({ active }: { active: Profile }) {
           <span
             key={it.value}
             aria-current="true"
-            className="flex min-h-11 items-center justify-between rounded-lg px-3 text-[0.9375rem] text-ink"
+            className="flex min-h-11 items-center justify-between rounded-lg px-3 text-body text-ink"
           >
             <span>
               <span className="sr-only">Viewing as </span>
@@ -191,7 +191,7 @@ export function ProfileSwitchMenu({ active }: { active: Profile }) {
             name="profile"
             value={it.value}
             aria-label={`Switch to ${it.label}`}
-            className="flex min-h-11 w-full cursor-pointer items-center rounded-lg px-3 text-left text-[0.9375rem] text-ink transition-colors hover:bg-fill"
+            className="flex min-h-11 w-full cursor-pointer items-center rounded-lg px-3 text-left text-body text-ink transition-colors hover:bg-fill"
           >
             {it.label}
           </button>

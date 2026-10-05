@@ -76,7 +76,7 @@ export function NotificationBell({
       }
     >
       <div className="flex items-baseline justify-between gap-3 px-3 pb-2">
-        <span className="text-[0.9375rem] font-semibold text-ink">Notifications</span>
+        <span className="text-body font-semibold text-ink">Notifications</span>
         {unread.total > 0 && (
           <span className="text-xs tabular-nums text-muted-fg">
             {unread.total} unread
@@ -88,7 +88,7 @@ export function NotificationBell({
         <Link
           href="/notifications"
           transitionTypes={["nav-forward"]}
-          className="mx-1 mb-2 flex min-h-11 items-center justify-between gap-3 rounded-lg bg-warn-soft px-3 text-[0.8125rem] font-semibold text-warn-ink transition-opacity hover:opacity-90"
+          className="mx-1 mb-2 flex min-h-11 items-center justify-between gap-3 rounded-lg bg-warn-soft px-3 text-xs font-semibold text-warn-ink transition-opacity hover:opacity-90"
         >
           <span>
             <span aria-hidden="true">! </span>
@@ -144,7 +144,7 @@ export function NotificationBell({
                 {!n.read && <span className="sr-only">Unread, </span>}
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span
-                    className={`line-clamp-2 text-[0.8125rem] text-ink ${
+                    className={`line-clamp-2 text-xs text-ink ${
                       n.read ? "" : "font-semibold"
                     }`}
                   >

@@ -57,12 +57,6 @@ const RAW_HEX = new RegExp(
   "g"
 );
 const PATTERNS = [RAW_CLASS, RAW_MONO, RAW_HEX];
-/**
- * Files still on raw white while their owners move them to a token. The
- * analytics program badge sets white initials on a program dot; it goes when
- * the program palette lands its own `on-` ink. Empty this, never grow it.
- */
-const MONO_PENDING = new Set(["src/app/analytics/dashboard.tsx"]);
 
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir)) {
@@ -84,7 +78,6 @@ for (const path of walk(SRC)) {
     .split("\n")
     .forEach((line, i) => {
       for (const re of PATTERNS) {
-        if (re === RAW_MONO && MONO_PENDING.has(rel)) continue;
         for (const match of line.matchAll(re)) {
           hits.push({ where: `${rel}:${i + 1}`, cls: match[0] });
         }

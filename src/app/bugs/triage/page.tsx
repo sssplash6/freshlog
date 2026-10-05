@@ -66,7 +66,7 @@ export default async function TriagePage({
                   <Link href={`/bugs/${r.id}`} className="font-medium text-ink hover:underline">
                     {r.title}
                   </Link>
-                  <p className="text-[0.8125rem] text-muted-fg">
+                  <p className="text-xs text-muted-fg">
                     {r.reporterName} · {r.reporterRole.toLowerCase()} · {formatDate(r.createdAt)}
                   </p>
                 </div>

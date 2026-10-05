@@ -49,14 +49,14 @@ function TabContent({ item, active }: { item: NavItem; active: boolean }) {
         />
         {/* The count rides the icon's corner, where a phone expects a badge. */}
         {item.count != null && item.count > 0 && (
-          <span className="absolute -right-2.5 -top-1 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-brand px-1 text-[0.6875rem] font-bold text-on-brand">
+          <span className="absolute -right-2.5 -top-1 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-brand px-1 text-caption font-bold text-on-brand">
             {item.count > 99 ? "99+" : item.count}
           </span>
         )}
       </span>
       <span
         className={cn(
-          "max-w-full truncate text-center text-[0.75rem] font-medium leading-snug",
+          "max-w-full truncate text-center text-caption font-medium leading-snug",
           lit ? "text-brand" : "text-muted-fg",
         )}
       >
@@ -177,13 +177,13 @@ export function TabBar({
               trigger={
                 <>
                   <MoreHorizontalIcon className="h-6 w-6" />
-                  <span className="text-[0.75rem] font-medium leading-snug">More</span>
+                  <span className="text-caption font-medium leading-snug">More</span>
                 </>
               }
             >
               {/* Named, so the sheet says what it is: it opened as a bare
                   list over the bar it came from. */}
-              <p className="px-3 pb-1 pt-1.5 text-[0.8125rem] font-semibold text-muted-fg">
+              <p className="px-3 pb-1 pt-1.5 text-xs font-semibold text-muted-fg">
                 More
               </p>
               {rest.map((item) => (
@@ -195,7 +195,7 @@ export function TabBar({
                   prefetch
                   aria-current={item === current ? "page" : undefined}
                   className={cn(
-                    "flex min-h-11 items-center gap-3 rounded-lg px-3 text-[0.9375rem] transition-colors",
+                    "flex min-h-11 items-center gap-3 rounded-lg px-3 text-body transition-colors",
                     item === current
                       ? "bg-brand-soft font-semibold text-brand"
                       : "text-ink hover:bg-fill"

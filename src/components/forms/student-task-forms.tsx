@@ -81,7 +81,7 @@ export function SetStudentTaskForm({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex min-h-11 w-full items-center gap-2 px-4 py-3 text-left text-[0.9375rem] font-medium text-brand transition-colors hover:bg-fill focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand sm:px-5"
+          className="flex min-h-11 w-full items-center gap-2 px-4 py-3 text-left text-body font-medium text-brand transition-colors hover:bg-fill focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand sm:px-5"
         >
           <PlusIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
           Set a task
@@ -294,7 +294,7 @@ export function TaskProgressControl({
           name="intent"
           value="reopen"
           disabled={pending}
-          className="inline-flex min-h-11 items-center rounded-lg px-2 text-[0.8125rem] font-medium text-brand transition-colors hover:bg-brand-soft disabled:opacity-50"
+          className="inline-flex min-h-11 items-center rounded-lg px-2 text-xs font-medium text-brand transition-colors hover:bg-brand-soft disabled:opacity-50"
         >
           Not finished after all
         </button>
@@ -336,7 +336,7 @@ export function TaskProgressControl({
               value={step}
               disabled={pending || current}
               aria-current={current}
-              className={`inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-[0.8125rem] tabular-nums transition-colors disabled:cursor-default ${
+              className={`inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-xs tabular-nums transition-colors disabled:cursor-default ${
                 current
                   ? "bg-surface font-semibold text-ink shadow-sm"
                   : "font-medium text-muted-fg hover:text-ink disabled:opacity-50"
@@ -351,7 +351,7 @@ export function TaskProgressControl({
           name="intent"
           value="done"
           disabled={pending}
-          className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-3 text-[0.8125rem] font-semibold text-brand transition-colors hover:bg-fill-strong disabled:opacity-50"
+          className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-3 text-xs font-semibold text-brand transition-colors hover:bg-fill-strong disabled:opacity-50"
         >
           <span aria-hidden="true">✓</span> Done
         </button>

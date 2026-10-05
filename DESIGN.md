@@ -217,14 +217,22 @@ Mono appears once, on the error digest. Numbers use tabular figures, and every
 `Table` sets them for the whole grid so a column of balances aligns by digit.
 (Amended September 2026, from Geist, when the visual layer moved toward iOS.)
 
-Durations are minutes until minutes stop being readable. One meeting or one
-task budget is a plain minute count ("90 min"); a roll-up — a total, a
-balance — splits past the hour ("18h 20m"), because nobody reads "1100 minutes
-remaining" as an amount of time. A figure a reader only **orients** by is
+Durations have **one format**: minutes under the hour ("45 min"), hours and
+minutes past it ("1h 30m", "18h 20m") — a meeting, a budget, a total and a
+balance alike. (Amended 4 October 2026, from "90 min" for a single meeting:
+one column that read "90 min" over "2h" over "45 min" did not scan, and
+`lib/format.ts` records the change.) A figure a reader only **orients** by is
 rounded and takes a "+" ("130+ hours"); a figure that **is** the record — one
 allocation, one logged session, a balance about to be spent against, anything
 beside money — stays exact. `PRODUCT.md` promises these numbers are trusted;
-that promise lives on the exact side of the line.
+that promise lives on the exact side of the line. Never mix the two in one strip:
+"7+ hours" completed beside "3+ hours" remaining under an exact "11 hours"
+total is a sum that does not add up on screen (October 2026).
+
+**Zero has two spellings, and they mean different things.** "—" is *nothing
+happened* (no session yet, nothing missed, nothing expired); "0 min" is a
+*balance that was spent down to zero*. "never" is gone. A row that printed
+`0 min | — | 45 min` was saying one thing three ways.
 
 A figure always carries its own unit, so no label or suffix repeats it. `Hrs`
 is a banned string (`scripts/check-copy.mjs`).
@@ -381,7 +389,11 @@ diagonal stripe, expired and overdrawn are `danger`, and the remainder is
 (hue 44°) — nine degrees apart and identical for deutan and protan readers.
 The legend swatches therefore differ in **shape** as well as fill: filled dot,
 striped square, hollow ring. Hours logged out of plan sit outside the bar; they
-were never part of what was bought.
+were never part of what was bought. (October 2026: the key now always names
+**Remaining** — the figure the reader opened the page for — and **Expired
+unused** whenever it is above zero, and every caller passes `expired`. An
+expired grant drawn as plain `line` read as time still available; `HoursRing`
+likewise draws expired minutes as their own red arc, never as orange spent.)
 
 ### Grouped lists (September 2026, second pass)
 
@@ -449,9 +461,17 @@ colour's meaning:
 Use native controls unless a custom interaction offers a demonstrated benefit,
 and a custom control owes the keyboard everything the native one gave:
 `Select` is a full ARIA combobox (arrows, Home/End, typeahead, Escape restoring
-focus) with one tab stop, and a required one is caught in the **browser** — its
-value rides a validatable input, not a hidden one, so "pick a mentor" is
-answered at the control instead of by a server error a second later.
+focus) with one tab stop, and its value rides a validatable input, not a
+hidden one, so a required one can be checked at the control.
+
+**A form validates in one voice** (October 2026). It is `noValidate` and checks
+itself on submit — every field at once, each message in red under its own
+field, the field ringed, and one line above the button counting them ("Fix the
+2 fields marked above"). The browser's tooltip named one field at a time and
+vanished on the next tap, while the form's own errors answered in red: two
+voices on one submit, and a footer promising "marked in red" over a field that
+was not. `log-session-form.tsx` is the reference; `RegisterMentorForm` follows
+it. A Save button is disabled until its field changes.
 
 Interactive controls need a visible keyboard focus ring and a **44px** minimum
 target. Forms show an inline, announced result and submit through
@@ -492,6 +512,38 @@ Every table is capped at **six columns**, a row stacks into labelled lines below
 swipe nothing on screen suggests is not navigation. Any list that can grow
 without bound is paged, and the narrowing — search, filter, date range —
 belongs in the query, never in a `.filter()` over everything.
+
+### What a page asks of its reader (October 2026)
+
+- **Amber is for what the reader can act on.** A row the reader can do
+  something about — book, grant, log, answer — wears the attention chip and
+  sorts first; a row that is only worth knowing (a mentor with no booking link,
+  seen by the student who cannot fix it) is neutral. Seven amber chips on a
+  student's first screen meant none of them did. `StatusSummary` is always
+  titled, even with one row, and its count is the rows it shows — "Things to
+  check 3" over five rows read as a bug. The bell, `/notifications` and an
+  admin's Home count the same rows.
+- **One create slot.** Every "new" action — New program, Register a mentor,
+  Add students — is the plus button at the right end of `PageTitle`, opening
+  its form as a card under the title, with Cancel and Escape. It was a text
+  link in four places and a button in a fifth, and the Students roster had none
+  once it had anyone in it. The primary button is always last in a cluster.
+- **A home page leads with what needs the reader.** The mentor's Home opens on
+  "Needs you" (the top rows of the bell's list, only when something is waiting)
+  above the caseload, and the caseload sorts expired and at-risk first, then by
+  soonest use-by — not by most hours, which put the student losing time
+  twelfth of thirteen. An admin's Home lists its top three issues inline
+  instead of a sentence linking elsewhere.
+- **Logging a session is the hot path.** Student and Minutes share the first
+  row; Minutes offers 30 / 45 / 60 / 90 as one-tap answers with "min" in the
+  box; on a phone the submit stays pinned above the tab bar. Cmd+K carries
+  actions as well as places — "Log a session", "Log a session with <student>",
+  ⌘↵ on a student row — and ranks prefix matches first across groups.
+- **Ratings stay anonymous to the mentor.** The Feedback page promises a mentor
+  never sees which student rated them, so a student's per-session rating and
+  note are stripped **on the server** for a mentor's own lens — hidden in the
+  markup was not enough, because the payload still carried them. Admins see
+  them.
 
 There is **one** route error boundary (`app/error.tsx`) and it sits *above* the
 shell, with `global-error.tsx` below it for the root layout itself. The five

@@ -71,14 +71,14 @@ export function AttentionList({
     <Link
       href={moreHref}
       transitionTypes={["nav-forward"]}
-      className="text-[0.8125rem] font-medium text-brand hover:underline"
+      className="text-xs font-medium text-brand hover:underline"
     >
       {moreLabel ?? "See all"}
     </Link>
   ) : moreLabel ? (
     // A label with nowhere to go still has something to say: a capped list
     // that discards its eleventh row in silence reads as a complete list.
-    <span className="text-[0.8125rem] text-muted-fg">{moreLabel}</span>
+    <span className="text-xs text-muted-fg">{moreLabel}</span>
   ) : undefined;
 
   const rowsOf = (rows: Status[]) => (
@@ -106,7 +106,7 @@ export function AttentionList({
             the same size at regular weight. This one was 20px over a 15px
             medium count, a heading a size up from every other on the page. */}
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-0.5 pt-2">
-          <h2 className="flex items-baseline gap-2 text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink">
+          <h2 className="flex items-baseline gap-2 text-title font-semibold tracking-[-0.01em] text-ink">
             <span className="min-w-0 truncate">{title}</span>
             {count > 0 && (
               <span className="shrink-0 font-normal tabular-nums text-muted-fg">
@@ -120,7 +120,7 @@ export function AttentionList({
           <div key={group}>
             {/* On the card's edge, like every heading on the page ground —
                 indented it read as belonging inside the card above. */}
-            <h3 className="flex items-baseline gap-1.5 pb-1.5 pt-1 text-[0.8125rem] text-muted-fg">
+            <h3 className="flex items-baseline gap-1.5 pb-1.5 pt-1 text-xs text-muted-fg">
               {STATUS_GROUP_LABELS[group]}
               <span className="tabular-nums">{rows.length}</span>
             </h3>
@@ -141,7 +141,7 @@ export function AttentionList({
       action={action}
     >
       {statuses.length === 0 ? (
-        <p className="flex items-baseline gap-1.5 px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">
+        <p className="flex items-baseline gap-1.5 px-4 py-3 text-body text-muted-fg sm:px-5">
           {/* Inbox zero gets the tick — the one moment "nothing" is the news. */}
           <CheckIcon className="check-draw h-3.5 w-3.5 shrink-0 translate-y-0.5 text-ink/60" />
           {empty ?? "No active issues."}
@@ -186,12 +186,12 @@ function AttentionRow({
         )}
       </span>
       {subject && (
-        <span className="mt-1 block min-w-0 truncate text-[0.9375rem] font-medium text-ink">
+        <span className="mt-1 block min-w-0 truncate text-body font-medium text-ink">
           {subject.name}
         </span>
       )}
       {explanation && (
-        <span className="mt-0.5 block text-[0.8125rem] text-muted-fg">{explanation}</span>
+        <span className="mt-0.5 block text-xs text-muted-fg">{explanation}</span>
       )}
     </>
   );

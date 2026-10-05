@@ -173,10 +173,10 @@ function StudentRows({
         <div className="space-y-2 rounded-xl bg-surface p-4 shadow-sm sm:p-5">
           <div className="mb-1 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink">
+              <h2 className="text-title font-semibold tracking-[-0.01em] text-ink">
                 Add students to {program.name}
               </h2>
-              <p className="mt-0.5 text-[0.8125rem] text-muted-fg">
+              <p className="mt-0.5 text-xs text-muted-fg">
                 Each confirms their name on first sign-in.
               </p>
             </div>

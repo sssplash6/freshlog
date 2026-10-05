@@ -136,7 +136,14 @@ export function LedgerBoard({
     (a) => a.progress === ASSIGNMENT_PROGRESS.DONE,
   );
 
-  const meetingRows = toSessionEntries(logged, { mentorBase }).map((s, i) => (
+  // A mentor reads the record, never what the student said about it: the
+  // rating and note are left out HERE, on the server, so they are not in the
+  // page's payload either. Hiding them in the row only kept them off the
+  // screen — anyone who opened the network tab could still read them.
+  const meetingRows = toSessionEntries(logged, {
+    mentorBase,
+    feedback: viewer.audience !== "mentor",
+  }).map((s, i) => (
     <SessionRow
       key={s.id}
       session={s}
@@ -158,6 +165,16 @@ export function LedgerBoard({
     />
   ));
 
+  // A row with no menu still keeps the menu's width, so the budget bars down
+  // the list end on one edge. Without it the one row a reader may not touch —
+  // another mentor's item — had its bar 28px further right than the rest.
+  const agendaActions = (task: LedgerAssignment) =>
+    renderAgendaActions
+      ? (renderAgendaActions(task) ?? (
+          <span aria-hidden className="hidden sm:block sm:w-7" />
+        ))
+      : undefined;
+
   // Finished work is one line each: it is here to be counted and to be
   // findable, not to be read again.
   const agendaRows = [
@@ -168,7 +185,7 @@ export function LedgerBoard({
         viewer={viewer}
         variant="list"
         index={i}
-        actions={renderAgendaActions?.(planned[i])}
+        actions={agendaActions(planned[i])}
       />
     )),
     ...toTaskEntries(finished, { mentorBase }).map((t, i) => (
@@ -177,7 +194,7 @@ export function LedgerBoard({
         task={t}
         viewer={viewer}
         variant="line"
-        actions={renderAgendaActions?.(finished[i])}
+        actions={agendaActions(finished[i])}
       />
     )),
   ];
@@ -194,6 +211,7 @@ export function LedgerBoard({
             completed={totals.completed}
             missed={totals.missed}
             remaining={totals.remaining}
+            expired={totals.forfeited}
           />
         </div>
       </Section>
@@ -209,7 +227,7 @@ export function LedgerBoard({
             the logged. */}
         <Section title="Sessions" count={logged.length}>
           {logged.length === 0 ? (
-            <p className="px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">
+            <p className="px-4 py-3 text-body text-muted-fg sm:px-5">
               No sessions logged yet.
             </p>
           ) : (
@@ -231,17 +249,17 @@ export function LedgerBoard({
           // The whole log's shape, not just what is left: a mentor opening
           // somebody they have not seen in a month wants to know what was
           // finished as much as what is outstanding.
+          // Only once something is done: "1 open" beside a count of 1 said
+          // the same number twice.
           caption={
-            tasks.length === 0
+            doneTasks.length === 0
               ? undefined
-              : doneTasks.length === 0
-                ? `${openTasks.length} open`
-                : `${openTasks.length} open · ${doneTasks.length} done`
+              : `${openTasks.length} open · ${doneTasks.length} done`
           }
         >
           {tasks.length === 0 ? (
-            <p className="px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">
-              No tasks set.
+            <p className="px-4 py-3 text-body text-muted-fg sm:px-5">
+              No tasks set yet.
             </p>
           ) : (
             <ShowMoreList rows={taskRows} noun="tasks" />
@@ -255,16 +273,17 @@ export function LedgerBoard({
       {/* The term: what the hours were bought for. It moves at the pace of a
           grant rather than of a Tuesday, so it sits under the week at full
           width, where its budget bars have room. The caption is the budget,
-          with no word after it — every figure in this group is a duration. */}
+          and says so: a bare "6h" at the end of a heading read as anything —
+          time used, time left, time owed. */}
       <Section
         title="Agenda"
         count={assignments.length}
         caption={
           assignments.length === 0
             ? undefined
-            : formatDuration(
+            : `${formatDuration(
                 assignments.reduce((sum, a) => sum + (a.minuteLimit ?? 0), 0)
-              )
+              )} planned`
         }
       >
         {banks.length > 0 && (
@@ -298,8 +317,8 @@ export function LedgerBoard({
         )}
         {assignments.length === 0 ? (
           banks.length === 0 && (
-            <p className="px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">
-              No agenda yet.
+            <p className="px-4 py-3 text-body text-muted-fg sm:px-5">
+              No agenda planned yet.
             </p>
           )
         ) : (

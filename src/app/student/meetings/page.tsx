@@ -142,7 +142,7 @@ export default async function StudentMeetingsPage({
         action={
           <ArrowLink
             href="/student/interviews"
-            className="text-[0.9375rem] font-medium"
+            className="text-body font-medium"
           >
             Interviews
           </ArrowLink>
@@ -153,7 +153,7 @@ export default async function StudentMeetingsPage({
           // mentor's own calendar, outside this app, so a student who had
           // just booked one came here, found "Nothing booked", and assumed
           // it had not gone through.
-          <p className="px-4 py-3 text-[0.8125rem] text-muted-fg sm:px-5">
+          <p className="px-4 py-3 text-xs text-muted-fg sm:px-5">
             No practice interviews booked. Booked a mentor? That meeting lives
             in your calendar invite, and shows up below once your mentor logs
             it.
@@ -223,7 +223,7 @@ export default async function StudentMeetingsPage({
                       !needsAnswer.has(session.id) ? (
                         <Link
                           href={`/student/feedback?mentor=${session.mentor.id}`}
-                          className="inline-flex min-h-11 items-center text-[0.8125rem] font-medium text-brand hover:text-brand-dark"
+                          className="inline-flex min-h-11 items-center text-xs font-medium text-brand hover:text-brand-dark"
                         >
                           Rate {mentorName.split(" ")[0]}
                         </Link>

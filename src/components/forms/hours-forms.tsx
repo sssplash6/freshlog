@@ -150,7 +150,7 @@ export function AllocationRowActions({
           {granting && !bank && (
             <div className="rise-in">
               <TaskPicker compact optional openTasks={openTasks} />
-              <p className="mt-1.5 text-[0.75rem] text-muted-fg">
+              <p className="mt-1.5 text-caption text-muted-fg">
                 Name the work and these extra hours become its budget.
               </p>
             </div>
@@ -261,7 +261,7 @@ function TransferGroup({
           </label>
         )}
 
-        <p className="text-[0.75rem] text-muted-fg">
+        <p className="text-caption text-muted-fg">
           Logged time stays with the current mentor. The student&apos;s total
           doesn&apos;t change.
         </p>

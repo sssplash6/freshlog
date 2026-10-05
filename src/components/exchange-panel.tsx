@@ -65,11 +65,23 @@ export function ExchangeList({
                     href={`/students/${e.studentId}`}
                   />
                 )}
-                <ProgramChip program={e.fromProgram} />
-                <span aria-hidden className="text-muted-fg">
-                  &rarr;
+                {/* The route is one unit, and "→ host" is one unit inside it.
+                    The arrow used to be a free item in the wrapping row, so on
+                    a phone it landed at the end of one line on one placement
+                    and the start of the next on another — "Flexible Program →"
+                    over "Global Admissions Program" (October 2026). Now a wrap
+                    can only fall before the arrow, and under `sm` the route
+                    takes its own line under the student. */}
+                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 max-sm:basis-full">
+                  <ProgramChip program={e.fromProgram} />
+                  <span className="inline-flex min-w-0 items-center gap-2 whitespace-nowrap">
+                    <span aria-hidden className="text-muted-fg">
+                      &rarr;
+                    </span>
+                    <span className="sr-only">to</span>
+                    <ProgramChip program={e.toProgram} />
+                  </span>
                 </span>
-                <ProgramChip program={e.toProgram} />
                 {!open && <StatusChip severity="neutral">Called off</StatusChip>}
                 {open && unallocated > 0 && (
                   <StatusChip severity="attention">
@@ -80,12 +92,12 @@ export function ExchangeList({
                   <StatusChip severity="problem">Ran out</StatusChip>
                 )}
               </span>
-              <span className="shrink-0 text-[0.9375rem] font-medium tabular-nums text-ink">
+              <span className="shrink-0 text-body font-medium tabular-nums text-ink">
                 {formatDuration(cap)} · use by {formatDate(e.deadline)}
               </span>
             </div>
 
-            <p className="mt-0.5 text-[0.8125rem] text-muted-fg">
+            <p className="mt-0.5 text-xs text-muted-fg">
               Sent by {e.sentBy.name ?? e.sentBy.email}
               {e.note ? ` · “${e.note}”` : ""}
               {!open && e.returnedBy
@@ -96,7 +108,7 @@ export function ExchangeList({
             </p>
 
             {open && (
-              <p className="mt-0.5 text-[0.8125rem] tabular-nums text-muted-fg">
+              <p className="mt-0.5 text-xs tabular-nums text-muted-fg">
                 {allocated > 0
                   ? `${formatDuration(allocated)} on ${e.mentors
                       .map((m) => m.mentor?.name ?? m.mentor?.email ?? "nobody yet")

@@ -80,11 +80,16 @@ const FOCUSABLE = [
 const OWNS_ARROWS =
   'input:not([type="checkbox"]),textarea,select,[role="combobox"],[role="grid"]';
 
-/** Panel widths: the app-shell menus at w-60, and the row menus at w-72 / w-80. */
+/**
+ * Panel widths: the app-shell menus at w-60, the row menus at w-72 / w-80, and
+ * `xl` for a menu that is really a small form — the session editor, whose
+ * "Counts toward their time" wrapped to two lines at 320px (October 2026).
+ */
 const WIDTHS = {
   sm: "w-60",
   md: "w-72",
   lg: "w-80",
+  xl: "w-96",
 } as const;
 
 /**

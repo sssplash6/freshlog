@@ -171,7 +171,7 @@ export function StudentTaskRow({
             // date is the same kind of value in both columns of this card, so
             // it may not be bold ink in one and muted in the other — the two
             // lists sit twelve pixels apart and were read as two designs.
-            <span className="shrink-0 whitespace-nowrap text-[0.8125rem] tabular-nums text-muted-fg">
+            <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-fg">
               {formatDate(task.dueOn)}
             </span>
           )}
@@ -194,7 +194,7 @@ export function StudentTaskRow({
 
           {/* WHAT. The flexible middle, so progress lands against the right
               edge however short the title is. */}
-          <span className="min-w-0 flex-1 basis-full text-[0.9375rem] font-medium leading-snug text-ink order-first">
+          <span className="min-w-0 flex-1 basis-full text-body font-medium leading-snug text-ink order-first">
             {task.title}
           </span>
         </div>
@@ -224,7 +224,7 @@ export function StudentTaskRow({
             // segment already says "75%", and the same figure in the corner
             // was one fact stated twice on one card.
             <span
-              className="w-10 text-right text-[0.8125rem] font-medium tabular-nums text-muted-fg"
+              className="w-10 text-right text-xs font-medium tabular-nums text-muted-fg"
               aria-label={`${task.percent}% of the way through`}
             >
               {task.percent}%

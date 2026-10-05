@@ -53,7 +53,7 @@ export default async function BugsPage() {
                   <Link href={`/bugs/${r.id}`} className="font-medium text-ink hover:underline">
                     {r.title}
                   </Link>
-                  <p className="text-[0.8125rem] text-muted-fg">Sent {formatDate(r.createdAt)}</p>
+                  <p className="text-xs text-muted-fg">Sent {formatDate(r.createdAt)}</p>
                 </div>
                 {isBugStatus(r.status) && (
                   <StatusChip severity={BUG_STATUS_SEVERITY[r.status]}>
@@ -75,8 +75,8 @@ export default async function BugsPage() {
           <ul className="divide-y divide-line">
             {fixed.map((f, i) => (
               <li key={i} className="space-y-1 px-4 py-3 sm:px-5">
-                <p className="text-[0.9375rem] text-ink">{f.resolution}</p>
-                <p className="text-[0.8125rem] text-muted-fg">
+                <p className="text-body text-ink">{f.resolution}</p>
+                <p className="text-xs text-muted-fg">
                   {f.resolvedAt ? formatDate(f.resolvedAt) : null}
                   {f.changelogDate && (
                     <>

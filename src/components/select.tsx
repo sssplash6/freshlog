@@ -133,6 +133,9 @@ export function Select({
   searchable,
   recentKey,
   onChange,
+  invalid: invalidProp = false,
+  requiredMessage,
+  title,
 }: {
   name: string;
   options: SelectOption[];
@@ -150,6 +153,16 @@ export function Select({
   recentKey?: string;
   /** Notifies the parent when the choice changes, for dependent fields. */
   onChange?: (value: string) => void;
+  /**
+   * The parent's own verdict — a form that validates itself (`noValidate`)
+   * and prints the error under the field. Draws the same red edge the
+   * browser-caught case does; the message stays the parent's to write.
+   */
+  invalid?: boolean;
+  /** What the empty-submit message says, when "{label} is required." is robotic. */
+  requiredMessage?: string;
+  /** The phone sheet's heading. Defaults to `ariaLabel`. */
+  title?: string;
 }) {
   const [value, setValue] = useState(defaultValue);
   const [open, setOpen] = useState(false);
@@ -158,7 +171,10 @@ export function Select({
   // regrouping both reorder the list under the keyboard, and an index would
   // silently point at a different option (or a header) afterwards.
   const [activeValue, setActiveValue] = useState<string | null>(null);
-  const [invalid, setInvalid] = useState(false);
+  const [caught, setInvalid] = useState(false);
+  // Red when the browser caught an empty submit OR the parent says so; only
+  // the browser-caught case prints a message here, so the two never stack.
+  const invalid = caught || invalidProp;
   const [recents, setRecents] = useState<string[]>([]);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
@@ -490,7 +506,7 @@ export function Select({
         }
         aria-label={ariaLabel}
         aria-invalid={invalid || undefined}
-        aria-describedby={invalid ? errorId : undefined}
+        aria-describedby={caught ? errorId : undefined}
         onClick={() => (open ? close(false) : openList("value"))}
         onKeyDown={onKeyDown}
         className={cn(
@@ -498,7 +514,7 @@ export function Select({
           // the one that appears most often — the log form and every filter
           // row carry one — so four pixels here is four pixels everywhere.
           fieldChrome,
-          "flex min-h-11 w-full items-center justify-between gap-2 pl-3.5 pr-2.5 text-[0.9375rem]",
+          "flex min-h-11 w-full items-center justify-between gap-2 pl-3.5 pr-2.5 text-body",
           invalid
             ? "border-danger bg-danger-soft/40"
             : open && "border-brand bg-surface",
@@ -523,9 +539,9 @@ export function Select({
         />
       </button>
 
-      {invalid && (
+      {caught && (
         <p id={errorId} role="alert" className="mt-1 text-xs text-danger-ink">
-          {ariaLabel} is required.
+          {requiredMessage ?? `${ariaLabel} is required.`}
         </p>
       )}
 
@@ -567,10 +583,17 @@ export function Select({
               )}
             >
               {sheet && (
-                <div
-                  aria-hidden="true"
-                  className="mx-auto mb-1 mt-1.5 h-1 w-9 shrink-0 rounded-full bg-line"
-                />
+                <>
+                  <div
+                    aria-hidden="true"
+                    className="mx-auto mb-1 mt-1.5 h-1 w-9 shrink-0 rounded-full bg-line"
+                  />
+                  {/* A sheet covers the form, so it says which field it is
+                      answering — the trigger's label is behind the scrim. */}
+                  <p className="px-4 pb-2 pt-1 text-title font-semibold text-ink">
+                    {title ?? ariaLabel}
+                  </p>
+                </>
               )}
               {withSearch && (
                 <div className="flex items-center gap-2 border-b border-line px-3">
@@ -622,6 +645,7 @@ export function Select({
                       key={row.option.value || "__none"}
                       id={optionId(i)}
                       option={row.option}
+                      none={row.option.value === ""}
                       selected={row.option.value === value}
                       active={i === active}
                       onHover={() => setActive(i)}
@@ -641,6 +665,7 @@ export function Select({
 function SelectItem({
   id,
   option,
+  none,
   selected,
   active,
   onHover,
@@ -648,6 +673,12 @@ function SelectItem({
 }: {
   id: string;
   option: SelectOption;
+  /**
+   * The optional "no choice" row. It reads as an absence, in grey, even when
+   * it is the current value: a brand fill and a ✓ on "Optional — choose one…"
+   * looked like a choice somebody had made.
+   */
+  none?: boolean;
   selected: boolean;
   active: boolean;
   onHover: () => void;
@@ -663,11 +694,15 @@ function SelectItem({
       onPointerMove={onHover}
       className={cn(
         "flex cursor-pointer items-center justify-between gap-4 rounded-lg px-2.5 py-2 text-left text-sm transition-colors",
-        selected
-          ? "bg-brand-soft font-medium text-brand"
-          : active
-            ? "bg-canvas text-ink"
-            : "text-ink",
+        none
+          ? active
+            ? "bg-canvas text-muted-fg"
+            : "text-muted-fg"
+          : selected
+            ? "bg-brand-soft font-medium text-brand"
+            : active
+              ? "bg-canvas text-ink"
+              : "text-ink",
       )}
     >
       <span className="min-w-0">
@@ -692,7 +727,7 @@ function SelectItem({
           </span>
         )}
       </span>
-      {selected && <CheckIcon className="h-4 w-4 shrink-0" />}
+      {selected && !none && <CheckIcon className="h-4 w-4 shrink-0" />}
     </li>
   );
 }

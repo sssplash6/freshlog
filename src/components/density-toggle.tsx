@@ -51,7 +51,7 @@ export function DensityToggle({
       type="button"
       onClick={cycle}
       className={cn(
-        "hidden min-h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-3 text-left text-[0.9375rem] transition-colors sm:flex",
+        "hidden min-h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-3 text-left text-body transition-colors sm:flex",
         inline
           ? "bg-fill font-medium text-ink ring-1 ring-inset ring-ink/15 hover:bg-fill-strong"
           : "text-ink hover:bg-fill",
@@ -59,9 +59,9 @@ export function DensityToggle({
       )}
     >
       <span className={cn(inline && "sr-only")}>Density</span>
-      <span className={cn("density-compact-only text-[0.8125rem]", inline ? "text-ink" : "text-muted-fg")}>Compact</span>
-      <span className={cn("density-default-only text-[0.8125rem]", inline ? "text-ink" : "text-muted-fg")}>Default</span>
-      <span className={cn("density-comfortable-only text-[0.8125rem]", inline ? "text-ink" : "text-muted-fg")}>Comfortable</span>
+      <span className={cn("density-compact-only text-xs", inline ? "text-ink" : "text-muted-fg")}>Compact</span>
+      <span className={cn("density-default-only text-xs", inline ? "text-ink" : "text-muted-fg")}>Default</span>
+      <span className={cn("density-comfortable-only text-xs", inline ? "text-ink" : "text-muted-fg")}>Comfortable</span>
     </button>
   );
 }

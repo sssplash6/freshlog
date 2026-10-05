@@ -4,6 +4,25 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-06
+
+### New
+- **Home shows what needs you.** Admin and mentor Homes list the top issues inline, like hours that expired or are about to, and a mentor's students are sorted so whoever is running out of time comes first.
+- **Faster session logging.** Pick 30, 45, 60 or 90 minutes in one tap, the fields come in the order you fill them, and on a phone the Log button stays in reach above the tab bar.
+- **Log from search.** Press ⌘K, find a student, and log a session with them straight away. The best match now comes first.
+- **A clearer student Home.** It opens with the hours you have left and when to use them, lists each task once, and a new student sees how freshlog works instead of empty boxes.
+- **Every program has its own colour.** Programs are easy to tell apart, keep the same colour on every page and chart, and stay readable in dark mode.
+- **One place to add things.** New program, Register a mentor and Add students are the same button at the top right of their page, and open a form right under the title.
+- **Neater phone lists.** Students, programs and a mentor's caseload are one or two lines each on a phone instead of tall stacked cards.
+
+### Fixed
+- **Figures add up.** Completed, missed, remaining and expired now add up to the time granted, the same total reads the same on every page, and analytics percentages match the period you picked.
+- **Expired hours look expired.** Time lost on its use-by date shows in red on the hours ring and bars, instead of as used or still available.
+- **Ratings stay anonymous.** Mentors no longer see the rating or comment a student left on a session, as the Feedback page promises. A dispute's wording still reaches them.
+- **Counts match what you see.** "Things to check", the bell and notifications count the rows they actually show.
+- **Forms explain what's missing.** Every required field says what it needs right under it, in one style, instead of mixing browser pop-ups with red text.
+- **Easier to read and tap.** Text sizes, focus rings, contrast in dark mode, and tap targets on phones are consistent across the app, and menus open smoothly instead of popping.
+
 ## 2026-10-05
 
 ### New

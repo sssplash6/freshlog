@@ -147,7 +147,7 @@ export default async function StudentInterviewsPage() {
       ) : (
         <>
           {offering.length === 0 ? (
-            <p className="px-4 py-3 text-[0.8125rem] text-muted-fg sm:px-5">
+            <p className="px-4 py-3 text-xs text-muted-fg sm:px-5">
               None of your {named.length} classmates has offered a time yet. Be the first!
             </p>
           ) : (
@@ -216,14 +216,14 @@ export default async function StudentInterviewsPage() {
                 key={s.id}
                 className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-3 sm:px-5"
               >
-                <span className="text-[0.9375rem]">
+                <span className="text-body">
                   <span className="font-medium text-ink">{formatSlotDay(s.startsAt)}</span>{" "}
                   <span className="tabular-nums text-muted-fg">{formatSlotSpan(s, { zone: true })}</span>
                 </span>
                 {s.interview ? (
                   <Link
                     href={`/student/interviews/${s.interview.id}`}
-                    className="text-[0.8125rem] font-medium text-brand hover:text-brand-dark"
+                    className="text-xs font-medium text-brand hover:text-brand-dark"
                   >
                     Booked by {s.interview.guest.user.name ?? "a classmate"}
                   </Link>
@@ -273,7 +273,7 @@ function ClassmateRow({
         className="min-w-0 flex-1"
       />
       {open > 0 && (
-        <span className="shrink-0 text-[0.8125rem] tabular-nums text-muted-fg">
+        <span className="shrink-0 text-xs tabular-nums text-muted-fg">
           {open} {open === 1 ? "time" : "times"} open
         </span>
       )}

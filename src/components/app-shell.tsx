@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import pkg from "../../package.json";
 import { Avatar } from "@/components/avatar";
@@ -40,6 +41,7 @@ import { PhoneChrome } from "@/components/phone-chrome";
 import { Popover } from "@/components/ui/popover";
 import { signOut } from "@/lib/auth";
 import { cn } from "@/lib/cn";
+import { attentionFor } from "@/lib/attention";
 import { adminScope, scopeIsEmpty } from "@/lib/authz";
 import { hasUnseenChangelog, readChangelog } from "@/lib/changelog";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
@@ -129,7 +131,7 @@ function WhatsNewLink({ unseen }: { unseen: boolean }) {
     <Link
       href="/changelog"
       transitionTypes={["nav-forward"]}
-      className="relative flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] font-medium text-muted-fg transition hover:bg-fill hover:text-ink"
+      className="relative flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-fg transition hover:bg-fill hover:text-ink"
     >
       <SparklesIcon className="h-4 w-4" />
       {"What's new"}
@@ -148,7 +150,7 @@ function WhatsNewLink({ unseen }: { unseen: boolean }) {
 
 /** One row of the account menu, and the icon column every row shares. */
 const MENU_ROW =
-  "flex min-h-11 items-center gap-2.5 rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill";
+  "flex min-h-11 items-center gap-2.5 rounded-lg px-3 text-body text-ink transition-colors hover:bg-fill";
 const MENU_ICON = "h-4 w-4 shrink-0 text-muted-fg";
 
 /**
@@ -224,7 +226,7 @@ function AccountMenu({
           </span>
           {named && (
             <>
-              <span className="hidden min-w-0 flex-1 truncate text-left text-[0.9375rem] font-medium text-ink lg:inline">
+              <span className="hidden min-w-0 flex-1 truncate text-left text-body font-medium text-ink lg:inline">
                 {label}
               </span>
               <ChevronDownIcon className="hidden h-4 w-4 shrink-0 text-muted-fg transition-transform group-data-[open]:rotate-180 lg:block" />
@@ -234,11 +236,11 @@ function AccountMenu({
       }
     >
       <div className="border-b border-line px-3 py-2.5">
-        <p className="min-w-0 truncate text-[0.9375rem] font-semibold text-ink">
+        <p className="min-w-0 truncate text-body font-semibold text-ink">
           {user.name ?? user.email}
         </p>
         {user.name && (
-          <p className="min-w-0 truncate text-[0.8125rem] text-muted-fg">{user.email}</p>
+          <p className="min-w-0 truncate text-xs text-muted-fg">{user.email}</p>
         )}
       </div>
 
@@ -341,7 +343,7 @@ function InstituteMark({
   space: Extract<Space, { kind: "institute" }>;
 }) {
   return (
-    <span className="flex min-w-0 items-center gap-2 text-[0.9375rem] font-semibold text-ink">
+    <span className="flex min-w-0 items-center gap-2 text-body font-semibold text-ink">
       <ProgramDot program={{ id: space.programId, name: space.name, colorIndex: space.colorIndex }} />
       <span className="min-w-0 truncate">{space.name}</span>
     </span>
@@ -464,6 +466,7 @@ function TopBar({
  */
 function StaffShell({
   user,
+  profile,
   unread,
   items,
   lens,
@@ -475,6 +478,8 @@ function StaffShell({
   children,
 }: {
   user: User;
+  /** The lens in force, which decides whose active issues the bell counts. */
+  profile: Profile;
   unread: UnreadSummary;
   items: NavItem[];
   /** The institute's mark, when this reader is in one. */
@@ -573,7 +578,12 @@ function StaffShell({
         <div className="mb-2 hidden justify-end lg:flex">
           <div className="flex items-center gap-1 rounded-full bg-surface p-0.5 shadow-sm">
             <WhatsNewLink unseen={whatsNew} />
-            <NotificationMenu unread={unread} recent={recent} now={now} />
+            {/* The page must not wait on a count: the bell renders at once
+                with no issues row and fills in when the queue has been read
+                (see IssueBell). */}
+            <Suspense fallback={<NotificationMenu unread={unread} recent={recent} now={now} />}>
+              <IssueBell user={user} profile={profile} unread={unread} recent={recent} now={now} />
+            </Suspense>
           </div>
         </div>
         <PageTransition>{children}</PageTransition>
@@ -770,10 +780,40 @@ export async function AppShell({
       items={items}
       whatsNew={whatsNew}
       place={place}
+      profile={profile}
       lens={(await canSwitchProfile(user)) ? profile : null}
       search={search}
     >
       {children}
     </StaffShell>
   );
+}
+
+/**
+ * The bell, told how many active issues `/notifications` lists for this
+ * reader — the same rows, counted the same way (everything but the
+ * "all clear" line). Before October 2026 the bell said "none unread" while
+ * Home said "6 items need your attention", and the reader believed the bell.
+ *
+ * Streamed behind a Suspense boundary so it never holds the page up.
+ * `attentionFor` is request-cached, so the Homes and /notifications, which
+ * read the same queue, share this one read.
+ */
+
+async function IssueBell({
+  user,
+  profile,
+  unread,
+  recent,
+  now,
+}: {
+  user: User;
+  profile: Profile;
+  unread: UnreadSummary;
+  recent: BellNotification[];
+  now: Date;
+}) {
+  const { statuses } = await attentionFor(user, profile);
+  const issues = statuses.filter((s) => s.type !== "ALL_CLEAR").length;
+  return <NotificationMenu unread={unread} recent={recent} now={now} issues={issues} />;
 }

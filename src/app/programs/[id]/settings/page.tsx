@@ -120,14 +120,14 @@ export default async function ProgramSettingsPage({
                 key={p.id}
                 className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-3 sm:px-5"
               >
-                <span className="flex min-w-0 flex-wrap items-center gap-2 text-[0.9375rem]">
+                <span className="flex min-w-0 flex-wrap items-center gap-2 text-body">
                   <PersonChip
                     person={p.mentor}
                     size="sm"
                     href={`/mentors/${p.mentor.id}`}
                   />
                   {(p.level || p.cohort) && (
-                    <span className="text-[0.8125rem] text-muted-fg">
+                    <span className="text-xs text-muted-fg">
                       {[p.level?.name, p.cohort?.name].filter(Boolean).join(" / ")}
                     </span>
                   )}
@@ -165,10 +165,10 @@ export default async function ProgramSettingsPage({
                 <li key={l.id} className="px-4 py-3 sm:px-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <div className="text-[0.9375rem] font-medium text-ink">
+                      <div className="text-body font-medium text-ink">
                         {l.name}
                       </div>
-                      <div className="text-[0.8125rem] text-muted-fg">
+                      <div className="text-xs text-muted-fg">
                         {l._count.enrollments} student
                         {l._count.enrollments === 1 ? "" : "s"} ·{" "}
                         {l._count.mentorAssignments} mentor
@@ -179,7 +179,7 @@ export default async function ProgramSettingsPage({
                     {empty ? (
                       <DeleteLevelButton levelId={l.id} levelName={l.name} />
                     ) : (
-                      <span className="text-[0.8125rem] text-muted-fg">
+                      <span className="text-xs text-muted-fg">
                         Not empty — move its people and cohorts first
                       </span>
                     )}
@@ -205,10 +205,10 @@ export default async function ProgramSettingsPage({
                             className="flex flex-wrap items-center justify-between gap-3 py-2"
                           >
                             <div>
-                              <div className="text-[0.9375rem] font-medium text-ink">
+                              <div className="text-body font-medium text-ink">
                                 {c.name}
                               </div>
-                              <div className="text-[0.8125rem] text-muted-fg">
+                              <div className="text-xs text-muted-fg">
                                 {c._count.enrollments} student
                                 {c._count.enrollments === 1 ? "" : "s"} ·{" "}
                                 {c._count.mentorAssignments} mentor
@@ -216,7 +216,7 @@ export default async function ProgramSettingsPage({
                               </div>
                             </div>
                             {inUse ? (
-                              <span className="text-[0.8125rem] text-muted-fg">
+                              <span className="text-xs text-muted-fg">
                                 Not empty — move its people first
                               </span>
                             ) : (
@@ -266,8 +266,8 @@ export default async function ProgramSettingsPage({
                     className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
                   >
                     <div>
-                      <div className="text-[0.9375rem] font-medium text-ink">{c.name}</div>
-                      <div className="text-[0.8125rem] text-muted-fg">
+                      <div className="text-body font-medium text-ink">{c.name}</div>
+                      <div className="text-xs text-muted-fg">
                         {c._count.enrollments} student
                         {c._count.enrollments === 1 ? "" : "s"} ·{" "}
                         {c._count.mentorAssignments} mentor
@@ -275,7 +275,7 @@ export default async function ProgramSettingsPage({
                       </div>
                     </div>
                     {inUse ? (
-                      <span className="text-[0.8125rem] text-muted-fg">
+                      <span className="text-xs text-muted-fg">
                         Not empty — move its people first
                       </span>
                     ) : (
@@ -312,7 +312,7 @@ export default async function ProgramSettingsPage({
         caption="Granted on Platform settings"
         action={
           viewer.platformAdmin ? (
-            <ArrowLink href="/settings/platform" className="text-[0.8125rem]">
+            <ArrowLink href="/settings/platform" className="text-xs">
               Manage on Platform settings
             </ArrowLink>
           ) : undefined
@@ -327,10 +327,10 @@ export default async function ProgramSettingsPage({
             {grants.map((g) => (
               <li
                 key={g.id}
-                className="flex min-h-11 flex-wrap items-center justify-between gap-3 px-4 py-3 text-[0.9375rem] sm:px-5"
+                className="flex min-h-11 flex-wrap items-center justify-between gap-3 px-4 py-3 text-body sm:px-5"
               >
                 <PersonChip person={g.user} size="sm" />
-                <span className="text-[0.8125rem] text-muted-fg">
+                <span className="text-xs text-muted-fg">
                   {LEVEL[g.role] ?? g.role}
                 </span>
               </li>

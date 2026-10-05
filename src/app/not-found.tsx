@@ -22,10 +22,10 @@ export default function NotFound() {
     <div className="flex flex-1 items-center justify-center px-4">
       <div className="w-full max-w-md rounded-2xl bg-surface p-6 text-center shadow-sm sm:p-7">
         <div className="text-base font-bold tracking-tight text-brand">freshlog</div>
-        <h1 className="mt-4 text-[1.5rem] font-bold leading-tight tracking-[-0.01em] text-ink">
+        <h1 className="mt-4 text-figure-lg font-bold leading-tight tracking-[-0.01em] text-ink">
           We couldn&apos;t find that page
         </h1>
-        <p className="mt-2.5 text-[0.9375rem] leading-relaxed text-muted-fg">
+        <p className="mt-2.5 text-body leading-relaxed text-muted-fg">
           The link may be old, or the page may have moved. Your home page has
           everything you need.
         </p>

@@ -55,7 +55,7 @@ export function ShowMoreList({
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="flex min-h-11 w-full items-center gap-1.5 border-t border-line px-4 py-3 text-left text-[0.9375rem] font-medium text-brand transition-colors hover:bg-fill focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand sm:px-5"
+          className="flex min-h-11 w-full items-center gap-1.5 border-t border-line px-4 py-3 text-left text-body font-medium text-brand transition-colors hover:bg-fill focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand sm:px-5"
         >
           <ChevronDownIcon
             aria-hidden="true"

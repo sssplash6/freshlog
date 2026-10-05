@@ -146,10 +146,24 @@ export default async function SessionsPage({
     }),
   ]);
   const tasksBySession = await taskOptionsForSessions(sessions);
-  const entries = toSessionEntries(sessions, {
-    mentorBase: "/mentors",
-    studentBase: "/students",
-  });
+  // Which program a row counted against, for a reader who holds more than one
+  // — the row's OWN program (AGENTS.md: ask the row, not the student). With one
+  // program the whole list is that program and the label would repeat on
+  // every line. A mentor reading their own log gets the record without the
+  // student's rating or note: those are anonymous to them.
+  const multiProgram = programs.length > 1;
+  const entries = toSessionEntries(
+    sessions.map((s) =>
+      multiProgram && s.student
+        ? { ...s, student: { ...s.student, program: s.program } }
+        : s,
+    ),
+    {
+      mentorBase: "/mentors",
+      studentBase: "/students",
+      feedback: reach.audience !== "mentor",
+    },
+  );
   // Rendered here rather than by a callback the list runs: `SessionsList` is a
   // client component, and a function prop is not something that survives the
   // crossing. An element is.
@@ -208,12 +222,12 @@ export default async function SessionsPage({
           sessions match". */}
       {total > 0 && (
         <div className="px-1" aria-live="polite">
-          <p className="text-[0.8125rem] text-muted-fg">Logged</p>
+          <p className="text-xs text-muted-fg">Logged</p>
           <p className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="text-[1.375rem] font-semibold leading-tight tabular-nums text-ink">
+            <span className="text-figure-md font-semibold leading-tight tabular-nums text-ink">
               {formatDuration(logged)}
             </span>
-            <span className="text-[0.8125rem] tabular-nums text-muted-fg">
+            <span className="text-xs tabular-nums text-muted-fg">
               {/* What the filters did, in words, when any are on; otherwise
                   the plain count. Never both — the count is inside the
                   summary. */}
@@ -241,7 +255,7 @@ export default async function SessionsPage({
                 {readParam(params, "q") && (
                   <ArrowLink
                     href={filterHref("/sessions", params, { q: undefined })}
-                    className="text-[0.8125rem]"
+                    className="text-xs"
                   >
                     {activeFilterCount(params) > 0 ? "Clear the search" : "Show every session"}
                   </ArrowLink>
@@ -249,12 +263,12 @@ export default async function SessionsPage({
                 {(activeFilterCount(params) > 1 || !readParam(params, "q")) && (
                   <ArrowLink
                     href={resetHref("/sessions", params)}
-                    className="text-[0.8125rem]"
+                    className="text-xs"
                   >
                     Reset all filters
                   </ArrowLink>
                 )}
-                <ArrowLink href="/sessions/new" className="text-[0.8125rem]">
+                <ArrowLink href="/sessions/new" className="text-xs">
                   Log a session
                 </ArrowLink>
               </div>

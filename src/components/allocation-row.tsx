@@ -274,7 +274,7 @@ export function AllocationMeter({
         ariaValueMax={entry.allocated}
         ariaLabel={label}
       />
-      <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-[0.8125rem] text-muted-fg">
+      <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs text-muted-fg">
         <span className="tabular-nums">
           {/* "4h of 12h", not "4h/12h": a slash between two durations read as
               a ratio, and beside "0 min/2h" as a typo. */}
@@ -359,7 +359,7 @@ export function AllocationRow({
         {showProgram && (
           <ProgramChip
             program={entry.program}
-            className="mt-1 flex text-[0.8125rem] text-muted-fg"
+            className="mt-1 flex text-xs text-muted-fg"
           />
         )}
       </Td>
@@ -388,7 +388,7 @@ export function AllocationRow({
           // "3h expired unused" — the status model's own words, so a spent
           // balance and a forfeited one stop wearing the same 0 min. Red, and
           // a word: this is time that is gone, not a detail.
-          <span className="block text-[0.8125rem] font-normal text-danger-ink">
+          <span className="block text-xs font-normal text-danger-ink">
             {formatDuration(entry.forfeited)} expired unused
           </span>
         )}
@@ -405,7 +405,7 @@ export function AllocationRow({
           {assignedActions}
         </span>
         {(entry.assigned ?? 0) > entry.allocated && (
-          <span className="block text-[0.8125rem] font-normal">
+          <span className="block text-xs font-normal">
             {formatDuration(entry.assigned ?? 0)} planned
           </span>
         )}

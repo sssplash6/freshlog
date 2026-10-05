@@ -11,12 +11,10 @@
  * own call site — which is why this is a script and not a sentence in
  * DESIGN.md, the same lesson `check-spacing.mjs` records.
  *
- * NOT YET PART OF `npm run lint`. The app still carries a few hundred
- * `text-[0.8125rem]`-style sizes from before the tokens existed; they move in
- * one codemod (`text-[0.75rem]` → `text-caption`, `text-[0.8125rem]` →
- * `text-xs`, `text-[0.9375rem]` → `text-body`, `text-[1.0625rem]` →
- * `text-title`, …). Run it by hand until then, and add it to the lint script
- * once it reports nothing:
+ * Part of `npm run lint` since the October 2026 codemod moved every
+ * `text-[0.8125rem]`-style size onto a token (`text-[0.75rem]` → `text-caption`,
+ * `text-[0.8125rem]` → `text-xs`, `text-[0.9375rem]` → `text-body`,
+ * `text-[1.0625rem]` → `text-title`, …).
  *
  *   node scripts/check-type.mjs [--warn]
  */

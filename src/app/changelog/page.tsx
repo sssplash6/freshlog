@@ -68,13 +68,13 @@ export default async function ChangelogPage() {
             aria-label="This week"
             className="hero-brand relative overflow-hidden rounded-2xl p-5 shadow-sm sm:p-6"
           >
-            <p className="text-[0.8125rem] font-medium opacity-80">Past seven days</p>
+            <p className="text-xs font-medium opacity-80">Past seven days</p>
             <dl className="mt-3 flex flex-wrap items-end gap-x-8 gap-y-4 sm:gap-x-10">
               <HeroFigure value={week.new} label="added" />
               {!student && <HeroFigure value={week.fixed} label="fixed" />}
               <div className="min-w-0 sm:ml-auto">
-                <dt className="text-[0.8125rem] opacity-80">Last update</dt>
-                <dd className="text-[1.125rem] font-semibold">
+                <dt className="text-xs opacity-80">Last update</dt>
+                <dd className="text-title font-semibold">
                   {formatDate(new Date(`${entries[0].date}T00:00:00.000Z`))}
                 </dd>
               </div>
@@ -99,18 +99,18 @@ export default async function ChangelogPage() {
                     className={cn(
                       "absolute top-2 -left-[1.6rem] h-3 w-3 rounded-full ring-4 ring-canvas sm:-left-[2.35rem]",
                       i === 0
-                        ? "bg-brand shadow-[0_0_0_5px_color-mix(in_oklab,var(--color-brand)_22%,transparent)]"
+                        ? "bg-brand ring-4 ring-brand/20"
                         : "bg-line"
                     )}
                   />
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-3">
                     {/* The section-title size every `Section` uses (17px);
                         at 20px these read as a level of their own. */}
-                    <h2 className="flex items-baseline gap-2 text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink">
+                    <h2 className="flex items-baseline gap-2 text-title font-semibold tracking-[-0.01em] text-ink">
                       {formatDate(new Date(`${entry.date}T00:00:00.000Z`))}
                       <FreshChip fresh={fresh} />
                     </h2>
-                    <p className="text-[0.8125rem] text-muted-fg tabular-nums">
+                    <p className="text-xs text-muted-fg tabular-nums">
                       {summary(entry)}
                     </p>
                   </div>
@@ -166,10 +166,10 @@ function HeroFigure({ value, label }: { value: number; label: string }) {
     <div className="flex items-baseline gap-2">
       {/* 42px, the app's one lead size. It was 44/52px bold — a second,
           bigger lead than any page's own. */}
-      <dd className="order-1 text-[2.625rem] font-semibold leading-none tracking-[-0.025em] tabular-nums">
+      <dd className="order-1 text-lead font-semibold leading-none tracking-[-0.025em] tabular-nums">
         {value}
       </dd>
-      <dt className="order-2 text-[1.0625rem] font-medium opacity-90">{label}</dt>
+      <dt className="order-2 text-title font-medium opacity-90">{label}</dt>
     </div>
   );
 }
@@ -179,7 +179,7 @@ function Items({ kind, items }: { kind: "new" | "fixed"; items: ChangelogEntry["
   const { chip, label, Icon } = KIND[kind];
   return (
     <div>
-      <h3 className="mb-2 flex items-center gap-2 text-[0.8125rem] font-semibold text-muted-fg">
+      <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold text-muted-fg">
         <span className={cn("grid h-5 w-5 place-items-center rounded-full", chip)}>
           <Icon className="h-3 w-3" />
         </span>
@@ -192,13 +192,13 @@ function Items({ kind, items }: { kind: "new" | "fixed"; items: ChangelogEntry["
           const { headline, detail } = splitItem(item);
           return (
             <li key={item} className="min-w-0 rounded-lg bg-canvas/60 px-3 py-2.5">
-              {headline && <p className="text-[0.9375rem] font-semibold text-ink">{headline}</p>}
+              {headline && <p className="text-body font-semibold text-ink">{headline}</p>}
               {detail && (
                 <p
                   className={
                     headline
-                      ? "mt-0.5 text-[0.875rem] leading-snug text-muted-fg"
-                      : "text-[0.9375rem] text-ink"
+                      ? "mt-0.5 text-sm leading-snug text-muted-fg"
+                      : "text-body text-ink"
                   }
                 >
                   {detail}

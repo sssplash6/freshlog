@@ -1,5 +1,5 @@
 import type { SessionEntry } from "@/components/session-row";
-import { SESSION_STATUS, chargesAllocation } from "@/lib/constants";
+import { SESSION_ANSWER, SESSION_STATUS, chargesAllocation } from "@/lib/constants";
 import { formatDuration } from "@/lib/format";
 
 export type LoggedSession = {
@@ -25,10 +25,20 @@ export type LoggedSession = {
   assignment?: { id: string; purpose: string } | null;
 };
 
+/**
+ * `feedback: false` drops the student's rating and note from the entries
+ * altogether, for a mentor reading their own sessions. `/feedback` promises a
+ * mentor that ratings are anonymous; a row that merely hid them still shipped
+ * them to the browser in the page payload, so the promise has to be kept here,
+ * on the server, before anything is serialised. The student's yes/no answer
+ * stays — it is about whether the meeting happened, not what they thought of
+ * it.
+ */
 export function toSessionEntries(
   sessions: readonly LoggedSession[],
-  links: { mentorBase?: string; studentBase?: string } = {},
+  links: { mentorBase?: string; studentBase?: string; feedback?: boolean } = {},
 ): SessionEntry[] {
+  const feedback = links.feedback ?? true;
   return sessions.map((s) => ({
     id: s.id,
     date: s.date,
@@ -39,8 +49,13 @@ export function toSessionEntries(
     withinPlan: s.withinPlan,
     note: s.note,
     studentAnswer: s.studentAnswer ?? null,
-    studentRating: s.studentRating ?? null,
-    studentNote: s.studentNote ?? null,
+    studentRating: feedback ? (s.studentRating ?? null) : null,
+    // A DISPUTE's words stay: they are a correction the mentor is told to
+    // expect ("<mentor> and your program will see this"), not an opinion.
+    studentNote:
+      feedback || s.studentAnswer === SESSION_ANSWER.DISPUTED
+        ? (s.studentNote ?? null)
+        : null,
     mentor: {
       id: s.mentor.id,
       name: s.mentor.name,

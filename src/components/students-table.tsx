@@ -89,9 +89,9 @@ function ProgramChips({
     <span className={cn("flex min-w-0", className)}>
       {enrollments.map((e) => (
         <span key={e.program.id} className="flex min-w-0 items-center gap-x-1.5">
-          <ProgramChip program={e.program} className="text-[0.8125rem]" />
+          <ProgramChip program={e.program} className="text-xs" />
           {e.exchangeId && (
-            <span className="shrink-0 whitespace-nowrap text-[0.75rem] text-muted-fg">
+            <span className="shrink-0 whitespace-nowrap text-caption text-muted-fg">
               (on exchange)
             </span>
           )}

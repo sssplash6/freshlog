@@ -104,7 +104,7 @@ export function NavCount({ count, muted }: { count: number; muted?: boolean }) {
   return (
     <span
       className={cn(
-        "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.75rem] font-bold tabular-nums",
+        "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-caption font-bold tabular-nums",
         muted ? "bg-fill text-muted-fg" : "bg-brand text-on-brand"
       )}
     >
@@ -137,7 +137,7 @@ export function NavLinks({ items }: { items: NavItem[] }) {
               // The selected item is a tinted pill, the rail's own shape laid
               // on its side — not a 2px underline, which is a web tab strip's
               // tell and was the only underline in the chrome.
-              "inline-flex min-h-9 items-center rounded-full px-3 text-[0.9375rem] transition-colors",
+              "inline-flex min-h-9 items-center rounded-full px-3 text-body transition-colors",
               active
                 ? "bg-brand-soft font-semibold text-brand"
                 : "font-medium text-muted-fg hover:bg-fill hover:text-ink"
@@ -188,7 +188,7 @@ export function SidebarNav({
           // 40px: the rail exists only at lg, under a pointer, where 44 is not
           // the floor it is on a phone — and six 44px rows read as a list of
           // buttons rather than a sidebar. 15px labels, a 20px glyph.
-          "relative flex min-h-10 items-center gap-3 rounded-lg px-3 text-[0.9375rem] transition-colors",
+          "relative flex min-h-10 items-center gap-3 rounded-lg px-3 text-body transition-colors",
           // Shut: the mark alone, centred. Peeking: the row it always was.
           "rail-collapsed:justify-center rail-collapsed:px-0",
           "rail-collapsed:group-hover/rail:justify-start rail-collapsed:group-hover/rail:px-3",
@@ -222,7 +222,7 @@ export function SidebarNav({
         // when the rail is shut: a heading is words, and a shut rail is marks.
         item.group && item.group !== items[i - 1]?.group ? (
           <div key={item.href} className="flex flex-col gap-0.5">
-            <p className="px-3 pt-3 text-[0.8125rem] font-medium text-muted-fg rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
+            <p className="px-3 pt-3 text-xs font-medium text-muted-fg rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
               {item.group}
             </p>
             {row(item)}

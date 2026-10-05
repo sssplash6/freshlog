@@ -70,7 +70,7 @@ async function NeedsYou({ user, preload }: { user: User; preload: StaffPreload }
 
   if (total === 0) {
     return (
-      <p className="flex items-center gap-2 rounded-xl bg-surface px-4 py-3 text-[0.9375rem] text-muted-fg shadow-sm sm:px-5">
+      <p className="flex items-center gap-2 rounded-xl bg-surface px-4 py-3 text-body text-muted-fg shadow-sm sm:px-5">
         <CheckIcon className="h-4 w-4 shrink-0 text-ink/60" />
         Nothing needs your attention right now.
       </p>
@@ -81,7 +81,7 @@ async function NeedsYou({ user, preload }: { user: User; preload: StaffPreload }
       title="Needs you"
       count={total}
       action={
-        <ArrowLink href="/notifications" className="text-[0.8125rem]">
+        <ArrowLink href="/notifications" className="text-xs">
           {total > HOME_ISSUES ? `All ${total}` : "Notifications"}
         </ArrowLink>
       }
@@ -102,7 +102,7 @@ function IssueRow({ status }: { status: Status }) {
       <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
         <StatusChip status={{ ...status, explanation: undefined }} />
         {status.subject && (
-          <span className="min-w-0 truncate text-[0.9375rem] font-semibold text-ink">
+          <span className="min-w-0 truncate text-body font-semibold text-ink">
             {status.subject.name}
           </span>
         )}
@@ -111,7 +111,7 @@ function IssueRow({ status }: { status: Status }) {
         )}
       </span>
       {status.explanation && (
-        <span className="mt-0.5 block text-[0.8125rem] text-muted-fg">{status.explanation}</span>
+        <span className="mt-0.5 block text-xs text-muted-fg">{status.explanation}</span>
       )}
     </>
   );
@@ -143,7 +143,7 @@ function UpdatedAt({ now }: { now: Date }) {
     <time
       dateTime={now.toISOString()}
       title={programStampISO(now)}
-      className="text-[0.8125rem] text-muted-fg"
+      className="text-xs text-muted-fg"
     >
       Updated {formatProgramStamp(now)}
     </time>
@@ -331,7 +331,7 @@ export default async function AdminHomePage({
       {programs.length > 1 && (
         <Section
           title="Programs"
-          action={<ArrowLink href="/programs" className="text-[0.8125rem]">All programs</ArrowLink>}
+          action={<ArrowLink href="/programs" className="text-xs">All programs</ArrowLink>}
         >
           {/* The outliers, one click away. Only offered when there are some:
               a filter that can only ever show the same table is furniture. */}
@@ -483,7 +483,7 @@ function InstituteHome({
       {levels.length > 0 && (
         <Section
           title="Levels"
-          action={<ArrowLink href={base} className="text-[0.8125rem]">Everyone</ArrowLink>}
+          action={<ArrowLink href={base} className="text-xs">Everyone</ArrowLink>}
         >
           <Table columns={columns} framed={false}>
             {levels.map((l) => (

@@ -9,7 +9,7 @@ import { PersonCell } from "@/components/person-chip";
 import { ProgramChip } from "@/components/program-chip";
 import { StatusChip } from "@/components/ui/status-chip";
 import { SessionsLog } from "@/components/session-row";
-import { sessionsCaption, toSessionEntries } from "@/lib/session-entries";
+import { toSessionEntries } from "@/lib/session-entries";
 import { Disclosure } from "@/components/ui/disclosure";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -215,10 +215,28 @@ async function MentorRecord({
   ];
   const sum = (pick: (row: (typeof byProgram)[number]) => number) =>
     byProgram.reduce((total, row) => total + pick(row), 0);
-  const entries = toSessionEntries(sessions, { studentBase: "/students" });
+  // A mentor reading their own record gets it without the student's rating
+  // or note — anonymous to them, and stripped before the payload, not hidden
+  // after it.
+  const entries = toSessionEntries(sessions, {
+    studentBase: "/students",
+    feedback: !isSelf,
+  });
   const delivered = sum((r) => r.delivered);
   const missed = sum((r) => r.missed);
   const meetings = sum((r) => r.sessions);
+  const extra = sum((r) => r.extra);
+  // The log's caption is built from the SAME rows as the figures at the top
+  // of the page. It used `sessionsCaption`, whose total counts missed time
+  // charged to a grant, under a lead that counts only what was completed —
+  // so one page said 22h 21m and, two sections down, 23h 6m for the same
+  // ninety days.
+  const logCaption =
+    meetings === 0
+      ? "Nothing logged yet"
+      : `${meetings} meeting${meetings === 1 ? "" : "s"} · ${formatDuration(delivered)} completed${
+          missed > 0 ? ` · ${formatDuration(missed)} missed` : ""
+        }${extra > 0 ? ` · ${formatDuration(extra)} extra` : ""}`;
 
   const name = mentor.name ?? mentor.email;
   const rated = feedback._count > 0 && feedback._avg.rating != null;
@@ -226,12 +244,16 @@ async function MentorRecord({
 
   // `AllocationRow`'s columns, in its order — see the comment on the table
   // below. Delivered, wasted, left, and the size of the grant last.
+  //
+  // "Granted", not "Assigned", as on the student's page: the grant alone, so
+  // completed + missed + remaining (+ expired, under remaining) is the figure
+  // in the last column and the row can be checked by adding it up.
   const studentColumns: Column[] = [
     { label: "Student" },
     { label: "Completed", align: "right" },
     { label: "Missed", align: "right" },
     { label: "Remaining", align: "right", emphasis: "key" },
-    { label: "Assigned", align: "right" },
+    { label: "Granted", align: "right" },
   ];
 
   // Soonest use-by first: the row at the top is the time about to be lost.
@@ -435,7 +457,7 @@ async function MentorRecord({
           {/* Said once, here: a balance is what is owed after every session
               ever logged, so no reporting range can move it — and the Students
               list is that ledger, grant by grant, not a report. */}
-          <p className="pb-3 text-[0.8125rem] text-muted-fg">
+          <p className="pb-3 text-xs text-muted-fg">
             Total and remaining time, and the Students list below, count every session, whatever the range.
           </p>
         </div>
@@ -599,9 +621,16 @@ async function MentorRecord({
                   )}
                 >
                   {formatBalance(s.remaining)}
+                  {/* Expired time is part of the grant, so it is named here
+                      or the row would not add up to the Granted figure. */}
+                  {s.forfeited > 0 && (
+                    <span className="block text-xs font-normal text-danger-ink">
+                      {formatDuration(s.forfeited)} expired
+                    </span>
+                  )}
                 </Td>
                 <Td
-                  label="Assigned"
+                  label="Granted"
                   align="right"
                   tone="muted"
                   className="tabular-nums"
@@ -630,14 +659,14 @@ async function MentorRecord({
         eyebrow={null}
         moreHref={`/sessions?mentor=${mentor.id}`}
         moreLabel="All sessions"
-        // The shared tally, not a row count: it excludes voided and rescheduled
-        // rows, which are history and not hours. Counting the rows instead said
-        // "1 session" above a log holding one voided line, beside a Delivered
-        // figure of zero.
+        // The page's own tally, not a row count: it excludes voided and
+        // rescheduled rows, which are history and not hours. Counting the rows
+        // instead said "1 session" above a log holding one voided line, beside
+        // a Delivered figure of zero.
         caption={
           entries.length > LOG_LIMIT
-            ? `${sessionsCaption(entries)} · showing ${LOG_LIMIT}`
-            : sessionsCaption(entries)
+            ? `${logCaption} · showing ${LOG_LIMIT}`
+            : logCaption
         }
         empty={
           <EmptyState framed={false} title="No sessions in this period">
@@ -653,8 +682,8 @@ async function MentorRecord({
       <Section title="Ratings" count={rated ? feedback._count : undefined}>
         {rated ? (
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 sm:px-5">
-            <p className="flex items-baseline gap-x-2 text-[0.9375rem] text-muted-fg">
-              <span className="text-[1.25rem] font-semibold tabular-nums text-ink">
+            <p className="flex items-baseline gap-x-2 text-body text-muted-fg">
+              <span className="text-figure-md font-semibold tabular-nums text-ink">
                 {feedback._avg.rating!.toFixed(1)}
               </span>
               <span>
@@ -666,13 +695,13 @@ async function MentorRecord({
                 already answers with their ratings and nobody else's. */}
             <ArrowLink
               href={isSelf ? "/feedback" : `/feedback?mentor=${mentor.id}`}
-              className="text-[0.9375rem]"
+              className="text-body"
             >
               {feedback._count === 1 ? "Read it" : "Read them"}
             </ArrowLink>
           </div>
         ) : (
-          <p className="px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">
+          <p className="px-4 py-3 text-body text-muted-fg sm:px-5">
             No ratings written{isSelf ? " about you" : ""} so far.
           </p>
         )}
@@ -782,7 +811,7 @@ async function MentorCard({
                 already named in the line under the h1, and a page of twenty
                 words cannot afford to say "Master's Program" twice. */}
             {visible.length > 1 && (
-              <span className="min-w-0 text-[0.9375rem] font-medium text-ink">
+              <span className="min-w-0 text-body font-medium text-ink">
                 {labelOf(a)}
               </span>
             )}

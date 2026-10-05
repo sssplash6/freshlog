@@ -36,13 +36,13 @@ export function ErrorState({
     // One centred card, like every other page a reader lands on with nothing
     // else around it — sign in, a 404, an unsubscribe.
     <div className="rise-in mx-auto w-full max-w-md rounded-2xl bg-surface px-6 py-8 text-center shadow-sm">
-      <p className="text-[0.8125rem] font-medium text-muted-fg">
+      <p className="text-xs font-medium text-muted-fg">
         Something broke
       </p>
-      <h1 className="mt-1 text-[1.5rem] font-bold leading-tight tracking-[-0.01em] text-ink">
+      <h1 className="mt-1 text-figure-lg font-bold leading-tight tracking-[-0.01em] text-ink">
         {title}
       </h1>
-      <p className="mt-2 text-[0.9375rem] text-muted-fg">
+      <p className="mt-2 text-body text-muted-fg">
         Nothing you did caused this, and nothing was lost. Most of the time it is
         a hiccup reading the data — try again first.
       </p>
@@ -57,9 +57,9 @@ export function ErrorState({
         </Link>
       </div>
       {error.digest && (
-        <p className="mt-5 text-[0.8125rem] text-muted-fg">
+        <p className="mt-5 text-xs text-muted-fg">
           If it keeps happening, quote this code:{" "}
-          <code className="rounded bg-fill px-1.5 py-0.5 font-mono text-[0.75rem] text-ink">
+          <code className="rounded-md bg-fill px-1.5 py-0.5 font-mono text-caption text-ink">
             {error.digest}
           </code>
         </p>

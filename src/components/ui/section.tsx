@@ -122,22 +122,26 @@ export function PageTitle({
           {backLabel}
         </Link>
       )}
-      {/* gap-y-3: on a phone the actions take their own line, and at 8px a
-          44px button sat against the descenders of a 32px title. */}
-      <div className="flex flex-wrap items-end justify-between gap-x-5 gap-y-3">
-        {/* The picture and the words it belongs to are ONE group, centred on
-            each other. They used to be siblings of the whole row, which is
-            end-aligned so the actions sit on the baseline — so a 64px avatar
-            lined its bottom edge up with the subtitle and read as sitting
-            below the name it labels. */}
-        {/* Stacked on a phone: beside a 64px picture a 32px name had ~230px,
-            and "Konstantinopolskaya-Whitfield" broke mid-word across three
-            lines. Above it, the name gets the full width — the iOS contact
-            card's order. */}
-        <div className="flex min-w-0 flex-1 gap-4 max-sm:flex-col max-sm:items-start max-sm:gap-3 sm:items-center">
-          {leading && <div className="shrink-0">{leading}</div>}
-          <div className="min-w-0 flex-1 max-sm:w-full">
-            {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
+      {/* The picture and the words it belongs to are ONE group, centred on
+          each other. They used to be siblings of a row end-aligned so the
+          actions sat on the baseline — so a 64px avatar lined its bottom edge
+          up with the subtitle and read as sitting below the name it labels.
+          Stacked on a phone: beside a 64px picture a 32px name had ~230px,
+          and "Konstantinopolskaya-Whitfield" broke mid-word across three
+          lines. Above it, the name gets the full width — the iOS contact
+          card's order. */}
+      <div className="flex min-w-0 gap-4 max-sm:flex-col max-sm:items-start max-sm:gap-3 sm:items-center">
+        {leading && <div className="shrink-0">{leading}</div>}
+        <div className="flex min-w-0 flex-1 flex-col max-sm:w-full">
+          {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
+          {/* THE ACTIONS RIDE THE TITLE'S LINE, centred on the h1 itself.
+              They used to be a sibling of the whole block, bottom-aligned to
+              it — so "Log a session" sat 8px lower on a page with a subtitle
+              than on one without, and jumped as you moved between tabs
+              (October 2026). On a phone the row dissolves (`contents`) and
+              the actions drop to their own line under the subtitle, where iOS
+              puts them: beside the title they squeezed it to a sliver. */}
+          <div className="flex min-w-0 items-center justify-between gap-x-5 max-sm:contents">
             {/* The `display` step, 32px (28 on a phone). A comment here used
                 to say 24/26 while the class said 28/32 — the note had been
                 left behind by a later change (fixed October 2026). The size
@@ -154,21 +158,20 @@ export function PageTitle({
               // at 32px, pushed the whole page sideways on a phone.
               // 28px under `sm`: at 32 a 20-letter word is wider than a 390px
               // phone's column, and a name broken mid-word reads as a typo.
-              className="mt-0.5 text-figure-lg font-bold text-ink wrap-anywhere sm:text-display"
+              className="mt-0.5 min-w-0 text-figure-lg font-bold text-ink wrap-anywhere sm:text-display"
             >
               {title}
             </h1>
-            {subtitle && <div className="mt-1.5 text-sm text-muted-fg wrap-anywhere">{subtitle}</div>}
+            {actions && (
+              // gap 12px on a phone: at 8px a 44px button sat against the
+              // descenders of the title above it.
+              <div className="flex shrink-0 flex-wrap items-center gap-2 max-sm:order-last max-sm:mt-3 max-sm:w-full">
+                {actions}
+              </div>
+            )}
           </div>
+          {subtitle && <div className="mt-1.5 text-sm text-muted-fg wrap-anywhere">{subtitle}</div>}
         </div>
-        {actions && (
-          /* Its own line on a phone: beside the title it squeezes the title
-             column to a sliver, and a masthead that wraps mid-word is a web
-             tell — on iOS the actions live under the large title. */
-          <div className="flex flex-wrap items-center gap-2 max-sm:w-full">
-            {actions}
-          </div>
-        )}
       </div>
     </div>
   );

@@ -355,7 +355,7 @@ export default async function MentorHomePage({
             <Link
               href={homeHref({ program: selected, all: !showAllStudents })}
               scroll={false}
-              className="inline-flex min-h-11 items-center text-[0.8125rem] font-medium text-brand transition-colors hover:underline"
+              className="inline-flex min-h-11 items-center text-xs font-medium text-brand transition-colors hover:underline"
             >
               {showAllStudents ? "Show fewer" : `Show all ${inView.length}`}
             </Link>
@@ -397,11 +397,11 @@ export default async function MentorHomePage({
                           name: s.profile.user.name,
                           email: s.profile.user.email,
                         }}
-                        className="h-8 w-8 shrink-0 text-[0.75rem]"
+                        className="h-8 w-8 shrink-0 text-caption"
                       />
                       <span className="min-w-0 flex-1">
                         <span className="flex min-w-0 items-baseline gap-2">
-                          <span className="min-w-0 truncate text-[0.9375rem] font-semibold text-ink">
+                          <span className="min-w-0 truncate text-body font-semibold text-ink">
                             {nameOf(s)}
                           </span>
                           {s.profile.user.status !== USER_STATUS.ACTIVE && (
@@ -410,7 +410,7 @@ export default async function MentorHomePage({
                             </span>
                           )}
                         </span>
-                        <span className="mt-0.5 block min-w-0 truncate text-[0.8125rem] text-muted-fg">
+                        <span className="mt-0.5 block min-w-0 truncate text-xs text-muted-fg">
                           <span className={cn("tabular-nums", TONE[balance.tone])}>
                             {balance.text}
                             {balance.rank === 1 && " left"}

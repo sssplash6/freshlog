@@ -229,7 +229,7 @@ export default async function ProgramPage({
               standard grant is the one fact that makes Emerging and Advanced
               different places, and it otherwise lives two tabs away. */}
           {level && (
-            <p className="px-1 text-[0.8125rem] text-muted-fg">
+            <p className="px-1 text-xs text-muted-fg">
               {(() => {
                 const minutes = level.standardMinutes ?? program.standardMinutes;
                 const days = level.standardDays ?? program.standardDays;
@@ -307,7 +307,7 @@ export default async function ProgramPage({
             spilled > 0 ? (
               <ArrowLink
                 href={`/mentors?program=${program.id}`}
-                className="text-[0.8125rem]"
+                className="text-xs"
               >
                 All mentors
               </ArrowLink>
@@ -315,7 +315,7 @@ export default async function ProgramPage({
           }
         >
           {mentorRows.length === 0 ? (
-            <p className="px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">
+            <p className="px-4 py-3 text-body text-muted-fg sm:px-5">
               Nobody here yet.
             </p>
           ) : (
@@ -330,7 +330,7 @@ export default async function ProgramPage({
                   // name it costs a line only when the name leaves no room.
                   <li
                     key={mentor.id}
-                    className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-3 text-[0.9375rem] sm:px-5"
+                    className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-3 text-body sm:px-5"
                   >
                     <span className="flex min-w-0 flex-wrap items-center gap-2">
                       {/* "Their mentors can have matching colours." This is the
@@ -356,7 +356,7 @@ export default async function ProgramPage({
                           — that no session can be logged against them here,
                           because nobody paired them with the program. */}
                       {!teaches && (
-                        <span className="text-[0.8125rem] text-muted-fg">Admin only</span>
+                        <span className="text-xs text-muted-fg">Admin only</span>
                       )}
                     </span>
                   </li>

@@ -268,7 +268,7 @@ export function Dashboard({
               >
                 <ChevronLeftIcon className="h-4 w-4" />
               </button>
-              <span className="min-w-12 text-center text-[0.9375rem] font-semibold tabular-nums text-ink">
+              <span className="min-w-12 text-center text-body font-semibold tabular-nums text-ink">
                 {year}
               </span>
               <button
@@ -514,11 +514,11 @@ function Hero({
       <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4 px-4 py-3 sm:px-5">
         <div className="min-w-0">
           <div className="flex items-baseline gap-1.5 tabular-nums" aria-label={formatDuration(t.hours)}>
-            <span className="text-[2.625rem] font-semibold leading-none tracking-tight text-accent-ink">
+            <span className="text-lead font-semibold leading-none tracking-tight text-accent-ink">
               {formatDuration(Math.round(minutesShown))}
             </span>
           </div>
-          <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted-fg">
+          <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-fg">
             {/* It read "New none same period 2025": a badge and a fragment
                 that only parsed together. With nothing to compare against,
                 say so in a sentence instead of a figure. */}
@@ -601,7 +601,7 @@ function PlanSplit({ completed, extra }: { completed: number; extra: number }) {
           </>
         )}
       </div>
-      <div className="mt-2 flex justify-between gap-4 text-[0.8125rem] text-muted-fg">
+      <div className="mt-2 flex justify-between gap-4 text-xs text-muted-fg">
         <span>
           <span className="font-medium tabular-nums text-ink">{formatDuration(completed)}</span> in plan
         </span>
@@ -616,8 +616,8 @@ function PlanSplit({ completed, extra }: { completed: number; extra: number }) {
 function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <div className="min-w-0">
-      <dt className="min-w-0 truncate text-[0.8125rem] text-muted-fg">{label}</dt>
-      <dd className="mt-0.5 text-[1.375rem] font-semibold leading-tight tabular-nums text-ink">{value}</dd>
+      <dt className="min-w-0 truncate text-xs text-muted-fg">{label}</dt>
+      <dd className="mt-0.5 text-figure-md font-semibold leading-tight tabular-nums text-ink">{value}</dd>
       {/* Wraps rather than truncating: a third of a phone is narrow, and the
           hint now carries the no-shows the strip used to give a column. */}
       <dd className="min-w-0 text-xs text-muted-fg">{hint}</dd>
@@ -767,8 +767,8 @@ function MonthsCard({
       {days && month != null && monthTally && (
         <div className={cn(s.enter, "border-t border-line px-4 py-3 sm:px-5")} key={`${year}-${month}`}>
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <h3 className="text-[1.0625rem] font-semibold text-ink">Inside {MONTHS_LONG[month]}</h3>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[0.8125rem] text-muted-fg">
+            <h3 className="text-title font-semibold text-ink">Inside {MONTHS_LONG[month]}</h3>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-fg">
               <span>
                 <span className="font-medium tabular-nums text-ink">{formatDuration(hoursOf(monthTally))}</span> total
               </span>
@@ -992,8 +992,8 @@ function ProgramCards({
           than one card, and Section's body is always exactly one. Section's
           size, too — it was 20px, a step above every other heading. */}
       <div className="pb-2.5 pt-2">
-        <h2 className="text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink">{words.parts}</h2>
-        <div className="mt-0.5 text-[0.8125rem] font-medium text-muted-fg">Open one to see which mentors carry it.</div>
+        <h2 className="text-title font-semibold tracking-[-0.01em] text-ink">{words.parts}</h2>
+        <div className="mt-0.5 text-xs font-medium text-muted-fg">Open one to see which mentors carry it.</div>
       </div>
       <div className={cn("grid gap-3", cardColumns(order.length))}>
         {order.map(({ p, i, r }, n) => {
@@ -1014,7 +1014,7 @@ function ProgramCards({
             >
               <span className="flex items-center gap-2">
                 <Dot color={color} />
-                <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-medium text-ink">{p.name}</span>
+                <span className="min-w-0 flex-1 truncate text-body font-medium text-ink">{p.name}</span>
                 {p.archived && (
                   <span className="shrink-0 rounded-full bg-fill px-2.5 py-[0.1875rem] text-xs font-medium text-muted-fg">Archived</span>
                 )}
@@ -1023,14 +1023,14 @@ function ProgramCards({
               {/* The figure never breaks ("9h / 30m"); the caption is what
                   gives way, wrapping beneath it when the card is narrow. */}
               <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <span className="shrink-0 whitespace-nowrap text-[1.75rem] font-semibold leading-none tracking-tight tabular-nums text-ink">
+                <span className="shrink-0 whitespace-nowrap text-figure-lg font-semibold leading-none tracking-tight tabular-nums text-ink">
                   {formatDuration(r?.hours ?? 0)}
                 </span>
                 {/* "TO DATE", said: the gauge is all-time on purpose (a grant
                     is a stock, not a flow), but beside a figure for the picked
                     period it read as that period's share — September and the
                     whole year both "13% of the 734h granted". */}
-                <span className="min-w-0 text-[0.8125rem] tabular-nums text-muted-fg">
+                <span className="min-w-0 text-xs tabular-nums text-muted-fg">
                   {p.granted > 0
                     ? `${Math.round(progress * 100)}% of ${formatDuration(p.granted)} granted, to date`
                     : "no time granted"}
@@ -1043,7 +1043,7 @@ function ProgramCards({
               {/* Pinned to the card's foot, and broken only between its three
                   parts — it wrapped mid-phrase, so cards beside each other
                   ended at different heights. */}
-              <span className="mt-auto flex flex-wrap gap-x-1.5 text-[0.8125rem] tabular-nums text-muted-fg">
+              <span className="mt-auto flex flex-wrap gap-x-1.5 text-xs tabular-nums text-muted-fg">
                 <span className="whitespace-nowrap">{count(r?.mentors ?? 0, "mentor")} ·</span>
                 <span className="whitespace-nowrap">{count(r?.students ?? 0, "student")} ·</span>
                 <span className="whitespace-nowrap">{count(r?.sessions ?? 0, "session")}</span>
@@ -1059,7 +1059,7 @@ function ProgramCards({
               <button
                 type="button"
                 onClick={() => go({ program: i, mentor: null })}
-                className="group flex min-h-11 w-full items-center gap-2 px-4 py-2 text-left text-[0.8125rem] text-muted-fg transition-colors hover:bg-fill/40 sm:px-5"
+                className="group flex min-h-11 w-full items-center gap-2 px-4 py-2 text-left text-xs text-muted-fg transition-colors hover:bg-fill/40 sm:px-5"
               >
                 <Dot color={colorOf(data, i)} />
                 <span className="min-w-0 truncate font-medium text-ink">{p.name}</span>
@@ -1147,7 +1147,7 @@ function Leaderboard({
       }
     >
       {ranked.length === 0 ? (
-        <p className="px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">No mentor logged a session in {period}.</p>
+        <p className="px-4 py-3 text-body text-muted-fg sm:px-5">No mentor logged a session in {period}.</p>
       ) : (
         <div className="divide-y divide-line">
           {shown.map((r, n) => (
@@ -1169,7 +1169,7 @@ function Leaderboard({
       {limit && ranked.length > limit && (
         <button
           type="button"
-          className="block w-full border-t border-line px-4 py-3 text-left text-[0.9375rem] font-medium text-brand transition-colors hover:bg-fill sm:px-5"
+          className="block w-full border-t border-line px-4 py-3 text-left text-body font-medium text-brand transition-colors hover:bg-fill sm:px-5"
           onClick={() => setExpanded((e) => !e)}
         >
           {expanded ? "Show the top " + limit : `Show all ${ranked.length} mentors`}
@@ -1217,11 +1217,11 @@ function MentorRow({
       style={{ ["--delay" as string]: `${delay}ms` }}
     >
       {showRank && (
-        <span className="text-center text-[0.8125rem] tabular-nums text-muted-fg">{rank}</span>
+        <span className="text-center text-xs tabular-nums text-muted-fg">{rank}</span>
       )}
       <MentorAvatar mentor={mentor} />
       <span className="flex min-w-0 flex-col">
-        <span className="min-w-0 truncate text-[0.9375rem] font-medium text-ink">{mentor.name}</span>
+        <span className="min-w-0 truncate text-body font-medium text-ink">{mentor.name}</span>
         <span className="mt-1.5 flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-fill" aria-hidden>
           <span className={s.barSeg} style={{ width: grown ? `${r.completed * scale}%` : 0, background: HOURS }} />
           {r.extra > 0 && (
@@ -1231,7 +1231,7 @@ function MentorRow({
             />
           )}
         </span>
-        <span className="mt-1 min-w-0 truncate text-[0.8125rem] text-muted-fg">
+        <span className="mt-1 min-w-0 truncate text-xs text-muted-fg">
           {r.sessions} {r.sessions === 1 ? "session" : "sessions"} · {r.students} {r.students === 1 ? "student" : "students"}
           {r.sessions ? ` · ${formatDuration(r.hours / r.sessions)} avg` : ""}
         </span>
@@ -1247,7 +1247,7 @@ function MentorRow({
             highlight={highlight}
           />
         </span>
-        <span className="min-w-12 whitespace-nowrap text-right text-[0.9375rem] font-semibold tabular-nums text-ink">{formatDuration(r.hours)}</span>
+        <span className="min-w-12 whitespace-nowrap text-right text-body font-semibold tabular-nums text-ink">{formatDuration(r.hours)}</span>
       </span>
       <ChevronRightIcon className="h-4 w-4 text-muted-fg transition-transform group-hover:translate-x-0.5" />
     </button>
@@ -1348,7 +1348,7 @@ function MentorDetail({
                     <td>{m.sessions || "—"}</td>
                     <td>{students[i] || "—"}</td>
                     <td>{m.sessions ? formatDuration(h / m.sessions) : "—"}</td>
-                    <td className="text-[0.8125rem]">
+                    <td className="text-xs">
                       {i === firstMonth || i === running || (h === 0 && prev === 0) ? (
                         i === running ? <span className="text-muted-fg">so far</span> : ""
                       ) : (
@@ -1402,7 +1402,7 @@ function MentorScope({
   // sits — a card around two chips was a box with nothing to hold.
   const chip = (on: boolean) =>
     cn(
-      "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] font-medium transition-colors",
+      "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors",
       on ? "bg-brand text-on-brand" : "bg-fill text-ink hover:bg-fill-strong"
     );
   return (
@@ -1426,12 +1426,12 @@ function MentorScope({
           ))}
         </div>
       ) : (
-        <span className="text-[0.8125rem] text-muted-fg">
+        <span className="text-xs text-muted-fg">
           Works in {data.programs[theirPrograms[0]]?.name}
         </span>
       )}
       {ranked && standing && (
-        <span className="text-[0.8125rem] text-muted-fg">
+        <span className="text-xs text-muted-fg">
           <span className="font-medium tabular-nums text-ink">#{standing.rank}</span> of {standing.of} mentors
           {program != null ? ` in ${data.programs[program].name}` : ""} ·{" "}
           {month != null ? MONTHS_LONG[month] : year}
@@ -1586,7 +1586,7 @@ function Dot({ color, opacity, className }: { color: string; opacity?: number; c
  * person's hue, or their initials on it — without rebuilding it.
  */
 function MentorAvatar({ mentor, large = false }: { mentor: AnalyticsMentor; large?: boolean }) {
-  const size = large ? "h-12 w-12 text-base" : "h-9 w-9 text-[0.8125rem]";
+  const size = large ? "h-12 w-12 text-base" : "h-9 w-9 text-xs";
   const tone = personTone(mentor.id);
   if (mentor.avatar) {
     // eslint-disable-next-line @next/next/no-img-element -- a served avatar, already sized
@@ -1595,7 +1595,7 @@ function MentorAvatar({ mentor, large = false }: { mentor: AnalyticsMentor; larg
   return (
     <span
       aria-hidden
-      className={cn("flex shrink-0 items-center justify-center rounded-full font-semibold text-white", tone.badge, size)}
+      className={cn("flex shrink-0 items-center justify-center rounded-full font-semibold text-on-tone", tone.badge, size)}
     >
       {initials(mentor.name, "")}
     </span>

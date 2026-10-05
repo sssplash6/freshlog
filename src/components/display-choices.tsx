@@ -20,7 +20,7 @@ import { cn } from "@/lib/cn";
  */
 const TRACK = "flex w-fit max-w-full gap-0.5 rounded-lg bg-fill p-0.5";
 const BUTTON =
-  "inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-3 text-[0.8125rem] font-medium text-muted-fg transition-[background-color,color,box-shadow] hover:text-ink";
+  "inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-3 text-xs font-medium text-muted-fg transition-[background-color,color,box-shadow] hover:text-ink";
 function Current({ when }: { when: string }) {
   return <span className={cn("sr-only hidden", when)}> (current)</span>;
 }

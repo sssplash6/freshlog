@@ -91,7 +91,7 @@ export function PersonChip({
     "inline-flex max-w-full items-center rounded-full text-ink",
     lead ? "font-semibold" : "font-medium",
     sm
-      ? "h-7 gap-1.5 py-0.5 pr-1.5 text-[0.8125rem]"
+      ? "h-7 gap-1.5 py-0.5 pr-1.5 text-xs"
       : "h-10 gap-2 py-1 pr-1 text-sm",
     href &&
       "transition-colors hover:text-brand",
@@ -116,7 +116,7 @@ export function PersonChip({
         person={person}
         className={cn(
           "ring-inset",
-          sm ? "h-6 w-6 text-[0.6875rem]" : "h-8 w-8 text-[0.75rem]"
+          sm ? "h-6 w-6 text-caption" : "h-8 w-8 text-caption"
         )}
       />
       <span className="min-w-0 truncate leading-snug">{label}</span>
@@ -189,7 +189,7 @@ export function PersonCell({
 
   const body = (
     <>
-      <Avatar person={person} className="h-7 w-7 shrink-0 text-[0.75rem]" />
+      <Avatar person={person} className="h-7 w-7 shrink-0 text-caption" />
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 flex-wrap items-center gap-x-2 font-medium text-ink group-hover:text-brand">
           <span className="min-w-0 truncate">{person.name ?? person.email}</span>
@@ -265,7 +265,7 @@ export function PersonBadge({
     <Avatar
       person={person}
       title={person.name ?? person.email}
-      className={cn("h-6 w-6 text-[0.6875rem] ring-2 ring-surface", className)}
+      className={cn("h-6 w-6 text-caption ring-2 ring-surface", className)}
     />
   );
 }

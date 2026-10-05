@@ -81,13 +81,13 @@ function SummaryRow({ status }: { status: Status }) {
           }}
         />
         {subject && (
-          <span className="min-w-0 max-w-full truncate text-[0.9375rem] font-medium text-ink">
+          <span className="min-w-0 max-w-full truncate text-body font-medium text-ink">
             {subject.name}
           </span>
         )}
       </span>
       {explanation && (
-        <span className="mt-0.5 block text-[0.8125rem] text-muted-fg">
+        <span className="mt-0.5 block text-xs text-muted-fg">
           {explanation}
         </span>
       )}

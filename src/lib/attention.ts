@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { adminScope, scopeProgramFilter } from "@/lib/authz";
 import {
   ASSIGNMENT_PROGRESS,
@@ -98,7 +100,14 @@ async function dismissedBy(userId: string) {
   return new Set(rows.map((d) => dismissalKey(d.type, d.subjectId)));
 }
 
-export async function attentionFor(
+/**
+ * Request-cached: the shell's bell, Home and /notifications all ask the same
+ * question on one request, and the queue is the heaviest read in the app.
+ * `getCurrentUser` is request-cached too, so they pass the same `user`.
+ */
+export const attentionFor = cache(attentionForUncached);
+
+async function attentionForUncached(
   user: User,
   profile: Profile
 ): Promise<Attention> {

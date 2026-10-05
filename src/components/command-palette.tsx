@@ -446,7 +446,7 @@ function Palette({
               placeholder={mentors ? "Find a person…" : "Find a student…"}
               className={cn(
                 fieldChrome,
-                "min-h-11 w-full py-2.5 pl-9 pr-3.5 text-base placeholder:text-muted-fg sm:text-[0.9375rem]"
+                "min-h-11 w-full py-2.5 pl-9 pr-3.5 text-base placeholder:text-muted-fg sm:text-body"
               )}
             />
           </div>
@@ -472,7 +472,7 @@ function Palette({
               <p
                 id={`${listId}-${group}`}
                 role="presentation"
-                className="px-3 pb-1 pt-2 text-[0.8125rem] font-medium text-muted-fg"
+                className="px-3 pb-1 pt-2 text-xs font-medium text-muted-fg"
               >
                 {group}
               </p>
@@ -494,7 +494,7 @@ function Palette({
                       if (!selected) setActive(index);
                     }}
                     className={cn(
-                      "flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 py-1.5 text-[0.9375rem] transition-colors duration-150",
+                      "flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 py-1.5 text-body transition-colors duration-150",
                       selected ? "bg-brand-soft text-ink" : "text-ink"
                     )}
                   >
@@ -554,7 +554,7 @@ function PersonRow({ person, q }: { person: SearchPerson; q: string }) {
   const detail = person.programs.length > 0 ? person.programs.join(" · ") : person.email;
   return (
     <>
-      <Avatar person={face} className="h-7 w-7 text-[0.75rem]" />
+      <Avatar person={face} className="h-7 w-7 text-caption" />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="min-w-0 truncate font-medium">
           <Highlight text={person.name ?? person.email} q={q} />

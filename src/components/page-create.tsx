@@ -142,8 +142,8 @@ export function CreatePanel({
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink">{title}</h2>
-          {hint && <p className="mt-0.5 text-[0.8125rem] text-muted-fg">{hint}</p>}
+          <h2 className="text-title font-semibold tracking-[-0.01em] text-ink">{title}</h2>
+          {hint && <p className="mt-0.5 text-xs text-muted-fg">{hint}</p>}
         </div>
         <Button
           variant="ghost"

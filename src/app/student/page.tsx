@@ -55,11 +55,13 @@ function AgendaRow({ task, statuses }: { task: LedgerAssignment; statuses: Statu
   const overdue = statuses.some((s) => s.type === "TASK_OVERDUE");
 
   return (
-    <li className="px-4 py-3 sm:px-5">
+    // The anchor "Things to check" links an overdue agenda item to; scroll-mt
+    // so it lands under the phone's top bar rather than behind it.
+    <li id={`agenda-${task.id}`} className="scroll-mt-20 px-4 py-3 sm:px-5">
       <div className="flex items-start justify-between gap-3">
         {/* A purpose is occasionally written as a paragraph rather than a name,
             and one such row must not cost every other row its scanability. */}
-        <div className="min-w-0 flex-1 text-[0.9375rem] font-medium leading-snug text-ink">
+        <div className="min-w-0 flex-1 text-body font-medium leading-snug text-ink">
           <ExpandableText text={task.purpose} lines={2} />
         </div>
         {/* Whichever half this task has. The note is free text — the tracking
@@ -93,7 +95,7 @@ function AgendaRow({ task, statuses }: { task: LedgerAssignment; statuses: Statu
             ariaValueMax={budget}
             ariaLabel={`Time logged on ${task.purpose}`}
           />
-          <p className="mt-1.5 text-[0.8125rem] tabular-nums text-muted-fg">
+          <p className="mt-1.5 text-xs tabular-nums text-muted-fg">
             {/* "2h planned" rather than "0 min of 2h": the zero switched the
                 list between two duration formats from one row to the next,
                 and the "Not started" chip above already says nothing is
@@ -117,7 +119,7 @@ function AgendaRow({ task, statuses }: { task: LedgerAssignment; statuses: Statu
         </>
       ) : (
         task.loggedMinutes > 0 && (
-          <p className="mt-1.5 text-[0.8125rem] text-muted-fg">
+          <p className="mt-1.5 text-xs text-muted-fg">
             <span className="font-medium tabular-nums text-ink">
               {formatMinutes(task.loggedMinutes)}
             </span>{" "}
@@ -136,11 +138,11 @@ function AgendaRow({ task, statuses }: { task: LedgerAssignment; statuses: Statu
 function FinishedAgendaItem({ task }: { task: LedgerAssignment }) {
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3">
-      <span className="min-w-0 flex-1 truncate text-[0.9375rem] text-muted-fg">
+      <span className="min-w-0 flex-1 truncate text-body text-muted-fg">
         {task.purpose}
       </span>
       {task.mentor && <PersonChip person={task.mentor} size="sm" />}
-      <span className="text-[0.8125rem] tabular-nums text-muted-fg">
+      <span className="text-xs tabular-nums text-muted-fg">
         {formatMinutes(task.loggedMinutes)}
       </span>
     </li>
@@ -163,7 +165,7 @@ function Balance({ hours }: { hours: AllocationSummary }) {
 /** An empty list that is ordinary rather than a problem: one quiet line. */
 function EmptyLine({ children }: { children: React.ReactNode }) {
   return (
-    <p className="px-4 py-3 text-[0.8125rem] text-muted-fg sm:px-5">{children}</p>
+    <p className="px-4 py-3 text-xs text-muted-fg sm:px-5">{children}</p>
   );
 }
 
@@ -200,8 +202,8 @@ function HowItWorks() {
               {i + 1}
             </span>
             <span className="min-w-0">
-              <span className="block text-[0.9375rem] font-medium text-ink">{step.title}</span>
-              <span className="mt-0.5 block text-[0.8125rem] text-muted-fg">{step.body}</span>
+              <span className="block text-body font-medium text-ink">{step.title}</span>
+              <span className="mt-0.5 block text-xs text-muted-fg">{step.body}</span>
             </span>
           </li>
         ))}
@@ -432,6 +434,9 @@ export default async function StudentHomePage() {
               // unfilled tail of the track shows the same proportion — but a
               // bar that cannot show an overdraw is a bar that lies about it.
               remaining={Math.min(0, hours.remaining)}
+              // Lost time drawn as lost, in red, rather than as the same grey
+              // as time still to use.
+              expired={hours.forfeited}
             />
           </div>
         </Section>
@@ -568,7 +573,7 @@ export default async function StudentHomePage() {
             <Link
               href="/student/meetings"
               transitionTypes={["nav-forward"]}
-              className="inline-flex min-h-11 items-center text-[0.9375rem] font-medium text-brand hover:text-brand-dark"
+              className="inline-flex min-h-11 items-center text-body font-medium text-brand hover:text-brand-dark"
             >
               See all
             </Link>

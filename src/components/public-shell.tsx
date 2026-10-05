@@ -48,7 +48,7 @@ export function PublicShell({
               </span>
               <button
                 type="submit"
-                className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 text-[0.9375rem] font-medium text-brand transition-colors hover:bg-fill"
+                className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 text-body font-medium text-brand transition-colors hover:bg-fill"
               >
                 <LogOutIcon className="h-4 w-4" />
                 Sign out

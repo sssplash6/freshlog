@@ -151,7 +151,7 @@ export function HoursBreakdown({
       <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2.5">
         {shown.map((s) => (
           <div key={s.key}>
-            <dt className="flex items-center gap-1.5 text-[0.8125rem] text-muted-fg">
+            <dt className="flex items-center gap-1.5 text-xs text-muted-fg">
               <span
                 aria-hidden="true"
                 style={s.style}
@@ -164,14 +164,14 @@ export function HoursBreakdown({
               />
               {s.label}
             </dt>
-            <dd className={cn("mt-0.5 text-[1.0625rem] font-semibold tabular-nums", s.ink)}>
+            <dd className={cn("mt-0.5 text-title font-semibold tabular-nums", s.ink)}>
               {formatDuration(s.minutes)}
             </dd>
           </div>
         ))}
         {remaining > 0 && (
           <div>
-            <dt className="flex items-center gap-1.5 text-[0.8125rem] text-muted-fg">
+            <dt className="flex items-center gap-1.5 text-xs text-muted-fg">
               {/* Hollow: the unfilled tail of the track, drawn as what it is. */}
               <span
                 aria-hidden="true"
@@ -179,27 +179,27 @@ export function HoursBreakdown({
               />
               Remaining
             </dt>
-            <dd className="mt-0.5 text-[1.0625rem] font-semibold tabular-nums text-ink">
+            <dd className="mt-0.5 text-title font-semibold tabular-nums text-ink">
               {formatDuration(remaining)}
             </dd>
           </div>
         )}
         {over > 0 && (
           <div>
-            <dt className="flex items-center gap-1.5 text-[0.8125rem] text-muted-fg">
+            <dt className="flex items-center gap-1.5 text-xs text-muted-fg">
               <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-danger" />
               Overdrawn
             </dt>
-            <dd className="mt-0.5 text-[1.0625rem] font-semibold tabular-nums text-danger-ink">
+            <dd className="mt-0.5 text-title font-semibold tabular-nums text-danger-ink">
               {formatDuration(over)}
             </dd>
           </div>
         )}
         <div>
-          <dt className="text-[0.8125rem] text-muted-fg">
+          <dt className="text-xs text-muted-fg">
             Total
           </dt>
-          <dd className="mt-0.5 text-[1.0625rem] font-semibold tabular-nums text-ink">
+          <dd className="mt-0.5 text-title font-semibold tabular-nums text-ink">
             {formatDuration(allotted)}
           </dd>
         </div>

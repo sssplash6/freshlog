@@ -86,7 +86,7 @@ export function StarRating({
             user hears their choice land. */}
         <span
           aria-live="polite"
-          className="ml-1 text-[0.8125rem] font-medium text-muted-fg"
+          className="ml-1 text-xs font-medium text-muted-fg"
         >
           {shown > 0 ? STAR_WORDS[shown - 1] : ""}
         </span>
@@ -119,6 +119,8 @@ export function MentorFeedbackForm({
               name="mentorId"
               ariaLabel="Mentor"
               placeholder="Choose a mentor"
+              requiredMessage="Pick who you're rating."
+              title="Mentor"
               defaultValue={defaultMentorId ?? ""}
               options={mentors.map((m) => ({ value: m.id, label: m.label }))}
             />
@@ -130,7 +132,7 @@ export function MentorFeedbackForm({
           {/* Under the label, where the worry starts. Under the Send button
               it arrived after the student had already written — and
               possibly held back — what they wanted to say. */}
-          <span className="block text-[0.8125rem] text-muted-fg">
+          <span className="block text-xs text-muted-fg">
             Your mentor won&apos;t see your name. Only your school&apos;s admins do.
           </span>
           <textarea

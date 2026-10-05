@@ -47,16 +47,16 @@ export default async function LoginPage({
             "Welcome back": most people reaching this screen for the first
             time are students who have never been here. */}
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="text-[2.25rem] font-bold leading-none tracking-[-0.03em] text-brand">
+          <div className="text-display font-bold leading-none tracking-[-0.03em] text-brand">
             freshlog
           </div>
-          <div className="mt-2 text-[0.8125rem] font-medium text-muted-fg">
+          <div className="mt-2 text-xs font-medium text-muted-fg">
             by Freshman Academy
           </div>
-          <h1 className="mt-7 text-[1.5rem] font-bold leading-tight tracking-[-0.02em] text-ink">
+          <h1 className="mt-7 text-figure-lg font-bold leading-tight tracking-[-0.02em] text-ink">
             Sign in
           </h1>
-          <p className="mt-2 text-[0.9375rem] text-muted-fg">
+          <p className="mt-2 text-body text-muted-fg">
             See how much time you have with your mentors, book your next
             session and keep track of your tasks.
           </p>
@@ -86,7 +86,7 @@ export default async function LoginPage({
 
         {/* Students first: they are most of the people who sign in, and the
             one rule that trips them up is which Google account to use. */}
-        <p className="mt-4 text-center text-[0.8125rem] text-muted-fg">
+        <p className="mt-4 text-center text-xs text-muted-fg">
           Use the Google account your school has on file for you.
           <span className="mt-1 block">
             Mentors: sign in with your @freshman.academy account.
@@ -100,7 +100,7 @@ export default async function LoginPage({
         {process.env.DEV_LOGIN === "1" && (
           <a
             href="/api/dev-login"
-            className="mt-4 block text-center text-[0.8125rem] font-medium text-brand hover:underline"
+            className="mt-4 block text-center text-xs font-medium text-brand hover:underline"
           >
             Local sign-in (dev only)
           </a>

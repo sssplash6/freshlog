@@ -51,7 +51,7 @@ export default async function BugPage({
       {report.resolution &&
         (report.status === BUG_STATUS.FIXED || report.status === BUG_STATUS.CLOSED) && (
           <Section title={report.status === BUG_STATUS.FIXED ? "Fixed" : "From the team"}>
-            <p className="px-4 py-3 text-[0.9375rem] text-ink sm:px-5">{report.resolution}</p>
+            <p className="px-4 py-3 text-body text-ink sm:px-5">{report.resolution}</p>
           </Section>
         )}
 
@@ -59,9 +59,9 @@ export default async function BugPage({
         <div className="space-y-3 px-4 py-3 sm:px-5">
           {/* Plain text children, and `whitespace-pre-wrap` so line breaks
               survive: nothing here is ever rendered as HTML. */}
-          <p className="whitespace-pre-wrap text-[0.9375rem] text-ink">{report.description}</p>
+          <p className="whitespace-pre-wrap text-body text-ink">{report.description}</p>
           {report.pagePath && (
-            <p className="text-[0.8125rem] text-muted-fg">
+            <p className="text-xs text-muted-fg">
               On <span className="font-medium text-ink">{report.pagePath}</span>
             </p>
           )}

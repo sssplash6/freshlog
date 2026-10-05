@@ -52,11 +52,11 @@ export function NavSearch({ mentors }: { mentors: boolean }) {
         onClick={openCommandPalette}
         aria-keyshortcuts="Meta+K Control+K"
         aria-label={mentors ? "Find a student or mentor" : "Find a student"}
-        className="relative flex min-h-10 w-full cursor-pointer items-center gap-2 rounded-lg bg-fill py-2 pl-2.5 pr-2 text-left text-[0.9375rem] text-muted-fg transition-colors hover:bg-fill-strong"
+        className="relative flex min-h-10 w-full cursor-pointer items-center gap-2 rounded-lg bg-fill py-2 pl-2.5 pr-2 text-left text-body text-muted-fg transition-colors hover:bg-fill-strong"
       >
         <SearchIcon className="h-4 w-4 shrink-0" />
         <span className="min-w-0 flex-1 truncate">{placeholder}</span>
-        <kbd className="shrink-0 rounded-md bg-surface/70 px-1.5 py-[0.1875rem] font-sans text-[0.75rem] font-medium text-muted-fg">
+        <kbd className="shrink-0 rounded-md bg-surface/70 px-1.5 py-[0.1875rem] font-sans text-caption font-medium text-muted-fg">
           {shortcut}
         </kbd>
       </button>
@@ -75,7 +75,7 @@ export function NavSearch({ mentors }: { mentors: boolean }) {
           name="q"
           type="search"
           placeholder={placeholder}
-          className={cn(fieldChrome, "min-h-10 w-full py-2 pl-8 pr-2 text-[0.9375rem] placeholder:text-muted-fg")}
+          className={cn(fieldChrome, "min-h-10 w-full py-2 pl-8 pr-2 text-body placeholder:text-muted-fg")}
         />
       </div>
     </form>

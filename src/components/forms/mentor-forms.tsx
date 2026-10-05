@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { ProgramTargetsPicker } from "@/components/forms/program-targets-picker";
 import { EmailInput, Field, Input, NameInput } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
@@ -36,41 +38,81 @@ import type { ProgramOption } from "@/lib/queries";
  */
 export function RegisterMentorForm({ programs }: { programs: ProgramOption[] }) {
   const [, action, save] = useSaveState(createMentor);
+  const [errors, setErrors] = useState<RegisterErrors>({});
+  const errorCount = Object.keys(errors).length;
 
   return (
-    <form action={action} className="rounded-xl bg-surface shadow-sm p-4">
+    <form
+      action={action}
+      // The form checks itself, every field at once, in one voice — the
+      // pattern Log a session uses. Email answered in Chrome's bubble while
+      // Programs answered in red under its legend, two voices on one submit
+      // (October 2026).
+      noValidate
+      onSubmit={(event) => {
+        const form = event.currentTarget;
+        const found = checkRegister(new FormData(form));
+        // `checkValidity` fires `invalid` on each failing control without a
+        // bubble; the program picker listens for it and marks itself.
+        const valid = form.checkValidity();
+        if (Object.keys(found).length > 0 || !valid) {
+          event.preventDefault();
+          setErrors(found);
+        } else {
+          setErrors({});
+        }
+      }}
+      onChange={(event) => {
+        const name = (event.target as unknown as HTMLInputElement).name;
+        if (name in errors) {
+          setErrors((prev) => {
+            const next = { ...prev };
+            delete next[name as keyof RegisterErrors];
+            return next;
+          });
+        }
+      }}
+      className="rounded-xl bg-surface shadow-sm p-4"
+    >
       <div className="grid gap-3 sm:grid-cols-2">
         <Field
           label="Email"
           required
           hint="The mentor signs in with this address."
+          error={errors.email}
         >
           <EmailInput
             name="email"
             required
             placeholder="mentor@example.com"
+            aria-invalid={Boolean(errors.email) || undefined}
+            className={errors.email ? invalidClass : undefined}
           />
         </Field>
       </div>
       {/* Two boxes, not one: a box labelled "Full name" is a box people put one
           word in. `createMentor` joins them, the same as the students form. */}
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <Field label="First name" required>
+        <Field label="First name" required error={errors.firstName}>
           <Input
             name="firstName"
             type="text"
             required
             autoComplete="off"
             maxLength={NAME_MAX}
+            aria-invalid={Boolean(errors.firstName) || undefined}
+            className={errors.firstName ? invalidClass : undefined}
           />
         </Field>
-        <Field label="Last name" required>
+        <Field label="Last name" required error={errors.lastName}>
           <Input
             name="lastName"
             type="text"
             required
             autoComplete="off"
             maxLength={NAME_MAX}
+            aria-invalid={Boolean(errors.lastName) || undefined}
+            className={errors.lastName ? invalidClass : undefined}
           />
         </Field>
       </div>
@@ -78,9 +120,38 @@ export function RegisterMentorForm({ programs }: { programs: ProgramOption[] }) 
       <div className="mt-3 flex justify-end">
         <SubmitButton pendingText="Registering…">Register mentor</SubmitButton>
       </div>
-      <SaveState state={save} />
+      {errorCount > 0 ? (
+        <p role="alert" className="mt-2 text-xs font-medium text-danger-ink">
+          {errorCount === 1 ? "Fix the field marked above." : `Fix the ${errorCount} fields marked above.`}
+        </p>
+      ) : (
+        <SaveState state={save} />
+      )}
     </form>
   );
+}
+
+type RegisterErrors = Partial<Record<"email" | "firstName" | "lastName", string>>;
+
+/**
+ * A ring rather than a border or a fill: `cn` joins classes without merging
+ * them, so a second `border-*` or `bg-*` would race the field's own by CSS
+ * order. A ring is a property the field does not set.
+ */
+const invalidClass = "ring-1 ring-danger";
+
+/** Email and both names, in the words each field shows under itself. */
+function checkRegister(data: FormData): RegisterErrors {
+  const errors: RegisterErrors = {};
+  const text = (name: string) => String(data.get(name) ?? "").trim();
+  const email = text("email");
+  if (!email) errors.email = "Enter the address they sign in with.";
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errors.email = "That doesn't look like an email address.";
+  }
+  if (!text("firstName")) errors.firstName = "Enter their first name.";
+  if (!text("lastName")) errors.lastName = "Enter their last name.";
+  return errors;
 }
 
 /**

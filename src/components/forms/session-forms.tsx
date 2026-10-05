@@ -161,7 +161,9 @@ export function SessionRowActions({
       label={`${canEdit ? "Edit this session" : "Manage this session"}${
         who ? `: ${who}, ${when}` : ""
       }`}
-      width="lg"
+      // A small form, not a list of verbs: at w-80 its two-word segment
+      // labels wrapped and the panel ran ~800px tall.
+      width="xl"
     >
       {({ close }) => (
         <>

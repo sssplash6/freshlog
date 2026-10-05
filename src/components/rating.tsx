@@ -2,7 +2,7 @@
 export function Rating({ value }: { value: number }) {
   return (
     <span
-      className="whitespace-nowrap text-[0.9375rem] leading-none tabular-nums text-ink"
+      className="whitespace-nowrap text-body leading-none tabular-nums text-ink"
       aria-label={`${value} out of 5 stars`}
     >
       {"★".repeat(value)}

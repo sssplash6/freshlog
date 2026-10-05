@@ -49,7 +49,7 @@ export function OwnTelegramForm({ defaultHandle }: { defaultHandle: string }) {
           <div className="relative min-w-0 flex-1">
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[0.9375rem] text-muted-fg"
+              className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-body text-muted-fg"
             >
               @
             </span>
@@ -193,9 +193,9 @@ function CategoryRow({
     >
       <input type="hidden" name="category" value={category.key} />
       <span className="min-w-0 flex-1">
-        <span className="block text-[0.9375rem] font-medium text-ink">{category.label}</span>
+        <span className="block text-body font-medium text-ink">{category.label}</span>
         {category.hint && (
-          <span className="mt-0.5 block text-[0.8125rem] text-muted-fg">{category.hint}</span>
+          <span className="mt-0.5 block text-xs text-muted-fg">{category.hint}</span>
         )}
       </span>
       {/* The last switch sits on the row's right edge, under the weekly

@@ -99,7 +99,7 @@ export default async function SettingsPage() {
           <SettingsRow
             label="Sign-in email"
             control={
-              <p className="py-1 text-[0.9375rem] text-muted-fg wrap-anywhere">
+              <p className="py-1 text-body text-muted-fg wrap-anywhere">
                 <EmailText email={user.email} />
               </p>
             }

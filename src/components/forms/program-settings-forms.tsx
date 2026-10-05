@@ -26,7 +26,7 @@ import {
 import { formatDuration } from "@/lib/format";
 
 const labelClass =
-  "block text-[0.8125rem] text-muted-fg";
+  "block text-xs text-muted-fg";
 
 /** Rename the program — one settings row, saved on its own. */
 export function RenameProgramForm({
@@ -98,24 +98,29 @@ export function AssignMentorForm({
   return (
     <form action={action}>
       <input type="hidden" name="programId" value={programId} />
-      {/* The heading and the controls share a line. They were stacked with a
-          caption between them, which spent three rows and a band of white space
-          on one select and one button — and the caption said what assigning a
-          mentor does, which the two controls already say. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <h3 className="text-[0.9375rem] font-medium text-ink">Assign a mentor</h3>
-        <div className="min-w-56">
-          <div>
+      {/* The heading takes its own line and the controls one row under it:
+          select, then the button at its end. They shared one wrapping line,
+          and in the program's narrow side card the 224px select pushed
+          "Assign" down onto a row of its own, a button floating under a field
+          it belongs beside (October 2026). The selects grow and the button
+          keeps its size; under `sm` they stack, full width. */}
+      <h3 className="text-body font-medium text-ink">Assign a mentor</h3>
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="min-w-0 sm:min-w-48 sm:flex-1">
+          {(leveled || cohortOptions.length > 0) && (
+            <span className={labelClass}>Mentor</span>
+          )}
+          <div className={leveled || cohortOptions.length > 0 ? "mt-1" : undefined}>
             <Select
               name="mentorId"
               ariaLabel="Mentor"
               options={mentors}
-              placeholder="Choose a mentor…"
+              placeholder="Choose a mentor"
             />
           </div>
         </div>
         {leveled && (
-          <div className="min-w-44">
+          <div className="min-w-0 sm:min-w-40 sm:flex-1">
             <span className={labelClass}>Level</span>
             <div className="mt-1">
               <Select
@@ -130,7 +135,7 @@ export function AssignMentorForm({
           </div>
         )}
         {cohortOptions.length > 0 && (
-          <div className="min-w-44">
+          <div className="min-w-0 sm:min-w-40 sm:flex-1">
             <span className={labelClass}>Cohort</span>
             <div className="mt-1">
               {/* `key` remounts when the level changes, so a cohort picked
@@ -146,7 +151,9 @@ export function AssignMentorForm({
             </div>
           </div>
         )}
-        <SubmitButton variant="secondary" pendingText="Assigning…">Assign</SubmitButton>
+        <SubmitButton variant="secondary" pendingText="Assigning…" className="shrink-0 max-sm:w-full">
+          Assign
+        </SubmitButton>
       </div>
       <SaveState state={save} />
     </form>

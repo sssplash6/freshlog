@@ -203,7 +203,10 @@ export function ConfirmInline({
             className={
               variant === "quiet"
                 ? cn(
-                    "inline-flex min-h-10 items-center rounded-lg text-left text-xs font-medium transition-colors hover:underline disabled:cursor-not-allowed disabled:opacity-50",
+                    "inline-flex min-h-10 items-center rounded-lg text-left text-xs font-medium transition-colors hover:underline disabled:cursor-not-allowed disabled:text-disabled disabled:no-underline",
+                    // Disabled is a colour, not half opacity: a half-faded red
+                    // still read as "remove" (October 2026). `disabled:` out-
+                    // ranks the tone below, so the two never race.
                     tone === "danger" ? "text-danger-ink" : "text-ink"
                   )
                 : buttonClasses(tone === "danger" ? "danger" : "secondary", stepSize)

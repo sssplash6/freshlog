@@ -79,7 +79,7 @@ export function BookingLinksForm({
         aria-expanded={open}
         className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 text-left"
       >
-        <span className="flex items-center gap-2 text-[1.0625rem] font-semibold text-ink">
+        <span className="flex items-center gap-2 text-title font-semibold text-ink">
           Your booking links
           {missing > 0 && (
             <span className="rounded-full bg-warn-soft px-2.5 py-[0.1875rem] text-xs font-medium text-warn-ink">
@@ -89,7 +89,7 @@ export function BookingLinksForm({
         </span>
         {/* A chevron that turns, not "Show ▾" / "Hide ▴" typed as text —
             the same fold every Disclosure in the app draws. */}
-        <span className="flex items-center gap-1 text-[0.9375rem] font-medium text-brand">
+        <span className="flex items-center gap-1 text-body font-medium text-brand">
           {open ? "Hide" : "Show"}
           <ChevronDownIcon
             aria-hidden="true"
@@ -99,7 +99,7 @@ export function BookingLinksForm({
       </button>
       {open && (
         <div className="rise-in">
-          <p className="mt-1 text-[0.8125rem] text-muted-fg">
+          <p className="mt-1 text-xs text-muted-fg">
             Students book sessions through these links (e.g. your Calendly),
             one per program you&apos;re assigned to.
           </p>

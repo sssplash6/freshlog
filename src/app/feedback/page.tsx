@@ -236,12 +236,12 @@ async function OwnRatings({
                 <li key={f.id} className="px-4 py-3 sm:px-5">
                   <div className="flex items-center justify-between gap-3">
                     <Rating value={f.rating} />
-                    <span className="text-[0.8125rem] tabular-nums text-muted-fg">
+                    <span className="text-xs tabular-nums text-muted-fg">
                       {formatDate(f.createdAt)}
                     </span>
                   </div>
                   {f.comment && (
-                    <div className="mt-1 text-[0.9375rem]">
+                    <div className="mt-1 text-body">
                       <ExpandableText
                         text={f.comment}
                         lines={2}
@@ -560,7 +560,7 @@ async function AllRatings({
                   <Rating value={f.rating} />
                 </div>
                 {f.comment && (
-                  <div className="mt-1 text-[0.9375rem]">
+                  <div className="mt-1 text-body">
                     <ExpandableText
                       text={f.comment}
                       lines={2}
@@ -568,7 +568,7 @@ async function AllRatings({
                     />
                   </div>
                 )}
-                <p className="mt-0.5 text-[0.8125rem] text-muted-fg">
+                <p className="mt-0.5 text-xs text-muted-fg">
                   {f.student ? (f.student.name ?? f.student.email) : "Anonymous"}
                   {" · "}
                   {formatDate(f.createdAt)}
@@ -647,7 +647,7 @@ function AverageStars({ value }: { value: number }) {
   return (
     <span
       aria-hidden="true"
-      className="ml-1.5 align-middle text-[0.6875rem] tracking-tight text-ink"
+      className="ml-1.5 align-middle text-caption tracking-tight text-ink"
     >
       {"★".repeat(filled)}
       <span className="text-fill-strong">{"★".repeat(5 - filled)}</span>

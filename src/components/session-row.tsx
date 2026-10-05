@@ -15,6 +15,7 @@ import { Section } from "@/components/ui/section";
 import {
   attendanceOf,
   chargesAllocation,
+  SESSION_ANSWER,
   SESSION_STATUS,
   timeKindOf,
 } from "@/lib/constants";
@@ -256,6 +257,11 @@ function SessionRowContent({
   // student's name broke that promise on every student page. A mentor reads
   // the record; what the student said about it is for the student and staff.
   const showFeedback = viewer.audience !== "mentor";
+  // The one exception: a dispute is addressed TO the mentor — the form that
+  // raises it says so — so its wording shows even where ratings do not. The
+  // rating itself never does.
+  const disputed = session.studentAnswer === SESSION_ANSWER.DISPUTED;
+  const showStudentNote = showFeedback || disputed;
   // The viewer's own name on their own log is the one name the row need not
   // carry: "Dilnoza Yusupova" five times down Dilnoza's student page.
   const showMentorChip = mentor.id !== viewer.userId;
@@ -277,7 +283,7 @@ function SessionRowContent({
       <li
         id={anchor}
         className={cn(
-          "flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-4 py-3 text-[0.8125rem] text-muted-fg sm:px-5",
+          "flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-4 py-3 text-xs text-muted-fg sm:px-5",
           index != null && "deal-in",
         )}
         style={stagger}
@@ -353,7 +359,7 @@ function SessionRowContent({
             {/* Under `sm` the agenda item takes a line of its own: on a 390px
                 screen, squeezed between the date, the mentor and the figure,
                 it truncated to a single stray letter ("U"). */}
-            <div className="flex min-w-0 flex-1 items-center gap-x-2.5 gap-y-1 text-[0.8125rem] max-sm:flex-wrap">
+            <div className="flex min-w-0 flex-1 items-center gap-x-2.5 gap-y-1 text-xs max-sm:flex-wrap">
               {/* Its own width, and no minimum. It was a 96px column, so
                   that "September 30" would fit and every date would start the
                   mentor chip at the same x — which meant "July 30" sat in 55px
@@ -390,7 +396,7 @@ function SessionRowContent({
             {/* Right-aligned in a fixed column, so 22, 60 and 180 stack into
                 one edge instead of three. It is the only figure on the row and
                 a ledger is read by scanning figures. */}
-            <span className="flex shrink-0 items-center gap-2 text-[0.8125rem]">
+            <span className="flex shrink-0 items-center gap-2 text-xs">
               <span className="w-16 text-right">{duration}</span>
               {/* On the header line, not under the row. A pencil on a line of
                   its own is a whole row of height per session, down a ledger
@@ -405,10 +411,11 @@ function SessionRowContent({
           {note && <ExpandableNote text={note} className="mt-0.5" />}
           {/* What the student said back. It sits under the mentor's own note
               on purpose: the row reads as the record, then the answer to it. */}
-          {showFeedback && session.studentAnswer && (session.studentRating || session.studentNote) && (
-            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[0.8125rem]">
-              {session.studentRating ? <Rating value={session.studentRating} /> : null}
-              {session.studentNote && (
+          {session.studentAnswer &&
+            ((showFeedback && session.studentRating) || (showStudentNote && session.studentNote)) && (
+            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs">
+              {showFeedback && session.studentRating ? <Rating value={session.studentRating} /> : null}
+              {showStudentNote && session.studentNote && (
                 <span className="min-w-0 text-muted-fg">
                   &ldquo;{session.studentNote}&rdquo;
                 </span>
@@ -464,7 +471,7 @@ function SessionRowContent({
           instead of reading as a wall of two-line blocks. On a phone the same
           facts stack: who and how long, then when and what. */}
       <div className="flex items-start gap-3 sm:items-center">
-        <span className="hidden w-24 shrink-0 text-[0.8125rem] tabular-nums text-muted-fg sm:block">
+        <span className="hidden w-24 shrink-0 text-xs tabular-nums text-muted-fg sm:block">
           {when}
         </span>
         <div className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-4">
@@ -480,7 +487,7 @@ function SessionRowContent({
               way first; with no topic at all, the people take the row. */}
           <div
             className={cn(
-              "flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[0.9375rem] leading-snug sm:flex-nowrap sm:text-sm",
+              "flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-body leading-snug sm:flex-nowrap sm:text-sm",
               topic.length > 0
                 ? second
                   ? "sm:max-w-[60%] sm:shrink-0 sm:basis-auto sm:min-w-[19rem] lg:min-w-[24rem]"
@@ -495,7 +502,7 @@ function SessionRowContent({
               />
             )}
             {second && (
-              <span className="flex min-w-0 basis-full items-baseline gap-x-1 text-[0.8125rem] text-muted-fg sm:shrink-[2] sm:basis-auto sm:text-sm">
+              <span className="flex min-w-0 basis-full items-baseline gap-x-1 text-xs text-muted-fg sm:shrink-[2] sm:basis-auto sm:text-sm">
                 <span className="shrink-0">with</span>
                 <PersonName person={second} className="min-w-0 truncate" />
               </span>
@@ -507,14 +514,14 @@ function SessionRowContent({
           <ExpandableText
             text={[when, ...topic].join(" · ")}
             lines={2}
-            className="mt-0.5 text-[0.8125rem] leading-snug text-muted-fg sm:hidden"
+            className="mt-0.5 text-xs leading-snug text-muted-fg sm:hidden"
           />
           <div className="hidden min-w-0 flex-1 sm:block">
             {topic.length > 0 && (
               <ExpandableText
                 text={topic.join(" · ")}
                 lines={1}
-                className="text-[0.8125rem] leading-snug text-muted-fg"
+                className="text-xs leading-snug text-muted-fg"
               />
             )}
           </div>
@@ -538,7 +545,7 @@ function SessionRowContent({
             edge, then the menu — which, on a pointer, waits for the row to
             be hovered or focused rather than repeating down every line. */}
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          <span className="text-[0.9375rem] leading-snug sm:w-16 sm:text-right sm:text-sm">
+          <span className="text-body leading-snug sm:w-16 sm:text-right sm:text-sm">
             {duration}
           </span>
           {actions && (
@@ -751,9 +758,9 @@ export function SessionsLog({
       title={title}
       action={
         moreHref ? (
-          <span className="flex items-center gap-3 text-[0.8125rem] text-muted-fg">
+          <span className="flex items-center gap-3 text-xs text-muted-fg">
             {tally}
-            <ArrowLink href={moreHref} className="text-[0.8125rem]">
+            <ArrowLink href={moreHref} className="text-xs">
               {moreLabel}
             </ArrowLink>
           </span>
