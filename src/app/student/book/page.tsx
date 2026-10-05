@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { PersonCell } from "@/components/person-chip";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
+import { buttonClasses } from "@/components/ui/button";
 import { ExternalLink } from "@/components/ui/link";
 import {
   AllocationBalance,
@@ -174,7 +175,9 @@ export default async function StudentBookPage() {
 
   return (
     <div className="space-y-4">
-      <PageTitle backHref="/student" backLabel="Home" title="Book a session" />
+      {/* No back link: Book is a tab, not a page under Home, and a "‹ Home"
+          above it said otherwise. */}
+      <PageTitle title="Book a session" />
 
       {states.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
@@ -252,12 +255,18 @@ function MentorRow({
   // Overdrawn is deliberately absent: the balance beside the name already says
   // "over", in red, and saying it twice on one row is the habit this page was
   // rebuilt to drop.
+  //
+  // A missing link is grey, not amber: it is the mentor's setup step, and the
+  // student has done nothing that needs a warning. The email button beside it
+  // is the answer, so the chip only has to name the reason.
+  const noLink = !bookingUrl && sayLinkState ? status("BOOKING_LINK_MISSING", viewer) : null;
   const blocked =
     hours.expired && hours.forfeited > 0
       ? status("ALLOCATION_EXPIRED", viewer, { minutes: hours.forfeited })
-      : !bookingUrl && sayLinkState
-        ? status("BOOKING_LINK_MISSING", viewer)
+      : noLink
+        ? { ...noLink, severity: "neutral" as const }
         : null;
+  const firstName = name.split(" ")[0];
 
   return (
     <li className="px-4 py-3 sm:px-5">
@@ -292,28 +301,31 @@ function MentorRow({
           row ends at the same edge, so a list of three reads as one column. */}
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         {bookable && bookingUrl ? (
+          // The one thing this page is for, at full size: 44px, and the full
+          // width of the card on a phone. It was a 32px button on a laptop,
+          // smaller than the name above it.
           <ExternalLink
             variant="action"
-            size="sm"
             href={bookingUrl}
             title={`Book with ${name}`}
-            className="ml-auto px-4 max-sm:h-11"
+            className="ml-auto max-sm:w-full"
           >
-            Book
+            Book with {firstName}
           </ExternalLink>
         ) : (
           <>
             {blocked ? <StatusChip status={blocked} /> : <span />}
             {/* The fallback that makes this page an answer rather than a dead
-                end: no calendar, but a person, and a way to write to them. */}
-            <ExternalLink
-              variant="quiet"
+                end: no calendar, but a person, and a way to write to them —
+                as a real button. A 13px address was the smallest thing on the
+                row and the only way forward on it. */}
+            <a
               href={`mailto:${mentor.email}`}
-              title={`Email ${name}`}
-              className="ml-auto max-w-full break-all"
+              title={mentor.email}
+              className={buttonClasses("secondary", "md", "ml-auto max-sm:w-full")}
             >
-              {mentor.email}
-            </ExternalLink>
+              Email {firstName}
+            </a>
           </>
         )}
       </div>

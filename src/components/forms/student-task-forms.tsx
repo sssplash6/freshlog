@@ -266,8 +266,8 @@ function TaskPanel({ task, canDelete }: { task: TaskFields; canDelete: boolean }
  * Every button is its own submit, so the whole control is one `<form>` and the
  * value rides on the button that was pressed.
  *
- * Done is the last button and is NOT a 100% step — see `PERCENT_STEPS`. It
- * reads as the end of the row rather than as a sixth quarter, which is what
+ * Done is the last segment and is NOT a 100% step — see `PERCENT_STEPS`. It
+ * reads as the end of the track rather than as a sixth quarter, which is what
  * keeps "100%" and "Done" from being two spellings of one tap.
  */
 export function TaskProgressControl({
@@ -294,7 +294,7 @@ export function TaskProgressControl({
           name="intent"
           value="reopen"
           disabled={pending}
-          className="inline-flex min-h-8 items-center rounded-lg px-2 text-[0.8125rem] font-medium text-brand transition-colors hover:bg-brand-soft disabled:opacity-50"
+          className="inline-flex min-h-11 items-center rounded-lg px-2 text-[0.8125rem] font-medium text-brand transition-colors hover:bg-brand-soft disabled:opacity-50"
         >
           Not finished after all
         </button>
@@ -314,41 +314,44 @@ export function TaskProgressControl({
     >
       <input type="hidden" name="taskId" value={taskId} />
       {/* The look of the app's segmented control — grey track, white thumb
-          on the current step — because it IS one: one of four, the same
-          gesture as every other choice among a few options. It stays a row of
-          submit buttons rather than a `SegmentedRadio`: each tap is the save,
-          and radios would need a Save button to mean anything. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex gap-0.5 rounded-lg bg-fill p-0.5">
-          {PERCENT_STEPS.map((step) => {
-            const current = step === percent;
-            return (
-              <button
-                key={step}
-                type="submit"
-                name="percent"
-                value={step}
-                disabled={pending || current}
-                aria-current={current}
-                className={`inline-flex min-h-8 items-center rounded-md px-3 text-[0.8125rem] tabular-nums transition-colors disabled:cursor-default max-sm:min-h-10 ${
-                  current
-                    ? "bg-surface font-semibold text-ink shadow-sm"
-                    : "font-medium text-muted-fg hover:text-ink disabled:opacity-50"
-                }`}
-              >
-                {step}%
-              </button>
-            );
-          })}
-        </div>
-        {/* Outside the track: the steps say where you are, this one ends the
-            row. A secondary button, not a fifth segment. */}
+          on the current step — because it IS one. It stays a row of submit
+          buttons rather than a `SegmentedRadio`: each tap is the save, and
+          radios would need a Save button to mean anything.
+
+          ONE control, Done included. Done used to sit outside the track as a
+          second, differently shaped button, so the row read as two controls
+          in two styles answering one question. It is the last segment now,
+          set apart by its brand colour and tick rather than by a gap. Every
+          segment is 44px tall at every width (DESIGN.md: segments are 44px,
+          even in a dense card) — at 32px on a laptop and 40px on a phone they
+          were the smallest targets on the student's home. */}
+      <div className="inline-flex max-w-full gap-0.5 overflow-x-auto rounded-xl bg-fill p-0.5">
+        {PERCENT_STEPS.map((step) => {
+          const current = step === percent;
+          return (
+            <button
+              key={step}
+              type="submit"
+              name="percent"
+              value={step}
+              disabled={pending || current}
+              aria-current={current}
+              className={`inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-[0.8125rem] tabular-nums transition-colors disabled:cursor-default ${
+                current
+                  ? "bg-surface font-semibold text-ink shadow-sm"
+                  : "font-medium text-muted-fg hover:text-ink disabled:opacity-50"
+              }`}
+            >
+              {step}%
+            </button>
+          );
+        })}
         <button
           type="submit"
           name="intent"
           value="done"
           disabled={pending}
-          className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-fill px-3 text-[0.8125rem] font-semibold text-brand transition-colors hover:bg-fill-strong disabled:opacity-50 max-sm:min-h-11"
+          className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-3 text-[0.8125rem] font-semibold text-brand transition-colors hover:bg-fill-strong disabled:opacity-50"
         >
           <span aria-hidden="true">✓</span> Done
         </button>

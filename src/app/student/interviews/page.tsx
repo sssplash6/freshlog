@@ -134,36 +134,81 @@ export default async function StudentInterviewsPage() {
     );
   };
 
+  // Most visits come to book somebody, so the page leads with who has a time
+  // free. It used to open on an empty "Your interviews" card and an
+  // always-open form for offering your own, and the classmates a student came
+  // for sat below the fold.
+  const classmatesSection = (
+    <Section title="Classmates" count={named.length || undefined}>
+      {named.length === 0 ? (
+        <EmptyState framed={false} variant="blocked" title="No classmates yet">
+          Nobody else in your programs has signed in.
+        </EmptyState>
+      ) : (
+        <>
+          {offering.length === 0 ? (
+            <p className="px-4 py-3 text-[0.8125rem] text-muted-fg sm:px-5">
+              None of your {named.length} classmates has offered a time yet. Be the first!
+            </p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {offering.map((c) => (
+                <ClassmateRow key={c.id} classmate={c} />
+              ))}
+            </ul>
+          )}
+          {quiet.length > 0 && (
+            // Uncounted when nobody is offering: the line above has just
+            // said how many classmates there are.
+            <Disclosure
+              label={offering.length > 0 ? "Classmates with no times offered" : "See your classmates"}
+              count={offering.length > 0 ? quiet.length : undefined}
+              className="border-t border-line px-4 py-2 sm:px-5"
+            >
+              <ul className="-mx-4 divide-y divide-line border-t border-line sm:-mx-5">
+                {quiet.map((c) => (
+                  <ClassmateRow key={c.id} classmate={c} />
+                ))}
+              </ul>
+            </Disclosure>
+          )}
+        </>
+      )}
+    </Section>
+  );
+
   return (
     <div className="space-y-4">
+      {/* The tab's own name, and no back link: this is a tab, not a page
+          under Home. */}
       <PageTitle
-        backHref="/student"
-        backLabel="Home"
-        title="Practice interviews"
-        subtitle="Rehearse with classmates from your programs. Offer times, or book one of theirs."
+        title="Interviews"
+        subtitle="Practise interviews with classmates from your programs. Book one of their times, or offer your own."
       />
 
-      <Section title="Your interviews" count={open.length || undefined}>
-        {open.length === 0 ? (
-          <EmptyState framed={false} title="Nothing booked">
-            Book a classmate&apos;s time below, or offer your own.
-          </EmptyState>
-        ) : (
+      {open.length > 0 && (
+        <Section title="Coming up" count={open.length}>
           <ul className="divide-y divide-line">{open.map(row)}</ul>
-        )}
-        <Disclosure
-          label="Completed"
-          count={completed.length}
-          className="border-t border-line px-4 py-2 sm:px-5"
-        >
-          <ul className="-mx-4 divide-y divide-line border-t border-line sm:-mx-5">
-            {completed.map(row)}
-          </ul>
-        </Disclosure>
-      </Section>
+        </Section>
+      )}
+
+      {classmatesSection}
 
       <Section title="Your available times" count={mySlots.length || undefined}>
-        <OfferSlotForm today={today} tomorrow={tomorrow} lastDay={lastDay} />
+        {/* Behind a button: offering a time is the less common half of the
+            page, and the open form was the tallest thing on it. Open by
+            default only while the student has nothing on offer and nobody
+            else does either — then offering is the only thing to do here. */}
+        <Disclosure
+          label="Offer a time"
+          variant="create"
+          defaultOpen={mySlots.length === 0 && offering.length === 0}
+          className="px-4 py-2 sm:px-5"
+        >
+          <div className="-mx-4 sm:-mx-5">
+            <OfferSlotForm today={today} tomorrow={tomorrow} lastDay={lastDay} />
+          </div>
+        </Disclosure>
         {mySlots.length > 0 && (
           <ul className="divide-y divide-line border-t border-line">
             {mySlots.map((s) => (
@@ -191,38 +236,19 @@ export default async function StudentInterviewsPage() {
         )}
       </Section>
 
-      <Section title="Classmates" count={named.length || undefined}>
-        {named.length === 0 ? (
-          <EmptyState framed={false} variant="blocked" title="No classmates yet">
-            Nobody else in your programs has signed in.
-          </EmptyState>
-        ) : (
-          <>
-            {offering.length === 0 ? (
-              <EmptyState framed={false} title="No times offered">
-                None of your classmates has offered a time yet.
-              </EmptyState>
-            ) : (
-              <ul className="divide-y divide-line">
-                {offering.map((c) => (
-                  <ClassmateRow key={c.id} classmate={c} />
-                ))}
-              </ul>
-            )}
-            <Disclosure
-              label="Classmates with no times offered"
-              count={quiet.length}
-              className="border-t border-line px-4 py-2 sm:px-5"
-            >
-              <ul className="-mx-4 divide-y divide-line border-t border-line sm:-mx-5">
-                {quiet.map((c) => (
-                  <ClassmateRow key={c.id} classmate={c} />
-                ))}
-              </ul>
-            </Disclosure>
-          </>
-        )}
-      </Section>
+      {completed.length > 0 && (
+        <Section title="Done">
+          <Disclosure
+            label="Interviews you've had"
+            count={completed.length}
+            className="px-4 py-2 sm:px-5"
+          >
+            <ul className="-mx-4 divide-y divide-line border-t border-line sm:-mx-5">
+              {completed.map(row)}
+            </ul>
+          </Disclosure>
+        </Section>
+      )}
     </div>
   );
 }

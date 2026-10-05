@@ -90,7 +90,7 @@ export default async function ClassmatePage({
     <div className="space-y-4">
       <PageTitle
         backHref="/student/interviews"
-        backLabel="Practice interviews"
+        backLabel="Interviews"
         leading={
           <Avatar
             person={{ ...classmate.user, email: "" }}

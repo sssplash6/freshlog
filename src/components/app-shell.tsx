@@ -7,7 +7,16 @@ import {
   CommandPalette,
   CommandPaletteButton,
 } from "@/components/command-palette";
-import { ChevronDownIcon, LogOutIcon, SparklesIcon } from "@/components/icons";
+import {
+  AlertIcon,
+  ChevronDownIcon,
+  CrownIcon,
+  GearIcon,
+  InboxIcon,
+  LogOutIcon,
+  SparklesIcon,
+  UserIcon,
+} from "@/components/icons";
 import { NavCount, NavLinks } from "@/components/nav-links";
 import {
   NotificationBell as NotificationMenu,
@@ -137,6 +146,11 @@ function WhatsNewLink({ unseen }: { unseen: boolean }) {
   );
 }
 
+/** One row of the account menu, and the icon column every row shares. */
+const MENU_ROW =
+  "flex min-h-11 items-center gap-2.5 rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill";
+const MENU_ICON = "h-4 w-4 shrink-0 text-muted-fg";
+
 /**
  * Identity and the things that are about you rather than about the school.
  *
@@ -174,13 +188,19 @@ function AccountMenu({
   whatsNew: boolean;
 }) {
   const label = user.name ?? user.email;
+  // A student's menu is about them, not about running the product: no bug
+  // queue (a staff tool), and no second "What's new" mark on the avatar
+  // beside the bell's count — one notification mark in a top bar, not two.
+  const student = user.role === ROLES.STUDENT;
 
   return (
     <Popover
       label={whatsNew ? "Account (new updates)" : "Account"}
       origin="end"
       width="sm"
-      triggerClassName="group flex h-11 w-full cursor-pointer items-center gap-2 rounded-lg pl-1 pr-2 transition-colors hover:bg-fill"
+      // The brand focus ring every other control wears (DESIGN.md: brand is
+      // for focus) — the trigger fell back to the browser's near-black one.
+      triggerClassName="group flex h-11 w-full cursor-pointer items-center gap-2 rounded-lg pl-1 pr-2 transition-colors hover:bg-fill focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       trigger={
         <>
           <span className="relative shrink-0">
@@ -191,11 +211,14 @@ function AccountMenu({
                 person, on the same screen. */}
             <Avatar person={user} className="h-8 w-8 shrink-0 text-xs" />
             {/* Blue, not red: red is spent on hours that are gone. The bell
-                owns the corner's count; this is only "something to read". */}
-            {whatsNew && (
+                owns the corner's count; this is only "something to read".
+                Staff below `lg` only — from `lg` the corner pill carries the
+                same dot beside its own words, and a student's bar already has
+                the bell's badge one icon over. */}
+            {whatsNew && !student && (
               <span
                 aria-hidden="true"
-                className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-brand ring-2 ring-surface"
+                className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-brand ring-2 ring-surface lg:hidden"
               />
             )}
           </span>
@@ -223,26 +246,32 @@ function AccountMenu({
           lists it there too: the mentor lens has no More sheet, so a dual-role
           admin who switched to it on a phone would have no way back. ⌥M is not
           the answer on a device with no ⌥. */}
+      {/* Below `lg` only: from `lg` the rail carries the same switch, and
+          the menu was a second copy of it one click away. */}
       {lens && (
-        <div className="mt-1">
+        <div className="mt-1 lg:hidden">
           <ProfileSwitchMenu active={lens} />
         </div>
       )}
 
-      <Link
-        href="/settings"
-        transitionTypes={["nav-forward"]}
-        className="mt-1 flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill"
-      >
+      {/* Every row has an icon in one 16px column, so the labels share one
+          left edge. Only Sign out had one, which made it the row that looked
+          different rather than the row that IS different — the rule above it
+          does that job. */}
+      <Link href="/settings" transitionTypes={["nav-forward"]} className={cn(MENU_ROW, "mt-1")}>
+        <GearIcon className={MENU_ICON} />
         Settings
       </Link>
 
+      {/* Staff below `lg` only: from `lg` the corner pill beside the bell is
+          the way in. A student has no corner pill, so it stays for them. */}
       <Link
         href="/changelog"
         transitionTypes={["nav-forward"]}
-        className="flex min-h-11 items-center justify-between rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill"
+        className={cn(MENU_ROW, !student && "lg:hidden")}
       >
-        {"What's new"}
+        <SparklesIcon className={MENU_ICON} />
+        <span className="flex-1">{"What's new"}</span>
         {whatsNew && (
           <span
             role="img"
@@ -252,35 +281,31 @@ function AccountMenu({
         )}
       </Link>
 
-      <ReportBugLink className="flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill">
-        Report a bug
-      </ReportBugLink>
-
-      <Link
-        href="/bugs"
-        transitionTypes={["nav-forward"]}
-        className="flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill"
-      >
-        Bug reports
-      </Link>
+      {/* What the public page says about a mentor — not their settings,
+          which is what "My profile" beside "Settings" read as. */}
+      {mentorProfile && (
+        <Link href={`/mentors/${user.id}`} transitionTypes={["nav-forward"]} className={MENU_ROW}>
+          <UserIcon className={MENU_ICON} />
+          Your mentor page
+        </Link>
+      )}
 
       {user.platformAdmin && (
-        <Link
-          href="/settings/platform"
-          transitionTypes={["nav-forward"]}
-          className="flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill"
-        >
+        <Link href="/settings/platform" transitionTypes={["nav-forward"]} className={MENU_ROW}>
+          <CrownIcon className={MENU_ICON} />
           Platform
         </Link>
       )}
 
-      {mentorProfile && (
-        <Link
-          href={`/mentors/${user.id}`}
-          transitionTypes={["nav-forward"]}
-          className="flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-ink transition-colors hover:bg-fill"
-        >
-          My profile
+      <ReportBugLink className={MENU_ROW}>
+        <AlertIcon className={MENU_ICON} />
+        Report a bug
+      </ReportBugLink>
+
+      {!student && (
+        <Link href="/bugs" transitionTypes={["nav-forward"]} className={MENU_ROW}>
+          <InboxIcon className={MENU_ICON} />
+          Bug reports
         </Link>
       )}
 
@@ -292,11 +317,8 @@ function AccountMenu({
       </div>
 
       <form action={signOutAction} className="mt-1 border-t border-line pt-1">
-        <button
-          type="submit"
-          className="flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-lg px-3 text-left text-[0.9375rem] text-ink transition-colors hover:bg-fill"
-        >
-          <LogOutIcon className="h-4 w-4 text-muted-fg" />
+        <button type="submit" className={cn(MENU_ROW, "w-full cursor-pointer text-left")}>
+          <LogOutIcon className={MENU_ICON} />
           Sign out
         </button>
       </form>

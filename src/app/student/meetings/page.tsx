@@ -144,14 +144,20 @@ export default async function StudentMeetingsPage({
             href="/student/interviews"
             className="text-[0.9375rem] font-medium"
           >
-            Practice interviews
+            Interviews
           </ArrowLink>
         }
       >
         {interviews.length === 0 ? (
-          <EmptyState framed={false} title="Nothing booked">
-            Book a classmate&apos;s time on the interviews page.
-          </EmptyState>
+          // Says where a booked MENTOR meeting is too. Booking happens on the
+          // mentor's own calendar, outside this app, so a student who had
+          // just booked one came here, found "Nothing booked", and assumed
+          // it had not gone through.
+          <p className="px-4 py-3 text-[0.8125rem] text-muted-fg sm:px-5">
+            No practice interviews booked. Booked a mentor? That meeting lives
+            in your calendar invite, and shows up below once your mentor logs
+            it.
+          </p>
         ) : (
           <ul className="divide-y divide-line">
             {interviews.map((i) => {
@@ -205,19 +211,21 @@ export default async function StudentMeetingsPage({
                     variant="timeline"
                     index={i}
                     actions={
-                      // A quiet Rate link, and only where a rating would make
-                      // sense — a voided session is a meeting that did not
-                      // happen, so there is nobody's evening to grade. Once
-                      // the row shows its stars (the same condition as
-                      // `SessionRow`'s own), the link says "Change rating".
-                      session.status !== SESSION_STATUS.VOIDED ? (
+                      // A quiet link to rate the mentor, only on a meeting
+                      // that actually happened: not a voided or rescheduled
+                      // one, not a no-show, and not a row still asking "Did
+                      // this happen?" — one question per row. It rates the
+                      // MENTOR (the feedback form has no session), so it says
+                      // who, and no longer flips to "Change rating" off this
+                      // session's own stars, which it never edited.
+                      session.status === SESSION_STATUS.ACTIVE &&
+                      session.attended &&
+                      !needsAnswer.has(session.id) ? (
                         <Link
                           href={`/student/feedback?mentor=${session.mentor.id}`}
-                          className="text-[0.8125rem] font-medium text-brand hover:text-brand-dark"
+                          className="inline-flex min-h-11 items-center text-[0.8125rem] font-medium text-brand hover:text-brand-dark"
                         >
-                          {session.studentAnswer && session.studentRating
-                            ? "Change rating"
-                            : "Rate"}
+                          Rate {mentorName.split(" ")[0]}
                         </Link>
                       ) : undefined
                     }
@@ -233,16 +241,22 @@ export default async function StudentMeetingsPage({
                 );
               })}
             </ul>
-            <Pagination
-              basePath="/student/meetings"
-              params={params}
-              page={page}
-              pageSize={MEETINGS_PER_PAGE}
-              total={entries.length}
-              unit="sessions"
-              note={notHeldNote(entries)}
-              className="border-t border-line px-4 py-2 sm:px-5"
-            />
+            {/* Only when there is a second page to reach. On one page its
+                "5 sessions · 1 rescheduled" was a second count, in a second
+                vocabulary, of the list the heading had just counted as
+                "4 meetings". */}
+            {entries.length > MEETINGS_PER_PAGE && (
+              <Pagination
+                basePath="/student/meetings"
+                params={params}
+                page={page}
+                pageSize={MEETINGS_PER_PAGE}
+                total={entries.length}
+                unit="meetings"
+                note={notHeldNote(entries)}
+                className="border-t border-line px-4 py-2 sm:px-5"
+              />
+            )}
           </>
         )}
       </Section>

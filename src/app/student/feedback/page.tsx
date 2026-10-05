@@ -79,7 +79,8 @@ export default async function StudentFeedbackPage({
 
   return (
     <div className="space-y-4">
-      <PageTitle backHref="/student" backLabel="Home" title="Rate a mentor" />
+      {/* No back link: Feedback is a tab, not a page under Home. */}
+      <PageTitle title="Rate a mentor" />
 
       {mentors.length > 0 ? (
         <MentorFeedbackForm mentors={mentors} defaultMentorId={preselect} />

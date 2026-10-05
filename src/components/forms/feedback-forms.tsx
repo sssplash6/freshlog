@@ -15,6 +15,9 @@ import { RequiredMark } from "@/components/ui/required-mark";
 // page when the comment box takes focus (it did, at the old 15px).
 const inputClass = cn(inputClasses, "resize-y leading-relaxed");
 
+/** What each number of stars means, in the student's words. */
+const STAR_WORDS = ["Not helpful", "Could be better", "Okay", "Good", "Great"];
+
 /** Native radio inputs retain expected keyboard behavior while labels render
  * as a large, tap-friendly star picker. */
 export function StarRating({
@@ -78,11 +81,15 @@ export function StarRating({
             </label>
           </span>
         ))}
-        {shown > 0 && (
-          <span className="ml-1 text-[0.8125rem] font-medium tabular-nums text-muted-fg">
-            {shown}/5
-          </span>
-        )}
+        {/* A word, not "4/5": a fraction is a score, and the student is
+            saying how it went. Announced as it changes, so a screen-reader
+            user hears their choice land. */}
+        <span
+          aria-live="polite"
+          className="ml-1 text-[0.8125rem] font-medium text-muted-fg"
+        >
+          {shown > 0 ? STAR_WORDS[shown - 1] : ""}
+        </span>
       </div>
     </fieldset>
   );
@@ -111,6 +118,7 @@ export function MentorFeedbackForm({
             <Select
               name="mentorId"
               ariaLabel="Mentor"
+              placeholder="Choose a mentor"
               defaultValue={defaultMentorId ?? ""}
               options={mentors.map((m) => ({ value: m.id, label: m.label }))}
             />
@@ -119,6 +127,12 @@ export function MentorFeedbackForm({
         <StarRating name="rating" idPrefix="mentor-rating" />
         <label className="block space-y-1.5">
           <span className="block text-sm font-medium text-ink">Comment</span>
+          {/* Under the label, where the worry starts. Under the Send button
+              it arrived after the student had already written — and
+              possibly held back — what they wanted to say. */}
+          <span className="block text-[0.8125rem] text-muted-fg">
+            Your mentor won&apos;t see your name. Only your school&apos;s admins do.
+          </span>
           <textarea
             name="comment"
             rows={3}
@@ -127,13 +141,8 @@ export function MentorFeedbackForm({
           />
         </label>
       </div>
-      {/* Said at the point of sending, where the worry is, rather than as the
-          form's first line where it read as a disclaimer. */}
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="mt-4">
         <SubmitButton pendingText="Sending…">Send feedback</SubmitButton>
-        <p className="text-[0.8125rem] text-muted-fg">
-          Your name isn&apos;t shown to the mentor — only to your admins.
-        </p>
       </div>
       <SaveState state={save} />
     </form>

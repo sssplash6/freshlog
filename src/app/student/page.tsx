@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 
 import { ExpandableText } from "@/components/expandable-text";
 import { HoursBreakdown } from "@/components/hours-breakdown";
-import { HoursRing } from "@/components/hours-ring";
 import { PersonChip } from "@/components/person-chip";
 import {
   StudentTaskRow,
@@ -13,7 +12,6 @@ import { TaskProgressControl } from "@/components/forms/student-task-forms";
 import { Disclosure } from "@/components/ui/disclosure";
 import { SessionRow } from "@/components/session-row";
 import { meetingCount, toSessionEntries } from "@/lib/session-entries";
-import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowLink } from "@/components/ui/link";
 import { Meter } from "@/components/ui/meter";
 import { PageTitle, Section } from "@/components/ui/section";
@@ -25,7 +23,7 @@ import { withoutMentorNotes } from "@/lib/authz";
 import { requireRole } from "@/lib/dal";
 import { formatDate, formatDuration, formatMinutes } from "@/lib/format";
 import { enrollmentsLabel } from "@/lib/enrollments";
-import { allocationSummary } from "@/lib/hours";
+import { allocationSummary, type AllocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { studentRows } from "@/lib/attention";
 import { studentLedger, type LedgerAssignment } from "@/lib/queries";
@@ -54,6 +52,7 @@ import {
 function AgendaRow({ task, statuses }: { task: LedgerAssignment; statuses: Status[] }) {
   const budget = task.minuteLimit ?? 0;
   const over = budget > 0 && task.loggedMinutes > budget;
+  const overdue = statuses.some((s) => s.type === "TASK_OVERDUE");
 
   return (
     <li className="px-4 py-3 sm:px-5">
@@ -66,8 +65,10 @@ function AgendaRow({ task, statuses }: { task: LedgerAssignment; statuses: Statu
         {/* Whichever half this task has. The note is free text — the tracking
             sheet holds both "Aug 7" and "March-May" — and carries no severity
             of its own; the row's own statuses say if it is overdue, which only
-            a real dueOn can decide. */}
-        {(task.dueNote ?? task.dueOn) && (
+            a real dueOn can decide.
+            Not beside an overdue chip: "Was due October 3" already names the
+            day, and a grey "October 3" next to it was the same date twice. */}
+        {!overdue && (task.dueNote ?? task.dueOn) && (
           <StatusChip severity="neutral" className="shrink-0">
             {task.dueNote ?? formatDate(task.dueOn!)}
           </StatusChip>
@@ -93,15 +94,25 @@ function AgendaRow({ task, statuses }: { task: LedgerAssignment; statuses: Statu
             ariaLabel={`Time logged on ${task.purpose}`}
           />
           <p className="mt-1.5 text-[0.8125rem] tabular-nums text-muted-fg">
-            <span
-              className={cn(
-                "font-medium",
-                over ? "text-danger-ink" : "text-ink",
-              )}
-            >
-              {formatMinutes(task.loggedMinutes)}
-            </span>
-            {" "}of {formatMinutes(budget)}
+            {/* "2h planned" rather than "0 min of 2h": the zero switched the
+                list between two duration formats from one row to the next,
+                and the "Not started" chip above already says nothing is
+                logged. */}
+            {task.loggedMinutes === 0 ? (
+              <>{formatMinutes(budget)} planned</>
+            ) : (
+              <>
+                <span
+                  className={cn(
+                    "font-medium",
+                    over ? "text-danger-ink" : "text-ink",
+                  )}
+                >
+                  {formatMinutes(task.loggedMinutes)}
+                </span>
+                {" "}of {formatMinutes(budget)}
+              </>
+            )}
           </p>
         </>
       ) : (
@@ -137,6 +148,123 @@ function FinishedAgendaItem({ task }: { task: LedgerAssignment }) {
 }
 
 /**
+ * The balance, as the page's title, in the ledger's own word — Remaining, the
+ * same word every reader's table uses for it. Said in words at both ends of
+ * the range, because "0 min" read as "used it all" to a student whose time
+ * had expired, and "-2h" read as a typo.
+ */
+function Balance({ hours }: { hours: AllocationSummary }) {
+  if (hours.allotted === 0 && hours.used === 0) return <>No hours yet</>;
+  if (hours.remaining < 0) return <>{formatDuration(-hours.remaining)} over</>;
+  if (hours.remaining === 0) return <>No hours remaining</>;
+  return <>{formatDuration(hours.remaining)} remaining</>;
+}
+
+/** An empty list that is ordinary rather than a problem: one quiet line. */
+function EmptyLine({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-4 py-3 text-[0.8125rem] text-muted-fg sm:px-5">{children}</p>
+  );
+}
+
+/**
+ * The first-run card: what a new student does here, in order, in three short
+ * lines. It replaces two empty sections ("No tasks set", "No agenda planned")
+ * that each took 145px to say there was nothing yet, and it goes away by
+ * itself the first time anything happens on the account.
+ */
+function HowItWorks() {
+  const steps = [
+    {
+      title: "Book a time with your mentor",
+      body: "Pick a slot on their calendar from the Book tab.",
+    },
+    {
+      title: "Meet and get to work",
+      body: "After you meet, your mentor logs the session here and it comes off your hours.",
+    },
+    {
+      title: "Keep going between meetings",
+      body: "Tasks your mentor sets you show up on this page. Mark your progress as you go.",
+    },
+  ];
+  return (
+    <Section title="How it works">
+      <ol className="divide-y divide-line">
+        {steps.map((step, i) => (
+          <li key={step.title} className="flex gap-3 px-4 py-3 sm:px-5">
+            <span
+              aria-hidden="true"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-fill text-xs font-semibold text-ink"
+            >
+              {i + 1}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[0.9375rem] font-medium text-ink">{step.title}</span>
+              <span className="mt-0.5 block text-[0.8125rem] text-muted-fg">{step.body}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      <div className="border-t border-line px-4 py-2 sm:px-5">
+        <ArrowLink href="/student/book">Book your first session</ArrowLink>
+      </div>
+    </Section>
+  );
+}
+
+/**
+ * The account rows, minus the ones this page already says somewhere better.
+ *
+ * - An overdue task or agenda item is drawn in its own list, with its overdue
+ *   chip, a few hundred pixels down. Repeated here it appeared two or three
+ *   times on one screen ("Draft the activities section" under Things to check
+ *   AND under Tasks, both "Was due September 29").
+ * - The use-by row repeats the line under the balance, once that line shows.
+ * - Mentors with no booking link are ONE row however many there are, and a
+ *   neutral one: it is the mentor's setup step, not something the student did
+ *   wrong, and two amber rows for it made five warnings on the first screen.
+ */
+function withoutRepeats(
+  rows: Status[],
+  { useByShown }: { useByShown: boolean }
+): Status[] {
+  const kept = rows.filter(
+    (s) =>
+      s.type !== "TASK_OVERDUE" &&
+      !(useByShown && s.type === "ALLOCATION_EXPIRING")
+  );
+  const noLink = kept.filter((s) => s.type === "BOOKING_LINK_MISSING");
+  if (noLink.length === 0) return kept;
+
+  const names = noLink.flatMap((s) => (s.subject ? [s.subject.name] : []));
+  const merged: Status = {
+    ...noLink[0],
+    severity: "neutral",
+    label: "No booking link yet",
+    explanation:
+      noLink.length === 1
+        ? "Email them to find a time instead."
+        : "Email them to find a time instead — their addresses are on the Book tab.",
+    subject: noLink[0].subject && {
+      ...noLink[0].subject,
+      name: listNames(names),
+    },
+    href: "/student/book",
+  };
+  const at = kept.indexOf(noLink[0]);
+  const rest = kept.filter((s) => s.type !== "BOOKING_LINK_MISSING");
+  return [...rest.slice(0, at), merged, ...rest.slice(at)];
+}
+
+/** "Sarvar", "Sarvar and Aziza", "Sarvar, Aziza and 2 others". */
+function listNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names[0]}, ${names[1]} and ${names.length - 2} other${names.length === 3 ? "" : "s"}`;
+}
+
+/**
  * The student's home. Phone first, and that is the whole design.
  *
  * The question this page exists to answer — how much time have I left, what
@@ -144,9 +272,11 @@ function FinishedAgendaItem({ task }: { task: LedgerAssignment }) {
  * An orange gradient hero with a 120px ghost monogram opened it, the balance
  * was stated three times (ring, sentence, breakdown key), then two red
  * callouts, then thirteen unpaginated journey entries: on a 390×664 screen the
- * first thing that asked anything of the student sat past 900px. So the ring
- * moves beside the h1 at 96px, and everything with a question in it is one
- * section that begins under 300px.
+ * first thing that asked anything of the student sat past 900px. So the
+ * balance IS the h1 ("14h left"), the greeting is its eyebrow, and everything
+ * with a question in it is one section that begins under 300px. (It was a
+ * 96px ring beside a "Hi, Malika" h1: the ring's figure was 19px, the
+ * smallest number a student opens the app to read.)
  *
  * Nothing here writes a status's wording or picks its colour. Every row's words
  * come from `lib/status.ts` in the student's own voice, which is what makes a
@@ -220,14 +350,14 @@ export default async function StudentHomePage() {
   // overdue work. A student with nothing yet used to land on a 0m ring and
   // three empty sections and be told nothing. The balance and the ledger are
   // handed over rather than read again.
-  const account = await studentRows(user, profile, hours, ledger, now);
-  // The soonest use-by, stated even outside the month the expiry row warns
-  // in: a deadline is the one date on this page that costs time, and a
-  // student should be able to see it before it becomes a warning.
-  const useBy =
-    hours.expiring && !account.some((s) => s.type === "ALLOCATION_EXPIRING")
-      ? hours.expiring
-      : null;
+  const rows = await studentRows(user, profile, hours, ledger, now);
+  // The soonest use-by now sits under the balance it applies to, always —
+  // so the "8h expires October 17" row would say it a second time.
+  const useBy = hours.expiring;
+  const account = withoutRepeats(rows, { useByShown: useBy != null });
+
+  const first = user.name.split(" ")[0];
+  const program = enrollmentsLabel(profile.enrollments, "");
 
   // What their mentors set them to go away and do — already soonest-deadline
   // first from the query, because that is the order a to-do list is read in.
@@ -237,61 +367,72 @@ export default async function StudentHomePage() {
   const openTasks = myTasks.filter(taskIsOpen);
   const doneTasks = myTasks.filter((t) => !taskIsOpen(t));
 
+  // Nothing has happened on this account yet: no time spent, no meeting, no
+  // task and no plan. Three empty sections in a row told a new student three
+  // times that nothing was there and never once what to do first.
+  const firstRun =
+    hours.used === 0 &&
+    held.length === 0 &&
+    myTasks.length === 0 &&
+    tasks.length === 0;
+
   return (
     <div className="space-y-4">
       <PageTitle
-        eyebrow={
-          enrollmentsLabel(profile.enrollments)
-        }
-        title={`Hi, ${user.name.split(" ")[0]}`}
-        // Unconditional now: the only student who could not follow this link
-        // was one awaiting approval, and /onboarding holds them before they
-        // reach this page. A guard for a reader who cannot arrive reads like a
-        // second, quieter rule about who may book.
-        subtitle={<ArrowLink href="/student/book">Book a session</ArrowLink>}
-        leading={
-          // 96px rather than the component's own 132: a ring that size beside
-          // the h1 on a 390px screen leaves the greeting three words wide. Sized
-          // by its prop, not a scale transform, so the stroke and the figure are
-          // sizes somebody chose rather than 73% of them.
-          <HoursRing
-            used={hours.used}
-            allotted={hours.allotted}
-            forfeited={hours.forfeited}
-            remaining={hours.remaining}
-            size={96}
-          />
-        }
-      />
-
-      {/* Account truth, between the greeting and the figures: a chip, and
-          the sentence that goes with it, most urgent first. */}
-      <StatusSummary statuses={account} title="Things to check" />
-
-      {(hours.allotted > 0 || hours.used > 0 || hours.extra > 0) && (
-        <Section title="Your time">
-          <div className="px-4 py-3 sm:px-5">
-            <HoursBreakdown
-              allotted={hours.allotted}
-              completed={hours.completed}
-              missed={hours.missed}
-              // Only ever the overdraw. What is left is the ring's job and the
-              // unfilled tail of the track shows the same proportion, so a
-              // "Still yours" figure in the key would be the third statement of
-              // one number that this page was reorganised to remove — but a bar
-              // that cannot show an overdraw is a bar that lies about it.
-              remaining={Math.min(0, hours.remaining)}
-            />
+        // The greeting steps down to the eyebrow, and the balance becomes the
+        // title. It was "Hi, Malika" at 32px beside a 19px figure in a ring:
+        // the friendliest words on the page were also its loudest, and the one
+        // number a student opens the app for was a badge beside them.
+        eyebrow={program ? `Hi, ${first} · ${program}` : `Hi, ${first}`}
+        title={<Balance hours={hours} />}
+        subtitle={
+          <span className="flex flex-col items-start gap-1">
             {useBy && (
-              <p className="mt-3 text-[0.8125rem] text-muted-fg">
+              <span>
                 {formatDuration(useBy.minutes)} to use by{" "}
                 <DeadlineText
                   deadline={useBy.date}
                   now={now}
                   within={EXPIRY_WINDOW_DAYS.student}
                 />
-              </p>
+              </span>
             )}
+            {hours.forfeited > 0 && (
+              // Said in words, in red: time that expired unused is gone, and
+              // a balance of "No time left" alone read as if it had been used.
+              <span className="text-danger-ink">
+                {formatDuration(hours.forfeited)} expired unused
+              </span>
+            )}
+            {/* Unconditional: the only student who could not follow this link
+                was one awaiting approval, and /onboarding holds them before
+                they reach this page. */}
+            <ArrowLink href="/student/book">Book a session</ArrowLink>
+          </span>
+        }
+      />
+
+      {/* Account truth, between the balance and the work: a chip, and the
+          sentence that goes with it, most urgent first. */}
+      <StatusSummary statuses={account} title="Things to check" />
+
+      {firstRun && <HowItWorks />}
+
+      {/* Only once something has been spent. Before that the bar was empty,
+          "Total 10h" repeated the title and the use-by repeated the line
+          under it — the same number three times on a new student's home. */}
+      {hours.used > 0 && (
+        <Section title="Your time">
+          <div className="px-4 py-3 sm:px-5">
+            <HoursBreakdown
+              allotted={hours.allotted}
+              completed={hours.completed}
+              missed={hours.missed}
+              // Only ever the overdraw. What is left is the title's job and the
+              // unfilled tail of the track shows the same proportion — but a
+              // bar that cannot show an overdraw is a bar that lies about it.
+              remaining={Math.min(0, hours.remaining)}
+            />
           </div>
         </Section>
       )}
@@ -300,6 +441,7 @@ export default async function StudentHomePage() {
           it leads everything except their balance. Each row carries its own
           control: a task is moved where it is read, never on a second screen
           behind an Edit. */}
+      {!firstRun && (
       <Section
         eyebrow="Set by your mentor"
         title="Tasks"
@@ -309,9 +451,10 @@ export default async function StudentHomePage() {
         caption={doneTasks.length > 0 ? `${doneTasks.length} done` : undefined}
       >
         {myTasks.length === 0 ? (
-          <EmptyState framed={false} title="No tasks set">
-            Your mentor gives you work to do between meetings.
-          </EmptyState>
+          // One line, not a 145px empty state with an icon: an empty list
+          // here is ordinary, and it should not outweigh the lists that have
+          // something in them.
+          <EmptyLine>Nothing to do right now. Your mentor adds tasks after you meet.</EmptyLine>
         ) : (
           <>
             <ul className="divide-y divide-line">
@@ -363,15 +506,18 @@ export default async function StudentHomePage() {
           </>
         )}
       </Section>
+      )}
 
       {/* What the mentoring HOURS are for, which is a different list from the
           one above and was called "Tasks" until both existed. Read-only: an
           admin plans it and the hours a mentor logs move it. */}
+      {!firstRun && (
       <Section eyebrow="What your time is for" title="Agenda">
         {live.length === 0 && finished.length === 0 ? (
-          <EmptyState framed={false} title="No agenda planned">
-            Your team adds it with a time budget for each piece of work.
-          </EmptyState>
+          <EmptyLine>
+            Nothing planned yet. Your school sets out what your hours are for,
+            like essays or interview practice.
+          </EmptyLine>
         ) : (
           <>
             {live.length > 0 && (
@@ -404,6 +550,7 @@ export default async function StudentHomePage() {
           </>
         )}
       </Section>
+      )}
 
       {/* Their own history, folded. It moved to /student/meetings in the
           reorganisation and a student lost the ability to glance at what has
@@ -417,10 +564,11 @@ export default async function StudentHomePage() {
           // The way to the full list sits beside the group's title, where iOS
           // puts a "See all", rather than wedged against the fold's own label.
           action={
+            // 44px tall: at its text height it was an 18px target.
             <Link
               href="/student/meetings"
               transitionTypes={["nav-forward"]}
-              className="text-[0.9375rem] font-medium text-brand hover:text-brand-dark"
+              className="inline-flex min-h-11 items-center text-[0.9375rem] font-medium text-brand hover:text-brand-dark"
             >
               See all
             </Link>

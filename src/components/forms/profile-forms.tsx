@@ -210,6 +210,7 @@ export function OwnNameForm({ defaultName }: { defaultName: string }) {
   const [name, setName] = useState(defaultName);
   // The comparison needs no reset: the action revalidates, so a saved name
   // comes back as a new `defaultName` and this goes false on its own.
+  const dirty = name.trim() !== defaultName;
   const [, action, save] = useSaveState(updateOwnName, name !== defaultName);
 
   return (
@@ -226,7 +227,15 @@ export function OwnNameForm({ defaultName }: { defaultName: string }) {
             onChange={(event) => setName(event.target.value)}
             className="min-w-0 flex-1"
           />
-          <SubmitButton pendingText="Saving…">Save</SubmitButton>
+          {/* Lit only once there is something to save — see the Telegram
+              row, which does the same. */}
+          <SubmitButton
+            pendingText="Saving…"
+            variant={dirty ? "primary" : "secondary"}
+            disabled={!dirty}
+          >
+            Save
+          </SubmitButton>
         </form>
       }
       state={<SaveState state={save} />}
@@ -366,10 +375,12 @@ export function AvatarForm({
 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
+            {/* Full size: 44px, like every other button a phone presses.
+                At `sm` it was a 32px target beside a 64px picture. */}
             <label
               className={buttonClasses(
                 "secondary",
-                "sm",
+                "md",
                 busy ? "cursor-not-allowed opacity-50" : "cursor-pointer"
               )}
             >
@@ -385,7 +396,6 @@ export function AvatarForm({
             {hasPicture && (
               <Button
                 variant="danger"
-                size="sm"
                 disabled={busy}
                 onClick={onRemove}
               >
