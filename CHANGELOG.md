@@ -13,7 +13,8 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **What's new looks the part.** A summary of the past week, a timeline of days, a card for each change, and a soft glow behind every page. Blue buttons are lit from above and the current page is marked in the sidebar.
 - **What's new is quicker to skim.** Every update now has a short headline, with a line of detail under it.
 - **What's new beside the bell.** On a laptop it sits in the top right corner, with a blue dot when something is unread, instead of inside the account menu.
-- **Tables are easier to read.** Headings sit on a shaded band, every other row is shaded, and tables and cards have a clear edge. Names are bold, the figure that matters most (like hours remaining) gets a highlighted column, and dates and totals step back in grey.
+- **Calmer, cleaner tables.** Column headings sit quietly above the rows instead of on a shaded band, rows are no longer striped, and the figure that matters most (like hours remaining) is in bold rather than a tinted column. Rows are a little tighter and section headings quieter.
+- **Sessions read one per line.** On a laptop each session is a single line — date, who, what it was about, and the time — so a long log scans down its dates and minutes. The edit button appears when you point at a row.
 
 ### Fixed
 - **What's new and the bell no longer cover the page.** On a laptop they sit at the top of the page, above the title, instead of floating over tables and buttons as you scroll.

@@ -22,15 +22,14 @@ export type Column = {
   className?: string;
   /**
    * The ONE column a reader opens this table for — a roster's remaining
-   * balance, a caseload's time left. It gets a faint brand band from the
-   * heading to the last row, so the eye lands on it before it has read a
-   * label. One per table; two key columns are none.
+   * balance, a caseload's time left. Its heading is in ink rather than grey,
+   * and its cells pass `tone="key"`. One per table; two key columns are none.
    */
   emphasis?: "key";
 };
 
 /**
- * The shared data-table chrome: hairline header on a mist tint, divided rows,
+ * The shared data-table chrome: a quiet heading row, soft hairlines between rows,
  * and — below `sm` — no table at all.
  *
  * A phone cannot show nine columns. It could scroll them sideways, and that is
@@ -51,8 +50,6 @@ export type Column = {
  * which is why the wrapper no longer scrolls sideways: at six columns the
  * table fits, and the old `sm:overflow-x-auto` escape hatch contradicted the
  * "no table scrolls sideways" rule it sat under while silently disabling this.
- * The first and last heading cells carry the frame's top corners so the tinted
- * row does not poke square corners out of the rounded border.
  *
  * Figures use tabular numerals so a column of balances lines up digit by
  * digit.
@@ -87,8 +84,8 @@ export function Table({
         // A real edge: the frame is the one place a table says where it
         // stops. Without it a white table on a pale page was rows floating
         // in nothing, and the header band had no box to sit at the top of.
-        // `overflow-clip`, not `hidden`: it rounds off the last stripe and the
-        // key band at the corners without becoming a scroll container, which
+        // `overflow-clip`, not `hidden`: it rounds off the last row at the
+        // corners without becoming a scroll container, which
         // would unstick the header (the same reason `Section` uses it). Row
         // menus are portaled, so nothing that has to escape is clipped.
         framed && "overflow-clip rounded-xl bg-surface shadow-sm",
@@ -99,18 +96,6 @@ export function Table({
         data-framed={framed ? "" : undefined}
         className="data-table block w-full text-left text-sm text-ink tabular-nums sm:table"
       >
-        {/* Column bands. A `<col>` paints UNDER the rows, so the stripe and
-            the hover wash still read across a key column — they blend with
-            the band instead of covering it. Ignored by the stacked phone
-            layout, where the table is not a table. */}
-        <colgroup className="hidden sm:table-column-group">
-          {columns.map((c, i) => (
-            <col
-              key={i}
-              className={cn(c.emphasis === "key" && "bg-brand-soft/45")}
-            />
-          ))}
-        </colgroup>
         <thead className="hidden sm:table-header-group">
           <tr>
             {columns.map((c, i) => (
@@ -118,22 +103,12 @@ export function Table({
                 key={i}
                 sortKey={c.sort && c.label ? c.sort : undefined}
                 className={cn(
-                  // The band and its rule live on the cells, not the <thead>:
-                  // a sticky cell paints its own background, a sticky group's
-                  // background stays behind at the top of the table.
-                  //
-                  // A solid band a step off the card, a firmer rule under it,
-                  // and the labels in semibold: three separate signals that
-                  // this row NAMES the columns rather than being one of them.
-                  // It was the card's own white with 13px grey labels on it,
-                  // and read as a faint first row.
-                  //
-                  // `cn` only joins, so a key heading's band and ink REPLACE
-                  // the ordinary ones rather than racing them in the CSS.
-                  "sticky top-(--sticky-top) z-10 whitespace-nowrap border-b border-line-strong px-4 py-3 text-[0.75rem] font-semibold",
-                  c.emphasis === "key"
-                    ? "bg-[color-mix(in_oklab,var(--color-brand-soft)_80%,var(--color-head))] text-ink"
-                    : "bg-head text-muted-fg",
+                  // The heading row is the card's own surface with one hairline
+                  // under it: small muted labels name the columns without a
+                  // tinted band competing with the rows. The surface is on the
+                  // cells because a sticky cell paints its own background.
+                  "sticky top-(--sticky-top) z-10 h-10 whitespace-nowrap border-b border-line bg-surface px-4 text-[0.75rem] font-medium",
+                  c.emphasis === "key" ? "text-ink" : "text-muted-fg",
                   framed && "first:rounded-tl-xl last:rounded-tr-xl",
                   c.align === "right" && "text-right",
                   c.className,
@@ -156,7 +131,7 @@ export function Table({
             ))}
           </tr>
         </thead>
-        <tbody className="block divide-y divide-line sm:table-row-group">
+        <tbody className="block divide-y divide-line/70 sm:table-row-group">
           {children}
         </tbody>
       </table>
@@ -168,11 +143,9 @@ export function Tr({ className, ...props }: ComponentProps<"tr">) {
   return (
     <tr
       className={cn(
-        // Every other row a step off the card. On a nine-figure-wide row the
-        // hairline alone could not carry the eye from a name on the left to
-        // its balance on the right; the stripe does, and the hover wash sits
-        // over both so the row under the pointer is never in doubt.
-        "block py-2 transition-colors hover:bg-brand-soft/55 sm:table-row sm:py-0 sm:even:bg-stripe sm:even:hover:bg-brand-soft/55",
+        // No zebra: soft hairlines carry the eye across a row, and the hover
+        // wash says which row is under the pointer.
+        "block py-2 transition-colors hover:bg-fill/60 sm:table-row sm:py-0",
         // A stacked row with a corner cell (see `Td`) is the anchor for it, and
         // its first line leaves room so a long name cannot run under the menu.
         "max-sm:relative max-sm:has-[td[data-corner]]:[&>td:first-child]:pr-12",
@@ -221,7 +194,7 @@ export function Td({
         // "45 / min", "15+ / hours" — reads as two values. The name column
         // gives way instead (`FILL_CELL`).
         align === "right" && "sm:whitespace-nowrap sm:text-right",
-        tone === "key" && "text-[0.9375rem] font-semibold",
+        tone === "key" && "font-semibold",
         tone === "muted" && "text-muted-fg",
         className,
       )}

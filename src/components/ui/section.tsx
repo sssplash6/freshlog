@@ -211,21 +211,22 @@ export function Section({
 }) {
   return (
     <section className="min-w-0" {...props}>
-      {/* items-end: the title is 20px and an action beside it 13-14px, so the
-          two sit on the same last line rather than centred on each other. */}
+      {/* items-baseline: the title is 17px and a caption or action beside it
+          13px, so the two share a baseline rather than centring on each other. */}
       {/* No side padding: the heading starts on the page title's edge. It had
           `px-1`, which set every section heading 4px right of the h1 above
           it — close enough to look like a mistake rather than a choice. */}
-      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 pb-2 pt-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-2.5 pt-2">
         <div className="min-w-0">
-          <h2 className="flex items-baseline gap-2 text-[1.25rem] font-semibold tracking-[-0.01em] text-ink">
+          <h2 className="flex items-baseline gap-2 text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink">
             {/* min-w-0 so the truncate actually truncates: on a flex child
                 without it the text sets the width and the row grows instead. */}
             <span className="min-w-0 truncate">{title}</span>
             {count != null && (
-              // A capsule, so the count reads as a count of the title rather
-              // than the last word of it ("Your students 13").
-              <span className="shrink-0 self-center rounded-full bg-fill px-2 py-0.5 text-[0.75rem] font-semibold tabular-nums text-muted-fg">
+              // Muted and regular weight, so the count reads as a count of the
+              // title rather than the last word of it ("Your students 13"). A
+              // capsule did the same job with a second shape on every heading.
+              <span className="shrink-0 font-normal tabular-nums text-muted-fg">
                 {count}
               </span>
             )}

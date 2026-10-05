@@ -405,16 +405,15 @@ function SessionRowContent({
   const showMentor = columns.includes("mentor");
   const showTask = columns.includes("task") && Boolean(task);
   const showNote = columns.includes("notes") && Boolean(note);
-  // One string so the clamp can count it as one run: the date, the program
-  // when the log spans them, the agenda item, then the note.
-  const about = [
-    formatDate(date),
+  // One string so the clamp can count it as one run: the program when the log
+  // spans them, the agenda item, then the note. On a phone the date leads it;
+  // from `sm` up the date has a column of its own.
+  const topic = [
     student?.program,
     showTask ? task?.purpose : null,
     showNote ? note : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  ].filter(Boolean);
+  const when = formatDate(date);
 
   const lead = showStudent && student ? student : showMentor ? mentor : null;
   const second = showStudent && student && showMentor ? mentor : null;
@@ -422,18 +421,32 @@ function SessionRowContent({
   return (
     <li
       id={anchor}
-      className={cn("group/row px-4 py-3 sm:px-5", index != null && "deal-in")}
+      className={cn(
+        "group/row px-4 py-3 transition-colors sm:px-5 sm:py-2.5 sm:hover:bg-fill/60",
+        index != null && "deal-in",
+      )}
       style={stagger}
     >
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
+      {/* One line from `sm` up, in fixed columns — WHEN, WHO, WHAT, then the
+          figure — so a page of sessions scans down its dates and its minutes
+          instead of reading as a wall of two-line blocks. On a phone the same
+          facts stack: who and how long, then when and what. */}
+      <div className="flex items-start gap-3 sm:items-center">
+        <span className="hidden w-24 shrink-0 text-[0.8125rem] tabular-nums text-muted-fg sm:block">
+          {when}
+        </span>
+        <div className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-4">
           {/* Student · mentor on one line from `sm` up. On a phone the
               two shared one line beside the figure and both truncated until
               neither could be told apart ("Ulugbek Alimuk… · Ulugbek …"),
               so there the mentor drops to a line of their own, introduced
-              by "with" since the separator is gone. Each name still
-              truncates, but against the whole width rather than half of it. */}
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[0.9375rem] leading-snug sm:flex-nowrap">
+              by "with" since the separator is gone. */}
+          <div
+            className={cn(
+              "flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[0.9375rem] leading-snug sm:shrink-0 sm:flex-nowrap sm:text-sm",
+              second ? "sm:w-[19rem] lg:w-[24rem]" : "sm:w-52 lg:w-60",
+            )}
+          >
             {lead && (
               <PersonName
                 person={lead}
@@ -441,34 +454,44 @@ function SessionRowContent({
               />
             )}
             {second && (
-              <>
-                <span className="max-sm:hidden">
-                  <Separator />
-                </span>
-                <span className="flex min-w-0 basis-full items-baseline gap-x-1 text-[0.8125rem] text-muted-fg sm:shrink-[2] sm:basis-auto sm:text-[0.9375rem]">
-                  <span className="shrink-0 sm:hidden">with</span>
-                  <PersonName person={second} className="min-w-0 truncate" />
-                </span>
-              </>
+              <span className="flex min-w-0 basis-full items-baseline gap-x-1 text-[0.8125rem] text-muted-fg sm:shrink-[2] sm:basis-auto sm:text-sm">
+                <span className="shrink-0">with</span>
+                <PersonName person={second} className="min-w-0 truncate" />
+              </span>
             )}
           </div>
           <ExpandableText
-            text={about}
+            text={[when, ...topic].join(" · ")}
             lines={2}
-            className="mt-0.5 text-[0.8125rem] leading-snug text-muted-fg"
+            className="mt-0.5 text-[0.8125rem] leading-snug text-muted-fg sm:hidden"
           />
-          {chips && <div className="mt-1.5">{chips}</div>}
+          <div className="hidden min-w-0 flex-1 sm:block">
+            {topic.length > 0 && (
+              <ExpandableText
+                text={topic.join(" · ")}
+                lines={1}
+                className="text-[0.8125rem] leading-snug text-muted-fg"
+              />
+            )}
+          </div>
+          {chips && <div className="mt-1.5 sm:mt-0 sm:shrink-0">{chips}</div>}
         </div>
-        {/* The figure, then the menu, on the first line's axis. */}
+        {/* The figure in a fixed column so 12, 45 and 150 stack into one
+            edge, then the menu — which, on a pointer, waits for the row to
+            be hovered or focused rather than repeating down every line. */}
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          <span className="text-[0.9375rem] leading-snug">{duration}</span>
+          <span className="text-[0.9375rem] leading-snug sm:w-16 sm:text-right sm:text-sm">
+            {duration}
+          </span>
           {actions && (
-            <span className="-my-2.5 shrink-0 sm:-my-1">{actions}</span>
+            <span className="-my-2.5 shrink-0 transition-opacity sm:-my-1 pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:group-focus-within/row:opacity-100 pointer-fine:has-[[aria-expanded=true]]:opacity-100">
+              {actions}
+            </span>
           )}
         </div>
       </div>
 
-      {footer && <div className="mt-2">{footer}</div>}
+      {footer && <div className="mt-2 sm:pl-28">{footer}</div>}
     </li>
   );
 }

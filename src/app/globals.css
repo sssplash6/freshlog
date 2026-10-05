@@ -388,7 +388,7 @@
    its own breath here so the scale itself stays three values. */
 @media (min-width: 40rem) {
   .data-table td {
-    padding-block: 0.75rem;
+    padding-block: 0.625rem;
   }
 }
 

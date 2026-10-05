@@ -430,13 +430,23 @@ is a sibling line, not chip content. `truncate` on a flex child without
 and that is why names in table cells blew their column open.
 
 **A table row has three levels and no more** (October 2026). The thing the
-row is about — `PersonCell`, or `PersonChip lead` — is semibold. The one figure
-the reader opened the table for is `Td tone="key"`, semibold and a step larger,
-and its column is `Column emphasis: "key"`: a faint brand band from the heading
-to the last row, one per table. Context — totals, last seen, "never" — is
-`tone="muted"`. Everything else is regular ink, and an ordinary date is regular
-too (only amber and red deadlines step out). Every other row is striped
-(`stripe`, translucent so the key band runs through it). Sort arrows show only
+row is about — `PersonCell`, or `PersonChip lead` — is medium weight beside a
+28px avatar. The one figure the reader opened the table for is `Td tone="key"`,
+semibold, and its column is `Column emphasis: "key"`, which puts that heading
+in ink instead of grey; one per table. Context — totals, last seen, "never" —
+is `tone="muted"`. Everything else is regular ink, and an ordinary date is
+regular too (only amber and red deadlines step out).
+
+**A table is quiet chrome** (October 2026, after the owner called the tables
+"messy"). The heading row is the card's own surface with small grey labels and
+one hairline under it — no tinted band. Rows are divided by a softened
+hairline (`divide-line/70`), with no zebra stripes and no column bands; the
+hover wash (`bg-fill/60`) says which row is under the pointer. Four structural
+signals on one table — band, stripes, column tint, rules — read as clutter, not
+structure. A section's count is a muted number beside its 17px title, not a
+capsule. The session log is one line per session from `sm` up, in fixed
+columns (date · who · what · minutes), with the edit menu revealed on hover
+for a fine pointer. Sort arrows show only
 on the sorted column, in brand, or on hover and focus. `cn` only joins, so
 never pass a weight or colour that races one the component already sets — add
 a prop.

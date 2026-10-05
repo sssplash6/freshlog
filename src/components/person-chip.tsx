@@ -189,9 +189,9 @@ export function PersonCell({
 
   const body = (
     <>
-      <Avatar person={person} className="h-8 w-8 shrink-0 text-[0.75rem]" />
+      <Avatar person={person} className="h-7 w-7 shrink-0 text-[0.75rem]" />
       <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 flex-wrap items-center gap-x-2 font-semibold text-ink group-hover:text-brand">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2 font-medium text-ink group-hover:text-brand">
           <span className="min-w-0 truncate">{person.name ?? person.email}</span>
           {/* The name gives way FIRST, never the chip. These used to wrap
               freely to a second line, so a roster of forty stood at two
@@ -228,13 +228,13 @@ export function PersonCell({
 
   if (href) {
     return (
-      // 44px: in a stacked row on a phone this anchor is the only target, and
+      // 44px on a phone: in a stacked row this anchor is the only target, and
       // a one-line cell with no secondary would otherwise be about 20px tall.
       <Link
         href={href}
         transitionTypes={["nav-forward"]}
         className={cn(
-          "group flex min-h-11 min-w-0 items-center gap-2.5",
+          "group flex min-w-0 items-center gap-2.5 max-sm:min-h-11",
           className,
         )}
       >
