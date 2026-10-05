@@ -67,6 +67,8 @@ const RULES = [
       // Deliberately large quiet areas.
       // The headline panel: one per page, and its figure is the point of the page.
       "src/components/ui/stat-strip.tsx",
+      // ...and its loading shape, which has to stand exactly where it will.
+      "src/components/page-skeleton.tsx",
       "src/components/ui/empty-state.tsx",
       "src/components/error-state.tsx",
       "src/app/error.tsx",

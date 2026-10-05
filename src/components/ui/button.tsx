@@ -16,7 +16,8 @@ export type ButtonSize = "xs" | "sm" | "md";
 const VARIANTS: Record<ButtonVariant, string> = {
   // Lit from above (`sheen`): a flat blue slab beside flat grey fills made the
   // one thing to press the dullest thing on the screen.
-  primary: "sheen bg-brand text-on-brand hover:bg-brand-dark",
+  primary:
+    "sheen bg-brand text-on-brand hover:bg-brand-dark disabled:bg-fill disabled:bg-none disabled:text-disabled disabled:shadow-none",
   // A grey tinted fill with brand text — iOS's secondary button — not an
   // outlined brand button that INVERTS to solid blue on hover. The inverting
   // version shouted: a secondary action that turns into the loudest thing on
@@ -24,15 +25,16 @@ const VARIANTS: Record<ButtonVariant, string> = {
   // the primary one. The fill is the same one fields sit in, so a form's
   // secondary action and its inputs read as one family, below the one blue
   // button that is the point of the screen.
-  secondary: "bg-fill text-brand hover:bg-fill-strong",
-  ghost: "text-brand hover:bg-fill",
+  secondary: "bg-fill text-brand hover:bg-fill-strong disabled:bg-fill disabled:text-disabled",
+  ghost: "text-brand hover:bg-fill disabled:bg-transparent disabled:text-disabled",
   // Quiet: the secondary's grey fill with red words, iOS's destructive
   // secondary. The outlined version was the only bordered button left, and a
   // red outline read louder than the primary it sat beside.
-  danger: "bg-fill text-danger-ink hover:bg-fill-strong",
+  danger: "bg-fill text-danger-ink hover:bg-fill-strong disabled:bg-fill disabled:text-disabled",
   // The second half of a two-step confirm: by then the destructive choice IS
   // the primary action, so it is filled, not outlined.
-  dangerSolid: "bg-danger text-on-danger hover:bg-danger/90",
+  dangerSolid:
+    "bg-danger text-on-danger hover:bg-danger/90 disabled:bg-fill disabled:text-disabled",
 };
 
 /** Fixed, proportionate heights — sm for inline/table actions, md for the
@@ -41,11 +43,11 @@ const VARIANTS: Record<ButtonVariant, string> = {
 const SIZES: Record<ButtonSize, string> = {
   // xs is for controls inside a popover menu, where sm is already too tall.
   xs: "h-7 gap-1 px-2.5 text-xs",
-  sm: "h-8 gap-1.5 px-3 text-[0.8125rem]",
+  sm: "h-8 gap-1.5 px-3 text-xs",
   // 44px, the smallest reliable touch target. Students and mentors use
   // this app on a phone, and md is the size every primary action gets.
   // 15px, iOS's body size — the label of the thing you press is body text.
-  md: "h-11 gap-2 px-4 text-[0.9375rem]",
+  md: "h-11 gap-2 px-4 text-body",
 };
 
 export function buttonClasses(
@@ -59,9 +61,13 @@ export function buttonClasses(
     // softens it without becoming a pill — a pill reads as a status, and these
     // are the things you press.
     //
-    // `active:opacity-80`: the dim a UIButton gives under the finger, which a
-    // hover colour cannot — a phone has no hover.
-    "inline-flex items-center justify-center whitespace-nowrap rounded-lg font-semibold transition active:opacity-80 disabled:cursor-not-allowed disabled:opacity-50",
+    // `press` (globals.css): colours ease and the face scales on the spring
+    // under the finger — one acknowledgement, not the scale AND a dim.
+    //
+    // Disabled is a COLOUR per variant (above), not half opacity: a 50% blue
+    // button read as a pale-blue live one, and its label fell to 1.66:1.
+    // October 2026.
+    "press inline-flex items-center justify-center whitespace-nowrap rounded-lg font-semibold disabled:cursor-not-allowed",
     VARIANTS[variant],
     SIZES[size],
     className,

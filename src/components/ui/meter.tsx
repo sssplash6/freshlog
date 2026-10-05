@@ -1,7 +1,3 @@
-"use client";
-
-import { useEffect, useState } from "react";
-
 import { cn } from "@/lib/cn";
 
 /**
@@ -9,6 +5,13 @@ import { cn } from "@/lib/cn";
  * is hours/progress; red marks an overdrawn balance. The grow is a one-time
  * explanatory beat that draws the eye to the proportion, not a celebration.
  * Reduced-motion collapses it to an instant set (globals kills the duration).
+ *
+ * October 2026: the grow is `bar-grow` — a transform from the fill's own left
+ * edge — instead of a 700ms transition on `width`, which re-laid-out the row on
+ * every frame and needed a client component and a mount effect to start. The
+ * fill is now drawn at its real width from the server's first byte. The track
+ * is `line-strong`: on `fill` it was 1.15:1 against the card, so an empty meter
+ * was barely there and a short fill had no visible end to measure against.
  */
 const SIZE = { sm: "h-1", md: "h-1.5" } as const;
 
@@ -29,19 +32,13 @@ export function Meter({
   ariaValueNow?: number;
   ariaValueMax?: number;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
-
   const clamped = Math.max(0, Math.min(100, pct));
 
   return (
     <div
       className={cn(
         SIZE[size],
-        "w-full overflow-hidden rounded-full bg-fill",
+        "w-full overflow-hidden rounded-full bg-line-strong",
         className,
       )}
       role="progressbar"
@@ -52,10 +49,10 @@ export function Meter({
     >
       <div
         className={cn(
-          "h-full rounded-full transition-[width] duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]",
+          "bar-grow h-full rounded-full",
           tone === "danger" ? "bg-danger" : "bg-accent",
         )}
-        style={{ width: mounted ? `${clamped}%` : "0%" }}
+        style={{ width: `${clamped}%` }}
       />
     </div>
   );

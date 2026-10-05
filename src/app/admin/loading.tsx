@@ -8,5 +8,5 @@ import { PageSkeleton } from "@/components/page-skeleton";
  * routes that have no shell at all.
  */
 export default function Loading() {
-  return <PageSkeleton />;
+  return <PageSkeleton variant="home" />;
 }

@@ -68,7 +68,11 @@ export function ExpandableText({
           aria-expanded={open}
           aria-controls={id}
           className={cn(
-            "shrink-0 text-xs font-medium text-brand hover:underline",
+            // 18px of text, a 44px target: the pseudo-element reaches past the
+            // line without moving it. This toggle sits in session rows read on
+            // a phone, where 18px was a tap that landed on the row instead
+            // (October 2026).
+            "relative shrink-0 text-xs font-medium text-brand after:absolute after:-inset-x-2 after:-inset-y-3.5 hover:underline",
             tight ? "" : "mt-1"
           )}
         >

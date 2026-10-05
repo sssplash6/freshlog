@@ -62,7 +62,7 @@ export const READING_WIDTH = "max-w-3xl";
  */
 export function Eyebrow({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("text-[0.8125rem] font-medium text-muted-fg", className)}>
+    <div className={cn("text-xs font-medium text-muted-fg", className)}>
       {children}
     </div>
   );
@@ -116,7 +116,7 @@ export function PageTitle({
              finds it; there is no prop drilled through three layouts. */
           data-back-href={backHref}
           transitionTypes={["nav-back"]}
-          className="group hidden items-center gap-1.5 text-sm font-medium text-muted-fg hover:text-ink sm:inline-flex"
+          className="group hidden items-center gap-1.5 rounded-md text-sm font-medium text-muted-fg hover:text-ink sm:inline-flex"
         >
           <ArrowLeftIcon className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
           {backLabel}
@@ -138,12 +138,10 @@ export function PageTitle({
           {leading && <div className="shrink-0">{leading}</div>}
           <div className="min-w-0 flex-1 max-sm:w-full">
             {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-            {/* 24/26px, down from 28/32. The masthead is read once on arrival
-                and the table under it is read for the rest of the visit: at
-                twice the size of its own section headings it was the loudest
-                thing on a page it says the least on. It still leads — 26 over
-                the section's 17 and the row's 13 — by a step rather than by a
-                shout.
+            {/* The `display` step, 32px (28 on a phone). A comment here used
+                to say 24/26 while the class said 28/32 — the note had been
+                left behind by a later change (fixed October 2026). The size
+                and its tracking now come from the type scale's tokens.
                 `data-large-title` lets PhoneChrome echo it into the top bar
                 once it scrolls under — the iOS large-title collapse. */}
             <h1
@@ -156,7 +154,7 @@ export function PageTitle({
               // at 32px, pushed the whole page sideways on a phone.
               // 28px under `sm`: at 32 a 20-letter word is wider than a 390px
               // phone's column, and a name broken mid-word reads as a typo.
-              className="mt-0.5 text-[1.75rem] font-bold leading-[1.15] tracking-[-0.02em] text-ink wrap-anywhere sm:text-[2rem]"
+              className="mt-0.5 text-figure-lg font-bold text-ink wrap-anywhere sm:text-display"
             >
               {title}
             </h1>
@@ -218,7 +216,7 @@ export function Section({
           it — close enough to look like a mistake rather than a choice. */}
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-2.5 pt-2">
         <div className="min-w-0">
-          <h2 className="flex items-baseline gap-2 text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink">
+          <h2 className="flex items-baseline gap-2 text-title font-semibold text-ink">
             {/* min-w-0 so the truncate actually truncates: on a flex child
                 without it the text sets the width and the row grows instead. */}
             <span className="min-w-0 truncate">{title}</span>
@@ -241,7 +239,7 @@ export function Section({
         {action ? (
           <div className="-my-2 min-w-0">{action}</div>
         ) : caption ? (
-          <p className="text-[0.8125rem] text-muted-fg">{caption}</p>
+          <p className="text-xs text-muted-fg">{caption}</p>
         ) : null}
       </div>
       {/* The same edge a framed `Table` has, so a table reads the same

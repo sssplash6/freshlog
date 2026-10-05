@@ -40,6 +40,29 @@ const RAW_CLASS = new RegExp(
   `\\b(?:[a-z-]+:)*(?:${UTILITY})-(?:${PALETTE})-\\d{2,3}(?:\\/\\d{1,3})?\\b`,
   "g"
 );
+/*
+ * The two holes the palette rule left (October 2026). `text-white` and
+ * `bg-white` carry no number, so they never matched — avatar initials, a
+ * switch knob and the date picker's selected day all shipped raw white, and the
+ * date picker's measured 2.5:1 in dark. And an arbitrary hex in brackets is a
+ * colour no token chose. `on-brand`, `on-tone`, `knob` and friends are the
+ * tokens for white-on-a-fill.
+ */
+const RAW_MONO = new RegExp(
+  `\\b(?:[a-z-]+:)*(?:${UTILITY})-(?:white|black)(?:\\/\\d{1,3})?\\b`,
+  "g"
+);
+const RAW_HEX = new RegExp(
+  `\\b(?:[a-z-]+:)*(?:${UTILITY})-\\[#[0-9a-fA-F]{3,8}\\]`,
+  "g"
+);
+const PATTERNS = [RAW_CLASS, RAW_MONO, RAW_HEX];
+/**
+ * Files still on raw white while their owners move them to a token. The
+ * analytics program badge sets white initials on a program dot; it goes when
+ * the program palette lands its own `on-` ink. Empty this, never grow it.
+ */
+const MONO_PENDING = new Set(["src/app/analytics/dashboard.tsx"]);
 
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir)) {
@@ -60,8 +83,11 @@ for (const path of walk(SRC)) {
   readFileSync(path, "utf8")
     .split("\n")
     .forEach((line, i) => {
-      for (const match of line.matchAll(RAW_CLASS)) {
-        hits.push({ where: `${rel}:${i + 1}`, cls: match[0] });
+      for (const re of PATTERNS) {
+        if (re === RAW_MONO && MONO_PENDING.has(rel)) continue;
+        for (const match of line.matchAll(re)) {
+          hits.push({ where: `${rel}:${i + 1}`, cls: match[0] });
+        }
       }
     });
 }

@@ -203,7 +203,7 @@ export function ConfirmInline({
             className={
               variant === "quiet"
                 ? cn(
-                    "inline-flex min-h-10 items-center rounded-lg text-left text-[0.8125rem] font-medium transition-colors hover:underline disabled:cursor-not-allowed disabled:opacity-50",
+                    "inline-flex min-h-10 items-center rounded-lg text-left text-xs font-medium transition-colors hover:underline disabled:cursor-not-allowed disabled:opacity-50",
                     tone === "danger" ? "text-danger-ink" : "text-ink"
                   )
                 : buttonClasses(tone === "danger" ? "danger" : "secondary", stepSize)

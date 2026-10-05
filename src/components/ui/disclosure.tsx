@@ -93,7 +93,7 @@ export function Disclosure({
         className={cn(
           button
             ? buttonClasses("secondary", "md", "w-full cursor-pointer list-none")
-            : "flex min-h-11 w-fit cursor-pointer list-none items-center gap-1.5 text-[0.9375rem] font-medium text-brand hover:text-brand-dark",
+            : "flex min-h-11 w-fit cursor-pointer list-none items-center gap-1.5 rounded-md text-body font-medium text-brand hover:text-brand-dark",
           "focus-visible:outline-2 focus-visible:outline-offset-2",
           // Safari still paints its own triangle without this.
           "[&::-webkit-details-marker]:hidden"
@@ -118,7 +118,7 @@ export function Disclosure({
       {hint && (
         <p
           className={cn(
-            "text-[0.8125rem] text-muted-fg",
+            "text-xs text-muted-fg",
             button ? "mt-2 text-center" : "mb-2 ml-5.5"
           )}
         >

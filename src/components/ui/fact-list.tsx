@@ -51,10 +51,10 @@ export function FactList({
           key={i}
           className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-0.5 py-3 sm:grid-cols-[10rem_minmax(0,1fr)_auto]"
         >
-          <dt className="col-start-1 row-start-1 text-[0.8125rem] text-muted-fg sm:text-[0.9375rem]">
+          <dt className="col-start-1 row-start-1 text-xs text-muted-fg sm:text-body">
             {fact.label}
           </dt>
-          <dd className="col-start-1 row-start-2 min-w-0 break-words text-[0.9375rem] text-ink sm:col-start-2 sm:row-start-1">
+          <dd className="col-start-1 row-start-2 min-w-0 break-words text-body text-ink sm:col-start-2 sm:row-start-1">
             {fact.value}
           </dd>
           {fact.change && (

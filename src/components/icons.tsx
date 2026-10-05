@@ -1,4 +1,13 @@
-/** Shared 24-viewBox stroke icons; size with h-/w- classes. */
+/**
+ * Shared 24-viewBox stroke icons; size with h-/w- classes.
+ *
+ * ONE LINE WEIGHT AT EVERY SIZE. A 2-unit stroke in a 24-unit box scales with
+ * the icon, so the same set rendered at 0.83px (a 10px glyph) up to 1.67px (a
+ * 20px nav icon) — six weights side by side in one sidebar (October 2026).
+ * `data-icon` opts every shape into `vector-effect: non-scaling-stroke`
+ * (globals.css), so `strokeWidth` is in screen pixels: 1.5px, whatever the
+ * icon's size.
+ */
 
 function Svg({
   children,
@@ -14,10 +23,11 @@ function Svg({
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
+      data-icon=""
       className={className}
       {...rest}
     >
@@ -357,8 +367,8 @@ export function PlusIcon({ className }: { className?: string }) {
 /** Dismiss. Never "delete" — the only thing it removes is a row from a list. */
 export function XIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7"
-      strokeLinecap="round" className={className} aria-hidden="true">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"
+      strokeLinecap="round" data-icon="" className={className} aria-hidden="true">
       <path d="M5 5l10 10M15 5L5 15" />
     </svg>
   );

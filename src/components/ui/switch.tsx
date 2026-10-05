@@ -50,7 +50,7 @@ export function Switch({
           right edge where the 28px one sits, instead of 4px past the track. */}
       <span
         aria-hidden="true"
-        className="absolute left-0.5 top-0.5 h-7 w-7 rounded-full bg-white shadow-md transition-[transform,width] duration-200 peer-checked:translate-x-5 peer-active:w-8 peer-checked:peer-active:translate-x-4 peer-disabled:opacity-80"
+        className="absolute left-0.5 top-0.5 h-7 w-7 rounded-full bg-knob shadow-control transition-[transform,width] duration-200 peer-checked:translate-x-5 peer-active:w-8 peer-checked:peer-active:translate-x-4 peer-disabled:opacity-80"
       />
     </span>
   );

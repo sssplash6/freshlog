@@ -27,11 +27,14 @@ const TONE = {
   muted: "text-muted-fg",
 } as const;
 
+/* The type scale's figure steps (globals.css), each carrying its own
+   tracking. `normal` was Tailwind's 30px, a size the scale does not have — one
+   of five secondary-figure sizes an audit found across the app (October 2026). */
 const SIZE = {
-  lead: "text-[2.625rem]",
-  normal: "text-3xl",
-  /** Inside a table cell or a sentence, where a 30px figure would shout. */
-  inline: "text-base",
+  lead: "text-lead",
+  normal: "text-figure-lg",
+  /** Inside a table cell or a sentence, where a 28px figure would shout. */
+  inline: "text-body",
 } as const;
 
 export function Figure({
@@ -56,7 +59,7 @@ export function Figure({
         className={cn(
           // 600, not 700: bold is the large title's weight, and a figure that
           // matches it competes with the one heading the page has.
-          "font-semibold leading-none tracking-tight tabular-nums",
+          "font-semibold leading-none tabular-nums",
           SIZE[size],
           // Small orange text fails contrast, so the tone quietly declines
           // below the size it is legible at rather than shipping a grey-on-white
@@ -71,14 +74,14 @@ export function Figure({
           // what a screen reader reads out.
           <>
             {" "}
-            <span className="text-base font-semibold tracking-normal text-muted-fg">
+            <span className="text-body font-semibold tracking-normal text-muted-fg">
               {suffix}
             </span>
           </>
         )}
       </div>
       {label && (
-        <div className="mt-2 text-[0.8125rem] text-muted-fg">
+        <div className="mt-2 text-xs text-muted-fg">
           {label}
         </div>
       )}

@@ -95,7 +95,7 @@ export function Pagination({
     disabled ? (
       <span
         aria-disabled="true"
-        className="inline-flex min-h-11 items-center rounded-lg bg-fill px-3.5 text-[0.8125rem] font-medium text-muted-fg/60 sm:min-h-8"
+        className="inline-flex min-h-11 items-center rounded-lg bg-fill px-3.5 text-xs font-medium text-disabled sm:min-h-8"
       >
         {label}
       </span>
@@ -103,7 +103,7 @@ export function Pagination({
       <Link
         href={pageHref(basePath, params, to, param)}
         rel={rel}
-        className="inline-flex min-h-11 items-center rounded-lg bg-fill px-3.5 text-[0.8125rem] font-medium text-brand transition-colors hover:bg-fill-strong sm:min-h-8"
+        className="inline-flex min-h-11 items-center rounded-lg bg-fill px-3.5 text-xs font-medium text-brand transition-colors hover:bg-fill-strong sm:min-h-8"
       >
         {label}
       </Link>

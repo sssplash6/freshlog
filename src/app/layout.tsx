@@ -23,9 +23,12 @@ const inter = Inter({
   subsets: ["latin", "cyrillic"],
 });
 
+// Not preloaded (October 2026): the mono face appears on one screen — the
+// error page's digest — and was a 19KB request on every page load.
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  preload: false,
 });
 
 /**
@@ -121,8 +124,16 @@ export const viewport: Viewport = {
  * height and jumps to another is the same flash in a different shape. Wrapped in
  * try/catch because reading `localStorage` throws outright in a browser set to
  * block site data, and a theme is not worth a blank page.
+ *
+ * The address bar follows the APP's theme, not the operating system's
+ * (October 2026). The `theme-color` metas below are keyed to
+ * `prefers-color-scheme`, so somebody who chose Dark on a light phone got a
+ * white bar over a near-black page. The script points every `theme-color` meta
+ * at the chosen theme's colour, again once the document has parsed (Next may
+ * place the metas after this script), and again whenever `data-theme` changes —
+ * which is how ThemeToggle's switch reaches the bar without knowing about it.
  */
-const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t!=="dark"&&t!=="light"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t;if(localStorage.getItem("rail")==="collapsed"){document.documentElement.dataset.rail="collapsed"}var d=localStorage.getItem("density");if(d==="compact"||d==="comfortable"){document.documentElement.dataset.density=d}}catch(e){}})()`;
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t!=="dark"&&t!=="light"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}var r=document.documentElement;r.dataset.theme=t;if(localStorage.getItem("rail")==="collapsed"){r.dataset.rail="collapsed"}var d=localStorage.getItem("density");if(d==="compact"||d==="comfortable"){r.dataset.density=d}var c=function(){var m=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<m.length;i++){m[i].setAttribute("content",r.dataset.theme==="dark"?"#121417":"#ffffff")}};c();document.addEventListener("DOMContentLoaded",c);new MutationObserver(c).observe(r,{attributes:true,attributeFilter:["data-theme"]})}catch(e){}})()`;
 
 export default function RootLayout({
   children,

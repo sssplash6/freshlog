@@ -134,7 +134,7 @@ function ToastCapsule({
         // `bg-ink` inverts with the theme on its own — near-black capsule in
         // light, near-white in dark — which is exactly how a system banner
         // reads against either ground. Translucent and blurred like the bars.
-        "rise-in pointer-events-auto flex min-h-11 max-w-md items-center gap-3 rounded-full bg-ink/90 py-1.5 pl-5 pr-1.5 text-sm text-canvas shadow-lg backdrop-blur-xl backdrop-saturate-150"
+        "toast-in pointer-events-auto flex min-h-11 max-w-md items-center gap-3 rounded-full bg-ink/90 py-1.5 pl-5 pr-1.5 text-sm text-canvas shadow-lg backdrop-blur-xl backdrop-saturate-150"
       }
     >
       {t.tone === "error" && (
