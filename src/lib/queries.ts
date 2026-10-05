@@ -608,6 +608,7 @@ export async function mentorOverview(
   type ProgramRow = {
     id: string;
     name: string;
+    colorIndex: number;
     students: number;
     allocated: number;
     used: number;
@@ -620,12 +621,14 @@ export async function mentorOverview(
     sessions: number;
   };
   const rows = new Map<string, ProgramRow>();
-  const rowFor = (id: string, name: string) => {
-    const existing = rows.get(id);
+  const rowFor = (program: { id: string; name: string; colorIndex: number }) => {
+    const existing = rows.get(program.id);
     if (existing) return existing;
+    const { id, name, colorIndex } = program;
     const fresh: ProgramRow = {
       id,
       name,
+      colorIndex,
       students: 0,
       allocated: 0,
       used: 0,
@@ -640,7 +643,7 @@ export async function mentorOverview(
     return fresh;
   };
   for (const s of students) {
-    const row = rowFor(s.program.id, s.program.name);
+    const row = rowFor(s.program);
     row.students += 1;
     row.allocated += s.allocated;
     row.used += s.used;
@@ -650,7 +653,7 @@ export async function mentorOverview(
   // A session can outlive its allocation (an admin may remove one), so the
   // window's hours land in their program's row either way.
   for (const s of active) {
-    const row = rowFor(s.programId, s.program.name);
+    const row = rowFor(s.program);
     row.sessions += 1;
     if (!s.withinPlan) row.extra += s.minutes;
     else if (s.attended) row.delivered += s.minutes;

@@ -210,7 +210,7 @@ async function MentorRecord({
     ...new Map(
       pairings
         .filter((a) => !listed.has(a.programId))
-        .map((a) => [a.programId, { id: a.programId, name: a.program.name }])
+        .map((a) => [a.programId, { id: a.programId, name: a.program.name, colorIndex: a.program.colorIndex }])
     ).values(),
   ];
   const sum = (pick: (row: (typeof byProgram)[number]) => number) =>
@@ -469,7 +469,7 @@ async function MentorRecord({
                       its name. Bare bold text here was the third look a
                       program had on one page. */}
                   <ProgramChip
-                    program={{ id: row.id, name: row.name }}
+                    program={row}
                     href={manages ? `/programs/${row.id}` : undefined}
                     className="font-semibold"
                   />
