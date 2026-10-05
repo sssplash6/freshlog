@@ -69,8 +69,18 @@ the reader would otherwise work out by reading.
   read by who ran them without reading a name. Three and not eight because
   eight meant a mentor's chip could be the same amber as a "no-show" chip and
   the same violet as an "in progress" one: a hue that means four things
-  identifies nothing. `ink` on `soft` clears 6:1 in all three. **Programs have
-  no hue and no monogram** — a program is a place, not a face.
+  identifies nothing. `ink` on `soft` clears 6:1 in all three.
+- **Program colours** — eight slots (indigo, sky, teal, green, magenta,
+  violet, olive, cyan), each `soft` / `ink` / `dot`, worn as a DOT beside the
+  program's name and never as a wash or a monogram: a program is a place, not
+  a face. The slot is stored on the program (`Program.colorIndex`), given at
+  creation as the first one no live program holds — not hashed from the id,
+  which put two of five programs on one colour (October 2026). Every page,
+  analytics included, draws the same slot. Each slot differs in lightness as
+  well as hue, none is grey, orange, amber or red, every dot clears 3:1 on its
+  card in light and dark, and `ink` on `soft` clears 6:1. Eight hues cannot all
+  be told apart by a colour-blind reader, which is why the dot always sits
+  beside the name.
 - **Neutrals** — `canvas` #f4f5f6 is the page ground, `surface` #ffffff a card,
   `line` #e5e6e8 every hairline. Text is two tiers and only two: `ink` primary,
   `muted-fg` secondary. No coloured eyebrows.

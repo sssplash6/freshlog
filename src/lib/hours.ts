@@ -93,7 +93,7 @@ export async function allocationSummary(
     /** The student's hour bank in this program: no mentor, drawn by every meeting. */
     bank: boolean;
     /** The program the grant was made in — a row is one of these per mentor. */
-    program: { id: string; name: string };
+    program: { id: string; name: string; colorIndex: number };
     allocated: number;
     completed: number;
     missed: number;
@@ -152,7 +152,7 @@ export async function allocationSummary(
       }),
       prisma.program.findMany({
         where: { id: { in: ungranted.map((k) => k.split(":")[0]) } },
-        select: { id: true, name: true },
+        select: { id: true, name: true, colorIndex: true },
       }),
     ]);
     const mentorById = new Map(mentors.map((m) => [m.id, m]));

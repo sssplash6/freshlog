@@ -7,7 +7,7 @@ import { ChartIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from "@/component
 import { Button, buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
-import type { AnalyticsData, AnalyticsMentor, AnalyticsProgram, AnalyticsRow } from "@/lib/analytics";
+import type { AnalyticsData, AnalyticsMentor, AnalyticsRow } from "@/lib/analytics";
 import {
   byDay,
   byMonth,
@@ -32,7 +32,7 @@ import {
 import { cn } from "@/lib/cn";
 import { formatDuration } from "@/lib/format";
 import { initials, personTone } from "@/lib/person-tone";
-import { programTone } from "@/lib/program-tone";
+import { programColorVar } from "@/lib/program-tone";
 
 import s from "./dashboard.module.css";
 
@@ -94,44 +94,19 @@ const DEFAULT = "var(--color-brand)";
 const EXTRA_OPACITY = 0.35;
 
 /**
- * A program's colour here is the colour it wears everywhere else: the dot
- * `programTone` gives it, read as a CSS variable so an SVG path can use it.
+ * A program's colour here is the colour it wears everywhere else: its stored
+ * slot, read as a CSS variable so an SVG path can use it.
  *
- * Four hues and a hash can put two programs on the same one, which a stacked
- * column cannot survive — so a program whose hue an earlier program already
- * holds takes the next free one, and once all four are held the rest are
- * neutral grey. Live programs choose before archived ones, so an old program
- * never takes a current one's usual colour. Cached per `data.programs`: the
- * order is fixed for the life of the page, so a program keeps its colour when
- * a filter removes its neighbours.
+ * This used to re-deal colours of its own, because four hashed hues put two
+ * programs on one — so a program was one colour on /programs and another here.
+ * Slots are now given when a program is created and differ for the first
+ * eight live ones, so there is nothing left to re-deal. The "No level" bucket
+ * of an institute is not a place and stays neutral.
  */
-const HUES = ["indigo", "cyan", "violet", "slate"] as const;
-const hueCache = new WeakMap<AnalyticsProgram[], string[]>();
 function colorOf(data: AnalyticsData, program: number): string {
-  let hues = hueCache.get(data.programs);
-  if (!hues) {
-    const out: string[] = [];
-    const held = new Set<number>();
-    const order = data.programs
-      .map((p, i) => ({ p, i }))
-      .sort((a, b) => Number(a.p.archived) - Number(b.p.archived));
-    for (const { p, i } of order) {
-      const own = HUES.findIndex((h) => programTone(p.id).badge === `bg-prog-${h}-dot`);
-      let k = -1;
-      for (let step = 0; step < HUES.length; step++) {
-        const at = (Math.max(0, own) + step) % HUES.length;
-        if (!held.has(at)) {
-          k = at;
-          break;
-        }
-      }
-      if (k >= 0) held.add(k);
-      out[i] = k >= 0 ? `var(--color-prog-${HUES[k]}-dot)` : "var(--color-muted-fg)";
-    }
-    hues = out;
-    hueCache.set(data.programs, hues);
-  }
-  return hues[program] ?? "var(--color-muted-fg)";
+  const p = data.programs[program];
+  if (!p || p.colorIndex == null) return "var(--color-muted-fg)";
+  return programColorVar({ id: p.id, colorIndex: p.colorIndex });
 }
 
 type Today = { year: number; month: number; day: number };

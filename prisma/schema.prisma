@@ -149,6 +149,11 @@ model Program {
   // which is not the program's name in everybody else's tables. Null falls
   // back to the program's name.
   spaceName         String?
+  // Which of the eight program colours this program wears (0–7), given when
+  // it is created — the first slot no live program holds. Stored, not hashed
+  // from the id, so no two programs share a colour by accident and every page
+  // draws the same one (lib/program-tone.ts).
+  colorIndex        Int                   @default(0)
   levels            ProgramLevel[]
   cohorts           Cohort[]
   enrollments       StudentEnrollment[]

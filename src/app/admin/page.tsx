@@ -145,7 +145,7 @@ export default async function AdminHomePage({
     prisma.program.findMany({
       where: inScope ? { id: inScope } : {},
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, colorIndex: true },
     }),
     studentsWithHours(
       inScope ? { enrollments: { some: { programId: inScope } } } : {},

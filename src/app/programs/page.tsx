@@ -104,6 +104,7 @@ export default async function ProgramsPage({
     return {
       id: program.id,
       name: program.name,
+      colorIndex: program.colorIndex,
       students: totals.students,
       mentors: new Set(theirs.map((p) => p.mentorId)).size,
       remaining: totals.remaining,
@@ -178,7 +179,7 @@ export default async function ProgramsPage({
                     while stacked — on a phone this anchor is the row's one
                     target, and a table row does not need the height. */}
                 <ProgramChip
-                  program={{ id: p.id, name: p.name }}
+                  program={p}
                   href={`/programs/${p.id}`}
                   className="min-h-11 font-semibold sm:min-h-0"
                 />

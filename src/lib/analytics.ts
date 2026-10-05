@@ -58,6 +58,12 @@ export type AnalyticsRow = [
 export type AnalyticsProgram = {
   id: string;
   name: string;
+  /**
+   * The colour slot it wears everywhere else (`Program.colorIndex`). An
+   * institute's levels are dealt slots in order; null is the "No level"
+   * bucket, which is drawn neutral because it is not a place.
+   */
+  colorIndex: number | null;
   archived: boolean;
   /**
    * Minutes ever granted to the program's students — the stock the delivered
@@ -99,7 +105,7 @@ export async function analyticsData(
     prisma.program.findMany({
       where: inScope ? { id: inScope } : {},
       orderBy: { name: "asc" },
-      select: { id: true, name: true, status: true },
+      select: { id: true, name: true, status: true, colorIndex: true },
     }),
     prisma.session.findMany({
       where: {
@@ -134,6 +140,7 @@ export async function analyticsData(
     programs: programs.map((p) => ({
       id: p.id,
       name: p.name,
+      colorIndex: p.colorIndex,
       archived: p.status === PROGRAM_STATUS.ARCHIVED,
       granted: granted.get(p.id) ?? 0,
     })),
@@ -259,12 +266,13 @@ export async function instituteAnalyticsData(programId: string): Promise<Analyti
   const entries: AnalyticsProgram[] = levels.map((l, i) => ({
     id: l.id,
     name: l.name,
+    colorIndex: i,
     archived: false,
     granted: granted[i],
   }));
   const unleveled = rows.some((r) => r[0] === levels.length) || granted[levels.length] > 0;
   if (unleveled) {
-    entries.push({ id: NO_LEVEL_ID, name: "No level", archived: false, granted: granted[levels.length] });
+    entries.push({ id: NO_LEVEL_ID, name: "No level", colorIndex: null, archived: false, granted: granted[levels.length] });
   }
   return { programs: entries, mentors, rows };
 }

@@ -43,6 +43,7 @@ import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { RESEARCH_INSTITUTE_NAME } from "../config/app-config";
 import { EXCHANGE_STATUS, PROGRAM_STATUS } from "../src/lib/constants";
+import { nextColorIndex } from "../src/lib/program-tone";
 
 const WRITE = process.env.RESEARCH_CONFIRM === "WRITE";
 
@@ -356,7 +357,18 @@ async function main() {
     if (!targetId) {
       targetId = (
         await tx.program.create({
-          data: { name: TARGET_NAME, status: PROGRAM_STATUS.ACTIVE },
+          data: {
+            name: TARGET_NAME,
+            status: PROGRAM_STATUS.ACTIVE,
+            colorIndex: nextColorIndex(
+              (
+                await tx.program.findMany({
+                  where: { status: PROGRAM_STATUS.ACTIVE },
+                  select: { colorIndex: true },
+                })
+              ).map((p) => p.colorIndex)
+            ),
+          },
         })
       ).id;
     }

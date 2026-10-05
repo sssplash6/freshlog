@@ -129,8 +129,8 @@ export type ExchangeView = Awaited<ReturnType<typeof loadExchanges>>[number];
 
 const EXCHANGE_INCLUDE = {
   student: { include: { user: true } },
-  fromProgram: { select: { id: true, name: true } },
-  toProgram: { select: { id: true, name: true } },
+  fromProgram: { select: { id: true, name: true, colorIndex: true } },
+  toProgram: { select: { id: true, name: true, colorIndex: true } },
   sentBy: true,
   returnedBy: true,
   allocations: { include: { mentor: true } },

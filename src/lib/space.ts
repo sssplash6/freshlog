@@ -35,6 +35,8 @@ export type Space =
   | {
       kind: "institute";
       programId: string;
+      /** The program's colour slot, so the chrome's dot matches every table's. */
+      colorIndex: number;
       /** What it is called in its own chrome: `spaceName`, else the program's name. */
       name: string;
       /** Its levels, in the order the sidebar lists them. */
@@ -115,6 +117,7 @@ export const spaceOf = cache(
       select: {
         name: true,
         spaceName: true,
+        colorIndex: true,
         levels: { orderBy: { name: "asc" }, select: { id: true, name: true } },
       },
     });
@@ -122,6 +125,7 @@ export const spaceOf = cache(
     return {
       kind: "institute",
       programId,
+      colorIndex: program.colorIndex,
       name: program.spaceName?.trim() || program.name,
       levels: program.levels,
     };

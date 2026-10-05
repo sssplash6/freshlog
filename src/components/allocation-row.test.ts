@@ -10,7 +10,7 @@ import {
 
 const hasan: AllocationEntry = {
   mentor: { id: "hasan", name: "Hasan Mavlonov", email: "hasan@example.com" },
-  program: { id: "masters", name: "Master's" },
+  program: { id: "masters", name: "Master's", colorIndex: 0 },
   allocated: 60,
   completed: 111,
   missed: 0,
@@ -74,7 +74,7 @@ describe("time by mentor", () => {
     // A Program column pushed the ⋮ menu off the card's right edge.
     const html = renderToStaticMarkup(
       createElement(AllocationsTable, {
-        entries: [hasan, { ...hasan, program: { id: "global", name: "Global Admissions" } }],
+        entries: [hasan, { ...hasan, program: { id: "global", name: "Global Admissions", colorIndex: 1 } }],
         framed: false,
         renderActions: () => "⋮",
       }),

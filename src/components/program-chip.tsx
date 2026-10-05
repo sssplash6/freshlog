@@ -3,7 +3,7 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { programTone } from "@/lib/program-tone";
 
-export type ProgramRef = { id: string; name: string };
+export type ProgramRef = { id: string; name: string; colorIndex: number };
 
 /**
  * A program, wherever one is named as a value on a row.
@@ -81,7 +81,7 @@ export function ProgramDot({
       aria-hidden="true"
       className={cn(
         "h-2 w-2 shrink-0 rounded-full",
-        programTone(program.id).badge,
+        programTone(program).badge,
         className
       )}
     />

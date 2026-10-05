@@ -11,6 +11,7 @@ import "dotenv/config";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PROGRAMS, STAFF_SEED } from "../config/app-config";
+import { nextColorIndex } from "../src/lib/program-tone";
 
 const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -21,14 +22,20 @@ async function main() {
   // unique per (program, level) now, and a level's per program — no single
   // compound selector names them.
   for (const { name, cohorts, levels, institute } of PROGRAMS) {
+    // A new program takes the first colour slot no live program holds.
+    const held = await prisma.program.findMany({
+      where: { status: "ACTIVE" },
+      select: { colorIndex: true },
+    });
+    const colorIndex = nextColorIndex(held.map((p) => p.colorIndex));
     const program = await prisma.program.upsert({
       where: { name },
       // Never on update: whether it is an institute is the platform admin's
       // call once the program exists, and the seed runs on every boot.
       update: {},
       create: institute
-        ? { name, space: "INSTITUTE", spaceName: institute }
-        : { name },
+        ? { name, colorIndex, space: "INSTITUTE", spaceName: institute }
+        : { name, colorIndex },
     });
     for (const spec of levels ?? []) {
       const level = await prisma.programLevel.findFirst({

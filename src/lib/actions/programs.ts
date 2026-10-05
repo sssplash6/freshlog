@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { parseMinutesField, type ActionState } from "@/lib/actions/shared";
 import { PROGRAM_SPACE } from "@/lib/constants";
 import { formatDuration } from "@/lib/format";
+import { pickColorIndex } from "@/lib/program-color";
 
 /**
  * A platform admin opens a new program. Programs created here live alongside
@@ -36,7 +37,7 @@ export async function createProgram(
     return { ok: false, error: `A program called ${name} already exists.` };
   }
 
-  await prisma.program.create({ data: { name } });
+  await prisma.program.create({ data: { name, colorIndex: await pickColorIndex() } });
 
   revalidatePath("/", "layout");
   return { ok: true, message: `${name} is up and running.` };

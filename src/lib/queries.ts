@@ -1029,7 +1029,7 @@ export type CaseloadStudent = {
    * programs is two rows, with two deadlines, because that is two questions
    * ("how much is left in the Master's Program?") with two answers.
    */
-  program: { id: string; name: string };
+  program: { id: string; name: string; colorIndex: number };
   allocated: number;
   completed: number;
   missed: number;
@@ -1249,9 +1249,9 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
     });
     return new Map(rows.map((r) => [r.id, r]));
   };
-  const programName = new Map<string, string>();
+  const programName = new Map<string, { id: string; name: string; colorIndex: number }>();
   for (const a of [...allocations, ...poolAllocations]) {
-    programName.set(a.programId, a.program.name);
+    programName.set(a.programId, a.program);
   }
   /** A program's row, fetched only for the ids no allocation already named. */
   const namePrograms = async (ids: readonly string[]) => {
@@ -1259,9 +1259,9 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
     if (missing.length === 0) return;
     const rows = await prisma.program.findMany({
       where: { id: { in: missing } },
-      select: { id: true, name: true },
+      select: { id: true, name: true, colorIndex: true },
     });
-    for (const r of rows) programName.set(r.id, r.name);
+    for (const r of rows) programName.set(r.id, r);
   };
 
   const metKeys = [...new Set(mySessionSums.map((s) => key(s)))].filter(
@@ -1278,7 +1278,7 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
     listed.add(k);
     students.push({
       profile,
-      program: { id: programId, name: programName.get(programId) ?? "" },
+      program: programName.get(programId) ?? { id: programId, name: "", colorIndex: 0 },
       allocated: 0,
       completed: drawn - missed,
       missed,
@@ -1315,7 +1315,7 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
     listed.add(k);
     students.push({
       profile,
-      program: { id: programId, name: programName.get(programId) ?? "" },
+      program: programName.get(programId) ?? { id: programId, name: "", colorIndex: 0 },
       // Nothing granted and nothing spent: the row's own emptiness is the
       // news, and `studentStatuses` turns it into "No time with you".
       allocated: 0,

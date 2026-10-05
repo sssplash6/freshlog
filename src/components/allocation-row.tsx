@@ -72,7 +72,7 @@ export type AllocationEntry = {
    * `AllocationsTable` — because a program named on every row of a
    * single-program student is a column of the same word.
    */
-  program: { id: string; name: string };
+  program: { id: string; name: string; colorIndex: number };
   allocated: number;
   /**
    * What the table calls Assigned: the commitment to this mentor — the grant,
@@ -97,7 +97,7 @@ type PlannedAssignment = {
   minuteLimit: number | null;
   progress: string;
   mentor: Omit<RowPerson, "href"> | null;
-  program: { id: string; name: string };
+  program: { id: string; name: string; colorIndex: number };
 };
 
 /**
@@ -187,7 +187,7 @@ export function toAllocationEntries(
       email: string;
       avatarUpdatedAt?: Date | null;
     } | null;
-    program: { id: string; name: string };
+    program: { id: string; name: string; colorIndex: number };
     allocated: number;
     completed: number;
     missed: number;

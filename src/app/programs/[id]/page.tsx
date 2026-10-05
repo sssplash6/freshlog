@@ -341,7 +341,7 @@ export default async function ProgramPage({
                         person={mentor}
                         size="sm"
                         href={`/mentors/${mentor.id}`}
-                        tone={programTone(program.id)}
+                        tone={programTone(program)}
                       />
                       {superAdminIds.has(mentor.id) && (
                         <span title="Admin" className="text-warn-ink">

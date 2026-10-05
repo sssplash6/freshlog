@@ -22,6 +22,7 @@ import { mentorCaseload } from "@/lib/queries";
 export type MentorProgramRow = {
   id: string;
   name: string;
+  colorIndex: number;
   /** The cohort their pairing names, when it names one. */
   cohort: string | null;
   students: number;
@@ -36,12 +37,12 @@ export type MentorProgramRow = {
  */
 export function mentorProgramRows(
   pairings: readonly {
-    program: { id: string; name: string };
+    program: { id: string; name: string; colorIndex: number };
     cohort: { name: string } | null;
   }[],
   students: readonly {
     profile: { id: string };
-    program: { id: string; name: string };
+    program: { id: string; name: string; colorIndex: number };
     completed: number;
     remaining: number;
     expired: boolean;
@@ -49,12 +50,13 @@ export function mentorProgramRows(
 ): MentorProgramRow[] {
   type Acc = Omit<MentorProgramRow, "students"> & { students: Set<string> };
   const rows = new Map<string, Acc>();
-  const at = (program: { id: string; name: string }, cohort: string | null) => {
+  const at = (program: { id: string; name: string; colorIndex: number }, cohort: string | null) => {
     const held = rows.get(program.id);
     if (held) return held;
     const row: Acc = {
       id: program.id,
       name: program.name,
+      colorIndex: program.colorIndex,
       cohort,
       students: new Set<string>(),
       completed: 0,
@@ -133,7 +135,7 @@ export async function MentorPrograms({ mentorId }: { mentorId: string }) {
                     NOT `/programs/[id]`, which is the program's own ledger and
                     belongs to the people who administer it. */}
                 <ProgramChip
-                  program={{ id: row.id, name: row.name }}
+                  program={row}
                   href={`/sessions?program=${row.id}`}
                   className="min-h-11 font-semibold sm:min-h-0"
                 />

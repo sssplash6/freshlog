@@ -320,7 +320,7 @@ function InstituteMark({
 }) {
   return (
     <span className="flex min-w-0 items-center gap-2 text-[0.9375rem] font-semibold text-ink">
-      <ProgramDot program={{ id: space.programId, name: space.name }} />
+      <ProgramDot program={{ id: space.programId, name: space.name, colorIndex: space.colorIndex }} />
       <span className="min-w-0 truncate">{space.name}</span>
     </span>
   );

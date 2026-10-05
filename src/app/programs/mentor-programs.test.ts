@@ -7,12 +7,12 @@ import { mentorProgramRows } from "@/app/programs/mentor-programs";
  * third is the one that would be wrong quietly: hours on a passed deadline are
  * forfeited, so they cannot be reported as time this mentor still holds.
  */
-const masters = { id: "p1", name: "Master's Program" };
-const admissions = { id: "p2", name: "Global Admissions" };
+const masters = { id: "p1", name: "Master's Program", colorIndex: 0 };
+const admissions = { id: "p2", name: "Global Admissions", colorIndex: 1 };
 
 const held = (opts: {
   student: string;
-  program: { id: string; name: string };
+  program: { id: string; name: string; colorIndex: number };
   completed?: number;
   remaining?: number;
   expired?: boolean;
@@ -32,6 +32,7 @@ describe("mentorProgramRows", () => {
       {
         id: "p1",
         name: "Master's Program",
+        colorIndex: 0,
         cohort: null,
         students: 0,
         completed: 0,

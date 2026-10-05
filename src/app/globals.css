@@ -95,23 +95,48 @@
   --color-tone-moss-ink: #485c1c;
   --color-tone-moss-dot: #55701f;
 
-  /* Program hues. Same three-part shape as a person tone, so one chip
-     component can wear either. */
-  --color-prog-indigo-soft: #e5e7f7;
-  --color-prog-indigo-ink: #3b3f8f;
-  --color-prog-indigo-dot: #5257ad;
+  /* Program hues: EIGHT slots, one per program, stored on the program
+     (`Program.colorIndex`) rather than hashed from its id. Same three-part
+     shape as a person tone, so one chip component can wear either.
 
-  --color-prog-cyan-soft: #dceef2;
-  --color-prog-cyan-ink: #145c6b;
-  --color-prog-cyan-dot: #1b7487;
+     October 2026: there were four hues and a hash, so five programs put two on
+     one colour by arithmetic — Global Admissions and "efde" were both slate —
+     and the ones that did differ were violet beside indigo, 1.01:1 apart in
+     luminance. These eight differ in hue AND lightness, none is grey, none is
+     orange, amber or red (status and hours own those), and every dot clears
+     3:1 on its card in both themes. Eight hues cannot all be told apart by a
+     colour-blind reader; a dot always sits beside its program's name. */
+  --color-prog-indigo-soft: #e9e9f6;
+  --color-prog-indigo-ink: #3a38aa;
+  --color-prog-indigo-dot: #4446b8;
 
-  --color-prog-violet-soft: #eee5f6;
-  --color-prog-violet-ink: #5d3187;
-  --color-prog-violet-dot: #7a4aa8;
+  --color-prog-sky-soft: #e4f0f8;
+  --color-prog-sky-ink: #00518f;
+  --color-prog-sky-dot: #1b82c4;
 
-  --color-prog-slate-soft: #e3e8ee;
-  --color-prog-slate-ink: #3d4d61;
-  --color-prog-slate-dot: #536780;
+  --color-prog-teal-soft: #e1efed;
+  --color-prog-teal-ink: #005c51;
+  --color-prog-teal-dot: #08766a;
+
+  --color-prog-green-soft: #e7f2e8;
+  --color-prog-green-ink: #005f09;
+  --color-prog-green-dot: #3a8f3f;
+
+  --color-prog-magenta-soft: #f5e5ef;
+  --color-prog-magenta-ink: #8b0061;
+  --color-prog-magenta-dot: #a8287a;
+
+  --color-prog-violet-soft: #f1ebfa;
+  --color-prog-violet-ink: #5d27a0;
+  --color-prog-violet-dot: #8a5bd6;
+
+  --color-prog-olive-soft: #efeee2;
+  --color-prog-olive-ink: #564f00;
+  --color-prog-olive-dot: #76700f;
+
+  --color-prog-cyan-soft: #e2f3f5;
+  --color-prog-cyan-ink: #005b6c;
+  --color-prog-cyan-dot: #0a97a8;
 
   /* Elevation is brand-tinted, never flat black — softer and on-brand than a
      default grey drop shadow. Three steps, and each one means a distance:
@@ -299,17 +324,39 @@
   --color-tone-moss-soft: #2b3425;
   --color-tone-moss-ink: #b3cb7c;
 
-  --color-prog-indigo-soft: #282c44;
-  --color-prog-indigo-ink: #a4abf4;
+  /* Program dots are re-tuned here too, not only soft and ink: left at their
+     light values they measured 2.6–2.9:1 on the dark card. */
+  --color-prog-indigo-soft: #2b2e43;
+  --color-prog-indigo-ink: #a8b2ff;
+  --color-prog-indigo-dot: #7c83ec;
 
-  --color-prog-cyan-soft: #1c353e;
-  --color-prog-cyan-ink: #6cc7df;
+  --color-prog-sky-soft: #263543;
+  --color-prog-sky-ink: #75c7ff;
+  --color-prog-sky-dot: #5eb0ea;
 
-  --color-prog-violet-soft: #322943;
-  --color-prog-violet-ink: #c69af0;
+  --color-prog-teal-soft: #1f3435;
+  --color-prog-teal-ink: #69d3c3;
+  --color-prog-teal-dot: #35a596;
 
-  --color-prog-slate-soft: #283039;
-  --color-prog-slate-ink: #b3c0cf;
+  --color-prog-green-soft: #2a3831;
+  --color-prog-green-ink: #88d38a;
+  --color-prog-green-dot: #77c27a;
+
+  --color-prog-magenta-soft: #3c2e3c;
+  --color-prog-magenta-ink: #ff93d3;
+  --color-prog-magenta-dot: #ec7fbe;
+
+  --color-prog-violet-soft: #373445;
+  --color-prog-violet-ink: #ccabfd;
+  --color-prog-violet-dot: #c9a8fa;
+
+  --color-prog-olive-soft: #36372c;
+  --color-prog-olive-ink: #c9c261;
+  --color-prog-olive-dot: #c2bb5a;
+
+  --color-prog-cyan-soft: #2a3c43;
+  --color-prog-cyan-ink: #7adbe8;
+  --color-prog-cyan-dot: #7adbe8;
 
   /* A shadow barely reads on a dark ground, so the edge does the work: a
      faint white hairline and a top highlight, the way Linear and GitHub draw

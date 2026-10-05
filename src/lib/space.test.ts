@@ -96,6 +96,7 @@ describe("spaceOf", () => {
     expect(await spaceOf(a, "admin")).toEqual({
       kind: "institute",
       programId: research.id,
+      colorIndex: expect.any(Number),
       name: "Research Institute",
       levels: [
         { id: expect.any(String), name: "Advanced" },
