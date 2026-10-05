@@ -199,29 +199,33 @@ export default async function SessionsPage({
       <Header />
       {filters}
 
-      {/* The headline as a stat row — label over figure, set apart by space —
-          rather than a sentence of bolded fragments. It still reads the whole
-          filtered set, never the page.
-
-          All four, always, zeros included. Missed and extra used to drop out
-          at zero, so the grid was four figures for one reader, three for
-          another and two under a filter — and on a phone three wrapped to a
-          row of two and an orphan. A fixed 2 × 2 on a phone, one row above. */}
-      <div className="px-1">
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:flex sm:flex-wrap sm:gap-x-10">
-          <Stat label="Logged" value={formatDuration(logged)} />
-          <Stat label="Missed" value={formatDuration(missed)} />
-          <Stat label="Extra" value={formatDuration(extra)} />
-          <Stat label="Sessions" value={String(total)} />
-        </dl>
-        {/* What the filters did, in words — only once something is on, since
-            the unfiltered count is already the figure above. */}
-        {activeFilterCount(params) > 0 && total > 0 && (
-          <p className="mt-2 text-[0.8125rem] text-muted-fg" aria-live="polite">
-            {filterSummary(total, { one: "session", many: "sessions" }, params)}
+      {/* One figure leads — what was logged — and the rest is its caption.
+          It was four figures at one size (Logged, Missed, Extra, Sessions),
+          the strip DESIGN.md retired: four equal numbers are four questions
+          and no answer, and on a phone the 2 × 2 grid took 250px before the
+          first row. Reads the whole filtered set, never the page — and is not
+          drawn over an empty result, where it was four zeroes above "No
+          sessions match". */}
+      {total > 0 && (
+        <div className="px-1" aria-live="polite">
+          <p className="text-[0.8125rem] text-muted-fg">Logged</p>
+          <p className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="text-[1.375rem] font-semibold leading-tight tabular-nums text-ink">
+              {formatDuration(logged)}
+            </span>
+            <span className="text-[0.8125rem] tabular-nums text-muted-fg">
+              {/* What the filters did, in words, when any are on; otherwise
+                  the plain count. Never both — the count is inside the
+                  summary. */}
+              {activeFilterCount(params) > 0
+                ? filterSummary(total, { one: "session", many: "sessions" }, params)
+                : `${total} ${total === 1 ? "session" : "sessions"}`}
+              {missed > 0 && ` · ${formatDuration(missed)} missed`}
+              {extra > 0 && ` · ${formatDuration(extra)} extra`}
+            </span>
           </p>
-        )}
-      </div>
+        </div>
+      )}
 
       {total === 0 ? (
         activeFilterCount(params) > 0 ? (
@@ -268,32 +272,28 @@ export default async function SessionsPage({
       ) : (
         <>
           <SessionsList sessions={entries} viewer={viewer} actions={rowActions} />
-          <Pagination
-            basePath="/sessions"
-            params={params}
-            page={page}
-            total={total}
-            unit="sessions"
-            className="px-1"
-          />
+          {/* Only when there is a second page. On one page its "21 sessions"
+              repeated the count the headline had just given. */}
+          {total > PAGE_SIZE && (
+            <Pagination
+              basePath="/sessions"
+              params={params}
+              page={page}
+              total={total}
+              unit="sessions"
+              className="px-1"
+            />
+          )}
         </>
       )}
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-[0.8125rem] text-muted-fg">{label}</dt>
-      <dd className="mt-0.5 text-[1.375rem] font-semibold leading-tight tabular-nums text-ink">
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-/** The title and the one action. */
+/**
+ * The title and the one action — full width on a phone, as on Home, so the
+ * same button is the same shape on both pages a mentor logs from.
+ */
 function Header() {
   return (
     <PageTitle
@@ -303,6 +303,7 @@ function Header() {
           href="/sessions/new"
           variant="primary"
           size="md"
+          className="w-full sm:w-auto"
         >
           Log a session
         </LinkButton>

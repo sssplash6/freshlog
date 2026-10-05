@@ -12,7 +12,6 @@ import {
   HomeIcon,
   InboxIcon,
   LayersIcon,
-  PlusIcon,
   StarIcon,
   UserIcon,
   UsersIcon,
@@ -34,7 +33,9 @@ import type { NavItem } from "@/lib/nav";
  */
 const NAV_ICONS: [string, (p: { className?: string }) => React.ReactNode][] = [
   ["/student/interviews", UsersIcon],
-  ["/student/book", PlusIcon],
+  // A calendar, not a plus: the page is a list of mentors to book a time
+  // with, and a "+" promised a form that creates something.
+  ["/student/book", CalendarIcon],
   ["/student/feedback", StarIcon],
   ["/student", HomeIcon],
   // Both homes are HomeIcon now that their pages are titled "Home" — the

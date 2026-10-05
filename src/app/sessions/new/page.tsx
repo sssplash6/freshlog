@@ -85,12 +85,14 @@ export default async function LogSessionPage({
       })
     : [];
   const named = one("mentor");
-  // The admin is the default only when they are one of the mentors on offer.
-  // An admin who mentors in no program defaulted to themselves anyway, and the
-  // form opened on a mentor with nobody to log for under a live submit button.
+  // An admin names the mentor; the form does not guess. It defaulted to the
+  // admin themselves whenever they mentored too, and an admin logging a
+  // session somebody else ran — the reason this picker exists — submitted it
+  // under their own name unless they noticed the field. The one exception is
+  // a picker of one, which is no question at all.
   const mentorId = administers
     ? (mentors.find((m) => m.id === named)?.id ??
-      (canActAsMentor(user) && mentors.some((m) => m.id === user.id) ? user.id : ""))
+      (mentors.length === 1 ? mentors[0].id : ""))
     : user.id;
   const acting = mentors.find((m) => m.id === mentorId);
   const onBehalf = mentorId !== "" && mentorId !== user.id;
@@ -150,11 +152,21 @@ export default async function LogSessionPage({
 
   // An admin who does not mentor has no /mentor to go back to — the ledger is
   // where they came from and the only one of the three that will let them in.
-  const back = !canActAsMentor(user)
-    ? "/sessions"
-    : draft.studentProfileId
-      ? `/students/${draft.studentProfileId}`
+  const backStudent = draft.studentProfileId
+    ? students.find((s) => s.profileId === draft.studentProfileId)
+    : undefined;
+  const back = backStudent
+    ? `/students/${backStudent.profileId}`
+    : !canActAsMentor(user)
+      ? "/sessions"
       : "/mentor";
+  // Named for where it goes, the way every other back row in the app is. It
+  // said "Back" here and "‹ Home" in the phone's top bar for the same link.
+  const backLabel = backStudent
+    ? backStudent.label
+    : back === "/sessions"
+      ? "Sessions"
+      : "Home";
 
   return (
     // Wider than the 2xl it was: the note and the three one-tap answers sit
@@ -164,7 +176,7 @@ export default async function LogSessionPage({
     <div className="max-w-4xl space-y-4">
       <PageTitle
         backHref={back}
-        backLabel="Back"
+        backLabel={backLabel}
         title="Log a session"
         subtitle={program ? `In ${program.name}` : undefined}
       />

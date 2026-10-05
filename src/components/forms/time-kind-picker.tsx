@@ -4,6 +4,17 @@ import { TIME_KIND, TIME_KIND_META } from "@/lib/constants";
 const ORDER: string[] = [TIME_KIND.PLAN, TIME_KIND.EXTRA];
 
 /**
+ * Two words a segment can hold. The full labels — "Counts toward their time",
+ * "Extra, beyond their time" — wrapped to two lines inside a 44px pill on a
+ * phone and lost the second line; the legend already asks "Whose hours?", so
+ * the answer only has to name one.
+ */
+const SHORT: Record<string, string> = {
+  [TIME_KIND.PLAN]: "Their time",
+  [TIME_KIND.EXTRA]: "Extra",
+};
+
+/**
  * Whose hours these are — the student's allocation, or the mentor's own time
  * given on top of it. Asked beside attendance and shaped identically, because
  * they are two halves of one thought: what happened, and what it costs.
@@ -37,7 +48,7 @@ export function TimeKindPicker({
       defaultValue={defaultValue}
       options={ORDER.map((kind) => ({
         value: kind,
-        label: TIME_KIND_META[kind].label,
+        label: SHORT[kind] ?? TIME_KIND_META[kind].label,
       }))}
     />
   );

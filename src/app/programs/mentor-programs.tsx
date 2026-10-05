@@ -1,9 +1,12 @@
+import Link from "next/link";
+
+import { ChevronRightIcon } from "@/components/icons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Figure } from "@/components/ui/figure";
 import { ProgramChip } from "@/components/program-chip";
 import { PageTitle } from "@/components/ui/section";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
-import { formatRough } from "@/lib/format";
+import { formatBalance, formatDuration } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { mentorCaseload } from "@/lib/queries";
 
@@ -107,19 +110,13 @@ export async function MentorPrograms({ mentorId }: { mentorId: string }) {
     { label: "Students", align: "right" },
     { label: "Completed", align: "right" },
     { label: "Remaining", align: "right", emphasis: "key" },
+    { label: "", className: "w-14" },
   ];
   return (
     <div className="space-y-4">
-      <PageTitle
-        title={
-          <>
-            Programs{" "}
-            <span className="font-semibold tabular-nums text-muted-fg">
-              · {shown.length}
-            </span>
-          </>
-        }
-      />
+      {/* No count in the h1. "Programs · 2" was the one page title in the app
+          carrying one, over a table whose two rows say it anyway. */}
+      <PageTitle title="Programs" />
 
       {shown.length === 0 ? (
         <EmptyState title="No programs yet">
@@ -128,7 +125,8 @@ export async function MentorPrograms({ mentorId }: { mentorId: string }) {
       ) : (
         <Table columns={columns}>
           {shown.map((row) => (
-            <Tr key={row.id}>
+            // `relative`: the chevron's link covers the row, as on Home.
+            <Tr key={row.id} className="relative">
               <Td label="Program">
                 {/* The way in is the mentor's own log, narrowed to this
                     program — the long form of the two figures on this row.
@@ -146,18 +144,29 @@ export async function MentorPrograms({ mentorId }: { mentorId: string }) {
               <Td label="Students" align="right" className="tabular-nums">
                 {row.students}
               </Td>
-              {/* Plain: the balance beside it is the figure in orange. Two
-                  orange figures per row read as two things to look at. */}
+              {/* Exact, as on Home. These were rounded — "32+ hours" here
+                  beside "36h 42m" there for the same mentor — and a mentor
+                  spends against this balance, so the two read as two figures.
+                  Plain: the balance beside it is the figure in orange. */}
               <Td label="Completed" align="right" className="tabular-nums">
-                {formatRough(row.completed)}
+                {formatDuration(row.completed)}
               </Td>
               <Td label="Remaining" align="right">
                 <Figure
                   size="inline"
-                  value={formatRough(row.remaining)}
+                  value={formatBalance(row.remaining)}
                   tone={row.remaining < 0 ? "danger" : "hours"}
                   className="sm:text-right"
                 />
+              </Td>
+              <Td align="right" corner>
+                <Link
+                  href={`/sessions?program=${row.id}`}
+                  aria-label={`Sessions in ${row.name}`}
+                  className="-my-2 inline-flex h-8 w-8 items-center justify-center rounded-lg align-middle text-muted-fg transition-colors after:absolute after:inset-0 hover:text-brand"
+                >
+                  <ChevronRightIcon className="h-4 w-4" />
+                </Link>
               </Td>
             </Tr>
           ))}

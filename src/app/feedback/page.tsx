@@ -166,7 +166,7 @@ export default async function FeedbackPage({
 
 /** The promise the rating form made the student, repeated where it is kept. */
 const ANONYMOUS =
-  "Ratings of you are anonymous. Students' names are never shown to you.";
+  "Anonymous — you never see which student wrote a rating.";
 
 /**
  * Who may see the writer, said where the staff list shows names.
@@ -216,11 +216,9 @@ async function OwnRatings({
     <div className="space-y-4">
       <PageTitle
         title="Feedback"
-        subtitle={
-          avg === null
-            ? undefined
-            : `${avg.toFixed(1)} · ${count(stats._count, "rating")} · anonymous`
-        }
+        // The average alone: the count is the section's, and "anonymous" is
+        // said once, as the section's caption. It was all three, three times.
+        subtitle={avg === null ? undefined : `${avg.toFixed(1)} average`}
       />
 
       {stats._count === 0 ? (
