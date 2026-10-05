@@ -3,6 +3,7 @@ import { SessionsList } from "@/components/session-row";
 import { toSessionEntries } from "@/lib/session-entries";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ArrowLink } from "@/components/ui/link";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
 import { PageTitle } from "@/components/ui/section";
@@ -14,9 +15,11 @@ import {
   DATE_PRESETS,
   MINE_PRESET,
   activeFilterCount,
+  filterHref,
   filterSummary,
   readDateWindow,
   readParam,
+  resetHref,
   sessionsWhere,
   type SearchParams,
 } from "@/lib/filters";
@@ -172,6 +175,8 @@ export default async function SessionsPage({
           goals={tasksBySession[row.id] ?? []}
           canEdit={row.status !== SESSION_STATUS.VOIDED}
           canDelete={administers}
+          student={row.student ? (row.student.name ?? row.student.email) : null}
+          mentor={row.mentor.name ?? row.mentor.email}
         />
       ) : null,
     ]),
@@ -220,8 +225,40 @@ export default async function SessionsPage({
 
       {total === 0 ? (
         activeFilterCount(params) > 0 ? (
-          <EmptyState variant="no-results" title="No sessions match">
-            Reset the filters to see the rest.
+          // Says what came back empty — the words typed, or the filters —
+          // and offers the ways forward, not only the one that undoes
+          // everything: drop the search and keep the filters, drop the
+          // filters, or log the session that is not here yet.
+          <EmptyState
+            variant="no-results"
+            title={filterSummary(0, { one: "session", many: "sessions" }, params)}
+            action={
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+                {readParam(params, "q") && (
+                  <ArrowLink
+                    href={filterHref("/sessions", params, { q: undefined })}
+                    className="text-[0.8125rem]"
+                  >
+                    {activeFilterCount(params) > 0 ? "Clear the search" : "Show every session"}
+                  </ArrowLink>
+                )}
+                {(activeFilterCount(params) > 1 || !readParam(params, "q")) && (
+                  <ArrowLink
+                    href={resetHref("/sessions", params)}
+                    className="text-[0.8125rem]"
+                  >
+                    Reset all filters
+                  </ArrowLink>
+                )}
+                <ArrowLink href="/sessions/new" className="text-[0.8125rem]">
+                  Log a session
+                </ArrowLink>
+              </div>
+            }
+          >
+            {readParam(params, "q")
+              ? "Check the spelling, search a student or mentor by name, or widen the filters."
+              : "Widen the dates or attendance, or reset to see every session."}
           </EmptyState>
         ) : (
           <EmptyState title="Nothing logged yet">

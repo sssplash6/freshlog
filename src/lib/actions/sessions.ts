@@ -29,10 +29,12 @@ import {
   USER_STATUS,
 } from "@/lib/constants";
 import {
-  formatDate,
   formatDuration,
+  formatFullDate,
   formatMinutes,
 } from "@/lib/format";
+import { describeSessionChange } from "@/lib/session-change";
+import { programToday } from "@/lib/when";
 import { chargeableAgainst } from "@/lib/deadlines";
 import { syncGoalProgress } from "@/lib/goal-progress";
 import { notify, notificationHref, staffIdsFor } from "@/lib/notify";
@@ -42,6 +44,20 @@ import {
   type ActionState,
 } from "@/lib/actions/shared";
 import { reachablePrograms } from "@/lib/queries";
+
+/**
+ * A session records a meeting that has happened, so its day cannot be after the
+ * program's today. The log form already stops the picker there; this is the
+ * same rule where a hand-made request cannot walk around it. It is how
+ * "October 24" got into a September ledger, and into the notice that said it
+ * had been corrected.
+ */
+const FUTURE_REFUSAL =
+  "A session can't be dated in the future. Pick today or an earlier day.";
+
+function isFuture(day: Date): boolean {
+  return day.getTime() > Date.parse(`${programToday()}T00:00:00.000Z`);
+}
 
 /**
  * Which of the four kinds of meeting this was. Defaults to Attended, so a form
@@ -265,6 +281,7 @@ export async function logSession(
   if ("error" in minutesParsed) return bad(minutesParsed.error, "minutes");
   const dateParsed = parseDateField(formData.get("date"));
   if ("error" in dateParsed) return bad(dateParsed.error, "date");
+  if (isFuture(dateParsed.value)) return bad(FUTURE_REFUSAL, "date");
   const note = String(formData.get("note") ?? "").trim() || null;
   const state = readAttendance(formData.get("attendance"));
   const fields = attendanceFields(state);
@@ -438,7 +455,7 @@ export async function logSession(
   });
   if (twin) {
     return bad(
-      `That session is already logged — ${formatMinutes(minutesParsed.value)} with ${profile.user.name ?? profile.user.email} on ${formatDate(dateParsed.value)}. Correct it instead of logging it twice.`
+      `That session is already logged — ${formatMinutes(minutesParsed.value)} with ${profile.user.name ?? profile.user.email} on ${formatFullDate(dateParsed.value)}. Correct it instead of logging it twice.`
     );
   }
 
@@ -573,12 +590,12 @@ export async function logSession(
       actorId: actor.id,
       href: notificationHref.studentHome(),
       message: rescheduled
-        ? `${mentorLabel} recorded that your ${formatMinutes(minutesParsed.value)} meeting on ${formatDate(dateParsed.value)}${forTask} was rescheduled. No time was charged.`
+        ? `${mentorLabel} recorded that your ${formatMinutes(minutesParsed.value)} meeting on ${formatFullDate(dateParsed.value)}${forTask} was rescheduled. No time was charged.`
         : !withinPlan
-          ? `${mentorLabel} logged ${formatDuration(minutesParsed.value)} extra hours on ${formatDate(dateParsed.value)}${toward} — work on top of your plan, so none of your time was used.`
+          ? `${mentorLabel} logged ${formatDuration(minutesParsed.value)} extra hours on ${formatFullDate(dateParsed.value)}${toward} — work on top of your plan, so none of your time was used.`
           : state === ATTENDANCE.ABSENT
-            ? `${mentorLabel} recorded a ${formatMinutes(minutesParsed.value)} no-show on ${formatDate(dateParsed.value)}${forTask}. Those hours were still deducted.`
-            : `${mentorLabel} logged a ${formatMinutes(minutesParsed.value)} session on ${formatDate(dateParsed.value)}${toward}${state === ATTENDANCE.LATE ? ", which you came late to" : ""}.`,
+            ? `${mentorLabel} recorded a ${formatMinutes(minutesParsed.value)} no-show on ${formatFullDate(dateParsed.value)}${forTask}. Those hours were still deducted.`
+            : `${mentorLabel} logged a ${formatMinutes(minutesParsed.value)} session on ${formatFullDate(dateParsed.value)}${toward}${state === ATTENDANCE.LATE ? ", which you came late to" : ""}.`,
     });
 
     // Staff watch delivery across every program, so a logged session is news
@@ -593,7 +610,7 @@ export async function logSession(
         type: NOTIFICATION_TYPES.SESSION_LOGGED,
         actorId: actor.id,
         href: notificationHref.adminStudent(profile.id),
-        message: `${actor.name ?? actor.email} logged ${formatMinutes(minutesParsed.value)} with ${studentName} on ${formatDate(dateParsed.value)} in your name. Correct it on the sessions log if it is wrong.`,
+        message: `${actor.name ?? actor.email} logged ${formatMinutes(minutesParsed.value)} with ${studentName} on ${formatFullDate(dateParsed.value)} in your name. Correct it on the sessions log if it is wrong.`,
       });
     }
 
@@ -604,12 +621,12 @@ export async function logSession(
       href: notificationHref.adminStudent(profile.id),
       message:
         (rescheduled
-          ? `${mentorLabel} rescheduled a ${formatMinutes(minutesParsed.value)} meeting with ${studentName} on ${formatDate(dateParsed.value)}${forTask} — no time charged.`
+          ? `${mentorLabel} rescheduled a ${formatMinutes(minutesParsed.value)} meeting with ${studentName} on ${formatFullDate(dateParsed.value)}${forTask} — no time charged.`
           : !withinPlan
-            ? `${mentorLabel} logged ${formatMinutes(minutesParsed.value)} with ${studentName} on ${formatDate(dateParsed.value)}${toward} as EXTRA — outside the plan, so no allocation was charged.`
+            ? `${mentorLabel} logged ${formatMinutes(minutesParsed.value)} with ${studentName} on ${formatFullDate(dateParsed.value)}${toward} as EXTRA — outside the plan, so no allocation was charged.`
             : state === ATTENDANCE.ABSENT
-              ? `${mentorLabel} recorded a ${formatMinutes(minutesParsed.value)} no-show for ${studentName} on ${formatDate(dateParsed.value)}${forTask}.`
-              : `${mentorLabel} logged ${formatMinutes(minutesParsed.value)} with ${studentName} on ${formatDate(dateParsed.value)}${toward}${state === ATTENDANCE.LATE ? " (came late)" : ""}.`) +
+              ? `${mentorLabel} recorded a ${formatMinutes(minutesParsed.value)} no-show for ${studentName} on ${formatFullDate(dateParsed.value)}${forTask}.`
+              : `${mentorLabel} logged ${formatMinutes(minutesParsed.value)} with ${studentName} on ${formatFullDate(dateParsed.value)}${toward}${state === ATTENDANCE.LATE ? " (came late)" : ""}.`) +
         // The hand-off is news an admin would otherwise reconstruct from the
         // allocation history: the pool chose its mentor.
         (carved > 0
@@ -618,7 +635,7 @@ export async function logSession(
         // Past the hours' use-by is allowed now, but it is still a fact the
         // program's staff should read plainly rather than infer from totals.
         (lateDeadline
-          ? ` Logged past the ${formatDate(lateDeadline)} deadline.`
+          ? ` Logged past the ${formatFullDate(lateDeadline)} deadline.`
           : "") +
         // Who actually typed it. The row says the mentor delivered the hours,
         // which is true; this says the mentor did not report them, which is
@@ -650,7 +667,7 @@ export async function logSession(
   }
   if (lateDeadline) {
     notes.push(
-      `These hours were to be used by ${formatDate(lateDeadline)} — logged past the deadline.`
+      `These hours were to be used by ${formatFullDate(lateDeadline)} — logged past the deadline.`
     );
   }
   // Tell the mentor what their own log just did to the task, so an automatic
@@ -850,7 +867,7 @@ export async function answerSession(
   });
 
   const who = session.student.user.name ?? session.student.user.email;
-  const when = formatDate(session.date);
+  const when = formatFullDate(session.date);
   const staff = disputed ? await staffIdsFor(session.programId) : [];
   await notify(prisma, {
     // The mentor always hears it. Staff hear only a dispute — a stream of
@@ -935,6 +952,15 @@ export async function editSession(
   if ("error" in minutesParsed) return { ok: false, error: minutesParsed.error };
   const dateParsed = parseDateField(formData.get("date"));
   if ("error" in dateParsed) return { ok: false, error: dateParsed.error };
+  // Only a date being CHANGED is held to it: a row already dated ahead (an
+  // import, an old typo) must stay correctable in its minutes and note, and the
+  // way to fix its date is to pick a real one.
+  if (
+    dateParsed.value.getTime() !== session.date.getTime() &&
+    isFuture(dateParsed.value)
+  ) {
+    return { ok: false, error: FUTURE_REFUSAL };
+  }
   const note = String(formData.get("note") ?? "").trim() || null;
   const state = readAttendance(formData.get("attendance"));
   const fields = attendanceFields(state);
@@ -988,7 +1014,10 @@ export async function editSession(
   const mentorLabel = session.mentor.name ?? session.mentor.email;
   const studentName = session.student.user.name ?? session.student.user.email;
   const whose = session.mentorId === actor.id ? "a session" : `${mentorLabel}'s session`;
-  const change = `now ${formatMinutes(minutesParsed.value)} on ${formatDate(dateParsed.value)} (was ${formatMinutes(session.minutes)} on ${formatDate(session.date)})`;
+  const change = describeSessionChange(
+    { minutes: session.minutes, date: session.date },
+    { minutes: minutesParsed.value, date: dateParsed.value }
+  );
 
   await prisma.$transaction(async (tx) => {
     await tx.session.update({
@@ -1100,14 +1129,14 @@ export async function voidSession(
       type: NOTIFICATION_TYPES.SESSION_VOIDED,
       actorId: actor.id,
       href: notificationHref.studentHome(),
-      message: `${actorLabel} voided ${whose} ${formatMinutes(session.minutes)} session from ${formatDate(session.date)}. That time is back in the balance.`,
+      message: `${actorLabel} voided ${whose} ${formatMinutes(session.minutes)} session from ${formatFullDate(session.date)}. That time is back in the balance.`,
     });
     await notify(tx, {
       to: staff,
       type: NOTIFICATION_TYPES.SESSION_VOIDED,
       actorId: actor.id,
       href: notificationHref.adminStudent(session.studentId),
-      message: `${actorLabel} voided ${whose} ${formatMinutes(session.minutes)} session with ${studentName} from ${formatDate(session.date)}; the hours went back.`,
+      message: `${actorLabel} voided ${whose} ${formatMinutes(session.minutes)} session with ${studentName} from ${formatFullDate(session.date)}; the hours went back.`,
     });
   });
 
@@ -1199,14 +1228,14 @@ export async function restoreSession(
       type: NOTIFICATION_TYPES.SESSION_EDITED,
       actorId: actor.id,
       href: notificationHref.studentHome(),
-      message: `${actorLabel} restored ${whose} ${formatMinutes(session.minutes)} session from ${formatDate(session.date)}. That time is charged again.`,
+      message: `${actorLabel} restored ${whose} ${formatMinutes(session.minutes)} session from ${formatFullDate(session.date)}. That time is charged again.`,
     });
     await notify(tx, {
       to: staff,
       type: NOTIFICATION_TYPES.SESSION_EDITED,
       actorId: actor.id,
       href: notificationHref.adminStudent(session.studentId),
-      message: `${actorLabel} restored ${whose} ${formatMinutes(session.minutes)} session with ${studentName} from ${formatDate(session.date)}; the hours are charged again.`,
+      message: `${actorLabel} restored ${whose} ${formatMinutes(session.minutes)} session with ${studentName} from ${formatFullDate(session.date)}; the hours are charged again.`,
     });
   });
 
@@ -1251,7 +1280,7 @@ export async function deleteSession(
   const mentorLabel = session.mentor.name ?? session.mentor.email;
   const studentName = session.student.user.name ?? session.student.user.email;
   const wasCharging = session.status === SESSION_STATUS.ACTIVE;
-  const what = `${formatMinutes(session.minutes)} session with ${mentorLabel} from ${formatDate(session.date)}`;
+  const what = `${formatMinutes(session.minutes)} session with ${mentorLabel} from ${formatFullDate(session.date)}`;
   const hoursNote = wasCharging ? " That time is back in the balance." : "";
 
   await prisma.$transaction(async (tx) => {

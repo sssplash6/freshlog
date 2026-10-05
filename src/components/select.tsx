@@ -28,6 +28,18 @@ export type SelectOption = {
   hint?: string;
   /** A mark before the label, in the list and in the closed control. */
   icon?: ReactNode;
+  /**
+   * A heading over this option and the ones after it that share it. Options
+   * are listed in the order given, so a group is a run — the caller sorts, and
+   * the list says where each run starts. For a picker whose rows are not all
+   * the same kind of choice: a student with time, a student with none.
+   */
+  group?: string;
+  /**
+   * Colours the hint when it is a warning rather than a fact. The words still
+   * say it — a tone is never the only signal.
+   */
+  tone?: "warn" | "danger";
 };
 
 /** A row in the popover: either something to pick, or a heading over a group. */
@@ -196,8 +208,22 @@ export function Select({
           .map((v) => visible.find((o) => o.value === v))
           .filter((o): o is SelectOption => Boolean(o))
       : [];
+    // The options in the order given, with a heading wherever a run of one
+    // group begins. Nothing is inserted when no option names a group.
+    const grouped = (list: SelectOption[]): Row[] => {
+      const out: Row[] = [];
+      let at: string | undefined;
+      for (const option of list) {
+        if (option.group && option.group !== at) {
+          out.push({ kind: "header", label: option.group });
+        }
+        at = option.group;
+        out.push({ kind: "option", option });
+      }
+      return out;
+    };
     if (recent.length === 0) {
-      return [...head, ...visible.map((option) => ({ kind: "option" as const, option }))];
+      return [...head, ...grouped(visible)];
     }
     const rest = visible.filter((o) => !recent.includes(o));
     return [
@@ -205,7 +231,7 @@ export function Select({
       { kind: "header", label: "Recent" },
       ...recent.map((option) => ({ kind: "option" as const, option })),
       ...(rest.length > 0 ? [{ kind: "header" as const, label: "All" }] : []),
-      ...rest.map((option) => ({ kind: "option" as const, option })),
+      ...grouped(rest),
     ];
   }, [options, query, required, placeholder, recentKey, recents]);
 
@@ -585,7 +611,7 @@ export function Select({
                 {rows.map((row, i) =>
                   row.kind === "header" ? (
                     <li
-                      key={`h-${row.label}`}
+                      key={`h-${i}-${row.label}`}
                       role="presentation"
                       className="px-2.5 pb-1 pt-2 text-xs font-medium text-muted-fg"
                     >
@@ -653,7 +679,13 @@ function SelectItem({
           <span
             className={cn(
               "block truncate text-xs",
-              selected ? "text-brand/80" : "text-muted-fg",
+              selected
+                ? "text-brand/80"
+                : option.tone === "danger"
+                  ? "font-medium text-danger-ink"
+                  : option.tone === "warn"
+                    ? "font-medium text-warn-ink"
+                    : "text-muted-fg",
             )}
           >
             {option.hint}

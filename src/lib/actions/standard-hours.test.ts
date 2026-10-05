@@ -90,6 +90,64 @@ describe("createStudents", () => {
     expect(state).toMatchObject({ ok: true });
     await expect(prisma.hourAllocation.count()).resolves.toBe(0);
   });
+
+  it("adopts the pending account a student made by signing in first", async () => {
+    const beginner = await level("Beginner");
+    actor.value = await platformAdmin();
+    const stub = await prisma.user.create({
+      data: {
+        email: "early@example.com",
+        name: "Google Name",
+        role: "STUDENT",
+        status: "PENDING",
+      },
+    });
+
+    const state = await createStudents(
+      null,
+      form({
+        programId: beginner.id,
+        email: "early@example.com",
+        firstName: "Early",
+        lastName: "Bird",
+        folderUrl: "",
+      })
+    );
+
+    if (!state?.ok) throw new Error("expected the add to succeed");
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: stub.id },
+      include: { studentProfile: { include: { enrollments: true } } },
+    });
+    expect(user).toMatchObject({ name: "Early Bird", status: "ACTIVE" });
+    expect(user.studentProfile?.enrollments.map((e) => e.programId)).toEqual([
+      beginner.id,
+    ]);
+    expect((await poolIn(beginner.id)).map((r) => r.minutes)).toEqual([600]);
+    await expect(prisma.user.count({ where: { email: "early@example.com" } })).resolves.toBe(1);
+  });
+
+  it("still refuses an address that belongs to a mentor, and says so", async () => {
+    const beginner = await level("Beginner");
+    actor.value = await platformAdmin();
+    await prisma.user.create({
+      data: { email: "m@example.com", name: "Mina", role: "MENTOR", status: "ACTIVE" },
+    });
+
+    const state = await createStudents(
+      null,
+      form({
+        programId: beginner.id,
+        email: "m@example.com",
+        firstName: "Mina",
+        lastName: "Mentor",
+        folderUrl: "",
+      })
+    );
+
+    expect(state).toMatchObject({ ok: false });
+    expect(state?.ok === false && state.error).toContain("registered as a mentor");
+  });
 });
 
 describe("enrollStudent", () => {

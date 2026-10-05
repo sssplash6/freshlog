@@ -32,6 +32,16 @@ const DATE_HEADING = /^##\s+(\d{4}-\d{2}-\d{2})\s*$/;
 const SECTION_HEADING = /^###\s+(New|Fixed)\s*$/;
 const BULLET = /^[-*]\s+(.*\S)\s*$/;
 
+/**
+ * An item is written `**Headline.** One line of detail.` and shown as a
+ * headline over its detail, so a day can be skimmed. An older item with no
+ * bold lead has no headline and is shown as plain text.
+ */
+export function splitItem(item: string): { headline: string | null; detail: string } {
+  const m = /^\*\*(.+?)\*\*[\s.:—–-]*(.*)$/.exec(item);
+  return m ? { headline: m[1].replace(/[.:]$/, ""), detail: m[2] } : { headline: null, detail: item };
+}
+
 /** `2026-02-31` matches the shape and is not a day. */
 export function isRealDay(day: string): boolean {
   const d = new Date(`${day}T00:00:00.000Z`);

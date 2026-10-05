@@ -287,10 +287,16 @@ export function Popover({
       // Wrap at both ends. Tabbing out of a portaled panel does not land back
       // on the row that opened it — the portal is the last thing in <body>, so
       // "next" is the end of the document.
+      //
+      // The container counts as the start. A form panel opens with focus on
+      // the container itself, which is in no one's Tab order but is where
+      // focus IS; a forward Tab from it was left to the browser, whose next
+      // stop after the last thing in <body> is its own toolbar — the first Tab
+      // out of an open edit form landed on "Open Gemini in Chrome".
       if (e.shiftKey && (active === first || active === panel)) {
         e.preventDefault();
         last.focus();
-      } else if (!e.shiftKey && active === last) {
+      } else if (!e.shiftKey && (active === last || active === panel)) {
         e.preventDefault();
         first.focus();
       }

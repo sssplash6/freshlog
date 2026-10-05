@@ -5,7 +5,7 @@ import { useId, useState } from "react";
 import { Select, type SelectOption } from "@/components/select";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { Disclosure } from "@/components/ui/disclosure";
-import { Input } from "@/components/ui/field";
+import { Field, Input } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SettingsRow } from "@/components/ui/settings-row";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -199,11 +199,11 @@ export function CreateLevelForm({ programId }: { programId: string }) {
       label="Add a level" variant="create"
       hint="The first one makes this a leveled program: new enrollments pick a level, and its cohorts sit under one."
     >
-      <form action={action} className="flex flex-wrap items-center gap-2">
+      <form action={action} className="flex flex-wrap items-end gap-2">
         <input type="hidden" name="programId" value={programId} />
-        <div className="w-56">
+        <Field label="Level name" required className="w-56">
           <Input name="name" type="text" required placeholder="e.g. Emerging" />
-        </div>
+        </Field>
         <SubmitButton pendingText="Adding…">Add level</SubmitButton>
       </form>
       <SaveState state={save} />

@@ -9,6 +9,7 @@ import {
   mentor,
   pairing,
   program,
+  session,
   student,
 } from "@/test/db";
 
@@ -143,6 +144,38 @@ describe("who a mentor may log for", () => {
 
     expect(optionFor(options, s.id)?.programs[0].balance).toContain(
       "logging still counts against them"
+    );
+  });
+
+  it("marks each student by what logging for them would do to the balance", async () => {
+    const p = await program("Master's");
+    const m = await mentor();
+    await pairing({ mentorId: m.id, programId: p.id });
+    const [fine, none, over, expired] = await Promise.all([
+      student({ programId: p.id, name: "Fine" }),
+      student({ programId: p.id, name: "None" }),
+      student({ programId: p.id, name: "Over" }),
+      student({ programId: p.id, name: "Expired" }),
+    ]);
+    await allocation({ studentId: fine.id, mentorId: m.id, minutes: 600 });
+    await allocation({ studentId: over.id, mentorId: m.id, minutes: 60 });
+    await session({ studentId: over.id, mentorId: m.id, minutes: 180 });
+    await allocation({ studentId: expired.id, mentorId: m.id, minutes: 600, deadlineInDays: -1 });
+
+    const options = logSessionOptions(await mentorCaseload(m.id));
+    const state = (id: string) => optionFor(options, id)?.programs[0].state;
+
+    expect(state(fine.id)).toBe("ready");
+    expect(state(none.id)).toBe("none");
+    expect(state(over.id)).toBe("overdrawn");
+    expect(state(expired.id)).toBe("expired");
+    expect(optionFor(options, over.id)?.programs[0].balance).toBe(
+      "Overdrawn by 2h — logging adds to it"
+    );
+    // Held at the bottom, so the default pick is never the spent one.
+    expect(options[0].profileId).toBe(fine.id);
+    expect(options.slice(-2).map((o) => o.profileId).sort()).toEqual(
+      [over.id, expired.id].sort()
     );
   });
 

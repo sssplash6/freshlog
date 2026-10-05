@@ -46,6 +46,22 @@ import { grantStandardHours } from "@/lib/standard-hours";
 import { carryForward } from "@/lib/carry-forward";
 import type { Cohort, Program, ProgramLevel } from "@/generated/prisma/client";
 
+/** How an already-registered non-student is named in a refusal. */
+function roleNoun(role: string) {
+  switch (role) {
+    case ROLES.ADMIN:
+      return "an admin";
+    case ROLES.MENTOR:
+      return "a mentor";
+    case ROLES.DEPT_LEADER:
+      return "a department leader";
+    case ROLES.SALES:
+      return "a sales member";
+    default:
+      return "a user";
+  }
+}
+
 /** "Program", "Program / Level" or "Program / Level / Cohort" display label. */
 function enrollmentLabel(
   programName: string,
@@ -226,12 +242,16 @@ export async function createStudents(
   // student in another program is somebody moving up — Global Admissions to the
   // Master's Program is the ordinary path through this school — and pasting
   // their address into this form is how an admin says so, so they are enrolled
-  // rather than refused. Anybody who is not a student keeps their account.
+  // rather than refused. A student who signed in before anyone added them left
+  // a PENDING account with no profile; the admin adding them is the approval,
+  // so that account is adopted. Anybody else who is not a student keeps theirs.
   const existing = await prisma.user.findMany({
     where: { email: { in: valid.map((r) => r.email) } },
     select: {
+      id: true,
       email: true,
       role: true,
+      status: true,
       studentProfile: {
         select: { id: true, enrollments: { select: { programId: true } } },
       },
@@ -242,13 +262,25 @@ export async function createStudents(
   const notStudents: string[] = [];
   /** Existing students to add this program to. */
   const enrolling: { email: string; name: string; profileId: string }[] = [];
+  /** Self-signed-up accounts with no profile yet, taken over by this add. */
+  const adopting: typeof valid = [];
+  const adoptIds = new Map<string, string>();
   const fresh: typeof valid = [];
   for (const r of valid) {
     const found = byEmail.get(r.email);
     if (!found) {
       fresh.push(r);
+    } else if (
+      found.role === ROLES.STUDENT &&
+      found.status === USER_STATUS.PENDING &&
+      !found.studentProfile
+    ) {
+      adopting.push(r);
+      adoptIds.set(r.email, found.id);
     } else if (!found.studentProfile || found.role !== ROLES.STUDENT) {
-      notStudents.push(`${r.email} (already registered, not a student)`);
+      notStudents.push(
+        `${r.email} (already registered as ${roleNoun(found.role)}, not a student)`
+      );
     } else if (
       found.studentProfile.enrollments.some((e) => e.programId === program.id)
     ) {
@@ -278,6 +310,35 @@ export async function createStudents(
       });
       const made = await grantStandardHours(tx, {
         studentId: profileId,
+        programId: program.id,
+        levelId: level?.id,
+        actorId: actor.id,
+      });
+      if (made) standardGranted++;
+    }
+    for (const { email, name, folderUrl } of adopting) {
+      const userId = adoptIds.get(email)!;
+      await tx.user.update({
+        where: { id: userId },
+        data: { name, status: USER_STATUS.ACTIVE },
+      });
+      const created = await tx.studentProfile.create({
+        data: {
+          userId,
+          folderUrl,
+          createdById: actor.id,
+          enrollments: {
+            create: {
+              programId: program.id,
+              levelId: level?.id ?? null,
+              cohortId: cohort?.id ?? null,
+              createdById: actor.id,
+            },
+          },
+        },
+      });
+      const made = await grantStandardHours(tx, {
+        studentId: created.id,
         programId: program.id,
         levelId: level?.id,
         actorId: actor.id,
@@ -326,7 +387,7 @@ export async function createStudents(
   // An existing student is welcomed to the new program too — it is news to
   // them, and the sign-in link in it is the one they already use.
   sendWelcomeEmails(
-    [...fresh, ...enrolling].map(({ email, name }) =>
+    [...fresh, ...adopting, ...enrolling].map(({ email, name }) =>
       welcomeMail({
         to: email,
         name,
@@ -358,7 +419,7 @@ export async function createStudents(
   }
 
   const skipped = [...alreadyHere, ...notStudents, ...invalid, ...nameless];
-  const added = fresh.length + enrolling.length;
+  const added = fresh.length + adopting.length + enrolling.length;
   if (added === 0) {
     return {
       ok: false,

@@ -46,7 +46,10 @@ describe("formatRough", () => {
   });
 
   it("rounds the size of an overdraw, not its sign", () => {
-    expect(formatRough(-1202)).toBe("-20+ hours");
+    expect(formatRough(-1202)).toBe("20+ hours over");
+    expect(formatRough(-45)).toBe("45 min over");
+    expect(formatRough(-120)).toBe("2 hours over");
+    expect(formatRough(-1202)).not.toContain("-");
   });
 
     it("costs the reader fewer digits than the figure it replaces", () => {

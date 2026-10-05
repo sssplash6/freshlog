@@ -246,7 +246,11 @@ export default async function StudentWorkspacePage({
     ? "This student is not approved yet."
     : !mine && !pool
       ? "No time is allocated for you with them — a session you log here will be an overdraw, or extra hours."
-      : undefined;
+      : mine && (mine.expired || mine.remaining < 0)
+        ? mine.expired
+          ? "Their time with you has expired — a session that counts toward it adds to the overdraw. Log it as extra to charge nothing."
+          : "Their time with you is already overdrawn — a session that counts toward it adds to the overdraw. Log it as extra to charge nothing."
+        : undefined;
 
   /**
    * Which of the student's OWN programs this reader may lend them from.
@@ -489,7 +493,19 @@ export default async function StudentWorkspacePage({
         }
       />
 
-      {reaches && logReason && <p className="text-sm text-muted-fg">{logReason}</p>}
+      {reaches && logReason && (
+        // Warn-toned when the log would add to an overdraw: a grey hint under
+        // the button is the one place that sentence was easiest to scroll past.
+        <p
+          className={
+            mine && (mine.expired || mine.remaining < 0)
+              ? "text-sm font-medium text-warn-ink"
+              : "text-sm text-muted-fg"
+          }
+        >
+          {logReason}
+        </p>
+      )}
 
       {/* The tracking sheet's whole tab: what happened on the left, what the
           student is doing about it on the right, the agenda the hours were
@@ -553,6 +569,8 @@ export default async function StudentWorkspacePage({
               goals={sessionTasks[session.id] ?? []}
               canEdit={session.status !== SESSION_STATUS.VOIDED}
               canDelete={writes}
+              student={name}
+              mentor={session.mentor.name ?? session.mentor.email}
             />
           ) : null
         }

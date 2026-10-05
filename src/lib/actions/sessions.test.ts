@@ -407,3 +407,76 @@ describe("logSession against a deadline", () => {
     expect(state).toMatchObject({ ok: true });
   });
 });
+
+/**
+ * A session records a meeting that has happened. "October 24" in a September
+ * ledger — and in the notice that said the date had been corrected — came from
+ * a day ahead of the program's today getting through.
+ */
+describe("a session's date", () => {
+  const day = (n: number) =>
+    new Date(Date.parse(`${programToday()}T00:00:00.000Z`) + n * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+
+  async function asMentor() {
+    const p = await program("Global Admissions");
+    const s = await student({ programId: p.id });
+    const m = await mentor();
+    await allocation({ studentId: s.id, mentorId: m.id, minutes: 600 });
+    actor.value = m;
+    return { s, m };
+  }
+
+  it("cannot be logged for a day that has not happened", async () => {
+    const { s } = await asMentor();
+
+    expect(await log(s.id, { date: day(1) })).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("future"),
+    });
+    await expect(prisma.session.count()).resolves.toBe(0);
+  });
+
+  it("can be logged for today", async () => {
+    const { s } = await asMentor();
+
+    expect(await log(s.id, { date: day(0) })).toMatchObject({ ok: true });
+  });
+
+  it("cannot be corrected to a day that has not happened", async () => {
+    const { s } = await asMentor();
+    await log(s.id, { date: day(-3) });
+    const logged = await prisma.session.findFirstOrThrow({ where: { studentId: s.id } });
+
+    expect(
+      await editSession(null, form({ sessionId: logged.id, minutes: "30", date: day(2) }))
+    ).toMatchObject({ ok: false, error: expect.stringContaining("future") });
+  });
+
+  it("leaves a row already dated ahead correctable in everything but its date", async () => {
+    const { s } = await asMentor();
+    await log(s.id, { date: day(-3) });
+    const logged = await prisma.session.findFirstOrThrow({ where: { studentId: s.id } });
+    await prisma.session.update({
+      where: { id: logged.id },
+      data: { date: new Date(`${day(20)}T00:00:00.000Z`) },
+    });
+
+    expect(
+      await editSession(
+        null,
+        form({ sessionId: logged.id, minutes: "45", date: day(20), note: "Essay plan" })
+      )
+    ).toMatchObject({ ok: true });
+    // And moving it back to a real day is the fix the notice then describes.
+    expect(
+      await editSession(null, form({ sessionId: logged.id, minutes: "45", date: day(-1) }))
+    ).toMatchObject({ ok: true });
+    const notice = await prisma.notification.findFirst({
+      where: { type: "SESSION_EDITED" },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(notice?.message).toMatch(/moved to .*\d{4} \(was .*\d{4}\)/);
+  });
+});

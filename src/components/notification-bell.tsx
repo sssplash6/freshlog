@@ -5,6 +5,7 @@ import { NavCount } from "@/components/nav-links";
 import { Popover } from "@/components/ui/popover";
 import { NOTIFICATION_META } from "@/lib/constants";
 import { formatAgo } from "@/lib/format";
+import { unreadLabel, type UnreadSummary } from "@/lib/unread";
 
 /**
  * The bell, and the last few things behind it.
@@ -37,25 +38,25 @@ export function NotificationBell({
   recent,
   now,
 }: {
-  unread: number;
+  unread: UnreadSummary;
   recent: BellNotification[];
   /** One instant for every "3h ago" in the panel. */
   now: Date;
 }) {
   return (
     <Popover
-      label={`Notifications (${unread} unread)`}
+      label={unreadLabel(unread)}
       origin="end"
       width="lg"
       triggerClassName="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-fg transition hover:bg-fill hover:text-ink data-[open]:bg-fill data-[open]:text-ink"
       trigger={
         <>
           <BellIcon className="h-[1.125rem] w-[1.125rem]" />
-          {unread > 0 && (
+          {unread.total > 0 && (
             // Brand blue: unread mail is not a problem, and red is spent in
             // this app on hours that are gone and balances that are negative.
-            <span className="absolute -right-0.5 -top-0.5">
-              <NavCount count={unread} />
+            <span className="absolute -right-2 -top-2">
+              <NavCount count={unread.total} />
             </span>
           )}
         </>
@@ -63,10 +64,35 @@ export function NotificationBell({
     >
       <div className="flex items-baseline justify-between gap-3 px-3 pb-2">
         <span className="text-[0.9375rem] font-semibold text-ink">Notifications</span>
-        {unread > 0 && (
-          <span className="text-xs tabular-nums text-muted-fg">{unread} unread</span>
+        {unread.total > 0 && (
+          <span className="text-xs tabular-nums text-muted-fg">
+            {unread.total} unread
+          </span>
         )}
       </div>
+
+      {/* What the number is made of, deadlines first: 157 unread is mostly
+          session logs, and the three that have a clock on them should not have
+          to be found among them. Each chip opens that category's feed. */}
+      {unread.parts.length > 1 && (
+        <ul className="flex flex-wrap gap-1.5 px-3 pb-2">
+          {unread.parts.map((p) => (
+            <li key={p.category}>
+              <Link
+                href={`/notifications?category=${p.category}`}
+                transitionTypes={["nav-forward"]}
+                className={`inline-flex min-h-7 items-center gap-1 rounded-full px-2.5 text-xs tabular-nums transition-colors hover:bg-fill-strong ${
+                  p.category === "DEADLINES"
+                    ? "bg-warn-soft font-semibold text-warn-ink"
+                    : "bg-fill text-muted-fg"
+                }`}
+              >
+                <span className="font-semibold">{p.count}</span> {p.label.toLowerCase()}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {recent.length === 0 ? (
         <p className="px-3 pb-2 text-sm text-muted-fg">No notices for you.</p>

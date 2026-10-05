@@ -13,7 +13,8 @@ import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { attendanceOf, timeKindOf } from "@/lib/constants";
-import { toDateInputValue } from "@/lib/format";
+import { formatDate, formatMinutes, toDateInputValue } from "@/lib/format";
+import { programToday } from "@/lib/when";
 import { deleteSession, restoreSession, voidSession } from "@/lib/actions/sessions";
 import type { SessionUpdate } from "@/lib/actions/shared";
 
@@ -36,6 +37,8 @@ export function SessionRowActions({
   goals = [],
   canEdit = true,
   canDelete = false,
+  student,
+  mentor,
 }: {
   session: {
     id: string;
@@ -55,6 +58,14 @@ export function SessionRowActions({
   canEdit?: boolean;
   /** Admins only: remove the row outright rather than voiding it. */
   canDelete?: boolean;
+  /**
+   * Who this row is about, for the panel's heading and the trigger's name. A
+   * log of forty rows has forty identical pencils, and an edit panel that does
+   * not say whose session it holds is one wrong tap from correcting — or
+   * deleting — somebody else's.
+   */
+  student?: string | null;
+  mentor?: string | null;
 }) {
   const [voiding, startVoid] = useTransition();
   const [, delAction, delSave] = useSaveState(deleteSession);
@@ -131,12 +142,26 @@ export function SessionRowActions({
     [],
   );
 
+  const who = [student, mentor ? `with ${mentor}` : null]
+    .filter(Boolean)
+    .join(" ");
+  const when = formatDate(new Date(`${currentDate}T00:00:00Z`));
+  const heading = [who, when, formatMinutes(currentMinutes)]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <RowActionMenu
       trigger="pencil"
-      label={canEdit ? "Edit this session" : "Manage this session"}
+      label={`${canEdit ? "Edit this session" : "Manage this session"}${
+        who ? `: ${who}, ${when}` : ""
+      }`}
       width="lg"
     >
+      {({ close }) => (
+        <>
+      <p className="mb-3 text-sm font-semibold text-ink">{heading}</p>
+
       {!canEdit && (
         <RowActionGroup label="This session is voided">
           <p className="text-xs text-muted-fg">
@@ -204,6 +229,7 @@ export function SessionRowActions({
                   name="date"
                   type="date"
                   required
+                  max={programToday()}
                    defaultValue={currentDate}
                 />
               </Field>
@@ -230,11 +256,22 @@ export function SessionRowActions({
               This edit could not be saved. Try changing the field again.
             </p>
           )}
+          {/* There is no Save: every change saves a moment after it is made.
+              Without a word saying so — and a way out that is not "Void" — the
+              only buttons in the panel were the two that end the row. */}
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <p aria-live="polite" className="text-xs text-muted-fg">
+              {editStatus === "saving" ? "Saving…" : "Changes save as you make them."}
+            </p>
+            <Button type="button" size="sm" variant="secondary" onClick={close}>
+              Done
+            </Button>
+          </div>
         </RowActionGroup>
       )}
 
       {canEdit && (
-        <RowActionGroup>
+        <RowActionGroup label="If it should not count">
           {/* One tap, then Undo. Voiding has an exact inverse —
               `restoreSession` charges the same row again — so it no longer
               asks first; it does it, says so, and offers to take it back.
@@ -297,6 +334,8 @@ export function SessionRowActions({
           />
           <SaveState state={delSave} />
         </RowActionGroup>
+      )}
+        </>
       )}
     </RowActionMenu>
   );

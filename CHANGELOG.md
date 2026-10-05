@@ -2,75 +2,94 @@
 
 What we have added and fixed, newest first. Each commit that changes what you see or can do adds a line here.
 
+Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
+
+## 2026-10-05
+
+### New
+- **What's new is quicker to skim.** Every update now has a short headline, with a line of detail under it.
+- **What's new beside the bell.** On a laptop it sits in the top right corner, with a blue dot when something is unread, instead of inside the account menu.
+
+### Fixed
+- **Adding a student who already signed in.** A student who signed in with Google before an admin added them can now be added by their email: their account becomes a student in the program, with its standard hours. Addresses that belong to a mentor or admin are still refused, and the message now says which.
+- **Bell count clear of the bell.** A number like "99+" now hangs off the bell's corner so the bell stays visible.
+- **Overdrawn time says "over".** A program that has spent more than it was given now reads "65+ hours over" instead of "-65+ hours", on Home, Programs and a program's page.
+- **Home says what needs you.** "10 items need your attention" with a "Review in notifications" link, and the "Updated" stamp now carries the date and offset — "October 5, 15:10 Tashkent (UTC+5)" — with the exact time on hover.
+- **Programs on Home can be sorted.** Click Program, Students, Mentors or Remaining to order the table — Remaining opens with the program furthest over — "Over capacity" programs are tagged and can be shown on their own, and "All programs" opens the full list.
+- **The bell shows what its count is made of.** Open it to see unread notices by kind, deadlines first, each opening its own feed; a screen reader hears how many of the unread are deadlines.
+- **Overdrawn students are marked in pickers.** When logging a session or allocating time, students with no time, overdrawn time or expired hours sit under their own headings, and a warning stays under the picker once one is chosen. Logging time that would add to an overdraw asks you to confirm it, unless it is marked Extra.
+- **The role switch says where it goes.** "Switch to Mentor" and "Viewing as Admin" replace a bare "Mentor" button.
+- **Editing a session says whose it is.** The panel opens with the student, mentor, date and length, says that changes save as you make them, and has a Done button — Void and Delete are set apart under "If it should not count".
+- **Edit panels keep keyboard focus.** Opening an agenda item's edit form moves focus into it, and Tab no longer leaves the page for the browser's toolbar.
+- **New program, cohort and level fields have labels.** The field names stay on screen once you start typing, and are read out by screen readers.
+- **Session corrections read clearly.** A correction says what moved — "moved to September 24, 2026 (was October 24, 2026)" — with years on both dates, and a session can no longer be logged or corrected to a day that has not happened yet.
+- **An empty session search says what it searched.** "No sessions match "…"" with links to clear the search, reset the filters or log a session.
+
 ## 2026-10-04
 
 ### Fixed
-- A student's sign-in email can now be changed to an address they already signed in with by mistake. The empty account that address held — never approved, nothing in it — is removed as part of the change, instead of blocking it with "already has an account". An address held by a real account still refuses.
-- Student, mentor and feedback tables fit their page again. Long names and emails shorten instead of pushing the last columns — contact links, figures — out of view, and figures such as "45 min" or "15+ hours" no longer break across two lines.
-- On a laptop, a program's page puts its mentor list under the student roster instead of beside it, so the roster has room for every column.
-- A long name or an email address used as a page title now wraps on a phone instead of pushing the whole page sideways.
-- On a laptop, the top bar no longer draws the freshlog name over the Home link for students with longer names.
-- A notice such as "8 students have no time allocated" now counts only the program it names, and its link opens exactly those students.
-- Notifications no longer say "All caught up" above a list of things still to check.
-- A long task title no longer squeezes into a narrow column on the student's home page.
-- Small fixes: a missing space in "… hasn't offered any times yet", "1 mentor matches these filters", and initials no longer pick up brackets ("MS", not "M(").
-- Filtering students by time left ("expiring" or "expired") now matches what the bell counts. A grant that had been fully spent before its deadline no longer appears under "expiring", and filtering inside a program judges that program's hours instead of the student's everywhere.
-- A program's colored dot no longer drops onto a line of its own above the program's name on a phone.
-- The "Things to check" count on a student's home now counts what needs doing — 3 — the same number the bell shows for the same list, instead of every row including the ones that are just for information.
-- On a tablet-width roster, a status label such as "Not signed in" no longer swallows the student's name whole: the name keeps a few characters on the line, and the label drops underneath when the two cannot share it.
-- The void-session button's explanation — "keeps the row, returns the hours" — was cut off mid-word inside its panel. The whole sentence fits on two lines again.
-- The dropdown filters on Students, Mentors, Sessions and Feedback — program, kind, status, dates — now apply. Choosing an option used to show it in the control while the list stayed unfiltered, because the only way to submit was pressing Enter in the search box. An Apply button now sits beside the dropdowns.
-- With JavaScript off, pages no longer stop at the loading skeleton. The whole page — sidebar, tables, search — now renders and the search box still works, since every page is sent by the server complete; only the dropdown filters stay quiet without scripts.
+- **Sign-in email can be corrected.** An address a student signed in with by mistake can now be switched to; the empty account it held is removed. An address held by a real account is still refused.
+- **Filters apply.** Program, kind, status and date dropdowns on Students, Mentors, Sessions and Feedback now work, with an Apply button beside them.
+- **Time-left filters match the bell.** "Expiring" and "expired" no longer include fully spent grants, and inside a program they judge that program's hours.
+- **Tables fit the page.** Long names and emails shorten instead of pushing contact links and figures out of view, and "45 min" stays on one line.
+- **More room on a laptop.** A program's mentor list sits under the student roster, so every roster column fits.
+- **Long titles wrap on a phone.** A long name or email as a page title no longer pushes the page sideways.
+- **Top bar clear of Home.** On a laptop, longer student names no longer cover the Home link.
+- **Notices count the right program.** "8 students have no time allocated" counts only the program it names, and its link opens exactly those students.
+- **Notifications agree.** "All caught up" no longer sits above things still to check, and a student's "Things to check" count matches the bell.
+- **Pages load without JavaScript.** They no longer stop at the loading skeleton; only the dropdown filters need scripts.
+- **Small layout and wording fixes.** Long task titles, status labels on tablet rosters, program dots on a phone and the void-session note no longer get squeezed or cut off, plus a missing space, "1 mentor matches these filters" and initials without brackets.
 
 ## 2026-10-03
 
 ### New
-- The three research programs become one. The Research Program now holds three levels — Emerging, Advanced and Frontiers — each with its own starting grant (2h, 15h and 20h), and each level can hold intake cohorts of its own, so two levels may both have a "Fall 2026". Enrolling or moving a student asks for program, then level, then cohort. Mentors can still be paired program-wide — one Research mentor may teach in every level — or narrowed to a level or a cohort, and each program's roster gains a level filter.
-- Moving a student between levels or intakes of the same program no longer touches their hours: the balance belongs to the program, so a promotion to Advanced is a label change rather than a transfer.
-- Research is now the Research Institute for the people who work only there. Its admins, the mentors paired only in Research and the students who study only in Research see the institute's name at the top of every page. Admins get Emerging, Advanced and Frontiers in the sidebar, a home page that splits students and remaining hours by level, and Analytics that opens on the institute with a "Whole school" button. Nobody gains or loses access, and everyone else still sees Research as one program among the others.
-- A leveled program's page now has a tab for each level, with that level's student count and a line saying what the level grants on joining. The tabs replace the level filter.
-- Platform admins can show any program as its own institute, or turn that off, from the program's settings.
+- **Research has three levels.** Emerging, Advanced and Frontiers each have their own starting grant (2h, 15h, 20h) and their own intake cohorts. Enrolling a student asks for program, then level, then cohort.
+- **Mentors can teach one level or all.** Pair a Research mentor program-wide, or narrow them to a level or a cohort.
+- **Promotions don't move hours.** Moving a student between levels or intakes is a label change; the balance belongs to the program.
+- **Level tabs on a program's page.** Each tab shows the level's student count and what it grants on joining.
+- **Research Institute.** For people who work only in Research, the institute's name tops every page. Admins get the three levels in the sidebar, a home page split by level, and Analytics with a "Whole school" button. Nobody gains or loses access.
+- **Any program can be an institute.** Platform admins can turn it on or off in the program's settings.
 
 ### Fixed
-- A mentor who is given admin access to a program now gets the Admin and Mentor switch, so they can reach the admin pages instead of being stuck in the mentor view.
-- Creating an hour bank and choosing to include past hours no longer shrinks the bank: the number you enter is the bank's size, and the student's unused time with mentors folds into it instead of being taken out twice.
-- A program card on Analytics now says how much of the program's granted time has been delivered — "55% of the 8h granted" — instead of that program's share of every hour the school logged, which read as if a small program had barely started.
+- **Admin and Mentor switch.** A mentor given admin access to a program can now reach the admin pages.
+- **Hour banks keep their size.** Including past hours no longer shrinks the bank; unused time folds in instead of being taken out twice.
+- **Analytics cards read right.** A program now shows how much of its granted time was delivered — "55% of the 8h granted".
 
 ## 2026-10-02
 
-### Fixed
-- A long session note no longer makes "Log a session" unreachable. Drafts that grew past what a web address can carry now restore from the browser instead, so reloading keeps the note rather than failing to open the page at all.
-
 ### New
-- You can now report a bug from the account menu, with a screenshot if it helps. Bug reports shows what you have reported and where each one stands, and a list of what has been fixed.
-- On a mentor's page you can now read their completed hours over any dates you choose, not just 30 or 90 days. Pick Custom, enter a start and end date, and the figure says exactly which days it covers.
-- There is now a "What's new" page in the account menu listing what we have added and fixed. A blue dot on your account button tells you when there is something you have not read.
+- **Report a bug.** Use the account menu, with a screenshot if it helps. Bug reports shows where each report stands and what has been fixed.
+- **Custom dates on a mentor.** Read their completed hours over any start and end date, not just 30 or 90 days.
+- **What's new page.** Find it in the account menu; a blue dot on your account button says when there is something unread.
+
+### Fixed
+- **Long session notes.** "Log a session" stays reachable, and a reload keeps the note.
 
 ## 2026-10-01
 
 ### New
-- Logging time after a grant's deadline is allowed again, with a note that the deadline has passed. A deadline is a use-by date, not a wall.
-- The pinned row in the hour bank now offers the same corrections as a mentor's row.
+- **Logging after a deadline.** Allowed again, with a note that the deadline has passed.
+- **Same corrections on the pinned row.** The hour bank's pinned row offers what a mentor's row does.
 
 ### Fixed
-- The name of whoever left a rating is shown only to admins of that student's own programs, and to nobody else.
+- **Ratings stay private.** Only admins of the student's own programs see who left one.
 
 ## 2026-09-30
 
 ### New
-- Moving a student to another program now carries their unused hours across, so nothing they were owed is lost in the move.
-- A student who is visiting another program on an exchange can no longer be moved or unenrolled until the exchange ends. Returning them is the way out.
+- **Hours follow a program move.** A student's unused hours carry across, so nothing they were owed is lost.
+- **Exchanges lock the student.** A visiting student can't be moved or unenrolled until the exchange ends; returning them is the way out.
 
 ### Fixed
-- Voiding a session now really lets you remove that mentor's hours. Before, voided sessions still counted and the removal stayed blocked.
-- The grant menu on a student who has time in two programs was cut off the edge of the screen. It is reachable again, and each program's name now sits under the mentor.
+- **Voided sessions free the hours.** Removing a mentor's hours is no longer blocked by voided sessions.
+- **Grant menu reachable.** For a student with time in two programs, it is no longer cut off, and each program's name sits under the mentor.
 
 ## 2026-09-29
 
 ### New
-- A program can set standard hours: every new student who joins gets a set number of hours to use within a set number of days, with no one granting them by hand.
-- Program admins and mentors can be given access to just one program, with a screen for managing who has it.
-- Opening a student from a program keeps you in that program, with a path back.
+- **Standard hours.** A program can give every new student a set number of hours to use within a set number of days, with no one granting them by hand.
+- **Access to one program.** Admins and mentors can be limited to a single program, with a screen to manage who has it.
+- **Stay in the program.** Opening a student from a program keeps you there, with a path back.
 
 ### Fixed
-- The status labels on a student's task rows are lined up with the text beside them.
+- **Task status labels line up** with the text beside them.

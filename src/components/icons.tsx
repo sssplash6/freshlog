@@ -49,6 +49,16 @@ export function BellIcon({ className }: { className?: string }) {
   );
 }
 
+/** Two sparks — "something new", for the changelog link in the top corner. */
+export function SparklesIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path d="M9.5 4.5 11 9l4.5 1.5L11 12l-1.5 4.5L8 12 3.5 10.5 8 9l1.5-4.5Z" />
+      <path d="m17.5 14 .8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z" />
+    </Svg>
+  );
+}
+
 export function CrownIcon({ className }: { className?: string }) {
   return (
     <Svg className={className}>

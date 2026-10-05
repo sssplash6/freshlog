@@ -8,6 +8,7 @@ import type { ActionState } from "@/lib/actions/shared";
 import { AttendancePicker } from "@/components/forms/attendance-picker";
 import { DictateButton } from "@/components/forms/dictate-button";
 import { TimeKindPicker } from "@/components/forms/time-kind-picker";
+import { AlertIcon } from "@/components/icons";
 import { Select } from "@/components/select";
 import { DateField } from "@/components/ui/date-field";
 import { GrowingField, inputClasses } from "@/components/ui/field";
@@ -15,6 +16,7 @@ import { Receipt } from "@/components/ui/receipt";
 import { SaveState, saveStateFrom } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/cn";
+import type { LogState } from "@/lib/queries";
 import { programToday } from "@/lib/when";
 import { RequiredMark } from "@/components/ui/required-mark";
 
@@ -46,6 +48,8 @@ export type LogSessionStudent = {
   hint: string;
   /** The one line worth repeating under the closed select. */
   balance?: string;
+  /** What logging for them would do to their balance — see `LogState`. */
+  state: LogState;
   /** The mentor's own open agenda for this student, in the admin's order. */
   goals: { value: string; label: string }[];
   /**
@@ -60,8 +64,28 @@ export type LogSessionStudent = {
     value: string;
     label: string;
     balance: string;
+    state: LogState;
     goals: { value: string; label: string }[];
   }[];
+};
+
+/**
+ * Where a student sits in the picker, by what logging for them would do. The
+ * list is already ordered by it, so each heading opens its own run: people with
+ * time to draw on, then people with none behind them, then the two states where
+ * a meeting still counts but the balance is already spent.
+ */
+const GROUP_OF: Record<LogState, string> = {
+  ready: "Has time",
+  none: "No time allocated",
+  overdrawn: "Overdrawn or expired",
+  expired: "Overdrawn or expired",
+};
+const TONE_OF: Record<LogState, "warn" | "danger" | undefined> = {
+  ready: undefined,
+  none: undefined,
+  overdrawn: "danger",
+  expired: "warn",
 };
 
 /** What the form should open with — a URL draft, or the last failed attempt. */
@@ -224,6 +248,9 @@ export function LogSessionForm({
    * that something did.
    */
   const [blocked, setBlocked] = useState(false);
+  // Whose hours the meeting is on, mirrored from the radio so the overdraw
+  // confirmation below can step aside for Extra — which charges nothing.
+  const [kind, setKind] = useState(opening.timeKind ?? "PLAN");
   const today = programToday();
   // The note is the one field React owns, because dictation writes into it.
   const [note, setNote] = useState(opening.note ?? "");
@@ -239,6 +266,7 @@ export function LogSessionForm({
     (programs.length === 1 ? programs[0] : undefined);
   const goals = chosen?.goals ?? student?.goals ?? [];
   const balance = chosen?.balance ?? student?.balance;
+  const logState = chosen?.state ?? student?.state;
   const noGoals = Boolean(student) && Boolean(chosen) && goals.length === 0;
 
   /**
@@ -475,7 +503,11 @@ export function LogSessionForm({
     <form
       ref={formRef}
       action={action}
-      onChange={() => touched()}
+      onChange={(event) => {
+        const target = event.target as unknown as HTMLInputElement;
+        if (target.name === "timeKind") setKind(target.value);
+        touched();
+      }}
       onInvalidCapture={() => setBlocked(true)}
       // Both shapes sit on a white card. The fields are grey fills, and grey
       // fills straight on the grey page ground were outlines of nothing —
@@ -552,9 +584,50 @@ export function LogSessionForm({
               value: s.profileId,
               label: s.label,
               hint: s.hint,
+              group: GROUP_OF[s.state],
+              tone: TONE_OF[s.state],
             }))}
           />
-          {balance && <p className="mt-1 text-xs text-muted-fg">{balance}</p>}
+          {balance && (logState === "overdrawn" || logState === "expired") ? (
+            // Said where the minutes are typed, and kept: the dropdown's tag is
+            // gone the moment a student is chosen, and this is the one place
+            // the mentor is still looking when the number goes in. It does not
+            // forbid the log — a meeting that happened is still logged — it
+            // names the cost, the one honest alternative, and asks once.
+            <div
+              role="status"
+              className="mt-1.5 flex items-start gap-2 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn-ink"
+            >
+              <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                <span className="font-semibold">
+                  {logState === "expired" ? "Their hours expired." : "They are already over their time."}
+                </span>{" "}
+                {balance.split(" — ")[0]}. A session that counts toward their time adds to the
+                overdraw; if this time is on top of the plan, choose{" "}
+                <span className="font-semibold">Extra, beyond their time</span> and nothing is
+                charged.
+                {kind !== "EXTRA" && (
+                  // A confirmation, not a block: the meeting happened and may
+                  // be logged. It is asked only while the log WOULD overdraw,
+                  // and it is keyed to the student so one person's "yes" is
+                  // never carried to the next.
+                  <label className="mt-2 flex cursor-pointer items-start gap-2 font-semibold">
+                    <input
+                      key={`${studentId}:${programId}`}
+                      type="checkbox"
+                      name="acknowledgeOverdraw"
+                      required
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-brand)]"
+                    />
+                    <span>Log it anyway — I understand it adds to the overdraw</span>
+                  </label>
+                )}
+              </p>
+            </div>
+          ) : (
+            balance && <p className="mt-1 text-xs text-muted-fg">{balance}</p>
+          )}
           <FieldError show={badField === "studentProfileId"} state={state} />
         </div>
         {/* Only when it is a real question. One program is posted, not asked:
@@ -579,6 +652,8 @@ export function LogSessionForm({
                 value: p.value,
                 label: p.label,
                 hint: p.balance,
+                group: GROUP_OF[p.state],
+                tone: TONE_OF[p.state],
               }))}
             />
             <FieldError show={badField === "programId"} state={state} />

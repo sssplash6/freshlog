@@ -706,6 +706,8 @@ export function SessionsLog({
                 goals={manage?.tasksBySession?.[s.id] ?? []}
                 canEdit={canEdit(s)}
                 canDelete={canDelete}
+                student={s.student ? nameOf(s.student) : null}
+                mentor={nameOf(s.mentor)}
               />
             ) : null,
           ]),

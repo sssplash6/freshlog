@@ -5,6 +5,8 @@ import { Figure } from "@/components/ui/figure";
 import { ArrowLink } from "@/components/ui/link";
 import { CreateProgramForm } from "@/components/forms/program-forms";
 import { ProgramChip } from "@/components/program-chip";
+import { TabLinks } from "@/components/ui/segmented";
+import { StatusChip } from "@/components/ui/status-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
@@ -15,13 +17,14 @@ import {
 } from "@/lib/authz";
 import { staffAttention, type StaffPreload } from "@/lib/attention";
 import { requireStaff } from "@/lib/dal";
+import { applySort, readSort } from "@/lib/sort";
 import { formatDuration, formatRough } from "@/lib/format";
 import { programTotals, totalsByLevel, type ProgramTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { studentsWithHours } from "@/lib/queries";
 import { spaceOf, type Space } from "@/lib/space";
 import { actionableCount, status, type ViewerContext } from "@/lib/status";
-import { PROGRAM_ZONE, programWallClock } from "@/lib/when";
+import { formatProgramStamp, programStampISO } from "@/lib/when";
 import type { User } from "@/generated/prisma/client";
 
 /**
@@ -41,18 +44,6 @@ import type { User } from "@/generated/prisma/client";
  */
 
 /**
- * "14:32", on the program's clock. §5.8 lets exactly this page claim
- * freshness: its figures are a snapshot of a ledger other people are writing
- * to, and a table that was right at nine is worth knowing is from nine.
- */
-function clock(now: Date) {
-  const wall = programWallClock(now);
-  const hh = String(wall.getUTCHours()).padStart(2, "0");
-  const mm = String(wall.getUTCMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
-}
-
-/**
  * How many things are waiting on this reader, and the way to them.
  *
  * A count and a link, not the rows: the rows live behind the bell, and a
@@ -70,7 +61,7 @@ async function NeedsYou({ user, preload }: { user: User; preload: StaffPreload }
     return (
       <p className="flex items-center gap-2 rounded-xl bg-surface px-4 py-3 text-[0.9375rem] text-muted-fg shadow-sm sm:px-5">
         <CheckIcon className="h-4 w-4 shrink-0 text-ink/60" />
-        Nothing needs you right now.
+        Nothing needs your attention right now.
       </p>
     );
   }
@@ -80,15 +71,43 @@ async function NeedsYou({ user, preload }: { user: User; preload: StaffPreload }
     <p className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl bg-surface px-4 py-3 text-[0.9375rem] text-ink shadow-sm sm:px-5">
       <span>
         <span className="font-semibold tabular-nums">{n}</span>{" "}
-        {n === 1 ? "thing needs" : "things need"} you
+        {n === 1 ? "item needs" : "items need"} your attention
       </span>
-      <ArrowLink href="/notifications">See what</ArrowLink>
+      <ArrowLink href="/notifications">Review in notifications</ArrowLink>
     </p>
   );
 }
 
-export default async function AdminHomePage() {
+/**
+ * "Updated October 5, 15:10 Tashkent (UTC+5)". §5.8 lets exactly this page
+ * claim freshness: its figures are a snapshot of a ledger other people are
+ * writing to, and a table that was right at nine is worth knowing is from nine
+ * — and from which day. The exact instant is the tooltip.
+ */
+function UpdatedAt({ now }: { now: Date }) {
+  return (
+    <time
+      dateTime={now.toISOString()}
+      title={programStampISO(now)}
+      className="text-[0.8125rem] text-muted-fg"
+    >
+      Updated {formatProgramStamp(now)}
+    </time>
+  );
+}
+
+/** What the Programs table can be ordered by. */
+const PROGRAM_SORTS = ["program", "students", "mentors", "remaining"] as const;
+
+export default async function AdminHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort?: string; dir?: string; show?: string }>;
+}) {
   const user = await requireStaff();
+  const query = await searchParams;
+  const asked = readSort(query, PROGRAM_SORTS);
+  const overOnly = query.show === "over";
 
   // The reader's grants are applied ONCE here and every read below carries
   // them. `undefined` is a platform admin and means no filter at all — not
@@ -175,7 +194,7 @@ export default async function AdminHomePage() {
       />
     );
   }
-  const rows = programs.map((p) => {
+  const unsorted = programs.map((p) => {
     // That program's figures for each student in it — never the student's
     // combined row, which would put another program's hours in this total and
     // count a two-program student twice.
@@ -194,11 +213,21 @@ export default async function AdminHomePage() {
     };
   });
 
+  // Ordered by the heading the reader clicked. Remaining opens lowest-first —
+  // the program furthest over is the one a reader sorts a table to find.
+  const overCount = unsorted.filter((r) => r.remaining < 0).length;
+  const rows = applySort(overOnly ? unsorted.filter((r) => r.remaining < 0) : unsorted, asked, {
+    program: (r) => r.name,
+    students: (r) => r.students,
+    mentors: (r) => r.mentors,
+    remaining: (r) => r.remaining,
+  });
+
   const columns: Column[] = [
-    { label: "Program" },
-    { label: "Students", align: "right" },
-    { label: "Mentors", align: "right" },
-    { label: "Remaining", align: "right" },
+    { label: "Program", sort: "program" },
+    { label: "Students", align: "right", sort: "students", sortDir: "desc" },
+    { label: "Mentors", align: "right", sort: "mentors", sortDir: "desc" },
+    { label: "Remaining", align: "right", sort: "remaining", sortDir: "asc" },
   ];
 
   return (
@@ -206,10 +235,7 @@ export default async function AdminHomePage() {
       <PageTitle
         title="Home"
         actions={
-          <span className="text-[0.8125rem] text-muted-fg">
-            Updated {clock(now)}{" "}
-            <span className="sr-only">{PROGRAM_ZONE} time</span>
-          </span>
+          <UpdatedAt now={now} />
         }
       />
 
@@ -254,18 +280,38 @@ export default async function AdminHomePage() {
       {/* One program is the whole scope, and a table of one row that repeats
           the figures above it is furniture. */}
       {programs.length > 1 && (
-        <Section title="Programs">
+        <Section
+          title="Programs"
+          action={<ArrowLink href="/programs" className="text-[0.8125rem]">All programs</ArrowLink>}
+        >
+          {/* The outliers, one click away. Only offered when there are some:
+              a filter that can only ever show the same table is furniture. */}
+          {overCount > 0 && (
+            <TabLinks
+              label="Programs shown"
+              className="mx-1 mb-2"
+              items={[
+                { href: "/admin", label: "All" },
+                { href: "/admin?show=over", label: "Over capacity", count: overCount },
+              ]}
+            />
+          )}
           <Table columns={columns} framed={false}>
             {rows.map((p) => (
               <Tr key={p.id}>
                 <Td label="Program">
                   {/* The name is the way in — the same rule as `/programs`,
                       which this table is the short version of. */}
-                  <ProgramChip
-                    program={p}
-                    href={`/programs/${p.id}`}
-                    className="min-h-11 font-medium sm:min-h-0"
-                  />
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <ProgramChip
+                      program={p}
+                      href={`/programs/${p.id}`}
+                      className="min-h-11 font-medium sm:min-h-0"
+                    />
+                    {p.remaining < 0 && (
+                      <StatusChip severity="problem">Over capacity</StatusChip>
+                    )}
+                  </span>
                 </Td>
                 <Td label="Students" align="right" className="tabular-nums">
                   {p.students}
@@ -355,10 +401,7 @@ function InstituteHome({
       <PageTitle
         title={space.name}
         actions={
-          <span className="text-[0.8125rem] text-muted-fg">
-            Updated {clock(now)}{" "}
-            <span className="sr-only">{PROGRAM_ZONE} time</span>
-          </span>
+          <UpdatedAt now={now} />
         }
       />
 

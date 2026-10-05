@@ -19,11 +19,13 @@
  * Uzbekistan is UTC+5 year-round — it dropped daylight saving in 2005 — which
  * is why a fixed offset is correct here and an `Intl` round-trip is not needed.
  */
-import { toDateInputValue } from "@/lib/format";
+import { MONTHS, toDateInputValue } from "@/lib/format";
 
 export const PROGRAM_ZONE = "Tashkent";
 
 const PROGRAM_OFFSET_MINUTES = 5 * 60;
+/** "UTC+5" — the offset, for a stamp that has to stand without its zone's name. */
+export const PROGRAM_UTC_LABEL = `UTC+${PROGRAM_OFFSET_MINUTES / 60}`;
 const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
 
@@ -99,4 +101,23 @@ export function formatTimeOfDay(at: Date, hasTime: boolean): string | null {
   const hh = String(at.getUTCHours()).padStart(2, "0");
   const mm = String(at.getUTCMinutes()).padStart(2, "0");
   return `${hh}:${mm} ${PROGRAM_ZONE}`;
+}
+
+/**
+ * A freshness stamp: "October 5, 15:10 Tashkent (UTC+5)".
+ *
+ * The day is there because a page left open overnight says "15:10" on two
+ * different days, and the offset because "Tashkent time" is a name only some of
+ * the people reading it can place. Its tooltip gets `programStampISO`.
+ */
+export function formatProgramStamp(now: Date): string {
+  const wall = programWallClock(now);
+  const hh = String(wall.getUTCHours()).padStart(2, "0");
+  const mm = String(wall.getUTCMinutes()).padStart(2, "0");
+  return `${MONTHS[wall.getUTCMonth()]} ${wall.getUTCDate()}, ${hh}:${mm} ${PROGRAM_ZONE} (${PROGRAM_UTC_LABEL})`;
+}
+
+/** The exact instant behind a stamp, for its tooltip: "2026-10-05T10:10:42Z". */
+export function programStampISO(now: Date): string {
+  return now.toISOString().replace(/\.\d+Z$/, "Z");
 }

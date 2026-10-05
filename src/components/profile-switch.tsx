@@ -122,6 +122,10 @@ export function ProfileSwitch({ active }: { active: Profile }) {
             aria-current="true"
             className="flex min-h-8 flex-1 items-center justify-center rounded-md bg-surface px-2.5 text-[0.8125rem] font-semibold text-ink shadow-sm"
           >
+            {/* Said in full to a screen reader: "Admin" beside a "Mentor"
+                button left the destination — and which one you are in —
+                to be inferred. */}
+            <span className="sr-only">Viewing as </span>
             {it.label}
           </span>
         ) : (
@@ -130,7 +134,8 @@ export function ProfileSwitch({ active }: { active: Profile }) {
             type="submit"
             name="profile"
             value={it.value}
-            title={`Switch profile (${shortcut})`}
+            title={`Switch to ${it.label} (${shortcut})`}
+            aria-label={`Switch to ${it.label}`}
             className="flex min-h-8 flex-1 cursor-pointer items-center justify-center rounded-md px-2.5 text-[0.8125rem] font-medium text-muted-fg transition-colors hover:text-ink"
           >
             {it.label}
@@ -161,7 +166,7 @@ export function ProfileSwitchMenu({ active }: { active: Profile }) {
     >
       <input type="hidden" name="path" value={pathname} />
       <p className="flex items-baseline justify-between gap-2 px-3 pb-0.5 pt-1 text-[0.8125rem] text-muted-fg">
-        Profile
+        Viewing as
         <span className="font-medium">
           {shortcut}
         </span>
@@ -173,7 +178,10 @@ export function ProfileSwitchMenu({ active }: { active: Profile }) {
             aria-current="true"
             className="flex min-h-11 items-center justify-between rounded-lg px-3 text-[0.9375rem] text-ink"
           >
-            {it.label}
+            <span>
+              <span className="sr-only">Viewing as </span>
+              {it.label}
+            </span>
             <CheckIcon className="h-4 w-4 text-brand" />
           </span>
         ) : (
@@ -182,6 +190,7 @@ export function ProfileSwitchMenu({ active }: { active: Profile }) {
             type="submit"
             name="profile"
             value={it.value}
+            aria-label={`Switch to ${it.label}`}
             className="flex min-h-11 w-full cursor-pointer items-center rounded-lg px-3 text-left text-[0.9375rem] text-ink transition-colors hover:bg-fill"
           >
             {it.label}

@@ -111,6 +111,7 @@ export function TaskPicker({
           name={customName}
           type="text"
           required
+          aria-label="Name of the agenda item"
           autoFocus
           maxLength={MAX_TASK_LENGTH}
           placeholder="Name the work"

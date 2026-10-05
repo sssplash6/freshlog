@@ -1385,6 +1385,17 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
 }
 
 /**
+ * What logging a session for somebody would do to their balance.
+ *
+ * `ready` draws from time they hold. `none` has no time behind it yet.
+ * `expired` and `overdrawn` are the two states where a meeting still logs and
+ * still counts, and both push the balance further below what was granted —
+ * which is what the picker must say, in words and in where the row sits,
+ * rather than leaving it to a hint line that reads like every other.
+ */
+export type LogState = "ready" | "none" | "overdrawn" | "expired";
+
+/**
  * The log-a-session picker's options, in the order a mentor picks them.
  *
  * Students holding live time first, because that is who a mentor is logging
@@ -1430,6 +1441,7 @@ export function logSessionOptions(
     id: string;
     name: string;
     balance: string;
+    state: LogState;
     /** Sorts live time above bare reach, so the default pick is the useful one. */
     rank: number;
     goals: { value: string; label: string }[];
@@ -1451,21 +1463,35 @@ export function logSessionOptions(
     if (!s.approved) continue;
     if (!permitted(s.program.id)) continue;
     const row = at(s.profile.id, s.profile.user.name ?? s.profile.user.email);
+    // Below zero and not yet expired: the time is spent and the meetings kept
+    // coming. A bank or an unassigned pool is read by what is left in it.
+    const left = s.pool != null ? s.pool : s.allocated > 0 ? s.remaining : 0;
+    const overdrawn = !s.expired && left < 0;
+    const state: LogState = s.expired
+      ? "expired"
+      : overdrawn
+        ? "overdrawn"
+        : s.pool != null || s.allocated > 0
+          ? "ready"
+          : "none";
     row.choices.push({
       id: s.program.id,
       name: s.program.name,
+      state,
       // Expired hours still answer a log — the picker's job is to say the
       // hours' state, not to forbid the meeting.
       balance: s.expired
         ? `Hours expired${s.deadline ? ` ${formatDate(s.deadline)}` : ""} — logging still counts against them`
-        : s.bank
-          ? `${formatDuration(s.pool ?? 0)} left in their hour bank`
-          : s.pool != null
-          ? `${formatDuration(s.pool)} unassigned — ${claims}`
-          : s.allocated > 0
-            ? `${formatDuration(s.remaining)} remaining with ${whose}`
-            : `No time allocated to ${whose}`,
-      rank: s.expired ? 3 : s.pool != null || s.allocated > 0 ? 0 : 1,
+        : overdrawn
+          ? `Overdrawn by ${formatDuration(-left)} — logging adds to it`
+          : s.bank
+            ? `${formatDuration(s.pool ?? 0)} left in their hour bank`
+            : s.pool != null
+            ? `${formatDuration(s.pool)} unassigned — ${claims}`
+            : s.allocated > 0
+              ? `${formatDuration(s.remaining)} remaining with ${whose}`
+              : `No time allocated to ${whose}`,
+      rank: s.expired || overdrawn ? 3 : s.pool != null || s.allocated > 0 ? 0 : 1,
       goals: goalsByStudent.get(`${s.profile.id}:${s.program.id}`) ?? [],
     });
   }
@@ -1479,6 +1505,7 @@ export function logSessionOptions(
         id: program.id,
         name: program.name,
         balance: `No time allocated to ${whose}`,
+        state: "none",
         rank: 2,
         goals: goalsByStudent.get(`${p.id}:${program.id}`) ?? [],
       });
@@ -1521,12 +1548,14 @@ export function logSessionOptions(
           value: c.id,
           label: c.name,
           balance: c.balance,
+          state: c.state,
           goals: c.goals,
         })),
         // Shown under the closed select, where the dropdown's searchable hint
         // is no longer visible and the one thing a mentor re-checks before
         // typing minutes is how much time there is to spend.
         balance: lead.balance,
+        state: lead.state,
         goals: lead.goals,
       };
     });

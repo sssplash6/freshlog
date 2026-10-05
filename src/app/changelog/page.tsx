@@ -2,7 +2,13 @@ import Link from "next/link";
 
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
-import { hasUnseenChangelog, isUnseen, readChangelog, type ChangelogEntry } from "@/lib/changelog";
+import {
+  hasUnseenChangelog,
+  isUnseen,
+  readChangelog,
+  splitItem,
+  type ChangelogEntry,
+} from "@/lib/changelog";
 import { requireUser } from "@/lib/dal";
 import { formatDate } from "@/lib/format";
 
@@ -49,7 +55,7 @@ export default async function ChangelogPage() {
               </>
             }
           >
-            <div className="space-y-4 p-4">
+            <div className="divide-y divide-line">
               <Items label="New" items={entry.new} />
               <Items label="Fixed" items={entry.fixed} />
             </div>
@@ -63,12 +69,31 @@ export default async function ChangelogPage() {
 function Items({ label, items }: { label: string; items: ChangelogEntry["new"] }) {
   if (items.length === 0) return null;
   return (
-    <div>
-      <h3 className="text-[0.8125rem] font-semibold text-muted-fg">{label}</h3>
-      <ul className="mt-1.5 list-disc space-y-1.5 pl-5 text-[0.9375rem] text-ink">
-        {items.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
+    <div className="px-4 py-3 sm:px-5">
+      <h3 className="text-[0.75rem] font-semibold uppercase tracking-wide text-muted-fg">
+        {label}
+        <span className="ml-1.5 font-medium tabular-nums">{items.length}</span>
+      </h3>
+      <ul className="mt-2 space-y-3">
+        {items.map((item) => {
+          const { headline, detail } = splitItem(item);
+          return (
+            <li key={item}>
+              {headline && <p className="text-[0.9375rem] font-semibold text-ink">{headline}</p>}
+              {detail && (
+                <p
+                  className={
+                    headline
+                      ? "mt-0.5 text-[0.875rem] leading-snug text-muted-fg"
+                      : "text-[0.9375rem] text-ink"
+                  }
+                >
+                  {detail}
+                </p>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

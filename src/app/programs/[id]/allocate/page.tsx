@@ -1,3 +1,4 @@
+import { AlertIcon } from "@/components/icons";
 import { AssignTaskForm } from "@/components/forms/assign-task-form";
 import { ParamSelect } from "@/components/param-select";
 import { Section } from "@/components/ui/section";
@@ -55,6 +56,51 @@ export default async function AllocateInProgramPage({
     .map((m) => ({ value: m.id, label: m.name ?? m.email }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
+  // The roster in the order an admin reads it: people holding time, people
+  // with none behind them, and the two states that need a second look — spent
+  // past zero, or a grant that ran out unused. Grouped, because a roster where
+  // "-7h" sits in the same unmarked list as "12h remaining" is one a hurried
+  // admin allocates from without seeing which kind of row they picked.
+  const pickerRows = students
+    .map((s) => {
+      const overdrawn = s.remainingMinutes < 0;
+      const expired = !overdrawn && s.forfeitedMinutes > 0 && s.remainingMinutes === 0;
+      // Nothing granted, or everything granted already used: either way there
+      // is no time to draw on, which "12h remaining" would not say.
+      const none =
+        !overdrawn && !expired && (s.allottedMinutes === 0 || s.remainingMinutes <= 0);
+      const rank = overdrawn || expired ? 2 : none ? 1 : 0;
+      return {
+        s,
+        rank,
+        overdrawn,
+        expired,
+        option: {
+          value: s.id,
+          label: s.user.name ?? s.user.email,
+          // What they hold here already: the figure an admin is about to
+          // change, and the one they check before typing.
+          hint: overdrawn
+            ? formatBalance(s.remainingMinutes)
+            : expired
+              ? `${formatDuration(s.forfeitedMinutes)} expired unused`
+              : none
+                ? s.allottedMinutes === 0
+                  ? "No time allocated yet"
+                  : "All of it used"
+                : `${formatDuration(s.remainingMinutes)} remaining`,
+          group:
+            rank === 2 ? "Overdrawn or expired" : rank === 1 ? "All time used" : "Has time",
+          tone: overdrawn ? ("danger" as const) : expired ? ("warn" as const) : undefined,
+        },
+      };
+    })
+    .sort(
+      (a, b) =>
+        a.rank - b.rank || a.option.label.localeCompare(b.option.label)
+    );
+  const chosenRow = pickerRows.find((r) => r.s.id === chosen?.id);
+
   const ledger = chosen ? await studentLedger(chosen.id, [id]) : null;
   // "Hour bank" leads the Agenda list only for an admin of a program that has
   // one — the only people who may change it.
@@ -92,18 +138,29 @@ export default async function AllocateInProgramPage({
             label="Who is this for?"
             placeholder="Search the roster…"
             recentKey="allocate-student"
-            options={students.map((s) => ({
-              value: s.id,
-              label: s.user.name ?? s.user.email,
-              // What they hold here already: the figure an admin is about to
-              // change, and the one they check before typing.
-              hint:
-                s.remainingMinutes < 0
-                  ? formatBalance(s.remainingMinutes)
-                  : `${formatDuration(s.remainingMinutes)} remaining`,
-            }))}
+            options={pickerRows.map((r) => r.option)}
           />
         </div>
+
+        {chosen && (chosenRow?.overdrawn || chosenRow?.expired) && (
+          // Kept on screen under the picker, where the form is filled in: the
+          // tag in the dropdown is gone once somebody is chosen.
+          <p
+            role="status"
+            className="mt-3 flex items-start gap-2 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn-ink"
+          >
+            <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              <span className="font-semibold">
+                {chosen.user.name ?? chosen.user.email}{" "}
+                {chosenRow.overdrawn
+                  ? `is already ${formatBalance(chosen.remainingMinutes)} in ${program.name}.`
+                  : `has ${formatDuration(chosen.forfeitedMinutes)} that expired unused in ${program.name}.`}
+              </span>{" "}
+              Time granted now is added to that balance.
+            </span>
+          </p>
+        )}
 
         {chosen && (
           <div className="mt-4 border-t border-line pt-4">

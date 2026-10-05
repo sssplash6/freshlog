@@ -7,7 +7,7 @@ import {
   CommandPalette,
   CommandPaletteButton,
 } from "@/components/command-palette";
-import { ChevronDownIcon, LogOutIcon } from "@/components/icons";
+import { ChevronDownIcon, LogOutIcon, SparklesIcon } from "@/components/icons";
 import { NavCount, NavLinks } from "@/components/nav-links";
 import {
   NotificationBell as NotificationMenu,
@@ -38,6 +38,7 @@ import { navFor, type NavItem } from "@/lib/nav";
 import { prisma } from "@/lib/prisma";
 import { canSwitchProfile, profileOf, type Profile } from "@/lib/profile";
 import { spaceOf, type Space } from "@/lib/space";
+import { summarizeUnread, unreadLabel, type UnreadSummary } from "@/lib/unread";
 import type { User } from "@/generated/prisma/client";
 
 async function signOutAction() {
@@ -66,11 +67,12 @@ async function signOutAction() {
  * the same number, and stating it twice on one screen is the "remaining is
  * never said twice" rule applied to the chrome.
  */
-function NotificationBell({ count }: { count: number }) {
+function NotificationBell({ unread }: { unread: UnreadSummary }) {
+  const count = unread.total;
   return (
     <Link
       href="/notifications"
-      aria-label={`Notifications (${count} unread)`}
+      aria-label={unreadLabel(unread)}
       /* shrink-0 is load-bearing, and was measured: as a flex item beside the
          wordmark and the account button, the 44px box shrank to 27px wide at
          390px — the target this commit widened, quietly given back. */
@@ -97,6 +99,39 @@ function NotificationBell({ count }: { count: number }) {
         <span className="absolute right-0 top-0.5">
           <NavCount count={count} />
         </span>
+      )}
+    </Link>
+  );
+}
+
+/**
+ * "What's new", in the corner beside the bell.
+ *
+ * It lived only in the account menu, one open-and-scan away, so a change that
+ * shipped was found by whoever happened to look. The corner is where the page's
+ * two "something for you" signals already sit; this is the quieter of the two —
+ * a blue dot, never a count, because an update is not a task.
+ *
+ * The same `/changelog` row stays in the account menu, which is the only place
+ * the phone chrome reaches it from.
+ */
+function WhatsNewLink({ unseen }: { unseen: boolean }) {
+  return (
+    <Link
+      href="/changelog"
+      transitionTypes={["nav-forward"]}
+      className="relative flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] font-medium text-muted-fg transition hover:bg-fill hover:text-ink"
+    >
+      <SparklesIcon className="h-4 w-4" />
+      {"What's new"}
+      {unseen && (
+        <>
+          <span
+            aria-hidden="true"
+            className="h-2 w-2 rounded-full bg-brand"
+          />
+          <span className="sr-only">(unread updates)</span>
+        </>
       )}
     </Link>
   );
@@ -338,7 +373,7 @@ function TopBar({
   account: React.ReactNode;
   /** The institute's mark, beside the wordmark — institute frame only. */
   place?: React.ReactNode;
-  unread: number;
+  unread: UnreadSummary;
   links?: React.ReactNode;
   /** The palette's opener, for a reader who has the palette. */
   search?: React.ReactNode;
@@ -390,7 +425,7 @@ function TopBar({
         {links}
         <div className="ml-auto flex shrink-0 items-center gap-1">
           {search}
-          <NotificationBell count={unread} />
+          <NotificationBell unread={unread} />
           {account}
         </div>
       </div>
@@ -418,7 +453,7 @@ function StaffShell({
   children,
 }: {
   user: User;
-  unread: number;
+  unread: UnreadSummary;
   items: NavItem[];
   /** The institute's mark, when this reader is in one. */
   place?: React.ReactNode;
@@ -484,7 +519,8 @@ function StaffShell({
 
           `z-40` sits above the rail and the bottom bar (`z-30`) and below
           anything that opens on top of chrome (`z-50`). */}
-      <div className="fixed right-4 top-4 z-40 hidden lg:block">
+      <div className="fixed right-4 top-4 z-40 hidden items-center gap-1 lg:flex">
+        <WhatsNewLink unseen={whatsNew} />
         <NotificationMenu unread={unread} recent={recent} now={now} />
       </div>
 
@@ -548,7 +584,7 @@ function StudentShell({
   children,
 }: {
   user: User;
-  unread: number;
+  unread: UnreadSummary;
   items: NavItem[];
   whatsNew: boolean;
   place?: React.ReactNode;
@@ -645,9 +681,13 @@ export async function AppShell({
 
   // Six rows and a count, in one round trip each. The panel is a glance, so
   // `take: 6` is the whole of it — `/notifications` is where the feed lives.
-  const [profile, unread, recent, changelog] = await Promise.all([
+  const [profile, unreadRows, recent, changelog] = await Promise.all([
     profileOf(user),
-    prisma.notification.count({ where: { userId: user.id, read: false } }),
+    prisma.notification.groupBy({
+      by: ["category"],
+      where: { userId: user.id, read: false },
+      _count: true,
+    }),
     prisma.notification.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
@@ -662,6 +702,9 @@ export async function AppShell({
     }),
     readChangelog(),
   ]);
+  const unread = summarizeUnread(
+    unreadRows.map((r) => ({ category: r.category, count: r._count }))
+  );
   const whatsNew = hasUnseenChangelog(changelog, user);
   // One instant for every "3h ago" the bell prints, computed here rather than
   // inside the render, for the reason `ViewerContext.now` exists.

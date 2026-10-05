@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { TaskPicker, type OpenTask } from "@/components/forms/task-picker";
 import { Select, type SelectOption } from "@/components/select";
@@ -420,10 +420,30 @@ function TaskPanel({
   const [, editAction, editSave] = useSaveState(updateAssignment);
   const [, delAction, delSave] = useSaveState(deleteAssignment);
 
+  // Switching faces unmounts the button that was just pressed, and focus left
+  // on a removed node falls to <body> — which is where a keyboard reader's next
+  // Tab started from, and from there it left the page for the browser's own
+  // toolbar. So the face that appears takes focus: the first field going in,
+  // and the "Edit" button coming back out.
+  const editFormRef = useRef<HTMLFormElement>(null);
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+  const wasEditing = useRef(false);
+  useEffect(() => {
+    if (editing) {
+      wasEditing.current = true;
+      editFormRef.current
+        ?.querySelector<HTMLElement>("textarea, input:not([type=hidden])")
+        ?.focus();
+    } else if (wasEditing.current) {
+      wasEditing.current = false;
+      editButtonRef.current?.focus();
+    }
+  }, [editing]);
+
   if (editing) {
     return (
       <RowActionGroup label="Edit this agenda item">
-        <form action={editAction} className="space-y-3">
+        <form ref={editFormRef} action={editAction} className="space-y-3">
           <input type="hidden" name="assignmentId" value={task.id} />
           <input type="hidden" name="progress" value={task.progress} />
 
@@ -566,6 +586,7 @@ function TaskPanel({
           buttons into the same 264px line as "Edit". */}
       <RowActionGroup>
         <button
+          ref={editButtonRef}
           type="button"
           onClick={() => setEditing(true)}
           className="inline-flex min-h-10 items-center text-xs font-medium text-brand transition-colors hover:underline"

@@ -8,6 +8,7 @@ import {
   loadChangelog,
   parseChangelog,
   snapshotChangelog,
+  splitItem,
   type ChangelogEntry,
 } from "@/lib/changelog";
 
@@ -128,6 +129,31 @@ describe("the repository's own CHANGELOG.md", () => {
 
     const sections = text.split("\n").filter((l) => /^###(?!#)/.test(l));
     expect(sections.filter((l) => !/^### (New|Fixed)\s*$/.test(l))).toEqual([]);
+  });
+});
+
+describe("splitItem", () => {
+  it("splits a bold headline from its detail", () => {
+    expect(splitItem("**Filters apply.** Program and date now work.")).toEqual({
+      headline: "Filters apply",
+      detail: "Program and date now work.",
+    });
+  });
+
+  it("leaves an item with no bold lead as plain text", () => {
+    expect(splitItem("Just a sentence.")).toEqual({ headline: null, detail: "Just a sentence." });
+  });
+});
+
+describe("every item in CHANGELOG.md", () => {
+  it("has a headline and a detail short enough to skim", () => {
+    const entries = parseChangelog(readFileSync(path.join(process.cwd(), "CHANGELOG.md"), "utf8"));
+    for (const item of entries.flatMap((e) => [...e.new, ...e.fixed])) {
+      const { headline, detail } = splitItem(item);
+      expect(headline, item).not.toBeNull();
+      expect(headline!.length, item).toBeLessThanOrEqual(48);
+      expect(detail.length, item).toBeLessThanOrEqual(300);
+    }
   });
 });
 

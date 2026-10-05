@@ -66,10 +66,13 @@ export function formatBalance(n: number): string {
  */
 export function formatRough(n: number): string {
   const total = Math.round(n);
-  const sign = total < 0 ? "-" : "";
   const abs = Math.abs(total);
+  // An overdraw is said as what it is, the way `formatBalance` says it: "65+
+  // hours over". "-65+ hours" put a minus and a "+" on one figure, and a reader
+  // could not tell whether the program was short by that much or by more.
+  const over = total < 0 ? " over" : "";
 
-  if (abs < 60) return `${sign}${abs} min`;
+  if (abs < 60) return `${abs} min${over}`;
 
   const hours = abs / 60;
   // Whole hours below a hundred. The five-hour step there cost more than the
@@ -78,12 +81,12 @@ export function formatRough(n: number): string {
   if (abs < 6000) {
     const whole = Math.floor(hours);
     // "3 hours" when it is exactly three; "3+ hours" when there is more.
-    return `${sign}${whole}${abs % 60 === 0 ? "" : "+"} ${whole === 1 && abs % 60 === 0 ? "hour" : "hours"}`;
+    return `${whole}${abs % 60 === 0 ? "" : "+"} ${whole === 1 && abs % 60 === 0 ? "hour" : "hours"}${over}`;
   }
 
   const step = Math.floor(hours / 5) * 5;
   const exact = step * 60 === abs;
-  return `${sign}${step.toLocaleString("en-US")}${exact ? "" : "+"} hours`;
+  return `${step.toLocaleString("en-US")}${exact ? "" : "+"} hours${over}`;
 }
 
 /** Money in US dollars: 1200 → "$1,200", 1200.5 → "$1,200.50". */
@@ -113,6 +116,18 @@ export function formatDate(d: Date): string {
   const short = `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
   const year = d.getUTCFullYear();
   return year === new Date().getUTCFullYear() ? short : `${short}, ${year}`;
+}
+
+/**
+ * A calendar date with its year, always: "September 24, 2026".
+ *
+ * `formatDate` drops the year when it is the current one, which is right for a
+ * row in a log read today and wrong for a sentence that is kept — a
+ * notification written in 2026 and read in 2027 says "October 24" and means
+ * the wrong one. Anything stored as prose uses this.
+ */
+export function formatFullDate(d: Date): string {
+  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
 }
 
 /**

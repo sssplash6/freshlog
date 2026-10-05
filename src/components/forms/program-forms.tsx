@@ -1,7 +1,7 @@
 "use client";
 
 import { Disclosure } from "@/components/ui/disclosure";
-import { Input } from "@/components/ui/field";
+import { Field, Input } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { createCohort, createProgram } from "@/lib/actions/programs";
@@ -27,17 +27,19 @@ export function CreateProgramForm() {
       label="New program" variant="create"
       hint="It starts flat and empty; grant its admins access afterwards."
     >
-      <form action={action} className="flex flex-wrap items-center gap-2">
-        <div className="w-56">
+      <form action={action} className="flex flex-wrap items-end gap-2">
+        {/* A visible label, not the placeholder alone: a placeholder is not a
+            name, and it is gone the moment somebody starts typing. */}
+        <Field label="Program name" required className="w-56">
           <Input
             name="name"
             type="text"
             required
             minLength={3}
             maxLength={80}
-            placeholder="Program name"
+            placeholder="e.g. Summer Scholars"
           />
-        </div>
+        </Field>
         <SubmitButton pendingText="Creating…">Create program</SubmitButton>
       </form>
       <SaveState state={save} />
@@ -73,12 +75,12 @@ export function CreateCohortForm({
           : "The first one switches NEW enrollments to cohorts; people already here stay put."
       }
     >
-      <form action={action} className="flex flex-wrap items-center gap-2">
+      <form action={action} className="flex flex-wrap items-end gap-2">
         <input type="hidden" name="programId" value={programId} />
         {levelId && <input type="hidden" name="levelId" value={levelId} />}
-        <div className="w-56">
+        <Field label="Cohort name" required className="w-56">
           <Input name="name" type="text" required placeholder="e.g. Fall 2026" />
-        </div>
+        </Field>
         <SubmitButton pendingText="Adding…">Add cohort</SubmitButton>
       </form>
       <SaveState state={save} />
