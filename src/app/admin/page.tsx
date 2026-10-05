@@ -1,11 +1,12 @@
 import { Suspense } from "react";
 
-import { CheckIcon } from "@/components/icons";
+import { CheckIcon, LayersIcon, UsersIcon } from "@/components/icons";
 import { Figure } from "@/components/ui/figure";
 import { ArrowLink } from "@/components/ui/link";
 import { CreateProgramForm } from "@/components/forms/program-forms";
 import { ProgramChip } from "@/components/program-chip";
 import { TabLinks } from "@/components/ui/segmented";
+import { StatStrip } from "@/components/ui/stat-strip";
 import { StatusChip } from "@/components/ui/status-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
@@ -227,7 +228,7 @@ export default async function AdminHomePage({
     { label: "Program", sort: "program" },
     { label: "Students", align: "right", sort: "students", sortDir: "desc" },
     { label: "Mentors", align: "right", sort: "mentors", sortDir: "desc" },
-    { label: "Remaining", align: "right", sort: "remaining", sortDir: "asc" },
+    { label: "Remaining", align: "right", sort: "remaining", sortDir: "asc", emphasis: "key" },
   ];
 
   return (
@@ -239,37 +240,19 @@ export default async function AdminHomePage({
         }
       />
 
-      {/* The school in three figures, as a stat row: label over value, space
-          between, no boxes. It was a sentence under the title with one bold
-          number in it, which made the reader parse prose to find a figure.
-          Remaining leads, in the hours orange, because it is the one of the
-          three anybody acts on. */}
-      <dl className="flex flex-wrap gap-x-10 gap-y-3 px-1">
-        <div>
-          <dt className="text-[0.8125rem] text-muted-fg">Programs</dt>
-          <dd className="mt-0.5 text-[1.5rem] font-semibold tabular-nums text-ink">
-            {programs.length}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-[0.8125rem] text-muted-fg">Students</dt>
-          <dd className="mt-0.5 text-[1.5rem] font-semibold tabular-nums text-ink">
-            {overall.students}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-[0.8125rem] text-muted-fg">Remaining</dt>
-          <dd
-            className={
-              overall.remaining < 0
-                ? "mt-0.5 text-[1.5rem] font-semibold tabular-nums text-danger-ink"
-                : "mt-0.5 text-[1.5rem] font-semibold tabular-nums text-accent-ink"
-            }
-          >
-            {formatRough(overall.remaining)}
-          </dd>
-        </div>
-      </dl>
+      {/* The school in three figures. Remaining leads, in the hours orange,
+          because it is the one of the three anybody acts on. */}
+      <StatStrip
+        lead={{
+          label: "Remaining",
+          value: formatRough(overall.remaining),
+          tone: overall.remaining < 0 ? "danger" : "hours",
+        }}
+        items={[
+          { label: "Programs", value: String(programs.length), icon: <LayersIcon className="h-4 w-4" /> },
+          { label: "Students", value: String(overall.students), icon: <UsersIcon className="h-4 w-4" /> },
+        ]}
+      />
 
       <Suspense fallback={null}>
         <NeedsYou user={user} preload={{ now, programs, students }} />
@@ -306,7 +289,7 @@ export default async function AdminHomePage({
                     <ProgramChip
                       program={p}
                       href={`/programs/${p.id}`}
-                      className="min-h-11 font-medium sm:min-h-0"
+                      className="min-h-11 font-semibold sm:min-h-0"
                     />
                     {p.remaining < 0 && (
                       <StatusChip severity="problem">Over capacity</StatusChip>
@@ -382,7 +365,7 @@ function InstituteHome({
     { label: "Level" },
     { label: "Standard grant" },
     { label: "Students", align: "right" },
-    { label: "Remaining", align: "right" },
+    { label: "Remaining", align: "right", emphasis: "key" },
   ];
   const remainingCell = (totals: ProgramTotals | undefined) => {
     const remaining = totals?.remaining ?? 0;
@@ -405,32 +388,17 @@ function InstituteHome({
         }
       />
 
-      <dl className="flex flex-wrap gap-x-10 gap-y-3 px-1">
-        <div>
-          <dt className="text-[0.8125rem] text-muted-fg">Levels</dt>
-          <dd className="mt-0.5 text-[1.5rem] font-semibold tabular-nums text-ink">
-            {levels.length}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-[0.8125rem] text-muted-fg">Students</dt>
-          <dd className="mt-0.5 text-[1.5rem] font-semibold tabular-nums text-ink">
-            {overall.students}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-[0.8125rem] text-muted-fg">Remaining</dt>
-          <dd
-            className={
-              overall.remaining < 0
-                ? "mt-0.5 text-[1.5rem] font-semibold tabular-nums text-danger-ink"
-                : "mt-0.5 text-[1.5rem] font-semibold tabular-nums text-accent-ink"
-            }
-          >
-            {formatRough(overall.remaining)}
-          </dd>
-        </div>
-      </dl>
+      <StatStrip
+        lead={{
+          label: "Remaining",
+          value: formatRough(overall.remaining),
+          tone: overall.remaining < 0 ? "danger" : "hours",
+        }}
+        items={[
+          { label: "Levels", value: String(levels.length), icon: <LayersIcon className="h-4 w-4" /> },
+          { label: "Students", value: String(overall.students), icon: <UsersIcon className="h-4 w-4" /> },
+        ]}
+      />
 
       {needsYou}
 
@@ -443,11 +411,11 @@ function InstituteHome({
             {levels.map((l) => (
               <Tr key={l.id}>
                 <Td label="Level">
-                  <ArrowLink href={`${base}?level=${l.id}`} className="min-h-11 font-medium sm:min-h-0">
+                  <ArrowLink href={`${base}?level=${l.id}`} className="min-h-11 font-semibold sm:min-h-0">
                     {l.name}
                   </ArrowLink>
                 </Td>
-                <Td label="Standard grant" className="text-muted-fg">
+                <Td label="Standard grant" tone="muted">
                   {l.standardMinutes !== null
                     ? standardLabel(l.standardMinutes, l.standardDays)
                     : standardLabel(programStandard.standardMinutes, programStandard.standardDays)}

@@ -14,9 +14,9 @@ export type ButtonSize = "xs" | "sm" | "md";
 /** Brand (blue) = actions (DESIGN.md). No accent-colored buttons — orange is
  * reserved for hours/progress. Red only for destructive. */
 const VARIANTS: Record<ButtonVariant, string> = {
-  // Flat. iOS's filled button has no drop shadow, and a shadow under the one
-  // blue thing on the screen was the web-button tell beside flat grey fills.
-  primary: "bg-brand text-on-brand hover:bg-brand-dark",
+  // Lit from above (`sheen`): a flat blue slab beside flat grey fills made the
+  // one thing to press the dullest thing on the screen.
+  primary: "sheen bg-brand text-on-brand hover:bg-brand-dark",
   // A grey tinted fill with brand text — iOS's secondary button — not an
   // outlined brand button that INVERTS to solid blue on hover. The inverting
   // version shouted: a secondary action that turns into the loudest thing on

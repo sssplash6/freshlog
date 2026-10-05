@@ -50,14 +50,14 @@ function TabContent({ item, active }: { item: NavItem; active: boolean }) {
         />
         {/* The count rides the icon's corner, where a phone expects a badge. */}
         {item.count != null && item.count > 0 && (
-          <span className="absolute -right-2.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[0.625rem] font-bold text-on-brand">
+          <span className="absolute -right-2.5 -top-1 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-brand px-1 text-[0.6875rem] font-bold text-on-brand">
             {item.count > 99 ? "99+" : item.count}
           </span>
         )}
       </span>
       <span
         className={cn(
-          "max-w-full truncate text-center text-[0.6875rem] font-medium leading-tight",
+          "max-w-full truncate text-center text-[0.75rem] font-medium leading-snug",
           lit ? "text-brand" : "text-muted-fg",
         )}
       >
@@ -174,7 +174,7 @@ export function TabBar({
               trigger={
                 <>
                   <MoreHorizontalIcon className="h-6 w-6" />
-                  <span className="text-[0.6875rem] font-medium leading-tight">More</span>
+                  <span className="text-[0.75rem] font-medium leading-snug">More</span>
                 </>
               }
             >

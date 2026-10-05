@@ -215,7 +215,7 @@ export function ProgramTargetsPicker({
             return (
               <span
                 key={t}
-                className="inline-flex items-center gap-1 rounded-full bg-brand-soft py-0.5 pl-2.5 pr-1 text-xs font-medium text-brand"
+                className="inline-flex items-center gap-1 rounded-full bg-brand-soft py-[0.1875rem] pl-2.5 pr-1 text-xs font-medium text-brand"
               >
                 {label}
                 <button

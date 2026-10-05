@@ -59,7 +59,7 @@ export function ErrorState({
       {error.digest && (
         <p className="mt-5 text-[0.8125rem] text-muted-fg">
           If it keeps happening, quote this code:{" "}
-          <code className="rounded bg-fill px-1.5 py-0.5 font-mono text-[0.6875rem] text-ink">
+          <code className="rounded bg-fill px-1.5 py-0.5 font-mono text-[0.75rem] text-ink">
             {error.digest}
           </code>
         </p>

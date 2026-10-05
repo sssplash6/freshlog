@@ -306,14 +306,14 @@ function AllocationPerson({ entry }: { entry: AllocationEntry }) {
   // Crowned, as it is in the agenda: the balance the rest is drawn from.
   if (entry.bank) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
+      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink">
         <CrownIcon className="h-4 w-4 shrink-0 text-accent-ink" />
         Hour bank
       </span>
     );
   }
   if (entry.mentor) {
-    return <PersonChip person={entry.mentor} size="sm" href={entry.mentor.href} />;
+    return <PersonChip person={entry.mentor} size="sm" href={entry.mentor.href} lead />;
   }
   return <StatusChip severity="attention">Needs a mentor</StatusChip>;
 }
@@ -377,8 +377,9 @@ export function AllocationRow({
       <Td
         label="Remaining"
         align="right"
+        tone="key"
         className={cn(
-          "font-medium tabular-nums",
+          "tabular-nums",
           entry.remaining < 0 ? "text-danger-ink" : "text-ink"
         )}
       >
@@ -393,7 +394,7 @@ export function AllocationRow({
       </Td>
       {/* Last, and muted: the commitment (the grant, or the plan past it) is
           context for the three delivery figures before it. */}
-      <Td label="Assigned" align="right" className="tabular-nums text-muted-fg">
+      <Td label="Assigned" align="right" tone="muted" className="tabular-nums">
         <span className="inline-flex items-center justify-end gap-1.5">
           {formatDuration(entry.assigned ?? entry.allocated)}
           {assignedActions}
@@ -404,7 +405,11 @@ export function AllocationRow({
           {entry.amountPaid != null ? formatMoney(entry.amountPaid) : <Dash />}
         </Td>
       )}
-      {actions !== undefined && <Td align="right">{actions}</Td>}
+      {actions !== undefined && (
+        <Td align="right" corner>
+          {actions}
+        </Td>
+      )}
     </Tr>
   );
 }
@@ -434,7 +439,7 @@ export function AllocationsTable({
     { label: "Mentor" },
     { label: "Completed", align: "right" },
     { label: "Missed", align: "right" },
-    { label: "Remaining", align: "right" },
+    { label: "Remaining", align: "right", emphasis: "key" },
     { label: "Assigned", align: "right" },
     ...(showAmountPaid ? [{ label: "Paid", align: "right" } as Column] : []),
     ...(withActions ? [{ label: "", align: "right" } as Column] : []),

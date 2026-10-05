@@ -456,7 +456,7 @@ function PersonRow({ person }: { person: SearchPerson }) {
   const detail = person.programs.length > 0 ? person.programs.join(" · ") : person.email;
   return (
     <>
-      <Avatar person={face} className="h-7 w-7 text-[0.6875rem]" />
+      <Avatar person={face} className="h-7 w-7 text-[0.75rem]" />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="min-w-0 truncate font-medium">{person.name ?? person.email}</span>
         <span className="min-w-0 truncate text-xs text-muted-fg">{detail}</span>

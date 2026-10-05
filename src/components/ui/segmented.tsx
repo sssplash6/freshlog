@@ -293,7 +293,7 @@ export function TabLinks({
             {item.label}
             {item.count != null && (
               <span
-                className="text-[0.6875rem] tabular-nums text-muted-fg"
+                className="text-[0.75rem] tabular-nums text-muted-fg"
               >
                 {item.count}
               </span>

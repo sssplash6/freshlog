@@ -1,3 +1,4 @@
+import { InboxIcon, SearchIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 
 /**
@@ -49,13 +50,18 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "rise-in flex flex-col items-center gap-1 px-6 py-8 text-center",
+        "rise-in flex flex-col items-center gap-1 px-6 py-10 text-center",
         framed && "rounded-xl bg-surface shadow-sm",
         className
       )}
     >
-      {icon && (
-        <div className="pop-in mb-1 text-muted-fg/40 [&_svg]:h-8 [&_svg]:w-8">{icon}</div>
+      {/* A glyph in a soft disc, so an empty card has a shape to look at and
+          not just a sentence in white. Only in a card of its own: inside a
+          list that already has a frame it would be a second thing to read. */}
+      {(icon ?? framed) && (
+        <div className="pop-in mb-2 grid h-11 w-11 place-items-center rounded-full bg-fill text-muted-fg [&_svg]:h-5 [&_svg]:w-5">
+          {icon ?? (variant === "no-results" ? <SearchIcon /> : <InboxIcon />)}
+        </div>
       )}
       {title && (
         <p

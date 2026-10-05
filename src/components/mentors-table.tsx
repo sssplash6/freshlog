@@ -48,7 +48,7 @@ const COLUMNS: Column[] = [
   { label: "Mentor" },
   { label: "Programs" },
   { label: "Booking links", className: "whitespace-nowrap" },
-  { label: "Students", align: "right" },
+  { label: "Students", align: "right", emphasis: "key" },
 ];
 
 export function MentorsTable({
@@ -147,7 +147,14 @@ export function MentorsTable({
 
             <Td label="Programs" className="text-ink sm:min-w-56 lg:min-w-72" data-fold>
               {m.programs.length > 0 ? (
-                m.programs.join(" · ")
+                // One per line. Joined with " · " they wrapped wherever the
+                // column ran out, so "Master's" sat on one line and "Program"
+                // on the next, and two programs read as three.
+                <span className="flex flex-col gap-y-0.5">
+                  {m.programs.map((name) => (
+                    <span key={name} className="min-w-0 truncate">{name}</span>
+                  ))}
+                </span>
               ) : (
                 <span className="text-muted-fg">—</span>
               )}
@@ -172,9 +179,9 @@ export function MentorsTable({
               )}
             </Td>
 
-            <Td label="Students" align="right" className="tabular-nums" data-fold>
+            <Td label="Students" align="right" tone="key" className="tabular-nums" data-fold>
               {m.students > 0 ? (
-                <span className="font-medium text-ink">{m.students}</span>
+                m.students
               ) : (
                 <span className="text-muted-fg">—</span>
               )}

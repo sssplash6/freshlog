@@ -110,7 +110,7 @@ export function HoursRing({
           className="mt-1 font-medium text-muted-fg"
           // Scaled with the figure, so a 96px ring's caption is not the 12px a
           // 132px one wears — it crowded the stroke.
-          style={{ fontSize: Math.max(10, Math.round(size * 0.1)) }}
+          style={{ fontSize: Math.max(11, Math.round(size * 0.1)) }}
         >
           {overdrawn ? "over" : "remaining"}
         </div>

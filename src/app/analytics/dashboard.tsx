@@ -521,31 +521,32 @@ function Hero({
           the six supporting figures under a hairline at a third of its size —
           they used to be six tinted tiles beside it, which read as seven
           numbers of equal weight. */}
-      <div className="px-4 py-3 sm:px-5">
-        <div className="flex items-baseline gap-1.5 tabular-nums" aria-label={formatDuration(t.hours)}>
-          <span className="text-[2.625rem] font-semibold leading-none tracking-tight text-accent-ink">
-            {hours < 100 ? hours.toFixed(1) : Math.round(hours).toLocaleString("en-US")}
-          </span>
-          <span className="text-[1.0625rem] font-medium text-muted-fg">hours</span>
+      <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4 bg-[radial-gradient(26rem_11rem_at_0%_0%,var(--color-accent-soft),transparent_75%)] px-4 py-3 sm:px-5">
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-1.5 tabular-nums" aria-label={formatDuration(t.hours)}>
+            <span className="text-[2.625rem] font-semibold leading-none tracking-tight text-accent-ink">
+              {hours < 100 ? hours.toFixed(1) : Math.round(hours).toLocaleString("en-US")}
+            </span>
+            <span className="text-[1.0625rem] font-medium text-muted-fg">hours</span>
+          </div>
+          <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted-fg">
+            {/* It read "New none same period 2025": a badge and a fragment
+                that only parsed together. With nothing to compare against,
+                say so in a sentence instead of a figure. */}
+            {delta == null ? (
+              <span>Nothing logged in {compare.against} to compare with</span>
+            ) : (
+              <>
+                <Delta value={delta} />
+                <span>vs {compare.against}</span>
+              </>
+            )}
+          </p>
         </div>
-        <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted-fg">
-          {/* It read "New none same period 2025": a badge and a fragment
-              that only parsed together. With nothing to compare against,
-              say so in a sentence instead of a figure. */}
-          {delta == null ? (
-            <span>Nothing logged in {compare.against} to compare with</span>
-          ) : (
-            <>
-              <Delta value={delta} />
-              <span>vs {compare.against}</span>
-            </>
-          )}
-        </p>
-        <p className="mt-0.5 text-[0.8125rem] text-muted-fg">
-          <span className="font-medium tabular-nums text-ink">{formatDuration(t.completed)}</span> in plan
-          {" · "}
-          <span className="font-medium tabular-nums text-ink">{formatDuration(t.extra)}</span> extra
-        </p>
+        {/* In plan against extra, drawn. It was a sentence under the figure and
+            the right two thirds of the card were empty; the split is the one
+            thing about a period's hours that is a proportion, so it is a bar. */}
+        <PlanSplit completed={t.completed} extra={t.extra} />
       </div>
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-line px-4 py-3 sm:grid-cols-3 sm:px-5 lg:grid-cols-6">
         <Stat label="Sessions" value={t.sessions.toLocaleString("en-US")} hint={`${shortHours(avg)} on average`} />
@@ -564,6 +565,41 @@ function Hero({
         <Stat label="Per week" value={shortHours(t.hours / weeksSpanned(year, month, today))} hint="average" />
       </dl>
     </Section>
+  );
+}
+
+/** Hours in plan against hours beyond it, as one proportional bar. */
+function PlanSplit({ completed, extra }: { completed: number; extra: number }) {
+  const total = completed + extra;
+  const extraPct = total > 0 ? (extra / total) * 100 : 0;
+  return (
+    <div
+      className="w-full min-w-0 sm:w-72 lg:w-80"
+      role="img"
+      aria-label={`${formatDuration(completed)} in plan, ${formatDuration(extra)} extra`}
+    >
+      <div className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-fill">
+        {total > 0 && (
+          <>
+            <span className="h-full rounded-full bg-accent" style={{ width: `${100 - extraPct}%` }} />
+            {extra > 0 && (
+              <span
+                className="h-full rounded-full bg-accent"
+                style={{ width: `${extraPct}%`, opacity: EXTRA_OPACITY }}
+              />
+            )}
+          </>
+        )}
+      </div>
+      <div className="mt-2 flex justify-between gap-4 text-[0.8125rem] text-muted-fg">
+        <span>
+          <span className="font-medium tabular-nums text-ink">{formatDuration(completed)}</span> in plan
+        </span>
+        <span>
+          <span className="font-medium tabular-nums text-ink">{formatDuration(extra)}</span> extra
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -843,6 +879,7 @@ function Columns({
                     </div>
                   )}
                   {!thin && total > 0 && <span className={s.capLabel}>{shortHours(total)}</span>}
+                  {!thin && total === 0 && <div className={s.empty} />}
                   <div className={s.stack}>
                     {c.segments.map((x, k) =>
                       x.value > 0 ? (
@@ -948,7 +985,7 @@ function ProgramCards({
                 <Dot color={color} />
                 <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-medium text-ink">{p.name}</span>
                 {p.archived && (
-                  <span className="shrink-0 rounded-full bg-fill px-2 py-0.5 text-xs font-medium text-muted-fg">Archived</span>
+                  <span className="shrink-0 rounded-full bg-fill px-2.5 py-[0.1875rem] text-xs font-medium text-muted-fg">Archived</span>
                 )}
                 <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg/60 transition-transform group-hover:translate-x-0.5" />
               </span>
@@ -1042,7 +1079,10 @@ function Leaderboard({
       title={title}
       eyebrow={`${withRank ? "Ranked by" : "Most"} hours with students in ${period}. Open a mentor to see every month.`}
       action={
+        // `py-2.5` cancels the action slot's -my-2, which is for a 44px link
+        // and left this 12px legend hard against the top edge of the card.
         <Legend
+          className="py-2.5"
           items={[
             { label: "In plan", color: DEFAULT, opacity: 1 },
             { label: "Extra", color: DEFAULT, opacity: EXTRA_OPACITY },

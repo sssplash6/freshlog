@@ -326,7 +326,7 @@ export function TaskRow({
     return (
       <li
         id={anchor}
-        className={cn("px-4 py-3 sm:px-5", index != null && "deal-in")}
+        className={cn("relative px-4 py-3 sm:px-5", index != null && "deal-in")}
         style={stagger}
       >
         {/* Two columns from sm up, because the one-column version left the
@@ -336,7 +336,7 @@ export function TaskRow({
             baseline as the title it belongs to. Below sm they stack, which is
             the only shape that fits 390px. */}
         <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
-          <div className="min-w-0 flex-1 basis-56">
+          <div className="min-w-0 flex-1 basis-56 max-sm:pr-10">
             {/* WHEN it is due, beside WHAT it is. The date used to sit in the
                 right-hand column under the hours, so a row said what the work
                 costs twice over and never once said when it is wanted next to
@@ -383,7 +383,11 @@ export function TaskRow({
             {meter && <div className="mt-1.5">{meter}</div>}
           </div>
 
-          {actions && <span className="shrink-0">{actions}</span>}
+          {/* In the corner on a phone, where it was a line of its own under
+              the meter: the same corner a table row's menu takes (`Td corner`). */}
+          {actions && (
+            <span className="shrink-0 max-sm:absolute max-sm:right-2 max-sm:top-1.5">{actions}</span>
+          )}
         </div>
       </li>
     );
@@ -446,7 +450,7 @@ export function TaskRow({
             );
           case "actions":
             return (
-              <Td key={slot} align="right" className="align-top">
+              <Td key={slot} align="right" corner className="align-top">
                 {actions}
               </Td>
             );

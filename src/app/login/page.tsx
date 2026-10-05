@@ -33,8 +33,15 @@ export default async function LoginPage({
     : null;
 
   return (
-    <main className="flex flex-1 items-center justify-center bg-canvas p-6">
-      <div className="w-full max-w-sm rounded-2xl bg-surface p-8 shadow-sm">
+    <main className="relative isolate flex flex-1 items-center justify-center overflow-hidden bg-canvas p-6">
+      {/* The page glow, drawn larger: this is the one screen with nothing else
+          on it, so the pools of brand blue and hours orange can be seen whole.
+          Held to 16% and 12% so the card's grey caption stays above AA. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(38rem_28rem_at_50%_42%,color-mix(in_oklab,var(--color-brand)_15%,transparent),transparent_70%),radial-gradient(30rem_22rem_at_78%_88%,color-mix(in_oklab,var(--color-accent)_12%,transparent),transparent_70%)]"
+      />
+      <div className="w-full max-w-sm rounded-2xl bg-surface p-8 shadow-lg">
         {/* The product's name once, as the wordmark every other page wears,
             and the school's once, as the quiet line above the greeting. */}
         <div className="mb-8 flex flex-col items-center text-center">
@@ -63,9 +70,9 @@ export default async function LoginPage({
           }}
         >
           <SubmitButton
-            variant="secondary"
+            variant="ghost"
             pendingText="Opening Google…"
-            className="w-full gap-3 text-ink"
+            className="w-full gap-3 bg-surface text-ink shadow-sm ring-1 ring-line hover:bg-canvas"
           >
             <GoogleIcon />
             Continue with Google

@@ -82,7 +82,7 @@ export function BookingLinksForm({
         <span className="flex items-center gap-2 text-[1.0625rem] font-semibold text-ink">
           Your booking links
           {missing > 0 && (
-            <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-medium text-warn-ink">
+            <span className="rounded-full bg-warn-soft px-2.5 py-[0.1875rem] text-xs font-medium text-warn-ink">
               {missing} missing
             </span>
           )}

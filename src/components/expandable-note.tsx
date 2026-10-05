@@ -1,3 +1,4 @@
+import { ChevronRightIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 
 /**
@@ -37,12 +38,7 @@ export function ExpandableNote({
           className
         )}
       >
-        <span
-          aria-hidden="true"
-          className="mt-0.5 shrink-0 text-[0.5625rem] transition-transform group-open/note:rotate-90"
-        >
-          ▸
-        </span>
+        <ChevronRightIcon className="mt-[0.1875rem] h-3.5 w-3.5 shrink-0 transition-transform group-open/note:rotate-90" />
         <span className="line-clamp-1 min-w-0 whitespace-pre-line group-open/note:line-clamp-none">
           {text}
         </span>

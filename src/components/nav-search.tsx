@@ -56,7 +56,7 @@ export function NavSearch({ mentors }: { mentors: boolean }) {
       >
         <SearchIcon className="h-4 w-4 shrink-0" />
         <span className="min-w-0 flex-1 truncate">{placeholder}</span>
-        <kbd className="shrink-0 rounded-md bg-surface/70 px-1.5 py-0.5 font-sans text-[0.6875rem] font-medium text-muted-fg">
+        <kbd className="shrink-0 rounded-md bg-surface/70 px-1.5 py-[0.1875rem] font-sans text-[0.75rem] font-medium text-muted-fg">
           {shortcut}
         </kbd>
       </button>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ComponentProps } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import { ChevronDownIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 
 /**
@@ -64,21 +65,25 @@ export function SortHeader({
       href={`${pathname}?${next.toString()}`}
       scroll={false}
       className={cn(
-        "group inline-flex items-center gap-1 transition-colors hover:text-ink",
-        active && "text-ink",
+        "group inline-flex items-center gap-0.5 align-middle transition-colors hover:text-ink",
+        // The ordering column says so in the one colour that means "this is
+        // live"; the rest wear no arrow until the pointer or focus asks. An
+        // arrow on every heading was six marks per row of labels, and the one
+        // that mattered looked like the others.
+        active && "text-brand hover:text-brand",
         align === "right" && "flex-row-reverse"
       )}
     >
       {children}
-      <span
-        aria-hidden="true"
+      <ChevronDownIcon
         className={cn(
-          "text-[0.5625rem] leading-none transition-opacity",
-           active ? "opacity-100" : "opacity-40"
+          "h-3.5 w-3.5 shrink-0 transition-[opacity,transform]",
+          // Up for A to Z, down for Z to A, and a quiet "up" ghost on a column
+          // that is not in force, so it still reads as a control.
+          !descending && "rotate-180",
+          active ? "opacity-100" : "opacity-0 group-hover:opacity-60 group-focus-visible:opacity-60"
         )}
-      >
-        {descending ? "▼" : "▲"}
-      </span>
+      />
       <span className="sr-only">
         {active
           ? descending

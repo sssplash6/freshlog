@@ -391,7 +391,11 @@ export default async function StudentWorkspacePage({
         // The programs, and nothing else. "Student ·" in front of them said
         // what the back-link two lines above already says, on a page whose
         // subject is a person with their face beside their name.
-        eyebrow={enrollmentsLabel(enrollments)}
+        // Not when the back link already says the same thing: from a program's
+        // page the two lines read the program name twice, one under the other.
+        eyebrow={
+          enrollmentsLabel(enrollments) === back.label ? undefined : enrollmentsLabel(enrollments)
+        }
         // The mentor's page opens with their face; the student's opened with
         // nothing, on the same data model. A person's own page is the one place
         // identity is unambiguously the subject.

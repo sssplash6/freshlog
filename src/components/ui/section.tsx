@@ -99,7 +99,9 @@ export function PageTitle({
   return (
     <div
       className={cn(
-        "space-y-2",
+        // A back link has to clear the title block under it: at 8px the eyebrow
+        // sat hard against it, two lines of the same small grey.
+        backHref ? "space-y-3" : "space-y-2",
         // THE BELL'S LANE. At `lg` the staff shell pins the bell to the
         // window's top right corner, level with the first line of the page. A
         // page with a back link already starts its title row below it; one
@@ -230,7 +232,9 @@ export function Section({
                 without it the text sets the width and the row grows instead. */}
             <span className="min-w-0 truncate">{title}</span>
             {count != null && (
-              <span className="shrink-0 text-[0.9375rem] font-medium tabular-nums text-muted-fg">
+              // A capsule, so the count reads as a count of the title rather
+              // than the last word of it ("Your students 13").
+              <span className="shrink-0 self-center rounded-full bg-fill px-2 py-0.5 text-[0.75rem] font-semibold tabular-nums text-muted-fg">
                 {count}
               </span>
             )}
@@ -248,6 +252,8 @@ export function Section({
           <p className="text-[0.8125rem] text-muted-fg">{caption}</p>
         ) : null}
       </div>
+      {/* The same edge a framed `Table` has, so a table reads the same
+          whether it sits in a section or on the page. */}
       <div className={cn("overflow-clip rounded-xl bg-surface shadow-sm", className)}>
         {children}
       </div>

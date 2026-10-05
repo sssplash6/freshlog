@@ -24,6 +24,7 @@ import {
   parseNameField,
   type ActionState,
 } from "@/lib/actions/shared";
+import { claimEmail, removeStub } from "@/lib/sign-up-stub";
 
 /**
  * Self-signup step 2 for mentors: capture the full name Google didn't supply,
@@ -253,10 +254,12 @@ export async function updateMentor(
     if (denied) return denied;
   }
 
-  const emailTaken = await prisma.user.findUnique({ where: { email } });
-  if (emailTaken && emailTaken.id !== mentorId) {
-    return { ok: false, error: `${email} already has an account.` };
-  }
+  // A mentor whose address was wrong has usually signed in with the right one
+  // already, and landed as a pending student on it. That stub goes; a real
+  // account on the address still refuses.
+  const claim = await claimEmail(actor, email, mentorId);
+  if ("error" in claim) return { ok: false, error: claim.error };
+  const { stub } = claim;
 
   const targets = await resolveAssignmentTargets(formData.getAll("targets"));
   if (!targets) return { ok: false, error: "Pick a program or cohort." };
@@ -296,6 +299,7 @@ export async function updateMentor(
   }
 
   await prisma.$transaction(async (tx) => {
+    if (stub) await removeStub(tx, stub);
     if (detailsChanged) {
       await tx.user.update({ where: { id: mentorId }, data: { name, email } });
     }
@@ -339,7 +343,12 @@ export async function updateMentor(
   });
 
   revalidatePath("/", "layout");
-  return { ok: true, message: `${name} updated.` };
+  return {
+    ok: true,
+    message:
+      `${name} updated.` +
+      (stub ? ` The student sign-up ${email} had made was removed.` : ""),
+  };
 }
 
 /**

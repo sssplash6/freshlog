@@ -1,5 +1,4 @@
-import { DensityToggle } from "@/components/density-toggle";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { DensityChoice, ThemeChoice } from "@/components/display-choices";
 import { BookingLinksForm } from "@/components/forms/booking-link-form";
 import { AvatarForm, OwnNameForm } from "@/components/forms/profile-forms";
 import {
@@ -144,14 +143,14 @@ export default async function SettingsPage() {
             description="Light or dark, for this browser."
             trailing
             className="max-sm:border-b-0"
-            control={<ThemeToggle inline className="w-32 sm:w-48" />}
+            control={<ThemeChoice />}
           />
           <SettingsRow
             label="Density"
             description="How tightly tables and text pack on a larger screen. Phones always keep full-size controls."
             trailing
             className="max-sm:hidden"
-            control={<DensityToggle inline className="w-48" />}
+            control={<DensityChoice />}
           />
         </div>
       </Section>

@@ -186,8 +186,8 @@ export default async function MentorsPage({
       {/* The roster's size as the eyebrow, not a grey "· 5" set in the 32px
           title, where a count read as part of the name. */}
       <PageTitle
-        eyebrow={`${roster} ${roster === 1 ? "mentor" : "mentors"}`}
         title="Mentors"
+        subtitle={`${roster} ${roster === 1 ? "mentor" : "mentors"}`}
       />
 
       {/* Under the title rather than in its actions row: the fold opens into a

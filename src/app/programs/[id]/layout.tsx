@@ -1,12 +1,13 @@
+import { CheckIcon, LayersIcon, UsersIcon } from "@/components/icons";
 import { LinkButton } from "@/components/ui/button";
 import { PageTitle } from "@/components/ui/section";
+import { StatStrip } from "@/components/ui/stat-strip";
 import { TabLinks } from "@/components/ui/segmented";
 import { ProgramDot } from "@/components/program-chip";
 import { StatusChip } from "@/components/ui/status-chip";
 import { adminScope } from "@/lib/authz";
 import { requireProgramScope } from "@/lib/dal";
 import { formatRough } from "@/lib/format";
-import { cn } from "@/lib/cn";
 import { programTotals } from "@/lib/hours";
 
 import {
@@ -121,16 +122,18 @@ export default async function ProgramLayout({
           request: Total is what the students hold in all — the hour bank,
           where the program has one. Colour is on the VALUE and only where the
           value is a problem. */}
-      <dl className="flex flex-wrap gap-x-8 gap-y-3 px-1">
-        <ProgramMetric label="Students" value={String(totals.students)} />
-        <ProgramMetric label="Completed" value={formatRough(totals.completed)} />
-        <ProgramMetric
-          label="Remaining"
-          value={formatRough(totals.remaining)}
-          tone={totals.remaining < 0 ? "danger" : undefined}
-        />
-        <ProgramMetric label="Total" value={formatRough(totals.allotted)} />
-      </dl>
+      <StatStrip
+        lead={{
+          label: "Remaining",
+          value: formatRough(totals.remaining),
+          tone: totals.remaining < 0 ? "danger" : "hours",
+        }}
+        items={[
+          { label: "Students", value: String(totals.students), icon: <UsersIcon className="h-4 w-4" /> },
+          { label: "Completed", value: formatRough(totals.completed), icon: <CheckIcon className="h-4 w-4" /> },
+          { label: "Total", value: formatRough(totals.allotted), icon: <LayersIcon className="h-4 w-4" /> },
+        ]}
+      />
 
       {/* A leveled program's roster comes in its levels as well as whole:
           one tab per level, each the roster narrowed by `?level=`. They are
@@ -155,31 +158,6 @@ export default async function ProgramLayout({
       />
 
       {children}
-    </div>
-  );
-}
-
-function ProgramMetric({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  /** Only for a figure that is a problem. Everything else is ink. */
-  tone?: "warn" | "danger";
-}) {
-  return (
-    <div>
-      <dt className="text-[0.8125rem] text-muted-fg">{label}</dt>
-      <dd
-        className={cn(
-          "mt-0.5 text-[1.25rem] font-semibold tabular-nums",
-          tone === "warn" ? "text-warn-ink" : tone === "danger" ? "text-danger-ink" : "text-ink",
-        )}
-      >
-        {value}
-      </dd>
     </div>
   );
 }

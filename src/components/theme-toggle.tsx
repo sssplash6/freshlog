@@ -4,6 +4,38 @@ import { MoonIcon, SunIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 
 /**
+ * Set the theme, as a crossfade where the browser can do one. Shared by the
+ * account menu's toggle and the Settings page's Light / Dark choice, so both
+ * remember the choice the same way.
+ */
+export function applyTheme(next: "light" | "dark") {
+  const root = document.documentElement;
+  const apply = () => {
+    root.dataset.theme = next;
+    try {
+      localStorage.setItem("theme", next);
+    } catch {
+      // A browser blocking site data still gets the theme for this page; it
+      // just will not remember it. Losing the preference beats throwing.
+    }
+  };
+  // Where supported, the swap is a crossfade — the whole interface morphs
+  // into the other theme rather than snapping. The "theme" type lets the
+  // chrome captures join the fade (globals.css) instead of holding still
+  // the way they do on page pushes. Browsers without the API (Safari <
+  // 18.4) get the same instant flip they always had.
+  const doc = document as Document & {
+    startViewTransition?: (opts: {
+      update: () => void;
+      types: string[];
+    }) => unknown;
+  };
+  if (doc.startViewTransition)
+    doc.startViewTransition({ update: apply, types: ["theme"] });
+  else apply();
+}
+
+/**
  * Light or dark, remembered per browser.
  *
  * NO REACT STATE, deliberately. The theme already lives in one place — the
@@ -36,33 +68,8 @@ export function ThemeToggle({
    */
   inline?: boolean;
 }) {
-  const flip = () => {
-    const root = document.documentElement;
-    const next = root.dataset.theme === "dark" ? "light" : "dark";
-    const apply = () => {
-      root.dataset.theme = next;
-      try {
-        localStorage.setItem("theme", next);
-      } catch {
-        // A browser blocking site data still gets the theme for this page; it
-        // just will not remember it. Losing the preference beats throwing.
-      }
-    };
-    // Where supported, the swap is a crossfade — the whole interface morphs
-    // into the other theme rather than snapping. The "theme" type lets the
-    // chrome captures join the fade (globals.css) instead of holding still
-    // the way they do on page pushes. Browsers without the API (Safari <
-    // 18.4) get the same instant flip they always had.
-    const doc = document as Document & {
-      startViewTransition?: (opts: {
-        update: () => void;
-        types: string[];
-      }) => unknown;
-    };
-    if (doc.startViewTransition)
-      doc.startViewTransition({ update: apply, types: ["theme"] });
-    else apply();
-  };
+  const flip = () =>
+    applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
 
   return (
     <button

@@ -7,10 +7,23 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-05
 
 ### New
+- **Headline figures stand out.** Home, a program's page and a mentor's Home open with one panel: hours remaining large on a warm background, with the other figures beside it.
+- **Theme and Density show their choices.** Settings now offers Light or Dark, and Compact, Default or Comfortable, side by side with the current one highlighted, instead of one button that cycles.
+- **Sign-in looks the part.** A soft glow behind the card, and a white Continue with Google button.
+- **What's new looks the part.** A summary of the past week, a timeline of days, a card for each change, and a soft glow behind every page. Blue buttons are lit from above and the current page is marked in the sidebar.
 - **What's new is quicker to skim.** Every update now has a short headline, with a line of detail under it.
 - **What's new beside the bell.** On a laptop it sits in the top right corner, with a blue dot when something is unread, instead of inside the account menu.
+- **Tables are easier to read.** Column headings sit on their own shaded band, every other row is lightly shaded, and each table and card has a clear edge. Names are bold, the figure you look for most (like hours remaining) sits in a highlighted column, and dates and totals step back in grey. Sort arrows show only on the column you sorted by, or when you point at a heading.
 
 ### Fixed
+- **Mentors can move to their sign-in address.** A mentor who signed in with a different Google account than the one on file was made a student there, and changing their email to it said "already has an account". The change now removes that empty student sign-up and the mentor gets their own pages back.
+- **Names are no longer clipped.** Letters with tails, like y, p and g, were cut off in the compact name chips on session rows and tables.
+- **Small text is easier to read.** Emails, captions and column headings are a little larger, initials in small avatars are bigger, and the sort arrows are clean chevrons.
+- **Row menus no longer take a line on a phone.** On a phone, the ⋮ menu on agenda items, time by mentor and the mentor's student list sits in the row's corner instead of under it.
+- **A mentor's student list fits a tablet.** Names are no longer cut to a few letters: the last-session column steps aside on a tablet, and shows again on a laptop.
+- **Analytics reads at a glance.** The hours card shows in-plan against extra as a bar, the monthly chart has wider bars with their values printed above them, and empty months show a small mark instead of nothing.
+- **Table headings stay on one line.** A heading like "Lowest recent" no longer wraps and pushes its column out of line.
+- **Rows light up under the pointer.** The row you point at takes a soft blue tint, and empty cards show a small icon.
 - **Sign out is always in reach.** The account menu opens as tall as it needs to, so Theme, Density and Sign out are no longer hidden below a scroll, and the session edit panel shows its Done, Void and Delete buttons.
 - **Mentors list reads properly.** Program names and the booking-link badge no longer squash into tall columns.
 - **Students fit a tablet.** The student lists no longer scroll sideways at tablet width, and a student's page keeps "Allocate time" in view.

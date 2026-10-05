@@ -45,11 +45,17 @@ export function PersonChip({
   person,
   size = "md",
   href,
+  lead = false,
   className,
 }: {
   person: Person;
   size?: "sm" | "md";
   href?: string;
+  /**
+   * The person a table row is ABOUT, in semibold like `PersonCell`, rather
+   * than somebody mentioned inside another row.
+   */
+  lead?: boolean;
   /**
    * Wear somebody else's hue.
    *
@@ -75,15 +81,17 @@ export function PersonChip({
     // agree, and they didn't: the pair sat at two heights with their top edges
     // a couple of pixels apart. Height is a property of the chip, not of who is
     // in it, so it is stated once here: 24px at `sm` (a 20px avatar in 2px of
-    // padding), 40px at `md` (32px in 4px). `leading-none` keeps a long name
-    // from arguing with it.
+    // padding), 40px at `md` (32px in 4px). The LABEL carries its own line
+    // height: it truncates, and a truncating box clips whatever pokes out of its
+    // line box — at `leading-none` that was the descender of every y, p and g.
     // No tinted pill. The person's colour lives in their avatar and only
     // there: a roster of tinted name-pills beside tinted status-pills was a
     // page of coloured lozenges nobody could rank, which is the "too many
     // colours" the owner kept pointing at. A face and a name, in ink.
-    "inline-flex max-w-full items-center rounded-full font-medium leading-none text-ink",
+    "inline-flex max-w-full items-center rounded-full text-ink",
+    lead ? "font-semibold" : "font-medium",
     sm
-      ? "h-6 gap-1.5 py-0.5 pr-0.5 text-[0.8125rem]"
+      ? "h-7 gap-1.5 py-0.5 pr-1.5 text-[0.8125rem]"
       : "h-10 gap-2 py-1 pr-1 text-sm",
     href &&
       "transition-colors hover:text-brand",
@@ -108,10 +116,10 @@ export function PersonChip({
         person={person}
         className={cn(
           "ring-inset",
-          sm ? "h-5 w-5 text-[0.5625rem]" : "h-8 w-8 text-[0.6875rem]"
+          sm ? "h-6 w-6 text-[0.6875rem]" : "h-8 w-8 text-[0.75rem]"
         )}
       />
-      <span className="min-w-0 truncate">{label}</span>
+      <span className="min-w-0 truncate leading-snug">{label}</span>
     </>
   );
 
@@ -181,9 +189,9 @@ export function PersonCell({
 
   const body = (
     <>
-      <Avatar person={person} className="h-8 w-8 shrink-0 text-[0.6875rem]" />
+      <Avatar person={person} className="h-8 w-8 shrink-0 text-[0.75rem]" />
       <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 flex-wrap items-center gap-x-2 font-medium text-ink group-hover:text-brand">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2 font-semibold text-ink group-hover:text-brand">
           <span className="min-w-0 truncate">{person.name ?? person.email}</span>
           {/* The name gives way FIRST, never the chip. These used to wrap
               freely to a second line, so a roster of forty stood at two
@@ -206,8 +214,11 @@ export function PersonCell({
             </span>
           )}
         </span>
+        {/* `py-0.5 -my-0.5`: a truncating box clips at its padding edge, and the
+            "Not signed in" chip that can sit in `sub` is taller than the line it
+            shares — its rounded corners were cut off by a pixel. */}
         {sub && (
-          <span className="block min-w-0 truncate text-xs text-muted-fg">
+          <span className="-my-0.5 block min-w-0 truncate py-0.5 text-xs text-muted-fg">
             {sub}
           </span>
         )}
@@ -254,7 +265,7 @@ export function PersonBadge({
     <Avatar
       person={person}
       title={person.name ?? person.email}
-      className={cn("h-6 w-6 text-[0.625rem] ring-2 ring-surface", className)}
+      className={cn("h-6 w-6 text-[0.6875rem] ring-2 ring-surface", className)}
     />
   );
 }

@@ -84,6 +84,12 @@
   background: var(--hover);
 }
 
+/* A column is a target, so its hover is a rounded well, not a hard rectangle
+   that cuts across the gridlines. */
+.col {
+  border-radius: 10px;
+}
+
 .col:focus-visible {
   outline: 2px solid var(--color-brand);
   outline-offset: -2px;
@@ -95,7 +101,7 @@
 
 .stack {
   width: 56%;
-  max-width: 24px;
+  max-width: 40px;
   display: flex;
   flex-direction: column-reverse;
   gap: 2px;
@@ -113,15 +119,38 @@
 }
 
 .seg {
+  position: relative;
+  overflow: hidden;
   width: 100%;
-  border-radius: 2px;
+  border-radius: 3px;
   transition: height 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
   transition-delay: var(--delay, 0ms);
 }
 
 .seg:last-child {
-  border-top-left-radius: 4px;
-  border-top-right-radius: 4px;
+  border-top-left-radius: 7px;
+  border-top-right-radius: 7px;
+}
+
+/* The light on the top of a bar. A pseudo-element, because the colour is an
+   inline `background` shorthand that would reset any gradient set here. */
+.seg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, transparent, rgb(255 255 255 / 0.14));
+  pointer-events: none;
+}
+
+/* A month with nothing in it still has a place on the axis: a short stub in
+   the gridline grey, so a row of empty months reads as empty, not as missing. */
+.empty {
+  width: 40%;
+  max-width: 18px;
+  height: 3px;
+  margin-bottom: 1px;
+  border-radius: 2px;
+  background: var(--color-line);
 }
 
 .thin .seg:last-child {
@@ -145,6 +174,15 @@
 .colActive .capLabel {
   opacity: 1;
   transform: none;
+}
+
+/* Wide enough to print every value, the chart does: eight bars and no numbers
+   above them made a reader hover each one to learn what it was. */
+@container (min-width: 36rem) {
+  .capLabel {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .xAxis {

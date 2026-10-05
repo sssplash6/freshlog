@@ -82,7 +82,39 @@ the reader would otherwise work out by reading.
 
 There is **no green**. "Nothing wrong" is a `✓` glyph in ink on a neutral chip,
 so the two colours that remain are never spent on good news. There are no
-gradients, tinted section headers or watermarks.
+tinted section headers or watermarks, and gradients are limited to the four
+places below.
+
+**Atmosphere (October 2026).** The owner called the product "flat and boring",
+and four gradients are now allowed, each in one place and nowhere else:
+
+- the **page glow** — two soft pools of brand blue and hours orange behind the
+  top of every page (`body` in globals.css, strengths in `--glow-*`). Peaks are
+  held so `muted-fg` stays above 4.5:1 under them; raise them and re-measure.
+- the **button sheen** — `sheen` on the primary button only.
+- the **hero panel** — `hero-brand`, for the one thing a page is announcing.
+  Today that is the changelog's "past seven days". One per page.
+- the **active nav marker** — a 3px brand bar on the selected sidebar row.
+
+- the **headline panel** — `StatStrip`, one per page: the lead figure over a
+  soft wash of its own tone (orange for hours, red when negative), with up to
+  three quieter figures each carrying a small glyph. Home, a program's page and
+  a mentor's Home use it. It is the one place a card may take `py-4`+.
+
+**The type scale** (rem, x0.94 on a laptop): 0.75 micro (counts, key hints,
+never a sentence) · **0.8125 xs** (secondary text, column headings — Tailwind's
+`text-xs` is re-pointed here in `@theme`, because its own 0.75 is 11.3px at the
+app's 94%) · 0.875 sm · 0.9375 body · 1.25 section title. Nothing below 0.75,
+and no initials in an avatar under 24px.
+
+**A truncating box clips at its padding edge.** Never put `leading-none` on text
+that truncates: the descenders of y, p and g are cut off. Give the label its own
+`leading-snug`, and give a clipping box room for anything taller than its line
+(a chip beside an email).
+
+The changelog also uses teal for "Fixed" beside brand blue for "New". It is a
+person tone borrowed because a long day has to scan by kind; do not extend it
+to other pages.
 
 ### The rule the build enforces
 
@@ -324,7 +356,9 @@ shared components so no page can opt out:
 
 - **The ground is iOS grouped grey** (`canvas` #f2f2f7; in dark a blue-grey #121417, never pure black — see the dark block in globals.css) and a
   card is plain white (`surface`), `rounded-xl`, no border, a shadow you have to
-  look for. A hairline goes *between rows*, never around a card.
+  look for. A hairline goes *between rows*. (Amended October 2026: `shadow-sm`
+  now carries a real 1px edge, so every resting card, table and stat strip
+  visibly stops where it ends — at 0.5px and 4% the edge was a guess.)
 - **A section's title sits on the page**, above its card — `Section` renders it
   so. There are no header bands inside cards and cards never nest.
 - **Sentence case everywhere.** Eyebrows, table headers, fact labels,
@@ -357,7 +391,8 @@ colour's meaning:
   chips and avatars. Tailwind's names, re-stepped in `@theme`; nested corners
   follow outer minus padding.
 - **Table headers stick** under the top bar (`--sticky-top`: the bar's height,
-  or 0 where the rail replaced it), in sentence case on a frosted tint. Sticky
+  or 0 where the rail replaced it), in sentence case and semibold on a solid `head` band under a
+  `line-strong` rule. Sticky
   needs no scroll container in between, which is why `Section` clips with
   `overflow-clip` rather than `overflow-hidden`, and why the table wrapper no
   longer scrolls sideways at all.
@@ -393,6 +428,18 @@ Chips wrap; status labels are capped at four words and the ≤12-word explanatio
 is a sibling line, not chip content. `truncate` on a flex child without
 `min-w-0` or a `max-w-` **fails the lint**, because it silently does nothing
 and that is why names in table cells blew their column open.
+
+**A table row has three levels and no more** (October 2026). The thing the
+row is about — `PersonCell`, or `PersonChip lead` — is semibold. The one figure
+the reader opened the table for is `Td tone="key"`, semibold and a step larger,
+and its column is `Column emphasis: "key"`: a faint brand band from the heading
+to the last row, one per table. Context — totals, last seen, "never" — is
+`tone="muted"`. Everything else is regular ink, and an ordinary date is regular
+too (only amber and red deadlines step out). Every other row is striped
+(`stripe`, translucent so the key band runs through it). Sort arrows show only
+on the sorted column, in brand, or on hover and focus. `cn` only joins, so
+never pass a weight or colour that races one the component already sets — add
+a prop.
 
 Every table is capped at **six columns**, a row stacks into labelled lines below
 `sm`, its header row sticks, and no table scrolls sideways at any width: nine columns do not fit a phone, and a

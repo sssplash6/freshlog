@@ -255,7 +255,7 @@ function Calendar({
         </span>
       </div>
 
-      <div className="grid grid-cols-7 text-center text-[0.6875rem] font-medium text-muted-fg">
+      <div className="grid grid-cols-7 text-center text-[0.75rem] font-medium text-muted-fg">
         {WEEKDAYS.map((d, i) => (
           <span key={i} className="py-1">
             {d}

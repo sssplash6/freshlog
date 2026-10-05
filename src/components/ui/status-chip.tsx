@@ -84,7 +84,7 @@ export function StatusChip({ className, glyph, explain, ...rest }: Props) {
       // carrying sentences like "Rescheduled, no time charged", so a narrow
       // column could not break it and the row grew sideways instead.
       className={cn(
-        "inline-flex items-baseline gap-1 rounded-full px-2 py-0.5 text-xs font-medium tracking-normal",
+        "inline-flex items-baseline gap-1 rounded-full px-2.5 py-[0.1875rem] text-xs font-medium tracking-normal",
         SURFACE[severity],
         className
       )}
@@ -159,7 +159,9 @@ export function DeadlineText({
           ? "font-semibold text-danger-ink"
           : soon
             ? "font-semibold text-warn-ink"
-            : "font-medium text-ink",
+            // An ordinary date is context, at the row's regular weight;
+            // only the two warnings above step out of it.
+            : "text-ink",
         className
       )}
     >

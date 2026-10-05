@@ -10,7 +10,7 @@ type Person = AvatarPerson & { name: string | null; email: string };
  * stacked badges, the profile header — gains pictures at the same moment.
  *
  * `className` carries the box: size, and the text size the initials fall back
- * to (`h-6 w-6 text-[0.625rem]`). Decorative by default — the name is right next to
+ * to (`h-6 w-6 text-[0.6875rem]`). Decorative by default — the name is right next to
  * it in a chip — so pass `alt` only where the picture stands alone.
  */
 export function Avatar({

@@ -91,7 +91,7 @@ function ProgramChips({
         <span key={e.program.id} className="flex min-w-0 items-center gap-x-1.5">
           <ProgramChip program={e.program} className="text-[0.8125rem]" />
           {e.exchangeId && (
-            <span className="shrink-0 whitespace-nowrap text-[0.6875rem] text-muted-fg">
+            <span className="shrink-0 whitespace-nowrap text-[0.75rem] text-muted-fg">
               (on exchange)
             </span>
           )}
@@ -181,6 +181,7 @@ export function StudentsTable({
       // that label lives on /mentor's caseload table, which does scope it.
       label: "Remaining",
       align: "right",
+      emphasis: "key",
       ...(on("remaining") ? { sort: "remaining", sortDir: "desc" as const } : {}),
     },
     {
@@ -317,34 +318,22 @@ export function StudentsTable({
             )}
 
             <Td label="Completed" align="right" className="tabular-nums" data-fold>
-              <span
-                className={cn(
-                  "font-medium",
-                  s.completedMinutes > 0 ? "text-ink" : "text-muted-fg"
-                )}
-              >
+              <span className={cn(s.completedMinutes > 0 ? "text-ink" : "text-muted-fg")}>
                 {formatDuration(s.completedMinutes)}
               </span>
             </Td>
 
-            <Td label="Total" align="right" className="tabular-nums" data-fold>
-              <span className="font-medium text-muted-fg">
-                {formatDuration(s.allottedMinutes)}
-              </span>
+            <Td label="Total" align="right" tone="muted" className="tabular-nums" data-fold>
+              {formatDuration(s.allottedMinutes)}
             </Td>
 
-            <Td label="Remaining" align="right" className="tabular-nums" data-fold>
-              <span
-                className={cn(
-                  "font-medium",
-                  overdrawn ? "text-danger-ink" : "text-ink"
-                )}
-              >
+            <Td label="Remaining" align="right" tone="key" className="tabular-nums" data-fold>
+              <span className={cn(overdrawn ? "text-danger-ink" : "text-ink")}>
                 {formatBalance(s.remainingMinutes)}
               </span>
             </Td>
 
-            <Td label="Last session" className="whitespace-nowrap text-muted-fg" data-fold>
+            <Td label="Last session" tone="muted" className="whitespace-nowrap" data-fold>
               {s.lastSessionAt ? formatDate(s.lastSessionAt) : "never"}
             </Td>
 

@@ -10,6 +10,16 @@
   --color-canvas: #f2f2f7; /* page background — iOS grouped */
   --color-surface: #ffffff; /* cards */
   --color-line: #e5e5ea; /* hairlines / tracks */
+  /* Table chrome. The header band is solid — it is sticky and has to hide
+     the rows passing under it. The stripe is translucent, so a key column's
+     band (a `<col>`, painted under the rows) runs unbroken through it rather
+     than showing on every other row. `line-strong` is the
+     one rule under a header and around a table's frame, a step darker than
+     the hairlines between rows, so the frame reads as the edge of a thing and
+     the rows inside it as divisions of it. */
+  --color-head: #f4f5f8;
+  --color-stripe: rgb(118 118 128 / 0.045);
+  --color-line-strong: #d6d7de;
 
   --color-brand: #124b84; /* deep blue — structural chrome + primary action */
   /* The ink that sits ON a saturated fill, rather than beside it. White here;
@@ -118,7 +128,12 @@
   /* September 2026, second pass: neutral and barely there. A white card on
      the iOS grouped grey needs almost no shadow to read as lifted — the old
      brand-tinted pair plus a hairline border drew every card twice. */
-  --shadow-sm: 0 0 0 0.5px rgb(0 0 0 / 0.04), 0 1px 2px rgb(0 0 0 / 0.04);
+  /* October 2026: the hairline is a real 1px edge. At half a pixel and 4%
+     a card's edge was a guess, and a table of white rows on a pale page had
+     nowhere it visibly stopped — the "no clear separation" complaint. One
+     token, so every resting card, table and stat strip gets the same edge
+     (the dark theme's ring below already did this). */
+  --shadow-sm: 0 0 0 1px rgb(0 0 0 / 0.09), 0 1px 3px rgb(0 0 0 / 0.05);
   --shadow-lg: 0 8px 30px rgb(0 0 0 / 0.12), 0 0 0 0.5px rgb(0 0 0 / 0.05);
   --shadow-xl: 0 24px 60px rgb(0 0 0 / 0.18), 0 0 0 0.5px rgb(0 0 0 / 0.06);
 
@@ -164,6 +179,22 @@
      modal. Browsers without linear() fall back to the declaration before. */
   --ease-spring: linear(0, 0.063 2.1%, 0.25 5.1%, 0.5 9.4%, 0.73 14.6%, 0.87 20.2%, 0.95 27%, 0.985 36%, 0.997 48%, 1);
   --ease-spring-soft: linear(0, 0.05 2%, 0.2 5%, 0.45 9.5%, 0.72 15%, 0.9 21%, 1.005 28%, 1.02 35%, 1.012 44%, 1.002 58%, 1);
+  /* THE TYPE SCALE, in the steps the app actually uses (rem, so x0.94 on a
+     laptop):
+
+       0.75    micro    counts in a badge, a keyboard hint. Never a sentence.
+       0.8125  xs       secondary text: an email, a caption, a column heading.
+                        12.2px. Tailwind's own xs is 0.75 — 11.3px at this
+                        app's 94% — which is where 133 emails and 179 headings
+                        sat, a size too small to read comfortably in a table.
+       0.875   sm       table cells, controls
+       0.9375  body     the default for a row, a label, a nav item
+       1.25    section  a section's title
+
+     Nothing below 0.75, and no initials under 24px. Set here so every
+     `text-xs` in the app moves together. */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.4;
   --default-transition-duration: 150ms;
   --default-transition-timing-function: var(--ease-out-strong);
 }
@@ -194,10 +225,23 @@
  * these there too, or the two apps stop reading as one product. */
 :root {
   color-scheme: light;
+
+  /* The ambient wash at the top of every page: brand blue from the left, hours
+     orange from the right, each fading out inside the first screen. Peaks are
+     held low enough that secondary text on the canvas stays above AA under
+     them — #63636a is 5.3:1 on the canvas and 4.9:1 under the 8% peak. */
+  --glow-brand: 10%;
+  --glow-accent: 9%;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
+
+  /* Lighter brand on a near-black ground adds far more luminance per percent
+     than the light theme's deep blue removes, so the peaks drop. Secondary
+     text stays above 4.9:1 under them. */
+  --glow-brand: 8%;
+  --glow-accent: 5%;
 
   /* A blue-grey ground, not black. Pure #000 behind near-white text ran at
      19:1 and made every line of type bloom — the halation that makes a dark
@@ -208,6 +252,9 @@
   --color-canvas: #121417;
   --color-surface: #1b1e23;
   --color-line: #2c3038;
+  --color-head: #23272e;
+  --color-stripe: rgb(255 255 255 / 0.025);
+  --color-line-strong: #3a3f49;
   --color-fill: rgb(255 255 255 / 0.06);
   --color-fill-strong: rgb(255 255 255 / 0.1);
 
@@ -267,7 +314,7 @@
   /* A shadow barely reads on a dark ground, so the edge does the work: a
      faint white hairline and a top highlight, the way Linear and GitHub draw
      a card, with the drop shadow kept only for things that float. */
-  --shadow-sm: 0 0 0 1px rgb(255 255 255 / 0.05), inset 0 1px 0 rgb(255 255 255 / 0.03);
+  --shadow-sm: 0 0 0 1px rgb(255 255 255 / 0.08), inset 0 1px 0 rgb(255 255 255 / 0.03);
   --shadow-lg: 0 0 0 1px rgb(255 255 255 / 0.07), 0 12px 32px -8px rgb(0 0 0 / 0.55);
   --shadow-xl: 0 0 0 1px rgb(255 255 255 / 0.08), 0 24px 60px -12px rgb(0 0 0 / 0.65);
 }
@@ -379,7 +426,22 @@ html {
 }
 
 body {
-  background: var(--color-canvas);
+  background-color: var(--color-canvas);
+  /* Two soft pools of colour behind the top of the page, the way iOS tints the
+     ground behind a large title. They scroll with the page, so a long table is
+     still on plain canvas by the fold. */
+  background-image:
+    radial-gradient(
+      52rem 26rem at 8% -7rem,
+      color-mix(in oklab, var(--color-brand) var(--glow-brand), transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      40rem 20rem at 96% -5rem,
+      color-mix(in oklab, var(--color-accent) var(--glow-accent), transparent),
+      transparent 72%
+    );
+  background-repeat: no-repeat;
   color: var(--color-ink);
   font-family: var(--font-sans);
   /* Inter's single-storey a and open digits — the two features that move it
@@ -545,6 +607,39 @@ body {
   from {
     opacity: 0;
   }
+}
+
+/* The lit top edge of a filled brand button: a white sheen fading out down the
+   face, a 1px highlight on the rim, and a tinted shadow under it. The fill
+   colour stays the element's own, so hover still swaps it. The sheen only ever
+   lightens, which can only raise the label's contrast. */
+@utility sheen {
+  background-image: linear-gradient(to bottom, rgb(255 255 255 / 0.18), rgb(255 255 255 / 0));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.24),
+    0 1px 2px color-mix(in oklab, var(--color-brand) 40%, transparent),
+    0 6px 14px -6px color-mix(in oklab, var(--color-brand) 60%, transparent);
+}
+
+/* A panel filled with the brand blue, for the one thing on a page that is
+   being announced. `on-brand` is the ink that sits on it in either theme. */
+@utility hero-brand {
+  color: var(--color-on-brand);
+  background-color: var(--color-brand);
+  background-image:
+    radial-gradient(28rem 14rem at 100% 0%, rgb(255 255 255 / 0.22), transparent 70%),
+    linear-gradient(135deg, color-mix(in oklab, var(--color-brand) 80%, black), var(--color-brand) 55%, color-mix(in oklab, var(--color-brand) 78%, white));
+}
+
+/* On the dark ground the light-theme brand is a pale blue, and a pale slab is
+   the loudest thing on a near-black page. There the panel is the deep navy
+   instead, lit from the corner by the brand, with ordinary ink on it. */
+:root[data-theme="dark"] .hero-brand {
+  color: var(--color-ink);
+  background-color: var(--color-brand-soft);
+  background-image:
+    radial-gradient(30rem 15rem at 100% 0%, color-mix(in oklab, var(--color-brand) 38%, transparent), transparent 70%),
+    linear-gradient(135deg, var(--color-brand-soft), color-mix(in oklab, var(--color-brand-soft) 70%, var(--color-surface)));
 }
 
 /* Inline content that just got revealed (expanded rows, inline forms). */

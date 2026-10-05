@@ -4,9 +4,10 @@ import { PersonCell } from "@/components/person-chip";
 import { ProgramChip } from "@/components/program-chip";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ChevronRightIcon } from "@/components/icons";
+import { CheckIcon, ChevronRightIcon } from "@/components/icons";
 import { ArrowLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
+import { StatStrip } from "@/components/ui/stat-strip";
 import { TabLinks } from "@/components/ui/segmented";
 import { DeadlineText } from "@/components/ui/status-chip";
 import { FILL_CELL, Table, Td, Tr, type Column } from "@/components/ui/table";
@@ -37,9 +38,12 @@ function studentColumns(showProgram: boolean): Column[] {
   return [
     { label: "Student", sort: "student" },
     ...(showProgram ? [{ label: "Program", sort: "program" } as Column] : []),
-    { label: "Remaining with you", align: "right", sort: "remaining" },
+    { label: "Remaining with you", align: "right", sort: "remaining", emphasis: "key" },
     { label: "Use by", sort: "deadline" },
-    { label: "Last session", sort: "seen" },
+    // Hidden below `lg`: at tablet width the other four columns left a student's
+    // name 140px, and a name is what the row is for. The stacked phone row still
+    // shows it (`Td` below carries the same class only from `sm`).
+    { label: "Last session", sort: "seen", className: "max-lg:sm:hidden" },
     { label: "" },
   ];
 }
@@ -209,33 +213,16 @@ export default async function MentorHomePage({
           balance, and "35+ hours" above a row saying 38h 45m read as two
           different figures. */}
       {hasFigures && (
-        // A stat row — label over figure, space between, no rules round it.
-        // Two 42px bold orange numbers side by side were the loudest thing in
-        // the app; at 28px semibold they still lead the page. Orange is for
-        // the balance still to deliver; what is done is ink.
-        <dl className="flex flex-wrap gap-x-12 gap-y-3 px-1">
-          <div>
-            <dt className="text-[0.8125rem] text-muted-fg">Completed</dt>
-            <dd className="mt-0.5 text-[1.75rem] font-semibold leading-tight tracking-tight tabular-nums text-ink">
-              {formatDuration(completed)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[0.8125rem] text-muted-fg">Remaining</dt>
-            <dd
-              className={cn(
-                "mt-0.5 text-[1.75rem] font-semibold leading-tight tracking-tight tabular-nums",
-                remaining > 0
-                  ? "text-accent-ink"
-                  : remaining < 0
-                    ? "text-danger-ink"
-                    : "text-muted-fg"
-              )}
-            >
-              {formatBalance(remaining)}
-            </dd>
-          </div>
-        </dl>
+        <StatStrip
+          lead={{
+            label: "Remaining",
+            value: formatBalance(remaining),
+            tone: remaining > 0 ? "hours" : remaining < 0 ? "danger" : "muted",
+          }}
+          items={[
+            { label: "Completed", value: formatDuration(completed), icon: <CheckIcon className="h-4 w-4" /> },
+          ]}
+        />
       )}
 
       <Section
@@ -327,18 +314,13 @@ export default async function MentorHomePage({
                     {/* Capped below `xl` like the students roster: a table
                         sizes this column to the longest program name, and at
                         tablet width that pushed the last column out. */}
-                    <span className="flex min-w-0 sm:max-w-36 xl:max-w-none">
+                    <span className="flex min-w-0 sm:max-w-52 xl:max-w-none">
                       <ProgramChip program={s.program} />
                     </span>
                   </Td>
                 )}
-                <Td label="Remaining with you" align="right" className="tabular-nums">
-                  <span
-                    className={cn(
-                      "font-medium",
-                      s.remaining < 0 ? "text-danger-ink" : "text-ink"
-                    )}
-                  >
+                <Td label="Remaining with you" align="right" tone="key" className="tabular-nums">
+                  <span className={cn(s.remaining < 0 ? "text-danger-ink" : "text-ink")}>
                     {s.allocated === 0 && s.remaining === 0
                       ? // Nothing granted and nothing spent: an em dash, not
                         // "0h", which reads as time that ran out.
@@ -355,12 +337,12 @@ export default async function MentorHomePage({
                     within={EXPIRY_WINDOW_DAYS.mentor}
                   />
                 </Td>
-                <Td label="Last session" className="whitespace-nowrap text-muted-fg">
+                <Td label="Last session" tone="muted" className="whitespace-nowrap max-lg:sm:hidden">
                   {lastSeen.get(s.profile.id)
                     ? formatDate(lastSeen.get(s.profile.id) as Date)
                     : "—"}
                 </Td>
-                <Td align="right">
+                <Td align="right" corner>
                   {/* A chevron, the mark of a row that goes somewhere — not
                       a column of blue "Open →" repeating what the name, already
                       a link, says. Still its own target for a thumb. */}

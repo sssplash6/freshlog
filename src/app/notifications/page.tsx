@@ -126,14 +126,14 @@ export default async function NotificationsPage({
       <PageTitle
         // "All caught up" only when it is true of the whole page: above a
         // list of three things still to check, it was a contradiction.
-        eyebrow={
+        title="Notifications"
+        subtitle={
           unread > 0
             ? `${unread} unread`
             : attention.statuses.length > 0
               ? "Nothing unread"
               : "All caught up"
         }
-        title="Notifications"
       />
 
       <AttentionList

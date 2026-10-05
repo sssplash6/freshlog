@@ -79,7 +79,7 @@ function NotificationRow({
           </span>
           <span className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted-fg">
             {n.actor && (
-              <PersonBadge person={n.actor} className="h-4 w-4 text-[0.5rem]" />
+              <PersonBadge person={n.actor} className="h-6 w-6 text-[0.6875rem]" />
             )}
             <span>{meta.label}</span>
             <span aria-hidden="true">·</span>

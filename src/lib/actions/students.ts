@@ -44,6 +44,7 @@ import { deadlinePassed } from "@/lib/deadlines";
 import { pastHours } from "@/lib/hours";
 import { grantStandardHours } from "@/lib/standard-hours";
 import { carryForward } from "@/lib/carry-forward";
+import { claimEmail, removeStub } from "@/lib/sign-up-stub";
 import type { Cohort, Program, ProgramLevel } from "@/generated/prisma/client";
 
 /** How an already-registered non-student is named in a refusal. */
@@ -708,12 +709,8 @@ export async function completeOnboarding(
  * they were welcomed once.
  *
  * The usual reason the new address is TAKEN: the student already signed in
- * with it, and Google sign-in self-registered a second, empty account — a
- * PENDING stub that may not even have a profile yet, so it appears on no
- * roster an admin could remove it from. A stub like that is absorbed by the
- * change rather than blocking it. An account that was approved or holds
- * anything — a session, an allocation — is a real one and refuses as before:
- * merging two real records is a decision nobody has asked this button for.
+ * with it, and Google sign-in self-registered a second, empty account. That
+ * stub is absorbed by the change; a real account refuses (see sign-up-stub).
  */
 export async function setStudentEmail(
   _prev: ActionState,
@@ -748,47 +745,9 @@ export async function setStudentEmail(
   if (email === profile.user.email) {
     return { ok: true, message: "No change: that's already their address." };
   }
-  const taken = await prisma.user.findUnique({
-    where: { email },
-    include: {
-      studentProfile: {
-        include: {
-          enrollments: { select: { programId: true } },
-          _count: { select: { sessions: true, hourAllocations: true } },
-        },
-      },
-    },
-  });
-
-  // Is the holder an absorbable stub — a self-signup that was never approved
-  // and never had anything logged against it? PENDING is enough to say
-  // self-made: staff-registered students are ACTIVE from the moment
-  // `createStudents` writes them.
-  let stub: typeof taken = null;
-  if (taken) {
-    const stubProfile = taken.studentProfile;
-    const absorbable =
-      taken.role === ROLES.STUDENT &&
-      taken.status === USER_STATUS.PENDING &&
-      (stubProfile?._count.sessions ?? 0) === 0 &&
-      (stubProfile?._count.hourAllocations ?? 0) === 0;
-    if (!absorbable) {
-      return { ok: false, error: `${email} already has an account.` };
-    }
-    // The stub's pending enrollments go with it, so the rule deleteStudent
-    // applies holds here too: every program a removed record touches has to
-    // be one of the actor's.
-    for (const e of stubProfile?.enrollments ?? []) {
-      const outside = await assertProgramScope(actor, e.programId);
-      if (outside) {
-        return {
-          ok: false,
-          error: `${email} has a sign-up waiting in a program you don't administer — its admin has to remove that account first.`,
-        };
-      }
-    }
-    stub = taken;
-  }
+  const claim = await claimEmail(actor, email, profile.userId);
+  if ("error" in claim) return { ok: false, error: claim.error };
+  const { stub } = claim;
 
   // A real address means the weekly summary email can reach them, so it goes back
   // to the app's default. A placeholder had it switched off on the way in.
@@ -796,33 +755,7 @@ export async function setStudentEmail(
   const firstRealAddress =
     reachable && profile.user.email.endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`);
   await prisma.$transaction(async (tx) => {
-    if (stub) {
-      const stubProfile = stub.studentProfile;
-      if (stubProfile) {
-        // The same rows deleteStudent clears. Nothing is logged — absorbable
-        // means exactly that — but the deletes stand in case the world moved
-        // between the check above and this transaction.
-        await tx.hourAllotmentChange.deleteMany({
-          where: { studentId: stubProfile.id },
-        });
-        await tx.hourAllocation.deleteMany({
-          where: { studentId: stubProfile.id },
-        });
-        await tx.assignment.deleteMany({ where: { studentId: stubProfile.id } });
-        await tx.mentorFeedback.deleteMany({
-          where: { studentId: stubProfile.id },
-        });
-        // Enrollments, tasks and the rest cascade with the profile.
-        await tx.studentProfile.delete({ where: { id: stubProfile.id } });
-      }
-      // Notices TO the stub, and the sign-up notice it left in admins' inboxes
-      // — actorId is SetNull by default, which would keep a notification whose
-      // link opens a record that no longer exists.
-      await tx.notification.deleteMany({
-        where: { OR: [{ userId: stub.id }, { actorId: stub.id }] },
-      });
-      await tx.user.delete({ where: { id: stub.id } });
-    }
+    if (stub) await removeStub(tx, stub);
     await tx.user.update({
       where: { id: profile.userId },
       data: { email, ...(reachable ? { weeklyDigest: true } : {}) },

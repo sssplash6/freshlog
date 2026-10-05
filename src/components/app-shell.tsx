@@ -519,7 +519,10 @@ function StaffShell({
 
           `z-40` sits above the rail and the bottom bar (`z-30`) and below
           anything that opens on top of chrome (`z-50`). */}
-      <div className="fixed right-4 top-4 z-40 hidden items-center gap-1 lg:flex">
+      {/* A frosted pill, like the rail and the tab bar: it floats over the
+          page, and bare it let whatever scrolled beneath it — a title row's
+          "Updated …" stamp, a button — print straight through its words. */}
+      <div className="fixed right-4 top-4 z-40 hidden items-center gap-1 rounded-full border border-line/60 bg-surface/80 p-0.5 shadow-sm backdrop-blur-xl backdrop-saturate-150 lg:flex">
         <WhatsNewLink unseen={whatsNew} />
         <NotificationMenu unread={unread} recent={recent} now={now} />
       </div>
