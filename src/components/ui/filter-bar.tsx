@@ -473,10 +473,12 @@ function Chip({
         // A pill on the grey fill, iOS's filter chip. (The note above was
         // written against bordered 8px controls; the fields are fills now,
         // and a fill chip beside a fill field is one family.)
-        "inline-flex min-h-8 shrink-0 snap-start items-center whitespace-nowrap rounded-full px-3.5 text-[0.8125rem] font-medium transition-colors",
-        // 44px to a thumb, 32px to the eye: the hit area is a pseudo-element
-        // that reaches 6px past the chip, into the strip's own padding.
-        "max-sm:relative max-sm:after:absolute max-sm:after:inset-x-0 max-sm:after:-inset-y-1.5",
+        //
+        // A REAL 44px on a phone (October 2026). The extra height used to be
+        // a pseudo-element reaching past a 32px chip — but the strip scrolls
+        // sideways on a phone, and a scrolling box clips whatever pokes out of
+        // it, so the thumb got the 32px the eye saw. Same rule as `TabLinks`.
+        "inline-flex min-h-11 shrink-0 snap-start items-center whitespace-nowrap rounded-full px-3.5 text-xs font-medium transition-colors sm:min-h-8",
         active
           ? "bg-brand text-on-brand"
           : "bg-fill text-ink hover:bg-fill-strong"

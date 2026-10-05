@@ -26,12 +26,13 @@ import { RequiredMark } from "@/components/ui/required-mark";
  * survives at ≥sm, where zoom on focus is a desktop-only irrelevance.
  */
 export const fieldChrome =
-  "rounded-lg border border-transparent bg-fill text-ink caret-brand transition-[background-color,border-color,box-shadow] hover:bg-fill-strong focus:border-brand focus:bg-surface focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand)_16%,transparent)] focus:outline-none";
+  "rounded-lg border border-transparent bg-fill text-ink caret-brand transition-[background-color,border-color,box-shadow] hover:bg-fill-strong focus:border-brand focus:bg-surface focus:shadow-focus focus:outline-none";
 
-// The placeholder is the muted grey at 70%: at full `muted-fg` on the dark
-// fill, an empty "e.g. 600" and a typed 600 were the same grey on the same
-// well, and an Off setting read as switched on.
-export const inputClasses = `${fieldChrome} min-h-11 w-full px-3.5 py-2.5 text-base placeholder:text-muted-fg/70 sm:text-[0.9375rem]`;
+// The placeholder is the full muted grey. It was 70% of it, to keep an empty
+// "e.g. 600" from reading like a typed 600 — but typed text is INK, not grey,
+// so the two were never the same colour, and at 70% the hint measured 2.87:1
+// on the field's fill: a prompt nobody could read is no prompt. October 2026.
+export const inputClasses = `${fieldChrome} min-h-11 w-full px-3.5 py-2.5 text-base placeholder:text-muted-fg sm:text-body`;
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(inputClasses, className)} {...props} />;

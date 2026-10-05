@@ -1,6 +1,6 @@
 import { cn } from "@/lib/cn";
 
-const LABEL = "block text-[0.9375rem] font-medium text-ink";
+const LABEL = "block text-body font-medium text-ink";
 
 /**
  * One labelled setting: what it is, what it is for, the control, and what that
@@ -80,7 +80,7 @@ export function SettingsRow({
           <div className={LABEL}>{label}</div>
         )}
         {description && (
-          <p className="mt-0.5 text-[0.8125rem] text-muted-fg">{description}</p>
+          <p className="mt-0.5 text-xs text-muted-fg">{description}</p>
         )}
       </div>
       <div

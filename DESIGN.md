@@ -24,7 +24,8 @@ about routes, authority and copy. These two are about design, and every section
 below is downstream of them.
 
 **One `h1`, one lead figure, hairlines.** No banner wash, no ghost monogram, no
-tinted panel header, no stat strip. A section is a title, an optional count, an
+tinted panel header, no strip of equal figures (`StatStrip` is allowed because
+it has exactly one lead — see Atmosphere). A section is a title, an optional count, an
 optional action, one rule. The habit this bans is the strip of four to seven
 equally-weighted figures that opened nine pages: when every number is the same
 size the eye has to read all of them to find the one that matters, which is the
@@ -69,16 +70,26 @@ the reader would otherwise work out by reading.
   read by who ran them without reading a name. Three and not eight because
   eight meant a mentor's chip could be the same amber as a "no-show" chip and
   the same violet as an "in progress" one: a hue that means four things
-  identifies nothing. `ink` on `soft` clears 6:1 in all three. **Programs have
-  no hue and no monogram** — a program is a place, not a face.
-- **Neutrals** — `canvas` #f4f5f6 is the page ground, `surface` #ffffff a card,
-  `line` #e5e6e8 every hairline. Text is two tiers and only two: `ink` primary,
+  identifies nothing. `ink` on `soft` clears 6:1 in all three.
+- **Program hues** — reversed September 2026 at the owner's ask: a program
+  has a colour, worn as a DOT and a label, never a tinted card or a wash, and
+  never an amber or red that could be mistaken for status. Palette in
+  `globals.css` (`--color-prog-*`), assignment in `lib/program-tone.ts`. A dot
+  always sits beside the program's name, so the hue never has to identify it
+  alone. No monogram — a program is a place, not a face.
+- **Neutrals** — `canvas` #f2f2f7 is the page ground, `surface` #ffffff a card,
+  `line` #e5e5ea every hairline, `line-strong` #d6d7de a table's header rule.
+  `disabled` #9a9aa0 is what cannot be pressed or chosen — a colour, never
+  half opacity (October 2026: 50% text measured 1.66:1). Text is two tiers and only two: `ink` primary,
   `muted-fg` secondary. No coloured eyebrows.
-- **Elevation is three steps**, all tinted toward brand blue rather than flat
-  black: `shadow-sm` for a card, a table or a button resting on the canvas;
-  `shadow-lg` for a menu or popover floating above the page; `shadow-xl` for a
-  modal with the page dimmed behind it. Each step is a distance, and nothing
-  uses a step it has not travelled.
+- **Elevation is three distances and two control shadows**, neutral rather
+  than tinted: `shadow-sm` for a card, a table or a panel resting on the
+  canvas (a real 1px edge); `shadow-lg` for a menu or popover floating above
+  the page; `shadow-xl` for a modal with the page dimmed behind it. Each step
+  is a distance, and nothing uses a step it has not travelled — a resting hero
+  is `sm`, and hover never changes elevation. `shadow-control` lifts a moving
+  part (a switch knob, a selected segment's thumb) off its track, and
+  `shadow-focus` is a focused field's halo.
 
 There is **no green**. "Nothing wrong" is a `✓` glyph in ink on a neutral chip,
 so the two colours that remain are never spent on good news. There are no
@@ -96,16 +107,35 @@ and four gradients are now allowed, each in one place and nowhere else:
   Today that is the changelog's "past seven days". One per page.
 - the **active nav marker** — a 3px brand bar on the selected sidebar row.
 
-- the **headline panel** — `StatStrip`, one per page: the lead figure over a
-  soft wash of its own tone (orange for hours, red when negative), with up to
-  three quieter figures each carrying a small glyph. Home, a program's page and
-  a mentor's Home use it. It is the one place a card may take `py-4`+.
+The **headline panel** is not a gradient: `StatStrip`, one per page, holds the
+lead figure in its own tone's ink (orange for hours, red when negative) with up
+to three quieter figures, each beside a small grey glyph. Home, a program's page
+and a mentor's Home use it. It is the one place a card may take `py-4`+.
+(October 2026: it lost the wash behind the lead and its brand-blue glyph discs —
+the wash was the banner this document bans, and blue is for things you press.)
 
-**The type scale** (rem, x0.94 on a laptop): 0.75 micro (counts, key hints,
-never a sentence) · **0.8125 xs** (secondary text, column headings — Tailwind's
-`text-xs` is re-pointed here in `@theme`, because its own 0.75 is 11.3px at the
-app's 94%) · 0.875 sm · 0.9375 body · 1.25 section title. Nothing below 0.75,
-and no initials in an avatar under 24px.
+**The type scale** (October 2026; rem, x0.94 on a laptop). Nine tokens, each a
+size with its line-height — and tracking where it needs one — attached, so a
+step cannot be set at two leadings:
+
+| token | size / line | for |
+|---|---|---|
+| `text-caption` | 12 / 16 | a count in a badge, a key hint, initials. Never a sentence |
+| `text-xs` | 13 / 18 | secondary text, column headings, chips, labels |
+| `text-sm` | 14 / 20 | table cells, controls |
+| `text-body` | 15 / 22 | a row, a nav item, a button, body |
+| `text-title` | 17 / 24 | every section title, one size |
+| `text-figure-md` | 20 / 24 | a supporting figure |
+| `text-figure-lg` | 28 / 32 | a figure alone in a card; the h1 on a phone |
+| `text-display` | 32 / 36 | the page's h1 |
+| `text-lead` | 42 | the one number a page exists to show |
+
+Tailwind's `text-xs` is re-pointed to 13px because its own 12 is 11.3px at the
+app's 94%. Weights are 400, 500 and 600, with 700 for the h1 alone. Nothing
+below 12px, and no initials in an avatar under 24px. An audit measured sixteen
+rendered sizes before the tokens existed; `scripts/check-type.mjs` reports any
+`text-[…]` size, sub-8px corner or off-scale shadow, and joins `npm run lint`
+once the arbitrary sizes are migrated.
 
 **A truncating box clips at its padding edge.** Never put `leading-none` on text
 that truncates: the descenders of y, p and g are cut off. Give the label its own
@@ -366,12 +396,12 @@ shared components so no page can opt out:
   values are ink.
 - **Colour is rare.** A person's hue lives in their avatar and nowhere else —
   `PersonChip` is a face and a name in ink. Brand blue is for things you press;
-  orange is hours; amber and red are status. No gradients, no medals, no
-  coloured card edges, analytics included.
+  orange is hours; amber and red are status. No gradients beyond the four
+  named under Atmosphere, no medals, no coloured card edges, analytics included.
 - **Rows are iOS-height**: `py-3` list rows (the spacing lint allows it), 15px
   primary line, 13px secondary, a trailing value or chevron.
-- **Type scale**: 32 large title · 20 section · 17 card headline · 15 body ·
-  13 secondary · 12 caption.
+- **Type scale**: the nine tokens above — 32 large title · 17 section · 15 body
+  · 13 secondary · 12 caption, with the figure steps between.
 
 ### The surface: fills, corners, depth (September 2026)
 
@@ -389,7 +419,8 @@ colour's meaning:
   (buttons, inputs, rows), `rounded-xl` 18px (cards, tables, sections),
   `rounded-2xl` 24px (sheets, modals, the sign-in card), `rounded-full` for
   chips and avatars. Tailwind's names, re-stepped in `@theme`; nested corners
-  follow outer minus padding.
+  follow outer minus padding. Nothing under 8px — Tailwind's bare `rounded` is
+  off the scale.
 - **Table headers stick** under the top bar (`--sticky-top`: the bar's height,
   or 0 where the rail replaced it), in sentence case and semibold on a solid `head` band under a
   `line-strong` rule. Sticky
@@ -522,8 +553,21 @@ label off and let the nav name it. Chip rows that would wrap use the
 `scroll-x` utility instead — horizontal scroll, hidden scrollbar, edge fade,
 and an exclusion in the gesture layer so a chip fling can't arm swipe-back.
 
-Nothing loops and nothing idles, and no motion celebrates. (`hint-bounce` is
-the one keyframe left in `globals.css` with no call site.)
+Nothing loops and nothing idles, and no motion celebrates. The `liquid-edge`
+thread runs two laps and rests; loading skeletons are still blocks, not a
+pulse. (October 2026: both used to run forever. `hint-bounce`, which had no
+call site, is gone.)
+
+**Four durations** (`--dur-*` in globals.css): `instant` 100ms for a press,
+`fast` 160ms for hover, colour and focus, `base` 240ms for menus, rows and
+toasts, `slow` 380ms for sheets, modals and a page push. A data reveal — a ring,
+a meter, a bar — may run to 600ms, and animates `transform`, never `width`.
+
+**One focus ring**: a 2px brand outline, 2px off the element, on the element's
+own corner. Its colour is set before focus as well as on it, because the
+`transition` utility animates `outline-color` and a ring that only got its
+colour on focus faded in from the text colour — which read as four different
+ring colours.
 
 Reduced motion is respected including the **staggered delays**, which are zeroed
 rather than shortened: a row with a 300ms delay and a 0.01ms animation

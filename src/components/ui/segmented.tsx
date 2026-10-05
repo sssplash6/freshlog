@@ -41,7 +41,7 @@ const SEGMENT =
  * the target stays 44px.
  */
 const SEGMENT_DENSE =
-  "inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2 text-[0.8125rem] transition-colors";
+  "inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2 text-xs transition-colors";
 /**
  * The tab track, and it is deliberately smaller than the form one.
  *
@@ -55,15 +55,24 @@ const SEGMENT_DENSE =
  * It also hugs its content at every width instead of stretching to the full
  * row on a phone. Two words and a count are not a full-width control.
  */
+/*
+ * ONE ROW, ALWAYS. On a phone the track scrolls sideways rather than wrapping
+ * (October 2026): three program names wrapped "Master's Program" onto a second
+ * line under "All", and a two-row track reads as two controls. And on a phone
+ * the tabs are a real 44px rather than 32px plus an invisible pseudo-element —
+ * a scrolling track clips anything that pokes out of it, and DESIGN.md's 44px
+ * rule is for exactly the phone.
+ */
 const TRACK_TAB =
-  "flex w-fit max-w-full flex-wrap gap-0.5 rounded-lg bg-fill p-0.5";
+  "flex w-fit max-w-full gap-0.5 rounded-lg bg-fill p-0.5 max-sm:scroll-x";
 const SEGMENT_TAB =
-  "inline-flex min-h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-[0.8125rem] transition-colors " +
-  // 32px to the eye, 44px to a thumb: a pseudo-element reaches 6px past it.
-  "max-sm:relative max-sm:after:absolute max-sm:after:inset-x-0 max-sm:after:-inset-y-1.5";
-// The thumb: white on the grey track, iOS's segmented control. `shadow-sm`
-// is the resting-card shadow, which is exactly the lift a thumb has.
-const ON = "bg-surface font-semibold text-ink shadow-sm";
+  "inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 text-xs transition-colors sm:min-h-8";
+// The thumb, raised off the grey track — iOS's segmented control. Its own
+// token rather than `bg-surface`: in dark the surface IS the card, so a
+// selected segment on a card was the card's colour on a lighter track and read
+// as pressed IN rather than raised (October 2026). `thumb` is a step lighter
+// than the track in both themes.
+const ON = "bg-thumb font-semibold text-ink shadow-control";
 const OFF = "font-medium text-muted-fg hover:text-ink";
 
 /**
@@ -175,7 +184,7 @@ export function SegmentedRadio({
         {pill && (
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute left-0 top-0 rounded-lg bg-surface shadow-sm transition-[transform,width,height] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]"
+            className="pointer-events-none absolute left-0 top-0 rounded-lg bg-thumb shadow-control transition-[transform,width,height] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]"
             style={{
               transform: `translate(${pill.left}px, ${pill.top}px)`,
               width: pill.width,
@@ -293,7 +302,7 @@ export function TabLinks({
             {item.label}
             {item.count != null && (
               <span
-                className="text-[0.75rem] tabular-nums text-muted-fg"
+                className="text-caption tabular-nums text-muted-fg"
               >
                 {item.count}
               </span>

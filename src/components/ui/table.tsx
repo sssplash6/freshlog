@@ -107,7 +107,7 @@ export function Table({
                   // under it: small muted labels name the columns without a
                   // tinted band competing with the rows. The surface is on the
                   // cells because a sticky cell paints its own background.
-                  "sticky top-(--sticky-top) z-10 h-10 whitespace-nowrap border-b border-line bg-surface px-4 text-[0.75rem] font-medium",
+                  "sticky top-(--sticky-top) z-10 h-10 whitespace-nowrap border-b border-line bg-surface px-4 text-xs font-medium",
                   c.emphasis === "key" ? "text-ink" : "text-muted-fg",
                   framed && "first:rounded-tl-xl last:rounded-tr-xl",
                   c.align === "right" && "text-right",
@@ -177,7 +177,7 @@ export function Td({
   /**
    * Where this value sits in the row's hierarchy. A row has three levels and
    * no more: the person or thing it is about (`PersonCell`, semibold), the
-   * figure the reader came for (`key`, semibold and a step larger), and the
+   * figure the reader came for (`key`, semibold), and the
    * context around it (`muted` — dates, totals, "never"). Everything else is
    * regular ink. A row where every value was `font-medium` read as one flat
    * level, and nothing in it said where to look first.

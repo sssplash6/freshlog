@@ -59,14 +59,14 @@ export function EmptyState({
           not just a sentence in white. Only in a card of its own: inside a
           list that already has a frame it would be a second thing to read. */}
       {(icon ?? framed) && (
-        <div className="pop-in mb-2 grid h-11 w-11 place-items-center rounded-full bg-fill text-muted-fg [&_svg]:h-5 [&_svg]:w-5">
+        <div className="furniture-in mb-2 grid h-11 w-11 place-items-center rounded-full bg-fill text-muted-fg [&_svg]:h-5 [&_svg]:w-5">
           {icon ?? (variant === "no-results" ? <SearchIcon /> : <InboxIcon />)}
         </div>
       )}
       {title && (
         <p
           className={cn(
-            "text-[0.9375rem] font-medium",
+            "text-body font-medium",
             // A blocked empty state is the only one that is not fine. It still
             // does not get a red box: the words carry it, and a whole tinted
             // panel for "nothing here" is the noise this replaces.
@@ -77,7 +77,7 @@ export function EmptyState({
         </p>
       )}
       {children && (
-        <div className="max-w-sm text-[0.8125rem] text-muted-fg">{children}</div>
+        <div className="max-w-sm text-xs text-muted-fg">{children}</div>
       )}
       {action && <div className="mt-2">{action}</div>}
     </div>

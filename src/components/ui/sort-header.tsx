@@ -65,7 +65,11 @@ export function SortHeader({
       href={`${pathname}?${next.toString()}`}
       scroll={false}
       className={cn(
-        "group inline-flex items-center gap-0.5 align-middle transition-colors hover:text-ink",
+        // The whole height of the 40px header band, not the 17px line of its
+        // label, and `rounded-md` so the focus ring has the same corner as
+        // everything else that takes focus (it was a square ring around a
+        // 17px target). October 2026.
+        "group -mx-1 inline-flex min-h-10 items-center gap-0.5 rounded-md px-1 align-middle transition-colors hover:text-ink",
         // The ordering column says so in the one colour that means "this is
         // live"; the rest wear no arrow until the pointer or focus asks. An
         // arrow on every heading was six marks per row of labels, and the one

@@ -255,7 +255,7 @@ function Calendar({
         </span>
       </div>
 
-      <div className="grid grid-cols-7 text-center text-[0.75rem] font-medium text-muted-fg">
+      <div className="grid grid-cols-7 text-center text-caption font-medium text-muted-fg">
         {WEEKDAYS.map((d, i) => (
           <span key={i} className="py-1">
             {d}
@@ -288,14 +288,14 @@ function Calendar({
               aria-pressed={on}
               onClick={() => onPick(ms)}
               className={cn(
-                "flex h-9 items-center justify-center rounded-lg text-[0.8125rem] tabular-nums transition-colors",
+                "flex h-9 items-center justify-center rounded-lg text-xs tabular-nums transition-colors",
                 dead
-                  ? "cursor-not-allowed text-muted-fg/35"
+                  ? "cursor-not-allowed text-disabled"
                   : on
-                    ? "bg-brand font-semibold text-white"
+                    ? "bg-brand font-semibold text-on-brand"
                     : cn(
                         "hover:bg-brand-soft hover:text-brand",
-                        inMonth ? "text-ink" : "text-muted-fg/60"
+                        inMonth ? "text-ink" : "text-muted-fg"
                       ),
                 // Today is a ring rather than a fill, so it never competes with
                 // the day that is actually chosen.
@@ -313,7 +313,7 @@ function Calendar({
           type="button"
           onClick={() => today !== null && !outOfRange(today) && onPick(today)}
           disabled={today === null || outOfRange(today)}
-          className="rounded-lg px-2 py-1 text-xs font-medium text-brand hover:bg-brand-soft disabled:text-muted-fg/50 disabled:hover:bg-transparent"
+          className="rounded-lg px-2 py-1 text-xs font-medium text-brand hover:bg-brand-soft disabled:text-disabled disabled:hover:bg-transparent"
         >
           Today
         </button>
@@ -350,7 +350,7 @@ function Step({
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-fg transition-colors hover:bg-canvas hover:text-ink disabled:cursor-not-allowed disabled:text-muted-fg/30 disabled:hover:bg-transparent"
+      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-fg transition-colors hover:bg-canvas hover:text-ink disabled:cursor-not-allowed disabled:text-disabled disabled:hover:bg-transparent"
     >
       {children}
     </button>

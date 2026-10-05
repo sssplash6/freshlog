@@ -52,8 +52,11 @@ const ICON: Record<CalloutTone, typeof InfoIcon> = {
   danger: AlertIcon,
 };
 
+// Info is grey: brand blue is for things you press (DESIGN.md), and an "i"
+// in the action colour beside text that does nothing read as a link. October
+// 2026.
 const ICON_COLOR: Record<CalloutTone, string> = {
-  info: "text-brand",
+  info: "text-muted-fg",
   warn: "text-warn-ink",
   danger: "text-danger-ink",
 };
@@ -80,7 +83,7 @@ export function Callout({
     return (
       <div
         className={cn(
-          "flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3 text-[0.9375rem] sm:px-5",
+          "flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3 text-body sm:px-5",
           SURFACE[tone],
           BODY[tone],
           className
@@ -103,10 +106,10 @@ export function Callout({
       <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", ICON_COLOR[tone])} />
       <div className="min-w-0">
         {title && (
-          <div className={cn("text-[0.9375rem] font-semibold", TITLE[tone])}>{title}</div>
+          <div className={cn("text-body font-semibold", TITLE[tone])}>{title}</div>
         )}
         {children && (
-          <div className={cn("text-[0.8125rem]", BODY[tone], title && "mt-0.5")}>{children}</div>
+          <div className={cn("text-xs", BODY[tone], title && "mt-0.5")}>{children}</div>
         )}
         {action && <div className="mt-3">{action}</div>}
       </div>

@@ -32,7 +32,7 @@
   --color-brand-soft: #e7eef5; /* tint background */
 
   --color-accent: #f18d05; /* orange — hours / progress */
-  --color-accent-dark: #ed7a2d; /* hover */
+  --color-accent-dark: #d97e04; /* hover — the accent's own hue, darker (October 2026: it was #ed7a2d, a redder orange that read as a second colour beside the accent it was meant to deepen) */
   --color-accent-soft: #fdebcf; /* tint background */
 
   /* ---- Status ---------------------------------------------------------- *
@@ -63,6 +63,12 @@
 
   --color-ink: #1c1c1e; /* primary text */
   --color-muted-fg: #63636a; /* secondary text — 4.66:1 on the strongest fill (#e3e3e9) */
+  /* What cannot be pressed or chosen, as a COLOUR rather than an opacity.
+     Half-opacity text landed at 1.66:1 on a disabled primary and on the
+     calendar's dead days, which still have to be read ("the 3rd is before the
+     grant"). #9a9aa0 is about 2.8:1 on white: plainly unavailable, still
+     legible. October 2026. */
+  --color-disabled: #9a9aa0;
 
   /* ---- Person identity ------------------------------------------------ *
    * One stable colour per person, so the same mentor is the same colour in
@@ -83,6 +89,15 @@
    * at hues 246 / 192 / 282 / 215, clear of the three person tones (160 / 306 /
    * 79) and clear of amber and red, which DESIGN.md keeps for status and which
    * a programme colour must never be mistaken for. */
+  /* The initials on a tone's dot, and the white knob of a switch: white in
+     both themes, as a token so the colour lint can ban raw white classes
+     (October 2026). The person dots are not re-stepped for dark — see the
+     dark block — so white initials keep their 4.5:1 there too. */
+  --color-on-tone: #ffffff;
+  --color-knob: #ffffff;
+  /* A selected segment's thumb (ui/segmented.tsx). */
+  --color-thumb: #ffffff;
+
   --color-tone-teal-soft: #dcefe6;
   --color-tone-teal-ink: #175f4a;
   --color-tone-teal-dot: #2a7a5f;
@@ -136,6 +151,12 @@
   --shadow-sm: 0 0 0 1px rgb(0 0 0 / 0.09), 0 1px 3px rgb(0 0 0 / 0.05);
   --shadow-lg: 0 8px 30px rgb(0 0 0 / 0.12), 0 0 0 0.5px rgb(0 0 0 / 0.05);
   --shadow-xl: 0 24px 60px rgb(0 0 0 / 0.18), 0 0 0 0.5px rgb(0 0 0 / 0.06);
+  /* A control's moving part — a switch's knob, a selected segment's thumb —
+     lifted a hair off its track. It was Tailwind's stock `shadow-md`, the one
+     untokenised shadow left (October 2026). */
+  --shadow-control: 0 1px 2px rgb(0 0 0 / 0.12), 0 0 0 0.5px rgb(0 0 0 / 0.06);
+  /* The soft halo round a focused text field, under its brand border. */
+  --shadow-focus: 0 0 0 4px var(--focus-halo);
 
   /* The fill a control sits in — iOS's tertiary system fill. Translucent grey
      rather than a solid, so an input reads as a field on the white card AND on
@@ -153,22 +174,25 @@
        rounded-2xl  24px   sheets, modals, the one card on a sign-in page
        rounded-full        chips, avatars, segmented tracks
 
+     Nothing under 8px: Tailwind's bare `rounded` (4px) put skeleton blocks
+     and code chips on a corner no real element has. (October 2026; the
+     unused 28px `3xl` rung went at the same time.)
+
      Nested corners follow outer − padding: an 18px card with 6px of padding
      holds 12px controls, which is why `lg` and `xl` sit where they do. */
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1.125rem;
   --radius-2xl: 1.5rem;
-  --radius-3xl: 1.75rem;
 
   /* The system face on Apple devices, Inter everywhere else (see layout.tsx). */
   --font-sans: -apple-system, BlinkMacSystemFont, var(--font-inter), "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-geist-mono);
 
   /* Motion: strong ease-out on everything interactive (default curves feel
-     flat). In-out reserved for on-screen movement like progress bars. */
+     flat). The in-out curve and the bounce keyframe that used it went in
+     October 2026 — nothing referenced either. */
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
-  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
   /* The UIKit page-push curve: a slow-in, fast-out profile with a long soft
      landing. Sharper in-outs read as a wipe; this reads as a slide. */
   --ease-nav: cubic-bezier(0.32, 0.72, 0, 1);
@@ -179,22 +203,53 @@
      modal. Browsers without linear() fall back to the declaration before. */
   --ease-spring: linear(0, 0.063 2.1%, 0.25 5.1%, 0.5 9.4%, 0.73 14.6%, 0.87 20.2%, 0.95 27%, 0.985 36%, 0.997 48%, 1);
   --ease-spring-soft: linear(0, 0.05 2%, 0.2 5%, 0.45 9.5%, 0.72 15%, 0.9 21%, 1.005 28%, 1.02 35%, 1.012 44%, 1.002 58%, 1);
-  /* THE TYPE SCALE, in the steps the app actually uses (rem, so x0.94 on a
-     laptop):
+  /* THE TYPE SCALE. Nine steps, each a size AND its line-height, and there is
+     no tenth (rem, so x0.94 on a laptop):
 
-       0.75    micro    counts in a badge, a keyboard hint. Never a sentence.
-       0.8125  xs       secondary text: an email, a caption, a column heading.
-                        12.2px. Tailwind's own xs is 0.75 — 11.3px at this
-                        app's 94% — which is where 133 emails and 179 headings
-                        sat, a size too small to read comfortably in a table.
-       0.875   sm       table cells, controls
-       0.9375  body     the default for a row, a label, a nav item
-       1.25    section  a section's title
+       caption     12/16  counts in a badge, a keyboard hint, initials. Never
+                          a sentence.
+       xs          13/18  secondary text: an email, a caption, a column
+                          heading, a chip. Tailwind's own xs is 12 — 11.3px at
+                          this app's 94% — which is where 133 emails and 179
+                          headings sat, too small to read in a table.
+       sm          14/20  table cells, controls
+       body        15/22  the default for a row, a label, a nav item, a button
+       title       17/24  every section title — one level, one size
+       figure-md   20/24  a supporting figure beside the lead
+       figure-lg   28/32  a figure that stands alone in a card
+       display     32/36  the page's h1 (28 under `sm`)
+       lead        42     the one number a page exists to show
 
-     Nothing below 0.75, and no initials under 24px. Set here so every
-     `text-xs` in the app moves together. */
+     October 2026: an audit measured SIXTEEN rendered sizes — section titles at
+     both 17 and 20px, secondary figures at 20, 22, 24, 28 and 30 — and 13px
+     text at five different line-heights, because only xs had one. A size is
+     now a token with its line-height attached, so `text-title` cannot be set
+     at one leading here and another there. Arbitrary `text-[…]` sizes are on
+     their way out (scripts/check-type.mjs).
+
+     Nothing below 12px, and no initials under 24px. */
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
   --text-xs: 0.8125rem;
-  --text-xs--line-height: 1.4;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.375rem;
+  --text-title: 1.0625rem;
+  --text-title--line-height: 1.5rem;
+  --text-title--letter-spacing: -0.01em;
+  --text-figure-md: 1.25rem;
+  --text-figure-md--line-height: 1.5rem;
+  --text-figure-lg: 1.75rem;
+  --text-figure-lg--line-height: 2rem;
+  --text-figure-lg--letter-spacing: -0.02em;
+  --text-display: 2rem;
+  --text-display--line-height: 2.25rem;
+  --text-display--letter-spacing: -0.02em;
+  --text-lead: 2.625rem;
+  --text-lead--line-height: 1;
+  --text-lead--letter-spacing: -0.025em;
   --default-transition-duration: 150ms;
   --default-transition-timing-function: var(--ease-out-strong);
 }
@@ -232,6 +287,26 @@
      them — #63636a is 5.3:1 on the canvas and 4.9:1 under the 8% peak. */
   --glow-brand: 10%;
   --glow-accent: 9%;
+
+  /* MOTION, in four durations and no fifth. There were twenty-one literal
+     durations in this file, 80ms to 3.2s, chosen per rule — October 2026.
+
+       --dur-instant  100ms  a press, a tap dim
+       --dur-fast     160ms  hover, colour, focus, a toggle
+       --dur-base     240ms  menus, rows, toasts, a fade between pages
+       --dur-slow     380ms  sheets, modals, a page push
+
+     A data reveal — a ring, a meter, a bar — may run to 600ms, transform only. */
+  /* The focused field's halo, mixed HERE rather than inside @theme: Tailwind
+     inlines a theme token's references at build time, which froze the light
+     brand blue into the dark theme's halo. Declared on :root, it re-reads
+     --color-brand when data-theme switches it. */
+  --focus-halo: color-mix(in srgb, var(--color-brand) 16%, transparent);
+
+  --dur-instant: 100ms;
+  --dur-fast: 160ms;
+  --dur-base: 240ms;
+  --dur-slow: 380ms;
 }
 
 :root[data-theme="dark"] {
@@ -277,6 +352,9 @@
      spare glaring. Secondary text holds 6.4:1. */
   --color-ink: #e3e5e8;
   --color-muted-fg: #9ba1a9;
+  --color-disabled: #6b7078;
+  /* A step above the fill it sits in, never the card's own colour. */
+  --color-thumb: #3a3f48;
 
   --color-warn-soft: #332f29;
   --color-warn-line: #524631;
@@ -317,6 +395,7 @@
   --shadow-sm: 0 0 0 1px rgb(255 255 255 / 0.08), inset 0 1px 0 rgb(255 255 255 / 0.03);
   --shadow-lg: 0 0 0 1px rgb(255 255 255 / 0.07), 0 12px 32px -8px rgb(0 0 0 / 0.55);
   --shadow-xl: 0 0 0 1px rgb(255 255 255 / 0.08), 0 24px 60px -12px rgb(0 0 0 / 0.65);
+  --shadow-control: 0 0 0 1px rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.5);
 }
 
 /* DensityToggle's labels, keyed off the same attribute the boot script sets.
@@ -423,6 +502,22 @@ html {
   /* Anchor targets (#session-x, #task-y) must land below the sticky bar, not
      under it — the bar is 56px plus a breath. */
   scroll-padding-top: 4.5rem;
+  /* A scrollbar in the app's own greys rather than the OS's, where the
+     browser draws one at all (October 2026). */
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+/* The icon set's line weight in screen pixels, at any icon size — see
+   components/icons.tsx. */
+[data-icon] :is(path, circle, rect, line, polyline, polygon, ellipse) {
+  vector-effect: non-scaling-stroke;
+}
+
+/* Selected text in the brand's tint, as DESIGN.md lists among brand's jobs —
+   the OS's own highlight was the one colour on the page nobody chose. */
+::selection {
+  background-color: var(--color-brand-soft);
+  color: var(--color-ink);
 }
 
 body {
@@ -464,7 +559,17 @@ body {
 }
 
 @layer base {
-  /* Keyboard focus: a visible brand ring on every click target. */
+  /* Keyboard focus: a visible brand ring on every click target.
+
+     The colour is set BEFORE focus as well as on it. Tailwind's `transition`
+     utility animates `outline-color`, so a ring that only got its colour at
+     :focus-visible faded in from `currentColor` — every grey button flashed a
+     grey ring, every nav row an ink one, for 150ms, before turning brand. An
+     audit read that as four ring colours (October 2026); it was one colour
+     arriving late. With nothing to transition from, it arrives brand. */
+  :is(button, a, select, summary, input, textarea, [tabindex]) {
+    outline-color: var(--color-brand);
+  }
   :is(button, a, select, summary, input, textarea):focus-visible {
     outline: 2px solid var(--color-brand);
     outline-offset: 2px;
@@ -506,6 +611,28 @@ body {
   a:active {
     opacity: 0.6;
     transition: none;
+  }
+}
+
+/* A button's press, colour and all, in one place.
+
+   `buttonClasses` used to add Tailwind's `transition` and `active:opacity-80`
+   on top of the base layer's spring scale. The utility won, so the documented
+   240ms spring never ran (it measured 150ms ease-out), and every press both
+   shrank AND dimmed — two acknowledgements of one tap. Now: colours ease, the
+   face scales on the spring, and a LinkButton (an anchor, which the base layer
+   dims on press) scales instead of dimming, like a real button. October 2026. */
+@utility press {
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    background-color var(--dur-fast) var(--ease-out-strong),
+    color var(--dur-fast) var(--ease-out-strong),
+    box-shadow var(--dur-fast) var(--ease-out-strong),
+    outline-color 0ms;
+  &:not(:disabled):active {
+    transform: scale(0.97);
+    opacity: 1;
+    transition-duration: 0ms;
   }
 }
 
@@ -653,6 +780,19 @@ body {
   }
 }
 
+/* A toast rising into place from below — it lives at the bottom of the
+   screen, and `rise-in` dropped it DOWN 4px, from the direction of nothing
+   (October 2026). */
+@utility toast-in {
+  transition:
+    opacity var(--dur-base) var(--ease-out-strong),
+    transform var(--dur-base) var(--ease-spring);
+  @starting-style {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
 /* Only the control that triggered an autosave acknowledges the request. */
 .autosave-editor[data-saving-field="minutes"] input[name="minutes"],
 .autosave-editor[data-saving-field="date"] input[name="date"],
@@ -703,7 +843,7 @@ body {
 }
 
 /*
- * A thread of brand orange running round a control's edge, forever.
+ * A thread of brand orange running round a control's edge — twice, then still.
  *
  * One conic gradient, spun by animating its own angle. `@property` is what
  * makes that possible at all — a custom property has to be registered as an
@@ -754,7 +894,11 @@ body {
       var(--color-accent-dark) 335deg,
       transparent 360deg
     );
-    animation: liquid-edge 3.2s linear infinite;
+    /* Twice, not forever. DESIGN.md says nothing loops, and a thread
+       circling a button for as long as the page is open stops reading as
+       "this one spends hours" and starts reading as "something is loading"
+       (October 2026). Two laps catch the eye on arrival; then it rests. */
+    animation: liquid-edge 3.2s linear 2;
   }
 }
 
@@ -778,7 +922,7 @@ body {
   }
 }
 @utility ring-draw {
-  animation: ring-draw 1100ms var(--ease-out-strong) both;
+  animation: ring-draw 600ms var(--ease-out-strong) both;
 }
 
 /* Bars that grow from their left edge. Same idea as the ring, for goal cards. */
@@ -789,27 +933,7 @@ body {
 }
 @utility bar-grow {
   transform-origin: left center;
-  animation: bar-grow 800ms var(--ease-out-strong) both;
-}
-
-/* Attention nudge: a hint that bounces when an action is tapped too early. */
-@keyframes hint-bounce {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  30% {
-    transform: translateY(-5px);
-  }
-  55% {
-    transform: translateY(2px);
-  }
-  75% {
-    transform: translateY(-1px);
-  }
-}
-@utility hint-bounce {
-  animation: hint-bounce 450ms var(--ease-out-strong);
+  animation: bar-grow 600ms var(--ease-out-strong) both;
 }
 
 /*
@@ -850,15 +974,20 @@ body {
   animation: badge-pop 320ms var(--ease-out-strong) both;
 }
 
-/* Empty-state furniture arriving: softer than deal-in — it was never away. */
-@keyframes pop-in {
+/* Empty-state furniture arriving: softer than deal-in — it was never away.
+
+   It was called `pop-in` too, and Tailwind merges two utilities of one name:
+   every menu and select got BOTH the 0.97 transition above and this 0.85
+   keyframe, so they ballooned out of 85% instead of settling from 97% —
+   measured at scale 0.885 thirty milliseconds in (October 2026). */
+@keyframes furniture-in {
   from {
     opacity: 0;
     transform: scale(0.85);
   }
 }
-@utility pop-in {
-  animation: pop-in 300ms var(--ease-out-strong) both;
+@utility furniture-in {
+  animation: furniture-in 300ms var(--ease-out-strong) both;
 }
 
 /* A chevron leans toward the page it opens, on hover or touch-down. */
