@@ -46,7 +46,7 @@ export function normalizeQuery(raw: string | null | undefined): string | null {
  * Typing "az" should put Aziza above Nazarbek, because the reader typing a
  * name types it from the front.
  */
-function matchTier(text: string, q: string): number | null {
+export function matchTier(text: string, q: string): number | null {
   const t = text.toLowerCase();
   const i = t.indexOf(q);
   if (i < 0) return null;

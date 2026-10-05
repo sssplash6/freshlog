@@ -84,7 +84,35 @@ export async function searchFor(
     now
   );
 
-  const [students, mentors] = await Promise.all([
+  const studentSelect = {
+    id: true,
+    user: {
+      select: { id: true, name: true, email: true, avatarUpdatedAt: true },
+    },
+    enrollments: {
+      // Narrowed in the query, not after it: the other program's name
+      // must never reach this process, let alone the response.
+      where: inScope,
+      select: {
+        programId: true,
+        exchangeId: true,
+        program: { select: { name: true } },
+      },
+      orderBy: { program: { name: "asc" as const } },
+    },
+  };
+
+  const [prefixStudents, students, mentors] = await Promise.all([
+    // Whoever's name STARTS with the query, asked for on its own. The main
+    // query takes the first twenty-five matches by name, and in a large
+    // roster twenty-five people who merely contain "ak" sort ahead of the one
+    // whose name begins with it — who then never reached `rankPeople` at all.
+    prisma.studentProfile.findMany({
+      where: { AND: [studentWhere, { user: { name: { startsWith: q } } }] },
+      select: studentSelect,
+      orderBy: [{ user: { name: "asc" } }, { createdAt: "asc" }],
+      take: SEARCH_LIMIT,
+    }),
     prisma.studentProfile.findMany({
       where: studentWhere,
       select: {
@@ -127,7 +155,13 @@ export async function searchFor(
       : Promise.resolve([]),
   ]);
 
-  const studentRows: SearchPerson[] = students.map((s) => ({
+  const seen = new Set<string>();
+  const candidates = [...prefixStudents, ...students].filter((s) => {
+    if (seen.has(s.id)) return false;
+    seen.add(s.id);
+    return true;
+  });
+  const studentRows: SearchPerson[] = candidates.map((s) => ({
     // The profile id: `/students/[id]` is addressed by it, not by the user.
     id: s.id,
     userId: s.user.id,

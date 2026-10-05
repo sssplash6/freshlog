@@ -25,7 +25,7 @@ import type { ViewerContext } from "@/lib/status";
  * screen, in the shape the week actually has: what happened, what the student
  * is doing about it, and what the hours were budgeted for.
  *
- *   Meetings   left, top     what mentors logged, and what is in the diary
+ *   Sessions   left, top     what mentors logged
  *   Tasks      right, top    what a mentor set the student to go away and DO
  *   Agenda     below, wide   what an admin planned the hours FOR
  *
@@ -204,10 +204,13 @@ export function LedgerBoard({
           is a card wearing lids. `items-start` so a short list is not
           stretched to the height of a long one. */}
       <div className="grid items-start gap-4 lg:grid-cols-2">
-        <Section title="Meetings" count={logged.length}>
+        {/* "Sessions": DESIGN.md's vocabulary keeps "meeting" for what is
+            booked and "session" for what was logged, and this list is only
+            the logged. */}
+        <Section title="Sessions" count={logged.length}>
           {logged.length === 0 ? (
             <p className="px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">
-              No meetings logged yet.
+              No sessions logged yet.
             </p>
           ) : (
             // The inset goes on the ROWS, not on this list: `divide-y` draws
@@ -216,7 +219,7 @@ export function LedgerBoard({
             // timeline shape carries no horizontal padding of its own.
             <ShowMoreList
               rows={meetingRows}
-              noun="meetings"
+              noun="sessions"
               className="[&>li]:px-4 sm:[&>li]:px-5"
             />
           )}

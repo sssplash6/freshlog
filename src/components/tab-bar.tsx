@@ -17,10 +17,9 @@ import type { NavItem } from "@/lib/nav";
  * hidden navigation at 27% use against 48–50% for visible — on the surface
  * where students and mentors actually are.
  *
- * Four slots, because five 64px targets do not fit a 320px screen with any
- * label left readable. A fifth item and beyond fold into "More", which is the
- * one disclosure kept: an admin lens carries six items and the alternative to a
- * sheet is a bar that scrolls sideways.
+ * Up to five tabs. A sixth item and beyond fold into "More" — four tabs and the
+ * sheet — which is the one disclosure kept: an admin lens carries six items and
+ * the alternative to a sheet is a bar that scrolls sideways.
  *
  * Icon over label, the shape every phone app shares — a word alone at the
  * bottom of the screen reads as a footer, not as a tab bar. The label still
@@ -75,7 +74,11 @@ export function TabBar({
   className?: string;
 }) {
   const current = useCurrentNavItem(items);
-  const overflows = items.length > SLOTS;
+  // Exactly five fit as five: 64px a tab on a 320px screen holds "Analytics"
+  // at 12px. Folding one item into More cost a mentor a sheet that held two
+  // destinations — Feedback and Analytics — behind a tap, which is the hidden
+  // navigation this bar exists to replace. Six and up still fold.
+  const overflows = items.length > SLOTS + 1;
   const shown = overflows ? items.slice(0, SLOTS - 1) : items;
   const rest = overflows ? items.slice(SLOTS - 1) : [];
 
@@ -178,6 +181,11 @@ export function TabBar({
                 </>
               }
             >
+              {/* Named, so the sheet says what it is: it opened as a bare
+                  list over the bar it came from. */}
+              <p className="px-3 pb-1 pt-1.5 text-[0.8125rem] font-semibold text-muted-fg">
+                More
+              </p>
               {rest.map((item) => (
                 <Link
                   key={item.href}

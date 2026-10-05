@@ -17,6 +17,7 @@ import { fieldChrome } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
 import {
   matchNav,
+  matchTier,
   type SearchPerson,
   type SearchResults,
 } from "@/lib/command-search";
@@ -40,14 +41,44 @@ const DEBOUNCE_MS = 150;
 
 type Place = { href: string; label: string };
 
+type Group = "Actions" | "Go to" | "Students" | "Mentors";
+
 /** One row the keyboard can land on, whatever group it is in. */
 type Option = {
   id: string;
   href: string;
-  group: "Go to" | "Students" | "Mentors";
+  group: Group;
   label: string;
   person?: SearchPerson;
 };
+
+/** The log form, opened on one student. */
+const logFor = (studentId: string) => `/sessions/new?student=${encodeURIComponent(studentId)}`;
+
+/** The best `matchTier` across a person's name and address; 3 for none. */
+function personTier(p: SearchPerson, query: string): number {
+  const q = query.toLowerCase();
+  const tiers = [p.name ? matchTier(p.name, q) : null, matchTier(p.email, q)].filter(
+    (t): t is number => t !== null
+  );
+  return tiers.length > 0 ? Math.min(...tiers) : 3;
+}
+
+/**
+ * The query, bolded where it matched, so a reader sees why a row is there —
+ * "Mirzaakhmedov" under "ak" reads as a mistake until the "ak" is lit.
+ */
+function Highlight({ text, q }: { text: string; q: string }) {
+  const i = q ? text.toLowerCase().indexOf(q.toLowerCase()) : -1;
+  if (i < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, i)}
+      <span className="font-semibold text-brand">{text.slice(i, i + q.length)}</span>
+      {text.slice(i + q.length)}
+    </>
+  );
+}
 
 /**
  * ⌘K / Ctrl+K: every place in the rail and every person the reader could find
@@ -190,31 +221,86 @@ function Palette({
   const results = q && answer?.q === q ? answer.results : null;
   const pending = q !== "" && results === null && !failed;
 
-  const options: Option[] = [
-    ...matchNav(places, q).map<Option>((p) => ({
-      id: `${listId}-go-${p.href}`,
-      href: p.href,
-      group: "Go to",
-      label: p.label,
-    })),
-    ...(results?.students ?? []).map<Option>((s) => ({
-      id: `${listId}-s-${s.id}`,
-      href: `/students/${s.id}`,
-      group: "Students",
-      label: s.name ?? s.email,
-      person: s,
-    })),
-    // Only for a reader with a Mentors item: the placeholder has not promised
-    // mentors to anybody else, so they are not offered even where the route
-    // would return some.
-    ...(mentors ? (results?.mentors ?? []) : []).map<Option>((m) => ({
-      id: `${listId}-m-${m.id}`,
-      href: `/mentors/${m.id}`,
-      group: "Mentors",
-      label: m.name ?? m.email,
-      person: m,
-    })),
+  // Anybody with a session log can write to it — the one thing people open
+  // the palette to DO rather than to find.
+  const canLog = places.some((p) => p.href === "/sessions");
+  const students = results?.students ?? [];
+  // Only for a reader with a Mentors item: the placeholder has not promised
+  // mentors to anybody else, so they are not offered even where the route
+  // would return some.
+  const mentorHits = mentors ? (results?.mentors ?? []) : [];
+
+  const actions: Option[] = canLog
+    ? [
+        ...(matchNav([{ label: "Log a session" }], q).length > 0
+          ? [{ id: `${listId}-a-log`, href: "/sessions/new", group: "Actions" as const, label: "Log a session" }]
+          : []),
+        // The best student hit, one step from a session with them. Every
+        // student row also takes ⌘↵ for the same thing.
+        ...(students[0]
+          ? [
+              {
+                id: `${listId}-a-log-${students[0].id}`,
+                href: logFor(students[0].id),
+                group: "Actions" as const,
+                label: `Log a session with ${students[0].name ?? students[0].email}`,
+              },
+            ]
+          : []),
+      ]
+    : [];
+  const navRows = matchNav(places, q);
+  const byGroup: Record<Exclude<Group, "Actions">, { rows: Option[]; tier: number }> = {
+    "Go to": {
+      rows: navRows.map<Option>((p) => ({
+        id: `${listId}-go-${p.href}`,
+        href: p.href,
+        group: "Go to",
+        label: p.label,
+      })),
+      tier: Math.min(
+        3,
+        ...navRows.map((p) => matchTier(p.label, q.toLowerCase()) ?? 3)
+      ),
+    },
+    Students: {
+      rows: students.map<Option>((s) => ({
+        id: `${listId}-s-${s.id}`,
+        href: `/students/${s.id}`,
+        group: "Students",
+        label: s.name ?? s.email,
+        person: s,
+      })),
+      tier: Math.min(3, ...students.map((s) => personTier(s, q))),
+    },
+    Mentors: {
+      rows: mentorHits.map<Option>((m) => ({
+        id: `${listId}-m-${m.id}`,
+        href: `/mentors/${m.id}`,
+        group: "Mentors",
+        label: m.name ?? m.email,
+        person: m,
+      })),
+      tier: Math.min(3, ...mentorHits.map((m) => personTier(m, q))),
+    },
+  };
+  // The group whose best row matches best comes first. Students always led,
+  // so "ak" listed two students who merely contain it — Mirzaakhmedov,
+  // Rakhimjonov — above the mentor whose name starts with it. Ties keep the
+  // old order. With nothing typed, the actions lead: the palette opened empty
+  // is a list of things to do and places to go.
+  const ranked = (["Go to", "Students", "Mentors"] as const)
+    .map((group, order) => ({ group, order, ...byGroup[group] }))
+    .filter((g) => g.rows.length > 0)
+    .sort((a, b) => (q ? a.tier - b.tier : 0) || a.order - b.order);
+  const groups: { group: Group; rows: Option[] }[] = [
+    ...(actions.length > 0 && !q ? [{ group: "Actions" as const, rows: actions }] : []),
+    ...ranked.map(({ group, rows }) => ({ group, rows })),
+    // Typed, they follow the answers: Enter on the first row should open what
+    // was typed, not log a session with it.
+    ...(actions.length > 0 && q ? [{ group: "Actions" as const, rows: actions }] : []),
   ];
+  const options: Option[] = groups.flatMap((g) => g.rows);
   // Clamped at render rather than reset in an effect: results arriving can
   // shorten the list under the cursor, and the cursor stays on the last row.
   const current = options.length === 0 ? -1 : Math.min(active, options.length - 1);
@@ -227,11 +313,16 @@ function Palette({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current, options[current]?.id]);
 
-  function go(option: Option) {
+  function go(option: Option, log = false) {
+    // ⌘↵ on a student opens the log form on them instead of their page.
+    const href =
+      log && canLog && option.group === "Students" && option.person
+        ? logFor(option.person.id)
+        : option.href;
     onClose();
     // Tell NavProgress: a router.push is invisible to its click listener.
-    window.dispatchEvent(new CustomEvent("nav-start", { detail: option.href }));
-    router.push(option.href);
+    window.dispatchEvent(new CustomEvent("nav-start", { detail: href }));
+    router.push(href);
   }
 
   function onInputKeyDown(e: ReactKeyboardEvent<HTMLInputElement>) {
@@ -263,7 +354,7 @@ function Palette({
       case "Enter":
         if (current >= 0) {
           e.preventDefault();
-          go(options[current]);
+          go(options[current], e.metaKey || e.ctrlKey);
         }
         break;
     }
@@ -292,9 +383,6 @@ function Palette({
     }
   }
 
-  const groups = (["Go to", "Students", "Mentors"] as const)
-    .map((group) => ({ group, rows: options.filter((o) => o.group === group) }))
-    .filter((g) => g.rows.length > 0);
   const nobody =
     results !== null &&
     results.students.length === 0 &&
@@ -353,7 +441,9 @@ function Palette({
                 setActive(0);
               }}
               onKeyDown={onInputKeyDown}
-              placeholder={mentors ? "Find a student, mentor or page…" : "Find a student or page…"}
+              // The rail's own words, so the field that opened this and the
+              // field inside it promise the same thing.
+              placeholder={mentors ? "Find a person…" : "Find a student…"}
               className={cn(
                 fieldChrome,
                 "min-h-11 w-full py-2.5 pl-9 pr-3.5 text-base placeholder:text-muted-fg sm:text-[0.9375rem]"
@@ -409,10 +499,14 @@ function Palette({
                     )}
                   >
                     {option.person ? (
-                      <PersonRow person={option.person} />
+                      <PersonRow person={option.person} q={q} />
                     ) : (
                       <span className="min-w-0 flex-1 truncate font-medium">
-                        {option.label}
+                        {option.group === "Actions" ? (
+                          option.label
+                        ) : (
+                          <Highlight text={option.label} q={q} />
+                        )}
                       </span>
                     )}
                   </div>
@@ -424,20 +518,24 @@ function Palette({
           {/* Said in the live region so a screen reader hears that the answer
               changed, not only a sighted reader who sees the rows move. */}
           <div role="status" aria-live="polite" className="px-3 py-2 text-sm text-muted-fg">
+            {/* "Nothing" only when nothing at all came back: it said "No one
+                matches" under a list of pages that did. */}
             {failed
               ? "Search is not answering. Try again in a moment."
-              : nobody
-                ? `No one matches “${q}”.`
-                : pending && groups.length === 0
-                  ? "Searching…"
-                  : ""}
+              : nobody && groups.every((g) => g.group === "Actions")
+                ? `Nothing matches “${q}”.`
+                : nobody
+                  ? `No people match “${q}”.`
+                  : pending && groups.length === 0
+                    ? "Searching…"
+                    : ""}
           </div>
         </div>
 
         {/* Keys are no use on a phone, where there is no keyboard to press them. */}
         {!sheet && (
           <p className="border-t border-line px-4 py-2 text-xs text-muted-fg">
-            ↑↓ to move · ↵ to open · esc to close
+            ↑↓ to move · ↵ to open{canLog && students.length > 0 ? " · ⌘↵ to log a session with a student" : ""} · esc to close
           </p>
         )}
       </div>
@@ -446,7 +544,7 @@ function Palette({
 }
 
 /** A person inside a result row: face, name, and where the reader may see them. */
-function PersonRow({ person }: { person: SearchPerson }) {
+function PersonRow({ person, q }: { person: SearchPerson; q: string }) {
   const face = {
     id: person.userId,
     name: person.name,
@@ -458,7 +556,9 @@ function PersonRow({ person }: { person: SearchPerson }) {
     <>
       <Avatar person={face} className="h-7 w-7 text-[0.75rem]" />
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="min-w-0 truncate font-medium">{person.name ?? person.email}</span>
+        <span className="min-w-0 truncate font-medium">
+          <Highlight text={person.name ?? person.email} q={q} />
+        </span>
         <span className="min-w-0 truncate text-xs text-muted-fg">{detail}</span>
       </span>
     </>

@@ -146,7 +146,10 @@ export function PhoneChrome({ brand }: { brand: React.ReactNode }) {
           {/* Once the title shows, the label steps aside to the chevron, the
               way iOS shortens a long back title: the two sat in the same few
               dozen pixels and drew over each other. */}
-          <span className={cn("max-w-28 truncate", collapsed && "hidden")}>
+          {/* Capped at 192px, and the link itself shrinks: at 112px "Global
+              Admissions Program" was cut to "Global Admis…" with 140px of
+              empty bar beside it. */}
+          <span className={cn("max-w-48 truncate", collapsed && "hidden")}>
             {back.label}
           </span>
         </Link>
