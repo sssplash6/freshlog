@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { ProgramTargetsPicker } from "@/components/forms/program-targets-picker";
+import { useAutosave } from "@/components/forms/use-autosave";
 import { EmailInput, Field, Input, NameInput } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -184,11 +185,11 @@ export function EditMentorForm({
   programs: ProgramOption[];
   canEditIdentity: boolean;
 }) {
-  const [, action, save] = useSaveState(updateMentor);
+  const { formProps, save } = useAutosave(updateMentor);
 
   return (
     <form
-      action={action}
+      {...formProps}
       className="rise-in mt-2 rounded-xl bg-surface shadow-sm p-4"
       // Remount when the pairings change, so the checkboxes show what was
       // actually saved rather than what was typed.
@@ -232,9 +233,6 @@ export function EditMentorForm({
         // yet joined another is recorded.
         required={false}
       />
-      <div className="mt-3 flex justify-end">
-        <SubmitButton pendingText="Saving…">Save changes</SubmitButton>
-      </div>
       <SaveState state={save} />
     </form>
   );

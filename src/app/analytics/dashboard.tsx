@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { ChartIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from "@/components/icons";
+import { ChartIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, XIcon } from "@/components/icons";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/field";
 import { PageTitle, Section } from "@/components/ui/section";
-import type { AnalyticsData, AnalyticsMentor, AnalyticsRow } from "@/lib/analytics";
+import type { AnalyticsData, AnalyticsMentor, AnalyticsProgram, AnalyticsRow } from "@/lib/analytics";
 import {
   byDay,
   byMonth,
@@ -32,7 +33,6 @@ import {
 import { cn } from "@/lib/cn";
 import { formatDuration } from "@/lib/format";
 import { initials, personTone } from "@/lib/person-tone";
-import { programColorVar } from "@/lib/program-tone";
 
 import s from "./dashboard.module.css";
 
@@ -100,19 +100,31 @@ const HOURS = "var(--color-accent)";
 const EXTRA_OPACITY = 0.35;
 
 /**
- * A program's colour here is the colour it wears everywhere else: its stored
- * slot, read as a CSS variable so an SVG path can use it.
+ * A program's colour on this page: its own, out of eight that are kept apart
+ * (`--prog-0`…`--prog-7` in the stylesheet), so no two programs in a stack, a
+ * legend or a row of cards share one.
  *
- * This used to re-deal colours of its own, because four hashed hues put two
- * programs on one — so a program was one colour on /programs and another here.
- * Slots are now given when a program is created and differ for the first
- * eight live ones, so there is nothing left to re-deal. The "No level" bucket
- * of an institute is not a place and stays neutral.
+ * The n-th program takes the n-th colour. Live programs choose before archived
+ * ones, so an old program never takes a current one's colour, and the order is
+ * fixed for the life of the page, so a program keeps its colour when a filter
+ * removes its neighbours. Past eight programs the colours start again.
  */
+const PALETTE = 8;
+const colorCache = new WeakMap<AnalyticsProgram[], string[]>();
 function colorOf(data: AnalyticsData, program: number): string {
-  const p = data.programs[program];
-  if (!p || p.colorIndex == null) return "var(--color-muted-fg)";
-  return programColorVar({ id: p.id, colorIndex: p.colorIndex });
+  let colors = colorCache.get(data.programs);
+  if (!colors) {
+    const out: string[] = [];
+    data.programs
+      .map((p, i) => ({ p, i }))
+      .sort((a, b) => Number(a.p.archived) - Number(b.p.archived) || a.i - b.i)
+      .forEach(({ i }, n) => {
+        out[i] = `var(--prog-${n % PALETTE})`;
+      });
+    colors = out;
+    colorCache.set(data.programs, colors);
+  }
+  return colors[program] ?? "var(--color-muted-fg)";
 }
 
 type Today = { year: number; month: number; day: number };
@@ -1032,8 +1044,8 @@ function ProgramCards({
                     whole year both "13% of the 734h granted". */}
                 <span className="min-w-0 text-xs tabular-nums text-muted-fg">
                   {p.granted > 0
-                    ? `${Math.round(progress * 100)}% of ${formatDuration(p.granted)} granted, to date`
-                    : "no time granted"}
+                    ? `${Math.round(progress * 100)}% of ${formatDuration(p.granted)} total, to date`
+                    : "no total set"}
                 </span>
               </span>
               <span className="block h-1 overflow-hidden rounded-full bg-fill" aria-hidden>
@@ -1065,7 +1077,7 @@ function ProgramCards({
                 <span className="min-w-0 truncate font-medium text-ink">{p.name}</span>
                 <span className="min-w-0 flex-1 truncate">
                   · nothing logged in {period}
-                  {p.granted > 0 ? ` · ${formatDuration(p.granted)} granted` : ""}
+                  {p.granted > 0 ? ` · ${formatDuration(p.granted)} total` : ""}
                 </span>
                 <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg" />
               </button>
@@ -1125,8 +1137,20 @@ function Leaderboard({
   last: number;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [query, setQuery] = useState("");
   const ranked = useMemo(() => rankBy(periodRows, yearRows, 1), [periodRows, yearRows]);
-  const shown = limit && !expanded ? ranked.slice(0, limit) : ranked;
+  // A search looks through everyone in the list, not just the rows showing,
+  // and keeps each mentor's place in the full order: a filtered "3" is still
+  // third, not first of one.
+  const needle = query.trim().toLowerCase();
+  const found = useMemo(
+    () =>
+      ranked
+        .map((r, n) => ({ r, rank: n + 1 }))
+        .filter(({ r }) => !needle || data.mentors[r.index].name.toLowerCase().includes(needle)),
+    [ranked, needle, data.mentors]
+  );
+  const shown = limit && !expanded && !needle ? found.slice(0, limit) : found;
   const top = ranked[0]?.hours ?? 0;
   const period = view.month != null ? MONTHS_LONG[view.month] : String(view.year);
 
@@ -1149,24 +1173,47 @@ function Leaderboard({
       {ranked.length === 0 ? (
         <p className="px-4 py-3 text-body text-muted-fg sm:px-5">No mentor logged a session in {period}.</p>
       ) : (
-        <div className="divide-y divide-line">
-          {shown.map((r, n) => (
-            <MentorRow
-              key={r.index}
-              r={r}
-              last={last}
-              rank={n + 1}
-              showRank={withRank}
-              top={top}
-              mentor={data.mentors[r.index]}
-              highlight={view.month}
-              delay={n * 40}
-              onOpen={() => go({ mentor: r.index })}
+        <>
+          <label className="relative block border-b border-line px-4 py-2.5 sm:px-5">
+            <span className="sr-only">Search mentors</span>
+            <SearchIcon
+              aria-hidden="true"
+              className="pointer-events-none absolute left-7 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg sm:left-8"
             />
-          ))}
-        </div>
+            <Input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search mentors"
+              autoComplete="off"
+              enterKeyHint="search"
+              className="pl-9 [&::-webkit-search-cancel-button]:hidden"
+            />
+          </label>
+          {found.length === 0 && (
+            <p className="px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">
+              No mentor matching “{query.trim()}” logged a session in {period}.
+            </p>
+          )}
+          <div className="divide-y divide-line">
+            {shown.map(({ r, rank }, n) => (
+              <MentorRow
+                key={r.index}
+                r={r}
+                last={last}
+                rank={rank}
+                showRank={withRank}
+                top={top}
+                mentor={data.mentors[r.index]}
+                highlight={view.month}
+                delay={n * 40}
+                onOpen={() => go({ mentor: r.index })}
+              />
+            ))}
+          </div>
+        </>
       )}
-      {limit && ranked.length > limit && (
+      {limit && !needle && ranked.length > limit && (
         <button
           type="button"
           className="block w-full border-t border-line px-4 py-3 text-left text-body font-medium text-brand transition-colors hover:bg-fill sm:px-5"

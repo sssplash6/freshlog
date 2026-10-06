@@ -44,6 +44,10 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Counts match what you see.** "Things to check", the bell and notifications count the rows they actually show.
 - **Forms explain what's missing.** Every required field says what it needs right under it, in one style, instead of mixing browser pop-ups with red text.
 - **Easier to read and tap.** Text sizes, focus rings, contrast in dark mode, and tap targets on phones are consistent across the app, and menus open smoothly instead of popping.
+- **Search mentors in Analytics.** The mentor list on the Analytics page has a search box. Type part of a name to find them, wherever they rank.
+- **Every program has its own colour in Analytics.** Charts, legends and program cards give each program a distinct colour instead of shades of blue and grey.
+- **Changes save as you make them.** Editing a mentor's programs, a student's hours and use-by date, or an agenda item no longer needs Save changes or Done. The edit saves when you finish it, and a tick shows it did.
+- **What's new is an icon.** On a laptop, What's new and the bell are now two small icons in the top right corner, level with the page title, instead of a row of their own above it.
 
 ## 2026-10-05
 

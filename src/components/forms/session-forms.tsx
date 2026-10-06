@@ -165,7 +165,7 @@ export function SessionRowActions({
       // labels wrapped and the panel ran ~800px tall.
       width="xl"
     >
-      {({ close }) => (
+      {() => (
         <>
       <p className="mb-3 text-sm font-semibold text-ink">{heading}</p>
 
@@ -271,17 +271,11 @@ export function SessionRowActions({
               This edit could not be saved. Try changing the field again.
             </p>
           )}
-          {/* There is no Save: every change saves a moment after it is made.
-              Without a word saying so — and a way out that is not "Void" — the
-              only buttons in the panel were the two that end the row. */}
-          <div className="mt-3 flex items-center justify-between gap-2">
-            <p aria-live="polite" className="text-xs text-muted-fg">
-              {editStatus === "saving" ? "Saving…" : "Changes save as you make them."}
-            </p>
-            <Button type="button" size="sm" variant="secondary" onClick={close}>
-              Done
-            </Button>
-          </div>
+          {/* There is no Save and no Done: every change saves a moment after
+              it is made, and the menu closes the way any menu does. */}
+          <p aria-live="polite" className="mt-3 text-xs text-muted-fg">
+            {editStatus === "saving" ? "Saving…" : "Changes save as you make them."}
+          </p>
         </RowActionGroup>
       )}
 

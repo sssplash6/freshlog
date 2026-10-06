@@ -11,6 +11,7 @@ import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { DateField } from "@/components/ui/date-field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { useAutosave } from "@/components/forms/use-autosave";
 import { toDateInputValue } from "@/lib/format";
 import { MAX_TASK_LENGTH } from "@/lib/tasks";
 import {
@@ -92,7 +93,7 @@ export function AllocationRowActions({
   const [minutes, setMinutes] = useState(String(currentMinutes));
   // A raise grants hours, and hours arriving name the work they are for.
   const granting = Number(minutes) > currentMinutes;
-  const [, setAction, setSave] = useSaveState(setMentorAllocation);
+  const { formProps, flush, save: setSave } = useAutosave(setMentorAllocation);
   const [, delAction, delSave] = useSaveState(removeMentorAllocation);
 
   return (
@@ -102,7 +103,7 @@ export function AllocationRowActions({
       width="md"
     >
       <RowActionGroup label="Correct this allocation">
-        <form action={setAction} className="space-y-3">
+        <form {...formProps} className="space-y-3">
           <input
             type="hidden"
             name="studentProfileId"
@@ -131,6 +132,8 @@ export function AllocationRowActions({
               label="Use by"
               required
               defaultValue={currentDeadline ?? ""}
+              // A hidden input raises no `change`, so the date says so itself.
+              onChange={() => setTimeout(flush, 60)}
             />
           </Field>
 
@@ -155,10 +158,6 @@ export function AllocationRowActions({
               </p>
             </div>
           )}
-
-          <SubmitButton size="sm" pendingText="Saving…">
-            Save
-          </SubmitButton>
         </form>
         <SaveState state={setSave} />
       </RowActionGroup>
@@ -178,9 +177,20 @@ export function AllocationRowActions({
         <ConfirmInline
           variant="quiet"
           action={delAction}
-          values={{ studentProfileId, programId, mentorId, ...(bank ? { bank: "1" } : {}) }}
+          values={{
+            studentProfileId,
+            programId,
+            mentorId,
+            ...(bank ? { bank: "1" } : {}),
+          }}
           pending={delSave.kind === "saving"}
-          label={bank ? "Remove hour bank" : mentorId ? "Remove mentor" : "Remove time"}
+          label={
+            bank
+              ? "Remove hour bank"
+              : mentorId
+                ? "Remove mentor"
+                : "Remove time"
+          }
           // Naming the consequence, because it is wider than the row: the
           // action deletes this pairing's open tasks and its allocation
           // history along with the hours. A mentor who has logged a session is
@@ -300,7 +310,7 @@ export function AllocationMinutesEditor({
   currentAmountPaid?: number | null;
   showAmountPaid?: boolean;
 }) {
-  const [, setAction, save] = useSaveState(setMentorAllocation);
+  const { formProps, save } = useAutosave(setMentorAllocation);
   const [minutes, setMinutes] = useState(String(currentMinutes));
 
   return (
@@ -310,8 +320,12 @@ export function AllocationMinutesEditor({
       width="sm"
     >
       <RowActionGroup label="Total allocated time">
-        <form action={setAction} className="space-y-3">
-          <input type="hidden" name="studentProfileId" value={studentProfileId} />
+        <form {...formProps} className="space-y-3">
+          <input
+            type="hidden"
+            name="studentProfileId"
+            value={studentProfileId}
+          />
           <input type="hidden" name="programId" value={programId} />
           <input type="hidden" name="mentorId" value={mentorId} />
           {bank && <input type="hidden" name="bank" value="1" />}
@@ -335,9 +349,6 @@ export function AllocationMinutesEditor({
               onChange={(event) => setMinutes(event.target.value)}
             />
           </Field>
-          <SubmitButton size="sm" pendingText="Saving…">
-            Save
-          </SubmitButton>
         </form>
         <SaveState state={save} />
       </RowActionGroup>
@@ -417,7 +428,8 @@ function TaskPanel({
   const [editing, setEditing] = useState(false);
   const [, progressAction, progressSave] = useSaveState(setAssignmentProgress);
   const progressPending = progressSave.kind === "saving";
-  const [, editAction, editSave] = useSaveState(updateAssignment);
+  const { formProps: editProps, save: editSave } =
+    useAutosave(updateAssignment);
   const [, delAction, delSave] = useSaveState(deleteAssignment);
 
   // Switching faces unmounts the button that was just pressed, and focus left
@@ -425,13 +437,13 @@ function TaskPanel({
   // Tab started from, and from there it left the page for the browser's own
   // toolbar. So the face that appears takes focus: the first field going in,
   // and the "Edit" button coming back out.
-  const editFormRef = useRef<HTMLFormElement>(null);
+  const editBoxRef = useRef<HTMLDivElement>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const wasEditing = useRef(false);
   useEffect(() => {
     if (editing) {
       wasEditing.current = true;
-      editFormRef.current
+      editBoxRef.current
         ?.querySelector<HTMLElement>("textarea, input:not([type=hidden])")
         ?.focus();
     } else if (wasEditing.current) {
@@ -443,89 +455,90 @@ function TaskPanel({
   if (editing) {
     return (
       <RowActionGroup label="Edit this agenda item">
-        <form ref={editFormRef} action={editAction} className="space-y-3">
-          <input type="hidden" name="assignmentId" value={task.id} />
-          <input type="hidden" name="progress" value={task.progress} />
+        <div ref={editBoxRef}>
+          <form {...editProps} className="space-y-3">
+            <input type="hidden" name="assignmentId" value={task.id} />
+            <input type="hidden" name="progress" value={task.progress} />
 
-          <Field label="Agenda item">
-            <GrowingField
-              name="purpose"
-              required
-              maxLength={MAX_TASK_LENGTH}
-              defaultValue={task.purpose}
-            />
-          </Field>
+            <Field label="Agenda item">
+              <GrowingField
+                name="purpose"
+                required
+                maxLength={MAX_TASK_LENGTH}
+                defaultValue={task.purpose}
+              />
+            </Field>
 
-          {/* Not a `Field`: `Select` is a combobox built from buttons, and a
+            {/* Not a `Field`: `Select` is a combobox built from buttons, and a
               <label> wrapping one has nothing to label. Its own `ariaLabel`
               names it instead. */}
-          <div>
-            <span className="block text-sm font-medium text-ink">Mentor</span>
-            <div className="mt-1.5">
-              <Select
-                name="mentorId"
-                ariaLabel="Mentor"
-                options={mentors}
-                defaultValue={task.mentorId ?? ""}
-                placeholder="No one yet"
-                required={false}
-              />
+            <div>
+              <span className="block text-sm font-medium text-ink">Mentor</span>
+              <div className="mt-1.5">
+                <Select
+                  name="mentorId"
+                  ariaLabel="Mentor"
+                  options={mentors}
+                  defaultValue={task.mentorId ?? ""}
+                  placeholder="No one yet"
+                  required={false}
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="flex gap-2">
-            <Field label="Minute limit" className="min-w-0 flex-1">
-              <Input
-                name="minuteLimit"
-                type="number"
-                min="0"
-                step="1"
-                defaultValue={task.minuteLimit ?? ""}
-              />
-            </Field>
-            {/* The half a clock can read. Only this one can make a task
+            <div className="flex gap-2">
+              <Field label="Minute limit" className="min-w-0 flex-1">
+                <Input
+                  name="minuteLimit"
+                  type="number"
+                  min="0"
+                  step="1"
+                  defaultValue={task.minuteLimit ?? ""}
+                />
+              </Field>
+              {/* The half a clock can read. Only this one can make a task
                 overdue, which is why it is a date field and not more prose. */}
-            <Field label="Due date" className="min-w-0 flex-1">
-              <DateField
-                name="dueOn"
-                label="Due date"
-                defaultValue={task.dueOn ? toDateInputValue(task.dueOn) : ""}
-              />
-            </Field>
-          </div>
+              <Field label="Due date" className="min-w-0 flex-1">
+                <DateField
+                  name="dueOn"
+                  label="Due date"
+                  defaultValue={task.dueOn ? toDateInputValue(task.dueOn) : ""}
+                />
+              </Field>
+            </div>
 
-          {/* And the half a person writes. The sheet this came from holds
+            {/* And the half a person writes. The sheet this came from holds
               "March-May" as often as "August 7", and a note that cannot be
               parsed is still the truest thing anybody knows about the date. */}
-          <Field label="Due, in words">
-            <Input
-              name="dueNote"
-              type="text"
-              maxLength={60}
-              placeholder="March-May"
-              defaultValue={task.dueNote ?? ""}
-            />
-          </Field>
+            <Field label="Due, in words">
+              <Input
+                name="dueNote"
+                type="text"
+                maxLength={60}
+                placeholder="March-May"
+                defaultValue={task.dueNote ?? ""}
+              />
+            </Field>
 
-          <Field label="Note">
-            <GrowingField
-              name="note"
-              maxLength={500}
-              placeholder="Anything the state can't say"
-              defaultValue={task.note ?? ""}
-            />
-          </Field>
-
-          <div className="flex gap-2">
-            <SubmitButton size="sm" pendingText="Saving…">
-              Save
-            </SubmitButton>
-            <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
-              Cancel
-            </Button>
-          </div>
-        </form>
-        <SaveState state={editSave} />
+            <Field label="Note">
+              <GrowingField
+                name="note"
+                maxLength={500}
+                placeholder="Anything the state can't say"
+                defaultValue={task.note ?? ""}
+              />
+            </Field>
+          </form>
+          <SaveState state={editSave} />
+          <Button
+            size="sm"
+            variant="ghost"
+            className="mt-2"
+            onClick={() => setEditing(false)}
+          >
+            Back to progress
+          </Button>
+        </div>
       </RowActionGroup>
     );
   }
@@ -594,20 +607,20 @@ function TaskPanel({
           Edit this agenda item
         </button>
         {canDelete && (
-        <ConfirmInline
-          variant="quiet"
-          action={delAction}
-          values={{ assignmentId: task.id }}
-          pending={delSave.kind === "saving"}
-          label="Remove this agenda item"
-          // The old confirm asked nothing — it went from "Remove" straight to
-          // "Yes, remove", which is a two-step confirm with the informative
-          // step left out. This is the fact a reader needs: the hours logged
-          // against it are not going anywhere.
-          question="Sessions already logged against it are kept."
-          confirmLabel="Yes, remove"
-          pendingLabel="Removing…"
-        />
+          <ConfirmInline
+            variant="quiet"
+            action={delAction}
+            values={{ assignmentId: task.id }}
+            pending={delSave.kind === "saving"}
+            label="Remove this agenda item"
+            // The old confirm asked nothing — it went from "Remove" straight to
+            // "Yes, remove", which is a two-step confirm with the informative
+            // step left out. This is the fact a reader needs: the hours logged
+            // against it are not going anywhere.
+            question="Sessions already logged against it are kept."
+            confirmLabel="Yes, remove"
+            pendingLabel="Removing…"
+          />
         )}
         {canDelete && <SaveState state={delSave} />}
       </RowActionGroup>

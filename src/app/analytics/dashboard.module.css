@@ -13,6 +13,30 @@
 .root {
   --grid: var(--color-line);
   --hover: var(--color-fill);
+
+  /* One colour per program, eight that stay apart on a stacked column. Not the
+     four cool program hues the chips wear elsewhere: those sit within 90
+     degrees of each other, and two neighbours in a stack read as one. Amber
+     and red are left out — DESIGN.md spends them on status. */
+  --prog-0: #2f6fdb;
+  --prog-1: #0e8f86;
+  --prog-2: #7a4aa8;
+  --prog-3: #c2417f;
+  --prog-4: #5a9e32;
+  --prog-5: #2a9fd0;
+  --prog-6: #8b6b4a;
+  --prog-7: #536780;
+}
+
+:global(:root[data-theme="dark"]) .root {
+  --prog-0: #6b9cf0;
+  --prog-1: #3cc4b9;
+  --prog-2: #b48be6;
+  --prog-3: #ee7fb0;
+  --prog-4: #8ccb5c;
+  --prog-5: #5ec2ee;
+  --prog-6: #c6a27d;
+  --prog-7: #9fb0c4;
 }
 
 /* ---------- column chart ---------- */

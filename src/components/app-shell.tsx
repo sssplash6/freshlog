@@ -116,12 +116,15 @@ function NotificationBell({ unread }: { unread: UnreadSummary }) {
 }
 
 /**
- * "What's new", in the corner beside the bell.
+ * "What's new", as an icon in the corner beside the bell.
  *
  * It lived only in the account menu, one open-and-scan away, so a change that
  * shipped was found by whoever happened to look. The corner is where the page's
  * two "something for you" signals already sit; this is the quieter of the two —
- * a blue dot, never a count, because an update is not a task.
+ * a blue dot, never a count, because an update is not a task. An icon and not a
+ * labelled pill: the word took a row's worth of width for a link that is read
+ * once and then recognised by its glyph, and the bell beside it is already
+ * understood without one.
  *
  * The same `/changelog` row stays in the account menu, which is the only place
  * the phone chrome reaches it from.
@@ -131,18 +134,16 @@ function WhatsNewLink({ unseen }: { unseen: boolean }) {
     <Link
       href="/changelog"
       transitionTypes={["nav-forward"]}
-      className="relative flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-fg transition hover:bg-fill hover:text-ink"
+      aria-label={unseen ? "What's new (unread updates)" : "What's new"}
+      title="What's new"
+      className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-fg transition hover:bg-fill hover:text-ink"
     >
-      <SparklesIcon className="h-4 w-4" />
-      {"What's new"}
+      <SparklesIcon className="h-[1.125rem] w-[1.125rem]" />
       {unseen && (
-        <>
-          <span
-            aria-hidden="true"
-            className="h-2 w-2 rounded-full bg-brand"
-          />
-          <span className="sr-only">(unread updates)</span>
-        </>
+        <span
+          aria-hidden="true"
+          className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand ring-2 ring-canvas"
+        />
       )}
     </Link>
   );
@@ -561,30 +562,27 @@ function StaffShell({
       <main
         id="main"
         tabIndex={-1}
-        className="mx-auto w-full max-w-6xl focus:outline-none flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:pb-10 lg:pt-4"
+        className="relative mx-auto w-full max-w-6xl focus:outline-none flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:pb-10 lg:pt-4 lg:[--corner-lane:5.5rem]"
       >
         {/* THE TOP RIGHT CORNER — "What's new" and the bell, at `lg` (below
             it they live in the top bar).
 
-            A row of the page, not a control pinned over it. It was `fixed` to
-            the window's corner, and everything that scrolled — a table's
-            figures, a row's pencil — passed underneath it; at the top it sat
-            on the title row's own buttons ("Log a session"), because the lane
-            `PageTitle` reserved for a lone bell was narrower than the pill
-            once "What's new" joined it. In the flow it takes its own line,
-            nothing can be under it, and it scrolls away with the page the way
-            a page's header does. The bell's menu is portaled, so it still
-            opens over the page. */}
-        <div className="mb-2 hidden justify-end lg:flex">
-          <div className="flex items-center gap-1 rounded-full bg-surface p-0.5 shadow-sm">
-            <WhatsNewLink unseen={whatsNew} />
-            {/* The page must not wait on a count: the bell renders at once
-                with no issues row and fills in when the queue has been read
-                (see IssueBell). */}
-            <Suspense fallback={<NotificationMenu unread={unread} recent={recent} now={now} />}>
-              <IssueBell user={user} profile={profile} unread={unread} recent={recent} now={now} />
-            </Suspense>
-          </div>
+            On the page's own heading row, not on a row above it: a line of
+            their own put two small icons over every page's title and pushed
+            the whole page down for them. They sit at the heading's height
+            instead, in a lane `PageTitle` leaves free (`--corner-lane`), so
+            the title and its buttons ("Log a session") stop short of them
+            rather than running under. Absolute in the flow of `main`, so it
+            scrolls away with the page and nothing passes beneath it; the
+            bell's menu is portaled, so it still opens over the page. */}
+        <div className="absolute right-4 top-4 z-10 hidden items-center gap-0.5 lg:flex">
+          <WhatsNewLink unseen={whatsNew} />
+          {/* The page must not wait on a count: the bell renders at once
+              with no issues row and fills in when the queue has been read
+              (see IssueBell). */}
+          <Suspense fallback={<NotificationMenu unread={unread} recent={recent} now={now} />}>
+            <IssueBell user={user} profile={profile} unread={unread} recent={recent} now={now} />
+          </Suspense>
         </div>
         <PageTransition>{children}</PageTransition>
       </main>

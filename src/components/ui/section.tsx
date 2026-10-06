@@ -102,6 +102,8 @@ export function PageTitle({
         // A back link has to clear the title block under it: at 8px the eyebrow
         // sat hard against it, two lines of the same small grey.
         backHref ? "space-y-3" : "space-y-2",
+        // The shell's corner icons sit on this row; the lane is theirs.
+        "lg:pr-[var(--corner-lane,0px)]",
         className
       )}
     >
