@@ -226,7 +226,7 @@ function TransferGroup({
   const [, action, save] = useSaveState(transferMentorAllocation);
 
   return (
-    <RowActionGroup label="Move time to another mentor">
+    <RowActionGroup label="Move time to another mentor" fold>
       <form action={action} className="space-y-3">
         <input type="hidden" name="studentProfileId" value={studentProfileId} />
         <input type="hidden" name="programId" value={programId} />

@@ -116,19 +116,32 @@ export function AttentionList({
           </h2>
           {action && <div className="-my-2 min-w-0">{action}</div>}
         </div>
-        {groups.map(({ group, rows }) => (
-          <div key={group}>
-            {/* On the card's edge, like every heading on the page ground —
-                indented it read as belonging inside the card above. */}
-            <h3 className="flex items-baseline gap-1.5 pb-1.5 pt-1 text-xs text-muted-fg">
-              {STATUS_GROUP_LABELS[group]}
-              <span className="tabular-nums">{rows.length}</span>
-            </h3>
-            <div className="overflow-clip rounded-xl bg-surface shadow-sm">
-              {rowsOf(rows)}
+        {groups.map(({ group, rows }) => {
+          // Four rows that each say "Allocate time from a mentor on their page."
+          // say it once: said under the group's own heading, and left off the
+          // rows (October 2026 audit — the notifications page read as the same
+          // sentence down a column).
+          const shared =
+            rows.length >= 3 &&
+            rows[0].explanation &&
+            rows.every((r) => r.explanation === rows[0].explanation)
+              ? rows[0].explanation
+              : null;
+          return (
+            <div key={group}>
+              {/* On the card's edge, like every heading on the page ground —
+                  indented it read as belonging inside the card above. */}
+              <h3 className="flex flex-wrap items-baseline gap-x-1.5 pb-1.5 pt-1 text-xs text-muted-fg">
+                {STATUS_GROUP_LABELS[group]}
+                <span className="tabular-nums">{rows.length}</span>
+                {shared && <span className="font-normal">· {shared}</span>}
+              </h3>
+              <div className="overflow-clip rounded-xl bg-surface shadow-sm">
+                {rowsOf(shared ? rows.map((r) => ({ ...r, explanation: undefined })) : rows)}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </section>
     );
   }

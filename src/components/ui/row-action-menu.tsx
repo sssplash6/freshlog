@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreVerticalIcon, PencilIcon } from "@/components/icons";
+import { ChevronRightIcon, MoreVerticalIcon, PencilIcon } from "@/components/icons";
 import { Eyebrow } from "@/components/ui/section";
 import { Popover, type PopoverContents } from "@/components/ui/popover";
 import { cn } from "@/lib/cn";
@@ -116,21 +116,39 @@ export function RowActionMenu({
  */
 export function RowActionGroup({
   label,
+  fold = false,
   children,
   className,
 }: {
   /** Names the band when it is not obvious from its control: "Progress". */
   label?: React.ReactNode;
+  /**
+   * Closed until asked for. A row's menu held three forms and four inputs at
+   * once — correct, move, remove — when nearly every opening wants one of them
+   * (October 2026 audit). The band's label becomes the control that opens it;
+   * the main edit stays open and the rare ones are one tap away. Needs a `label`.
+   */
+  fold?: boolean;
   children: React.ReactNode;
   className?: string;
 }) {
+  const band = cn(
+    "mt-3 border-t border-line pt-3 first:mt-0 first:border-t-0 first:pt-0",
+    className,
+  );
+  if (fold && label) {
+    return (
+      <details className={cn(band, "group/fold")}>
+        <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-md text-xs font-medium text-muted-fg transition-colors hover:text-ink sm:min-h-7 [&::-webkit-details-marker]:hidden">
+          <ChevronRightIcon className="h-3.5 w-3.5 shrink-0 transition-transform group-open/fold:rotate-90" />
+          {label}
+        </summary>
+        <div className="mt-2">{children}</div>
+      </details>
+    );
+  }
   return (
-    <div
-      className={cn(
-        "mt-3 border-t border-line pt-3 first:mt-0 first:border-t-0 first:pt-0",
-        className,
-      )}
-    >
+    <div className={band}>
       {label && <Eyebrow className="mb-1.5">{label}</Eyebrow>}
       {children}
     </div>

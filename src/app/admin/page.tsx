@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { CheckIcon, ChevronRightIcon, LayersIcon, UsersIcon } from "@/components/icons";
 import { CreateButton, CreatePanel, CreateSlot } from "@/components/page-create";
 import { Figure } from "@/components/ui/figure";
+import { HoursBar } from "@/components/ui/hours-left";
 import { ArrowLink } from "@/components/ui/link";
 import { CreateProgramForm } from "@/components/forms/program-forms";
 import { ProgramChip } from "@/components/program-chip";
@@ -271,6 +272,9 @@ export default async function AdminHomePage({
         pairings.filter((a) => a.programId === p.id).map((a) => a.mentorId)
       ).size,
       remaining: totals.remaining,
+      used: totals.completed + totals.missed,
+      forfeited: totals.forfeited,
+      allotted: totals.allotted,
     };
   });
 
@@ -288,6 +292,8 @@ export default async function AdminHomePage({
     { label: "Program", sort: "program" },
     { label: "Students", align: "right", sort: "students", sortDir: "desc" },
     { label: "Mentors", align: "right", sort: "mentors", sortDir: "desc" },
+    // The same bar the Programs list carries: where the granted time went.
+    { label: "Time used", className: "w-44 max-lg:hidden" },
     { label: "Remaining", align: "right", sort: "remaining", sortDir: "asc", emphasis: "key" },
   ];
 
@@ -386,6 +392,18 @@ export default async function AdminHomePage({
                 </Td>
                 <Td align="right" className="tabular-nums max-sm:hidden">
                   {p.mentors}
+                </Td>
+                <Td className="max-lg:hidden max-sm:hidden">
+                  {p.allotted > 0 ? (
+                    <HoursBar
+                      remaining={p.remaining}
+                      used={p.used}
+                      expired={p.forfeited}
+                      className="w-full min-w-24 max-w-40"
+                    />
+                  ) : (
+                    <span className="text-muted-fg">—</span>
+                  )}
                 </Td>
                 <Td align="right" className="max-sm:hidden">
                   <Figure

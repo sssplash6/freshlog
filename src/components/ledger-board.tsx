@@ -13,6 +13,9 @@ import {
 } from "@/components/student-task-row";
 import { TaskRow, toTaskEntries } from "@/components/task-row";
 import { ShowMoreList } from "@/components/show-more-list";
+
+/** The most rows of any one list that go into the page; the rest are counted, not sent. */
+const ROW_CAP = 60;
 import { Section } from "@/components/ui/section";
 import { ASSIGNMENT_PROGRESS } from "@/lib/constants";
 import { formatDuration } from "@/lib/format";
@@ -140,7 +143,7 @@ export function LedgerBoard({
   // rating and note are left out HERE, on the server, so they are not in the
   // page's payload either. Hiding them in the row only kept them off the
   // screen — anyone who opened the network tab could still read them.
-  const meetingRows = toSessionEntries(logged, {
+  const meetingRows = toSessionEntries(logged.slice(0, ROW_CAP), {
     mentorBase,
     feedback: viewer.audience !== "mentor",
   }).map((s, i) => (
@@ -154,7 +157,8 @@ export function LedgerBoard({
     />
   ));
 
-  const taskRows = [...openTasks, ...doneTasks].map((t, i) => (
+  const allTasks = [...openTasks, ...doneTasks];
+  const taskRows = allTasks.slice(0, ROW_CAP).map((t, i) => (
     <StudentTaskRow
       key={t.id}
       task={t}
@@ -178,7 +182,7 @@ export function LedgerBoard({
   // Finished work is one line each: it is here to be counted and to be
   // findable, not to be read again.
   const agendaRows = [
-    ...toTaskEntries(planned, { mentorBase }).map((t, i) => (
+    ...toTaskEntries(planned.slice(0, ROW_CAP), { mentorBase }).map((t, i) => (
       <TaskRow
         key={t.id}
         task={t}
@@ -188,7 +192,7 @@ export function LedgerBoard({
         actions={agendaActions(planned[i])}
       />
     )),
-    ...toTaskEntries(finished, { mentorBase }).map((t, i) => (
+    ...toTaskEntries(finished.slice(0, Math.max(ROW_CAP - planned.length, 0)), { mentorBase }).map((t, i) => (
       <TaskRow
         key={t.id}
         task={t}
@@ -237,6 +241,7 @@ export function LedgerBoard({
             // timeline shape carries no horizontal padding of its own.
             <ShowMoreList
               rows={meetingRows}
+              total={logged.length}
               noun="sessions"
               className="[&>li]:px-4 sm:[&>li]:px-5"
             />
@@ -262,7 +267,7 @@ export function LedgerBoard({
               No tasks set yet.
             </p>
           ) : (
-            <ShowMoreList rows={taskRows} noun="tasks" />
+            <ShowMoreList rows={taskRows} total={allTasks.length} noun="tasks" />
           )}
           {/* The last row of the group, iOS's "Add…" row: closed it is one
               brand line, open it is the form in the same place. */}
@@ -322,7 +327,7 @@ export function LedgerBoard({
             </p>
           )
         ) : (
-          <ShowMoreList rows={agendaRows} noun="agenda items" />
+          <ShowMoreList rows={agendaRows} total={planned.length + finished.length} noun="agenda items" />
         )}
       </Section>
     </>

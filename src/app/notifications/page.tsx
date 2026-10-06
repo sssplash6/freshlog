@@ -215,15 +215,20 @@ export default async function NotificationsPage({
           goes: a filter that can only select everything is a button whose job
           nobody can guess. */}
       {present.length > 1 && (
-        <FilterBar
-          basePath="/notifications"
-          params={params}
-          framed={false}
-          presets={present.map((c) => ({
-            label: NOTIFICATION_CATEGORY_LABELS[c],
-            params: { category: c },
-          }))}
-        />
+        <div className="space-y-1.5">
+          {/* Unlabelled, four grey pills between two lists read as a second set
+              of sections. They narrow the history below (October 2026 audit). */}
+          <p className="px-1 text-xs text-muted-fg">Filter earlier updates by type</p>
+          <FilterBar
+            basePath="/notifications"
+            params={params}
+            framed={false}
+            presets={present.map((c) => ({
+              label: NOTIFICATION_CATEGORY_LABELS[c],
+              params: { category: c },
+            }))}
+          />
+        </div>
       )}
 
       {notifications.length === 0 ? (

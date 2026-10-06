@@ -17,6 +17,9 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Redesigned tables.** Every table has clear column headings, more room per row and larger faces. Programs show as coloured tags, and each balance has a bar showing how much has been used.
 - **Sessions are easier to scan.** Each session shows its day as a small calendar tile, the student's face, the mentor and the program, and the minutes on the right. The list is split by month.
 - **See how long since the last session.** On the student lists, under the date of a student's last session, you can see how long ago it was, such as "5 days ago".
+- **See program load at a glance.** Programs and admin Home show a "Time used" bar for each program: used time in orange, expired time in red.
+- **A roomier program page.** A program's mentors sit in a strip above the roster, so the student list gets the full page width and names are no longer cut short.
+- **Calmer settings and lists.** Program settings say whether each option is On or Off in a word, a student's time menu folds the rarely used "Move time" form until you ask for it, older What's new days fold away, and Notifications say a repeated line once.
 - **Comfortable is now the default density.** On a laptop, text is full size and table rows have more room. The previous size is still in Settings as Standard, beside Compact.
 
 ### Fixed
@@ -25,7 +28,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Phones and larger text.** A mentor's page header no longer runs off a phone screen when their program names are long, and the sessions list and the headline figures re-arrange themselves when text is enlarged instead of being cut off.
 - **No more dead links for unplaced students.** A student with no program shows as "not in a program" instead of linking to a missing page.
 - **The Log a session form tidies up after itself.** A message such as "Choose a student" disappears as soon as you fix the field, a session can be at most 24 hours, and pasting a decimal like 1.5 into Minutes is refused instead of turning into 15.
-- **Every page has its own title,** so tabs and history tell pages apart, and moving to a new page now announces it and moves keyboard focus to it.
+- **Every page has its own title.** Tabs and history tell pages apart, and moving to a new page announces it and moves keyboard focus to it.
 - **Hours bars tell the truth about expired time.** Time that lapsed unused is red on the bar instead of looking used, and empty values are readable.
 - **Confirm-session cards say which meeting.** Each card now shows the day and length of the meeting.
 - **Easier to tap on a phone.** Names, chips and links in rows, the Light/Dark and notification switches, and the common session lengths now have finger-sized tap areas.

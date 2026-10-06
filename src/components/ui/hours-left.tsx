@@ -34,37 +34,58 @@ export function HoursLeft({
   className?: string;
 }) {
   const overdrawn = remaining < 0;
-  const spent = Math.max(used, 0);
-  const lapsed = Math.max(expired, 0);
-  const total = spent + lapsed + Math.max(remaining, 0);
-  const usedPct = overdrawn ? 100 : total > 0 ? (spent / total) * 100 : 0;
-  const lapsedPct = overdrawn ? 0 : total > 0 ? (lapsed / total) * 100 : 0;
-  const label = overdrawn
-    ? "Overdrawn"
-    : `${Math.round(usedPct)}% used${lapsed > 0 ? `, ${formatDuration(lapsed)} expired unused` : ""}`;
-
   return (
     <span className={cn("inline-flex flex-col items-end gap-1.5", className)}>
       <span className={cn("font-semibold", overdrawn ? "text-danger-ink" : "text-ink")}>
         {formatBalance(remaining)}
       </span>
-      {total > 0 && (
-        <span
-          role="progressbar"
-          aria-label={label}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(overdrawn ? 100 : usedPct + lapsedPct)}
-          className="flex h-1 w-20 overflow-hidden rounded-full bg-line-strong"
-        >
-          <span
-            className={cn("bar-grow h-full", overdrawn ? "bg-danger" : "bg-accent")}
-            style={{ width: `${usedPct}%` }}
-          />
-          {lapsedPct > 0 && (
-            <span className="bar-grow h-full bg-danger" style={{ width: `${lapsedPct}%` }} />
-          )}
-        </span>
+      <HoursBar remaining={remaining} used={used} expired={expired} className="w-20" />
+    </span>
+  );
+}
+
+/**
+ * The bare meter: used (orange), expired unused (red), what is left (the
+ * track). Nothing renders when there was nothing to measure. `HoursLeft` puts
+ * the balance over it; the Programs list puts it beside a percentage.
+ */
+export function HoursBar({
+  remaining,
+  used,
+  expired = 0,
+  className,
+}: {
+  remaining: number;
+  used: number;
+  expired?: number;
+  className?: string;
+}) {
+  const overdrawn = remaining < 0;
+  const spent = Math.max(used, 0);
+  const lapsed = Math.max(expired, 0);
+  const total = spent + lapsed + Math.max(remaining, 0);
+  if (total <= 0) return null;
+  const usedPct = overdrawn ? 100 : (spent / total) * 100;
+  const lapsedPct = overdrawn ? 0 : (lapsed / total) * 100;
+  const label = overdrawn
+    ? "Overdrawn"
+    : `${Math.round(usedPct)}% used${lapsed > 0 ? `, ${formatDuration(lapsed)} expired unused` : ""}`;
+
+  return (
+    <span
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(overdrawn ? 100 : usedPct + lapsedPct)}
+      className={cn("flex h-1 overflow-hidden rounded-full bg-line-strong", className)}
+    >
+      <span
+        className={cn("bar-grow h-full", overdrawn ? "bg-danger" : "bg-accent")}
+        style={{ width: `${usedPct}%` }}
+      />
+      {lapsedPct > 0 && (
+        <span className="bar-grow h-full bg-danger" style={{ width: `${lapsedPct}%` }} />
       )}
     </span>
   );

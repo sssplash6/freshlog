@@ -322,8 +322,8 @@ export default async function ProgramSettingsPage({
         }
       >
         {grants.length === 0 ? (
-          <EmptyState framed={false} title="Nobody is granted this program">
-            Only platform admins can see it until somebody is.
+          <EmptyState framed={false} title="No program admins yet">
+            Only platform admins can see this program until you grant it to someone.
           </EmptyState>
         ) : (
           <ul className="divide-y divide-line">

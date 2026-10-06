@@ -24,9 +24,17 @@ export function ShowMoreList({
   rows,
   limit = 5,
   noun,
+  total,
   className,
 }: {
   rows: React.ReactNode[];
+  /**
+   * How many exist when the caller sent only the newest few. Every row is
+   * serialised into the page whether or not it is folded, so a student with 381
+   * sessions made a 777KB page (October 2026 audit); callers cap what they pass
+   * and say how many there really are.
+   */
+  total?: number;
   /** How many show before the fold. */
   limit?: number;
   /** Plural, for the toggle: "Show all 14 meetings". */
@@ -63,6 +71,11 @@ export function ShowMoreList({
           />
           {open ? "Show fewer" : `Show all ${rows.length} ${noun}`}
         </button>
+      )}
+      {total !== undefined && total > rows.length && (open || !folds) && (
+        <p className="border-t border-line px-4 py-3 text-xs text-muted-fg sm:px-5">
+          Showing the latest {rows.length} of {total} {noun}.
+        </p>
       )}
     </>
   );

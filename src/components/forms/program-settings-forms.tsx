@@ -46,7 +46,7 @@ export function RenameProgramForm({
     <SettingsRow
       label="Program name"
       htmlFor={id}
-      description="Its name is its identity, so this is a deliberate save."
+      description="Renaming changes it everywhere."
       control={
         <form action={action} className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="programId" value={programId} />
@@ -275,6 +275,27 @@ export function DeleteCohortButton({
 }
 
 /**
+ * Whether a setting is on, as a word beside the button that flips it. The
+ * button names the change ("Ask for amounts"), and which way it is going says
+ * nothing about where it is now — that was a sentence in the description,
+ * three lines up. Both are kept; this is the one the eye finds first (October
+ * 2026 audit). Text, not colour alone.
+ */
+function OnOff({ on }: { on: boolean }) {
+  return (
+    <span
+      className={
+        on
+          ? "inline-flex h-6 items-center rounded-full bg-brand-soft px-2.5 text-xs font-semibold text-brand"
+          : "inline-flex h-6 items-center rounded-full bg-fill px-2.5 text-xs font-medium text-muted-fg"
+      }
+    >
+      {on ? "On" : "Off"}
+    </span>
+  );
+}
+
+/**
  * Does allocating time here also ask what the student paid?
  *
  * A button that names the change rather than a switch that needs a legend
@@ -296,11 +317,12 @@ export function TrackPaymentToggle({
       label="Track amount paid per allocation"
       description={
         tracksPayment
-          ? "Allocating time here asks for the amount, and the program's total carries it."
-          : "Allocating time here asks for hours only."
+          ? "Allocating time asks for the amount, and the program's total carries it."
+          : "Allocating time asks for hours only."
       }
       control={
-        <form action={action}>
+        <form action={action} className="flex flex-wrap items-center gap-3">
+          <OnOff on={tracksPayment} />
           <input type="hidden" name="programId" value={programId} />
           <input
             type="hidden"
@@ -343,8 +365,8 @@ export function InstituteSpaceForm({
       htmlFor={id}
       description={
         institute
-          ? "People who work only here see it as its own place, with its levels in the sidebar. Everyone else sees one program."
-          : "Show it as its own place to the people who work only here. Nobody gains or loses access."
+          ? "The people who work only here see it as its own place, with its levels in the sidebar."
+          : "Show it as its own place to the people who work only here. Access does not change."
       }
       control={
         <div className="flex flex-wrap items-end gap-3">
@@ -397,11 +419,12 @@ export function HourBankToggle({
       label="Hour banks"
       description={
         hourBank
-          ? "Each student's hours are one bank that every mentor's meeting draws from. Only admins change it."
-          : "Hours are held per mentor. Turn this on for Full Support or the Master's Program."
+          ? "Each student's hours are one bank that every mentor draws from."
+          : "Hours are held per mentor. Turn this on to hold each student's hours as one bank."
       }
       control={
-        <form action={action}>
+        <form action={action} className="flex flex-wrap items-center gap-3">
+          <OnOff on={hourBank} />
           <input type="hidden" name="programId" value={programId} />
           <input type="hidden" name="hourBank" value={hourBank ? "off" : "on"} />
           <SubmitButton variant="secondary" pendingText="Saving…">
@@ -447,8 +470,8 @@ export function StandardHoursForm({
       htmlFor={minutesId}
       description={
         standardMinutes !== null && standardDays !== null
-          ? `Every student who joins gets ${formatDuration(standardMinutes)} ${hourBank ? "in their hour bank" : "unassigned"}, to use within ${standardDays} day${standardDays === 1 ? "" : "s"}. A change reaches only students who join after it.`
-          : "Off. Set it to give every student who joins the same time, instead of allocating it by hand. Leave both empty to keep it off."
+          ? `Every student who joins gets ${formatDuration(standardMinutes)} ${hourBank ? "in their hour bank" : "unassigned"}, to use within ${standardDays} day${standardDays === 1 ? "" : "s"}. A change reaches only later joiners.`
+          : "Off. Set both boxes to give every student who joins the same time."
       }
       control={
         <form action={action} className="flex flex-wrap items-end gap-3">
@@ -530,7 +553,7 @@ export function LevelStandardHoursForm({
       htmlFor={minutesId}
       description={
         standardMinutes !== null && standardDays !== null
-          ? `Every student who joins ${levelName} gets ${formatDuration(standardMinutes)} ${hourBank ? "in their hour bank" : "unassigned"}, to use within ${standardDays} day${standardDays === 1 ? "" : "s"}. A change reaches only students who join after it.`
+          ? `Every student who joins ${levelName} gets ${formatDuration(standardMinutes)} ${hourBank ? "in their hour bank" : "unassigned"}, to use within ${standardDays} day${standardDays === 1 ? "" : "s"}. A change reaches only later joiners.`
           : `Inherits the program's. Set both to give ${levelName} its own, instead of allocating by hand.`
       }
       control={

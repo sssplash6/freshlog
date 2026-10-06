@@ -5,10 +5,11 @@ import { CreateButton, CreatePanel, CreateSlot } from "@/components/page-create"
 import { Callout } from "@/components/ui/callout";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Figure } from "@/components/ui/figure";
+import { HoursBar } from "@/components/ui/hours-left";
 import { ProgramChip } from "@/components/program-chip";
 import { PageTitle } from "@/components/ui/section";
 import { TabLinks } from "@/components/ui/segmented";
-import { Table, Td, Tr, type Column } from "@/components/ui/table";
+import { FILL_CELL, Table, Td, Tr, type Column } from "@/components/ui/table";
 import { adminScope, scopeIsEmpty, scopeProgramFilter } from "@/lib/authz";
 import { canActAsMentor } from "@/lib/constants";
 import { requireAdminAccess, requireUser } from "@/lib/dal";
@@ -117,6 +118,9 @@ export default async function ProgramsPage({
       mentors: new Set(theirs.map((p) => p.mentorId)).size,
       remaining: totals.remaining,
       forfeited: totals.forfeited,
+      // For the usage bar: what was delivered or charged, of what was granted.
+      used: totals.completed + totals.missed,
+      allotted: totals.allotted,
     };
   });
 
@@ -124,6 +128,9 @@ export default async function ProgramsPage({
     { label: "Program" },
     { label: "Students", align: "right" },
     { label: "Mentors", align: "right" },
+    // A bar of where the granted time went: two numbers across 1,100px said
+    // nothing about which program is running hot (October 2026 audit).
+    { label: "Time used", className: "w-52 max-lg:hidden" },
     { label: "Remaining", align: "right", emphasis: "key" },
     // Minutes lost to passed deadlines — the figure that makes the ledger
     // honest, and the one a Remaining of zero used to hide entirely.
@@ -191,7 +198,7 @@ export default async function ProgramsPage({
         <Table columns={columns} label="Programs">
           {rows.map((p) => (
             <Tr key={p.id}>
-              <Td>
+              <Td className={FILL_CELL}>
                 {/* The NAME is the way in, the rule `PersonCell` already
                     follows on every roster in the app: an "Open" link at the
                     far right of the row made the reader cross four columns of
@@ -226,6 +233,26 @@ export default async function ProgramsPage({
               </Td>
               <Td align="right" className="tabular-nums max-sm:hidden">
                 {p.mentors}
+              </Td>
+              <Td className="max-lg:hidden max-sm:hidden">
+                {p.allotted > 0 ? (
+                  <span className="flex items-center gap-3">
+                    <HoursBar
+                      remaining={p.remaining}
+                      used={p.used}
+                      expired={p.forfeited}
+                      className="w-full min-w-24 max-w-40 flex-1"
+                    />
+                    <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted-fg">
+                      {(() => {
+                        const pct = Math.round(((p.used + p.forfeited) / p.allotted) * 100);
+                        return pct > 100 ? "100%+" : `${pct}%`;
+                      })()}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-muted-fg">—</span>
+                )}
               </Td>
               <Td align="right" className="max-sm:hidden">
                 <Figure

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { CheckIcon, SparklesIcon } from "@/components/icons";
+import { CheckIcon, ChevronRightIcon, SparklesIcon } from "@/components/icons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle } from "@/components/ui/section";
 import { cn } from "@/lib/cn";
@@ -106,6 +106,12 @@ export default async function ChangelogPage() {
                         : "bg-line"
                     )}
                   />
+                  {/* The three newest days are open; older ones fold to their
+                      date and counts. The page was one 6,000-pixel scroll of
+                      two-column cards (October 2026 audit), and nobody who
+                      opens "What's new" is reading March. */}
+                  {i < OPEN_DAYS ? (
+                    <>
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-3">
                     {/* The section-title size every `Section` uses (17px);
                         at 20px these read as a level of their own. */}
@@ -126,6 +132,28 @@ export default async function ChangelogPage() {
                     <Items kind="new" items={entry.new} />
                     <Items kind="fixed" items={entry.fixed} />
                   </div>
+                    </>
+                  ) : (
+                    <details className="group/day">
+                      <summary className="flex min-h-11 cursor-pointer list-none flex-wrap items-baseline gap-x-3 gap-y-1 pb-3 [&::-webkit-details-marker]:hidden">
+                        <h2 className="flex items-baseline gap-2 text-title font-semibold tracking-[-0.01em] text-ink">
+                          {formatDate(new Date(`${entry.date}T00:00:00.000Z`))}
+                          <FreshChip fresh={fresh} />
+                        </h2>
+                        <p className="text-xs text-muted-fg tabular-nums">{summary(entry)}</p>
+                        <ChevronRightIcon className="h-4 w-4 shrink-0 self-center text-muted-fg transition-transform group-open/day:rotate-90" />
+                      </summary>
+                  <div
+                    className={cn(
+                      "space-y-4 rounded-xl bg-surface p-3 shadow-sm sm:p-4",
+                      i === 0 && "ring-1 ring-brand/25"
+                    )}
+                  >
+                    <Items kind="new" items={entry.new} />
+                    <Items kind="fixed" items={entry.fixed} />
+                  </div>
+                    </details>
+                  )}
                 </li>
               );
             })}
@@ -135,6 +163,9 @@ export default async function ChangelogPage() {
     </div>
   );
 }
+
+/** How many of the newest days start open; the rest fold. */
+const OPEN_DAYS = 3;
 
 const DAY_MS = 86_400_000;
 

@@ -190,12 +190,72 @@ export default async function ProgramPage({
 
   return (
     <div className="space-y-4">
-      {/* The roster, and the mentors beside it. Source order is the phone's
-          order: the students first, the rail under them. Side by side
-          only from `xl`: at `lg` the nav rail and a 21rem panel left the
-          roster 456px for six columns, and it spilled under the panel. */}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start">
+      {/* The mentors in a strip, then the roster at the page's full width. It
+          used to be a two-column grid with the mentors in a 21rem rail, which
+          took a third of the width from a forty-row table to hold four names. */}
+      <div className="space-y-4">
         <div className="min-w-0 space-y-4">
+          <Section
+            title="Mentors"
+            count={mentorRows.length}
+            action={
+              spilled > 0 ? (
+                <ArrowLink href={`/mentors?program=${program.id}`} className="text-xs">
+                  All mentors
+                </ArrowLink>
+              ) : undefined
+            }
+          >
+            {mentorRows.length === 0 ? (
+              <p className="px-4 py-3 text-body text-muted-fg sm:px-5">Nobody here yet.</p>
+            ) : (
+              // A wrapping row of chips, not a list down a third-width rail: the
+              // rail left the roster 800px for five columns (names cut to
+              // "Abdurahmonkhon Sulton...") while it stood nearly empty beside a
+              // forty-row table (October 2026 audit).
+              <ul className="flex flex-wrap gap-x-4 gap-y-1 px-4 py-2 sm:px-5">
+                {mentorRows.slice(0, MENTORS_SHOWN).map(({ mentor, teaches }) => (
+                  <li key={mentor.id} className="flex min-h-11 min-w-0 items-center gap-2 sm:min-h-9">
+                    {/* "Their mentors can have matching colours." This is the one
+                        page where that is unambiguous: every row belongs to this
+                        program, so the chip can spend its hue on the place. */}
+                    <PersonChip
+                      person={mentor}
+                      size="sm"
+                      href={`/mentors/${mentor.id}`}
+                      tone={programTone(program)}
+                    />
+                    {superAdminIds.has(mentor.id) && (
+                      <span title="Admin" className="text-warn-ink">
+                        <CrownIcon className="h-4 w-4" />
+                        <span className="sr-only">Admin</span>
+                      </span>
+                    )}
+                    {/* The crown cannot say this: it marks an admin whether or
+                        not they teach here. This says that no session can be
+                        logged against them here, because nobody paired them. */}
+                    {!teaches && <span className="text-xs text-muted-fg">Admin only</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {eligibleMentors.length > 0 && (
+              <div className="border-t border-line px-4 py-3 sm:px-5">
+                <AssignMentorForm
+                  programId={program.id}
+                  mentors={eligibleMentors}
+                  levels={levels.map((l) => ({
+                    id: l.id,
+                    name: l.name,
+                    cohorts: l.cohorts.map((c) => ({ value: c.id, label: c.name })),
+                  }))}
+                  cohorts={cohorts
+                    .filter((c) => c.levelId === null)
+                    .map((c) => ({ value: c.id, label: c.name }))}
+                />
+              </div>
+            )}
+          </Section>
           {/* ONE way in, at the head of the roster it adds to: the same
               plus-button every page uses for "new", which the form REPLACES
               when it opens (add-students-form.tsx). `?add=1` — the link from
@@ -303,86 +363,6 @@ export default async function ProgramPage({
 
         </div>
 
-        <Section
-          title="Mentors"
-          count={mentorRows.length}
-          action={
-            spilled > 0 ? (
-              <ArrowLink
-                href={`/mentors?program=${program.id}`}
-                className="text-xs"
-              >
-                All mentors
-              </ArrowLink>
-            ) : undefined
-          }
-        >
-          {mentorRows.length === 0 ? (
-            <p className="px-4 py-3 text-body text-muted-fg sm:px-5">
-              Nobody here yet.
-            </p>
-          ) : (
-            <ul className="divide-y divide-line">
-              {mentorRows
-                .slice(0, MENTORS_SHOWN)
-                 .map(({ mentor, teaches }) => (
-                  // The flag follows the NAME, never the row's far edge.
-                  // Justified to the edge it landed on the name's line for a
-                  // short name and wrapped below for a long one — the same
-                  // chip in two places down one column. Directly after the
-                  // name it costs a line only when the name leaves no room.
-                  <li
-                    key={mentor.id}
-                    className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-3 text-body sm:px-5"
-                  >
-                    <span className="flex min-w-0 flex-wrap items-center gap-2">
-                      {/* "Their mentors can have matching colours." This is the
-                          one page where that is unambiguous: every row belongs
-                          to this program, so the chip can spend its hue on the
-                          place. On /mentors, where a mentor may appear under
-                          three programs, they keep their own. */}
-                      <PersonChip
-                        person={mentor}
-                        size="sm"
-                        href={`/mentors/${mentor.id}`}
-                        tone={programTone(program)}
-                      />
-                      {superAdminIds.has(mentor.id) && (
-                        <span title="Admin" className="text-warn-ink">
-                          <CrownIcon className="h-4 w-4" />
-                          <span className="sr-only">Admin</span>
-                        </span>
-                      )}
-                      {/* The crown cannot say this: it marks an admin
-                          whether or not they teach here, and half the names on
-                          a program's list wear one. This says the other thing
-                          — that no session can be logged against them here,
-                          because nobody paired them with the program. */}
-                      {!teaches && (
-                        <span className="text-xs text-muted-fg">Admin only</span>
-                      )}
-                    </span>
-                  </li>
-                ))}
-            </ul>
-          )}
-          {eligibleMentors.length > 0 && (
-            <div className="border-t border-line px-4 py-3 sm:px-5">
-              <AssignMentorForm
-                programId={program.id}
-                mentors={eligibleMentors}
-                levels={levels.map((l) => ({
-                  id: l.id,
-                  name: l.name,
-                  cohorts: l.cohorts.map((c) => ({ value: c.id, label: c.name })),
-                }))}
-                cohorts={cohorts
-                  .filter((c) => c.levelId === null)
-                  .map((c) => ({ value: c.id, label: c.name }))}
-              />
-            </div>
-          )}
-        </Section>
 
       </div>
     </div>
