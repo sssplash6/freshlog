@@ -21,6 +21,9 @@ import { prisma } from "@/lib/prisma";
 import { applySort, readSort } from "@/lib/sort";
 import { mentorCaseload, type CaseloadStudent } from "@/lib/queries";
 import { EXPIRY_WINDOW_DAYS, type ViewerContext } from "@/lib/status";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Home" };
 
 /** Students shown before the table offers to unfold the rest. */
 const CASELOAD_ROWS = 8;
@@ -114,19 +117,21 @@ function studentColumns(showProgram: boolean): Column[] {
   return [
     { label: "Student", sort: "student" },
     ...(showProgram
-      ? [{ label: "Program", sort: "program", className: "w-56" } as Column]
+      ? [{ label: "Program", sort: "program", className: "w-52" } as Column]
       : []),
     {
       label: "Remaining with you",
       align: "right",
       sort: "remaining",
       emphasis: "key",
-      className: "w-44",
+      className: "w-40",
     },
-    { label: "Use by", sort: "deadline", className: "w-44" },
-    // Hidden below `lg`: at tablet width the other four columns left a student's
-    // name 140px, and a name is what the row is for.
-    { label: "Last session", sort: "seen", className: "w-36 max-lg:sm:hidden" },
+    { label: "Use by", sort: "deadline", className: "w-40" },
+    // Hidden below `xl` (it was `lg`): with the rail beside it a 1,024px laptop
+    // gives the table ~770px, and the five columns that were left still came to
+    // 860 — the last session and the chevron were cut off the edge. A name is
+    // what the row is for.
+    { label: "Last session", sort: "seen", className: "w-36 max-xl:sm:hidden" },
     { label: "", className: "w-14" },
   ];
 }
@@ -483,7 +488,7 @@ export default async function MentorHomePage({
                         within={EXPIRY_WINDOW_DAYS.mentor}
                       />
                     </Td>
-                    <Td className="whitespace-nowrap max-lg:sm:hidden">
+                    <Td className="whitespace-nowrap max-xl:sm:hidden">
                       {seen ? (
                         <span className="flex flex-col">
                           <span className="text-ink">{formatDate(seen)}</span>
@@ -492,7 +497,7 @@ export default async function MentorHomePage({
                           </span>
                         </span>
                       ) : (
-                        <span className="text-disabled">—</span>
+                        <span className="text-muted-fg">—</span>
                       )}
                     </Td>
                     <Td align="right" corner>

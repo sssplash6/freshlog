@@ -33,6 +33,9 @@ import {
   type ViewerContext,
 } from "@/lib/status";
 import { programWallClock } from "@/lib/when";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Meetings" };
 
 /** Sessions per page — the spec's count for a history a student scrolls. */
 const MEETINGS_PER_PAGE = 20;

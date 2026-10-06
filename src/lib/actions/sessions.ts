@@ -19,6 +19,7 @@ import {
   attendanceOf,
   canActAsMentor,
   CHARGED_SESSION,
+  MAX_SESSION_MINUTES,
   TIME_KIND,
   TIME_KIND_META,
   timeKindFields,
@@ -276,6 +277,8 @@ export async function logSession(
   const studentProfileId = String(formData.get("studentProfileId") ?? "");
   const minutesParsed = parseMinutesField(formData.get("minutes"), {
     min: 0.01,
+    // One session is a day at the very most.
+    max: MAX_SESSION_MINUTES,
     label: "Minutes",
   });
   if ("error" in minutesParsed) return bad(minutesParsed.error, "minutes");
@@ -947,6 +950,8 @@ export async function editSession(
 
   const minutesParsed = parseMinutesField(formData.get("minutes"), {
     min: 0.01,
+    // One session is a day at the very most.
+    max: MAX_SESSION_MINUTES,
     label: "Minutes",
   });
   if ("error" in minutesParsed) return { ok: false, error: minutesParsed.error };

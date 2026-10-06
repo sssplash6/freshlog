@@ -13,6 +13,9 @@ import {
 } from "@/lib/bugs";
 import { requireUser } from "@/lib/dal";
 import { formatDate } from "@/lib/format";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Bug report" };
 
 /**
  * One report. The reporter and platform admins may read it; for anybody else it

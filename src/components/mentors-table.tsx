@@ -161,7 +161,7 @@ export function MentorsTable({
                   ))}
                 </span>
               ) : (
-                <span className="text-disabled">—</span>
+                <span className="text-muted-fg">—</span>
               )}
             </Td>
 
@@ -188,7 +188,7 @@ export function MentorsTable({
               {m.students > 0 ? (
                 m.students
               ) : (
-                <span className="text-disabled">—</span>
+                <span className="text-muted-fg">—</span>
               )}
             </Td>
           </Tr>

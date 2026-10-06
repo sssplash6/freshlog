@@ -4,6 +4,9 @@ import { cn } from "@/lib/cn";
 import { sanitizePagePath } from "@/lib/bugs";
 import { requireUser } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Report a bug" };
 
 export default async function NewBugPage({
   searchParams,

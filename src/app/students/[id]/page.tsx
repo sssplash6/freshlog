@@ -76,6 +76,9 @@ import {
   taskOptionsForSessions,
   toProgramOptions,
 } from "@/lib/queries";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Student" };
 
 /**
  * One student, at one address, for everyone entitled to open them.

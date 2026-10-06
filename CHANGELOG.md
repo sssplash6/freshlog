@@ -20,6 +20,15 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Comfortable is now the default density.** On a laptop, text is full size and table rows have more room. The previous size is still in Settings as Standard, beside Compact.
 
 ### Fixed
+- **Long links no longer stretch the page.** Pasting a long link or an unbroken string into a note, task or bug report used to make the whole page scroll sideways. It now wraps inside the box.
+- **Tables never lose their columns.** When a table is too wide for its space — a narrow laptop, larger text, a very long program name — it now scrolls sideways instead of silently cutting off the last columns. A program tag shortens a long name, and the mentor Home caseload fits a 1,024-pixel laptop.
+- **Phones and larger text.** A mentor's page header no longer runs off a phone screen when their program names are long, and the sessions list and the headline figures re-arrange themselves when text is enlarged instead of being cut off.
+- **No more dead links for unplaced students.** A student with no program shows as "not in a program" instead of linking to a missing page.
+- **The Log a session form tidies up after itself.** A message such as "Choose a student" disappears as soon as you fix the field, a session can be at most 24 hours, and pasting a decimal like 1.5 into Minutes is refused instead of turning into 15.
+- **Every page has its own title,** so tabs and history tell pages apart, and moving to a new page now announces it and moves keyboard focus to it.
+- **Hours bars tell the truth about expired time.** Time that lapsed unused is red on the bar instead of looking used, and empty values are readable.
+- **Confirm-session cards say which meeting.** Each card now shows the day and length of the meeting.
+- **Duplicate program names are caught.** Two names that differ only in capital letters are refused.
 - **A mentor's program totals add up.** On a mentor's page, the per-program table now counts every session ever logged, like its Total and Remaining, so the row adds up whatever period you pick above it. Total comes last.
 - **Figures add up.** Completed, missed, remaining and expired now add up to the time granted, the same total reads the same on every page, and analytics percentages match the period you picked.
 - **Expired hours look expired.** Time lost on its use-by date shows in red on the hours ring and bars, instead of as used or still available.

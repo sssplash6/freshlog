@@ -135,7 +135,13 @@ export function GrowingField({
   const value = controlled !== undefined ? String(controlled) : own;
 
   return (
-    <div className="grid w-full">
+    // `grid-cols-[minmax(0,1fr)]` and `min-w-0`: a grid track is `auto`, which
+    // is at least as wide as its widest unbreakable run. Paste a 200-character
+    // link and the box — and the page — grew sideways to hold it (October 2026
+    // audit: 200 characters made a 1,846px page). The track is now capped at the
+    // container, and both layers break the run instead (`anywhere`, which unlike
+    // `break-words` also lowers the min-content size).
+    <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)]">
       <textarea
         {...props}
         rows={1}
@@ -146,7 +152,7 @@ export function GrowingField({
         }}
         className={cn(
           inputClasses,
-          "col-start-1 row-start-1 resize-none overflow-hidden leading-relaxed [field-sizing:content]",
+          "col-start-1 row-start-1 min-w-0 resize-none overflow-hidden leading-relaxed [field-sizing:content] [overflow-wrap:anywhere]",
           className
         )}
       />
@@ -154,7 +160,7 @@ export function GrowingField({
         aria-hidden="true"
         className={cn(
           inputClasses,
-          "invisible col-start-1 row-start-1 whitespace-pre-wrap break-words leading-relaxed",
+          "invisible col-start-1 row-start-1 min-w-0 whitespace-pre-wrap leading-relaxed [overflow-wrap:anywhere]",
           className
         )}
       >

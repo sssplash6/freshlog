@@ -12,6 +12,9 @@ import { enrollmentsLabel, primaryEnrollment, studiesIn } from "@/lib/enrollment
 import { homeFor, profileOf } from "@/lib/profile";
 import { prisma } from "@/lib/prisma";
 import { programOptions, toProgramOptions } from "@/lib/queries";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Welcome" };
 
 /**
  * One step: what is being asked, why, and the form that answers it.

@@ -242,7 +242,15 @@ export function StudentsTable({
                     email: s.user.email,
                     avatarUpdatedAt: s.user.avatarUpdatedAt,
                   }}
-                  href={`${href}/${s.id}${from ? `?from=${from}` : ""}`}
+                  // No program, no page: `canManageStudent` turns a student with
+                  // no enrollment away even from a platform admin, so a link here
+                  // led to "We couldn't find that page" (October 2026 audit). The
+                  // name stays, unlinked, and says why.
+                  href={
+                    s.enrollments.length === 0
+                      ? undefined
+                      : `${href}/${s.id}${from ? `?from=${from}` : ""}`
+                  }
                   // The address keeps the WHOLE second line. "Not signed in"
                   // used to share it, and it truncated the one thing an admin
                   // needs to chase that student — "akobiroblokulov@g…". The
@@ -267,6 +275,11 @@ export function StudentsTable({
                   }
                 >
                   {top && <StatusChip status={top} className="shrink-0" />}
+                  {s.enrollments.length === 0 && (
+                    <span className="shrink-0 whitespace-nowrap text-xs font-normal text-muted-fg">
+                      not in a program
+                    </span>
+                  )}
                   {visiting && !s.user.name && (
                     <span className="shrink-0 whitespace-nowrap text-xs font-normal text-muted-fg">
                       on exchange
@@ -325,12 +338,16 @@ export function StudentsTable({
               {s.completedMinutes > 0 ? (
                 formatDuration(s.completedMinutes)
               ) : (
-                <span className="text-disabled">—</span>
+                <span className="text-muted-fg">—</span>
               )}
             </Td>
 
             <Td label="Remaining" align="right" className="tabular-nums" data-fold>
-              <HoursLeft remaining={s.remainingMinutes} used={s.completedMinutes} />
+              <HoursLeft
+                remaining={s.remainingMinutes}
+                used={s.completedMinutes + s.missedMinutes}
+                expired={s.forfeitedMinutes}
+              />
             </Td>
 
             <Td label="Last session" className="whitespace-nowrap" data-fold>
@@ -347,7 +364,7 @@ export function StudentsTable({
                   </span>
                 </span>
               ) : (
-                <span className="text-disabled">—</span>
+                <span className="text-muted-fg">—</span>
               )}
             </Td>
 
@@ -386,7 +403,7 @@ export function StudentsTable({
                   </a>
                 ) : null}
                 {!telegramHref && !folderHref && (
-                  <span className="text-disabled">—</span>
+                  <span className="text-muted-fg">—</span>
                 )}
               </span>
             </Td>

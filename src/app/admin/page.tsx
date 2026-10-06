@@ -29,6 +29,9 @@ import { spaceOf, type Space } from "@/lib/space";
 import { status, type Status, type ViewerContext } from "@/lib/status";
 import { formatProgramStamp, programStampISO } from "@/lib/when";
 import type { User } from "@/generated/prisma/client";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Home" };
 
 /**
  * The admin's landing page: how big are my programs, and how much time is

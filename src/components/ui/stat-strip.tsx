@@ -29,39 +29,43 @@ export function StatStrip({
   items: { label: string; value: string; icon: React.ReactNode }[];
   className?: string;
 }) {
+  // The strip chooses side-by-side from the width of ITS box, in rem, not from
+  // the viewport: at 200% text on a wide monitor the viewport said "room for
+  // four columns" and the figures ran out of the card, cut off at its edge.
   return (
-    <dl
-      className={cn(
-        "grid divide-y divide-line overflow-hidden rounded-xl bg-surface shadow-sm sm:divide-x sm:divide-y-0",
-        items.length === 3 ? "sm:grid-cols-[1.5fr_1fr_1fr_1fr]" : items.length === 2 ? "sm:grid-cols-[1.5fr_1fr_1fr]" : "sm:grid-cols-[1.5fr_1fr]",
-        className
-      )}
-    >
-      <div className="min-w-0 px-4 py-4 sm:px-5 sm:py-5">
-        <dt className="text-xs font-medium text-muted-fg">{lead.label}</dt>
-        <dd
-          className={cn(
-            "mt-1.5 text-lead font-semibold tabular-nums",
-            lead.tone === "danger" ? "text-danger-ink" : lead.tone === "hours" ? "text-accent-ink" : "text-muted-fg"
-          )}
-        >
-          {lead.value}
-        </dd>
-        {lead.hint && <p className="mt-2 text-xs text-muted-fg">{lead.hint}</p>}
-      </div>
-      {items.map((item) => (
-        <div key={item.label} className="flex min-w-0 items-center gap-3 px-4 py-4 sm:gap-2.5 sm:px-4 sm:py-5 lg:gap-3 lg:px-5">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-fill text-muted-fg">
-            {item.icon}
-          </span>
-          <div className="min-w-0">
-            <dt className="text-xs font-medium text-muted-fg">{item.label}</dt>
-            <dd className="mt-0.5 whitespace-nowrap text-figure-md font-semibold tabular-nums text-ink">
-              {item.value}
-            </dd>
-          </div>
+    <div className={cn("@container", className)}>
+      <dl
+        className={cn(
+          "grid divide-y divide-line overflow-hidden rounded-xl bg-surface shadow-sm @3xl:divide-x @3xl:divide-y-0",
+          items.length === 3 ? "@3xl:grid-cols-[1.5fr_1fr_1fr_1fr]" : items.length === 2 ? "@3xl:grid-cols-[1.5fr_1fr_1fr]" : "@3xl:grid-cols-[1.5fr_1fr]"
+        )}
+      >
+        <div className="min-w-0 px-4 py-4 @3xl:px-5 @3xl:py-5">
+          <dt className="text-xs font-medium text-muted-fg">{lead.label}</dt>
+          <dd
+            className={cn(
+              "mt-1.5 text-lead font-semibold tabular-nums",
+              lead.tone === "danger" ? "text-danger-ink" : lead.tone === "hours" ? "text-accent-ink" : "text-muted-fg"
+            )}
+          >
+            {lead.value}
+          </dd>
+          {lead.hint && <p className="mt-2 text-xs text-muted-fg">{lead.hint}</p>}
         </div>
-      ))}
-    </dl>
+        {items.map((item) => (
+          <div key={item.label} className="flex min-w-0 items-center gap-3 px-4 py-4 @3xl:gap-2.5 @3xl:py-5 @5xl:gap-3 @5xl:px-5">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-fill text-muted-fg">
+              {item.icon}
+            </span>
+            <div className="min-w-0">
+              <dt className="text-xs font-medium text-muted-fg">{item.label}</dt>
+              <dd className="mt-0.5 whitespace-nowrap text-figure-md font-semibold tabular-nums text-ink">
+                {item.value}
+              </dd>
+            </div>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }

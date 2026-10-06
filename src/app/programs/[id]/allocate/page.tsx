@@ -11,6 +11,9 @@ import { pastHours } from "@/lib/hours";
 import { studentLedger } from "@/lib/queries";
 
 import { programOf, programPairings, programStudents, studentsOf } from "../../reads";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Allocate time" };
 
 /**
  * Grant somebody time, from the program rather than from their file.

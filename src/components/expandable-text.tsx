@@ -47,13 +47,21 @@ export function ExpandableText({
 
   const tight = lines === 1 && !open;
 
+  // Nothing but whitespace is nothing: a note of three spaces used to render an
+  // empty row with a chevron that opened onto an empty row.
+  if (!text.trim()) return null;
+
   return (
     <div className={tight ? "flex min-w-0 items-baseline gap-1.5" : undefined}>
       <div
         ref={ref}
         id={id}
         className={cn(
-          "whitespace-pre-line",
+          // `anywhere`: one unbroken string (a pasted link, a 5,000-character
+          // "aaaa") used to run past the edge and be cut off with no ellipsis and
+          // no "Show more", because the clamp only measures height. Now it wraps
+          // like any other text and the clamp can see it.
+          "whitespace-pre-line [overflow-wrap:anywhere]",
           className,
           open ? "" : CLAMP[lines],
           tight && "min-w-0 flex-1"

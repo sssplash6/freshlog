@@ -9,6 +9,9 @@ import { dictationConfigured } from "@/lib/dictation";
 import { templateById } from "@/lib/interview-templates";
 import { formatSlotWhen, hasStarted, sideOf } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Live interview" };
 
 /**
  * The practice interview as it happens, opened beside the call: one step at a

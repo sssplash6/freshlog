@@ -24,6 +24,9 @@ import {
 import { prisma } from "@/lib/prisma";
 import { status, type ViewerContext } from "@/lib/status";
 import { programToday, programWallClock } from "@/lib/when";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Interviews" };
 
 const DAY = 24 * 60 * 60 * 1000;
 

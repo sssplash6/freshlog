@@ -14,6 +14,9 @@ import {
 import { requirePlatformAdmin } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
 import { formatDate } from "@/lib/format";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Triage bugs" };
 
 /**
  * Every report, with who sent it. Platform admins only — the gate is the first

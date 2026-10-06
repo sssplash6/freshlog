@@ -34,6 +34,9 @@ import {
   type Status,
   type ViewerContext,
 } from "@/lib/status";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Home" };
 
 /**
  * One line of the AGENDA — a piece of work the student's hours were budgeted

@@ -18,6 +18,9 @@ import {
 } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Settings" };
 
 /**
  * Everything about you, in one place, whoever you are.

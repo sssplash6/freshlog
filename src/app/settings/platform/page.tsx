@@ -13,6 +13,9 @@ import { requireUser } from "@/lib/dal";
 import { emailConfigured } from "@/lib/email/send";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Platform settings" };
 
 /**
  * Who administers what, and the handful of facts about this deployment.

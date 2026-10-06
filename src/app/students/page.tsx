@@ -21,6 +21,9 @@ import { timeStateHolds } from "@/lib/status";
 import { homeFor, profileOf } from "@/lib/profile";
 import { redirect } from "next/navigation";
 import { studentsWithHours } from "@/lib/queries";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Students" };
 
 /**
  * The roster, at one address, for everyone entitled to a roster.

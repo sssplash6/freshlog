@@ -33,6 +33,9 @@ import { requireUser } from "@/lib/dal";
 import { formatDuration, toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { taskOptionsForSessions } from "@/lib/queries";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Sessions" };
 
 /**
  * The ledger: what has been delivered.

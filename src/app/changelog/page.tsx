@@ -16,6 +16,9 @@ import { requireUser } from "@/lib/dal";
 import { formatDate } from "@/lib/format";
 
 import { FreshChip, MarkChangelogSeen } from "./seen";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "What's new" };
 
 /**
  * What changed, written for the person using the product.

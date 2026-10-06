@@ -33,6 +33,9 @@ import {
   programPairings,
   requestNow,
 } from "../reads";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Program" };
 
 /** Past ten, a list of mentors is a page of its own. */
 const MENTORS_SHOWN = 10;

@@ -26,6 +26,9 @@ import {
 } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
 import { status, type ViewerContext } from "@/lib/status";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Interview" };
 
 /**
  * One practice interview, for one of the two students in it: who with, when,

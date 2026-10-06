@@ -16,6 +16,7 @@ import { Receipt } from "@/components/ui/receipt";
 import { SaveState, saveStateFrom } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/cn";
+import { MAX_SESSION_MINUTES } from "@/lib/constants";
 import type { LogState } from "@/lib/queries";
 import { programToday } from "@/lib/when";
 import { RequiredMark } from "@/components/ui/required-mark";
@@ -255,9 +256,18 @@ export function LogSessionForm({
   // One map of field → message, whoever wrote it: the check above, which can
   // name several, or the server, which names one. Each field reads its own.
   const serverField = state && !state.ok && state.error ? state.field : undefined;
+  // What the check says NOW, once a submit has been refused. The messages used
+  // to stay until the next submit, so a student was chosen and 45 typed with
+  // "Choose a student." and "Enter how long it took." still printed under them
+  // — the form contradicting what the fields said (October 2026 audit). The
+  // answer is re-asked of the form after each change; `null` means no refused
+  // check is open, and `missing` is what the last submit found.
+  const [recheck, setRecheck] = useState<{ of: typeof missing; now: FieldErrors } | null>(null);
+  const [edits, setEdits] = useState(0);
+  const live = recheck && recheck.of === missing ? recheck.now : missing;
   const fieldErrors: FieldErrors =
     Object.keys(missing).length > 0
-      ? missing
+      ? live
       : serverField && state && !state.ok
         ? { [serverField]: state.error }
         : {};
@@ -378,7 +388,19 @@ export function LogSessionForm({
    */
   function touched(override?: Record<string, string>) {
     rememberDraft(override);
+    setEdits((n) => n + 1);
   }
+
+  // After a refused submit, ask the form again whenever something it checks
+  // changes. Deferred a microtask, like the draft restore above: the form's
+  // DOM has to have rendered the new value before it can be read.
+  useEffect(() => {
+    if (Object.keys(missing).length === 0) return;
+    queueMicrotask(() => {
+      const form = formRef.current;
+      if (form) setRecheck({ of: missing, now: checkFields(new FormData(form)) });
+    });
+  }, [missing, studentId, minutes, programId, edits]);
 
   /**
    * Optional, and the only field that is about the WORK rather than about the
@@ -426,6 +448,14 @@ export function LogSessionForm({
           // given, and the mentor submitted a form that was then refused.
           value={minutes}
           onChange={(event) => setMinutes(event.target.value.replace(/\D/g, ""))}
+          // A pasted "1.5" used to lose its point and become 15 minutes — ten
+          // times what was meant. Anything that is not whole minutes is refused
+          // at the paste instead of being quietly reshaped into a different
+          // number.
+          onPaste={(event) => {
+            const pasted = event.clipboardData.getData("text").trim();
+            if (!/^\d+$/.test(pasted)) event.preventDefault();
+          }}
           aria-invalid={Boolean(fieldErrors.minutes) || undefined}
           className={cn(inputClass, "pr-12", fieldErrors.minutes && badInputClass)}
         />
@@ -810,6 +840,8 @@ function checkFields(data: FormData): FieldErrors {
   if (!minutes) errors.minutes = "Enter how long it took.";
   else if (!/^\d+$/.test(minutes) || Number(minutes) < 1) {
     errors.minutes = "Enter a whole number of minutes, 1 or more.";
+  } else if (Number(minutes) > MAX_SESSION_MINUTES) {
+    errors.minutes = `A session is at most ${MAX_SESSION_MINUTES} minutes (24 hours).`;
   }
   if (!text("date")) errors.date = "Choose the date it happened.";
   if (text("needsAck") && !data.get("acknowledgeOverdraw")) {

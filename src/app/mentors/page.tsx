@@ -19,6 +19,9 @@ import {
 import { prisma } from "@/lib/prisma";
 import { programOptions, toProgramOptions } from "@/lib/queries";
 import type { ViewerContext } from "@/lib/status";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Mentors" };
 
 /**
  * Every mentor the reader administers.

@@ -67,7 +67,7 @@ export function SettingsRow({
         "gap-x-8 gap-y-2 border-b border-line py-3 last:border-b-0",
         trailing
           ? "flex items-center justify-between"
-          : "flex flex-col sm:grid sm:grid-cols-[13rem_minmax(0,1fr)] sm:items-start",
+          : "flex flex-col sm:grid sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] sm:items-start",
         className
       )}
     >

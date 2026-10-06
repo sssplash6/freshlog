@@ -30,6 +30,9 @@ import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { homeFor, profileOf } from "@/lib/profile";
 import type { User } from "@/generated/prisma/client";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Feedback" };
 
 /**
  * Every rating in the product, at one address, in the shape the reader needs.

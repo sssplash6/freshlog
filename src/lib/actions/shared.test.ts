@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { FULL_NAME_RE, parseNameField } from "@/lib/actions/shared";
+import { FULL_NAME_RE, parseMinutesField, parseNameField } from "@/lib/actions/shared";
 
 /**
  * A name is now required to be a FULL name, everywhere one is typed: your own
@@ -73,5 +73,27 @@ describe("FULL_NAME_RE as an input pattern", () => {
     for (const name of ["Malika Karimova", "A B C", "Malika", "", " "]) {
       expect(asPattern.test(name)).toBe("value" in parseNameField(name));
     }
+  });
+});
+
+/**
+ * One session is a day at the very most: the October 2026 audit found
+ * 99,999,999 minutes accepted by the form. A grant keeps the year-long ceiling
+ * because a grant is a pile of hours, not one meeting.
+ */
+describe("parseMinutesField ceiling", () => {
+  it("refuses more than the caller's maximum, and says what it is", () => {
+    expect(parseMinutesField("1441", { min: 1, max: 1440, label: "Minutes" })).toEqual({
+      error: "Minutes can be at most 1440 (24 hours).",
+    });
+    expect(parseMinutesField("1440", { min: 1, max: 1440, label: "Minutes" })).toEqual({
+      value: 1440,
+    });
+  });
+
+  it("keeps the old ceiling for a caller that names none", () => {
+    expect(parseMinutesField("100000", { min: 1, label: "Minutes" })).toEqual({
+      value: 100000,
+    });
   });
 });

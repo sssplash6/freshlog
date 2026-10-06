@@ -542,3 +542,6 @@ export const ROLE_HOME: Record<Role, string> = {
   MENTOR: "/mentor",
   STUDENT: "/student",
 };
+
+/** One meeting is 24 hours at the very most (the form and the action agree). */
+export const MAX_SESSION_MINUTES = 24 * 60;

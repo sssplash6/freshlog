@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { formatBalance, formatDuration, formatMinutes, formatRough } from "@/lib/format";
+import {
+  formatBalance,
+  formatDaysAgo,
+  formatDuration,
+  formatMinutes,
+  formatRough,
+} from "@/lib/format";
 
 /**
  * The owner asked for rounding because the exact figures had become
@@ -89,5 +95,22 @@ describe("formatBalance", () => {
   it("leaves a balance that has not run out exactly as formatDuration says it", () => {
     expect(formatBalance(2325)).toBe("38h 45m");
     expect(formatBalance(0)).toBe("0 min");
+  });
+});
+
+describe("formatDaysAgo", () => {
+  // Session dates are UTC midnights; "now" is judged on Tashkent's calendar
+  // (UTC+5), so a session logged for October 5 is "yesterday" all of October 6.
+  const now = new Date("2026-10-06T08:00:00Z");
+  it("says today, yesterday, then days, weeks and months", () => {
+    expect(formatDaysAgo(new Date("2026-10-06T00:00:00Z"), now)).toBe("today");
+    expect(formatDaysAgo(new Date("2026-10-05T00:00:00Z"), now)).toBe("yesterday");
+    expect(formatDaysAgo(new Date("2026-10-01T00:00:00Z"), now)).toBe("5 days ago");
+    expect(formatDaysAgo(new Date("2026-09-15T00:00:00Z"), now)).toBe("3 weeks ago");
+    expect(formatDaysAgo(new Date("2026-06-01T00:00:00Z"), now)).toBe("4 months ago");
+  });
+  it("treats a late-evening UTC instant as already tomorrow in Tashkent", () => {
+    const lateEvening = new Date("2026-10-05T20:00:00Z"); // 01:00 on the 6th there
+    expect(formatDaysAgo(new Date("2026-10-05T00:00:00Z"), lateEvening)).toBe("yesterday");
   });
 });

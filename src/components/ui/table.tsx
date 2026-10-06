@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 
 import { SortHeader, SortTh } from "@/components/ui/sort-header";
+import { TableFrame } from "@/components/ui/table-frame";
 import { cn } from "@/lib/cn";
 
 export type Column = {
@@ -79,7 +80,7 @@ export function Table({
   className?: string;
 }) {
   return (
-    <div
+    <TableFrame
       className={cn(
         // A real edge: the frame is the one place a table says where it
         // stops. Without it a white table on a pale page was rows floating
@@ -138,7 +139,7 @@ export function Table({
           {children}
         </tbody>
       </table>
-    </div>
+    </TableFrame>
   );
 }
 

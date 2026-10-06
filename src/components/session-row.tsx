@@ -469,7 +469,7 @@ function SessionRowContent({
     <li
       id={anchor}
       className={cn(
-        "group/row px-4 py-3 transition-colors sm:px-6 sm:hover:bg-brand-soft/45",
+        "group/row px-4 py-3 transition-colors @4xl:px-6 @4xl:hover:bg-brand-soft/45",
         index != null && "deal-in",
       )}
       style={stagger}
@@ -482,7 +482,7 @@ function SessionRowContent({
           dot, the note is the quiet run in the middle, and the minutes are a
           figure on a capsule against the right edge. On a phone the same
           facts stack, as before. */}
-      <div className="flex items-start gap-3 sm:items-center sm:gap-4">
+      <div className="flex items-start gap-3 @4xl:items-center @4xl:gap-4">
         <DateLeaf date={date} muted={voided} />
         {lead && (
           <Avatar
@@ -490,7 +490,7 @@ function SessionRowContent({
             className={cn("h-9 w-9 shrink-0 text-xs", voided && "opacity-60")}
           />
         )}
-        <div className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-6">
+        <div className="min-w-0 flex-1 @4xl:flex @4xl:items-center @4xl:gap-6">
           {/* A MINIMUM, not a width, as before: the people take what they
               need and the topic — the column that can afford to — gives way
               first; with no topic at all, the people take the row. */}
@@ -498,15 +498,15 @@ function SessionRowContent({
             className={cn(
               "min-w-0",
               topic.length > 0
-                ? "sm:w-64 sm:shrink-0 lg:w-80"
-                : "sm:flex-1",
+                ? "@4xl:w-72 @4xl:shrink-0 @6xl:w-96"
+                : "@4xl:flex-1",
             )}
           >
             {lead && (
               <PersonName
                 person={lead}
                 className={cn(
-                  "block max-w-full truncate text-body font-semibold leading-snug sm:text-sm",
+                  "block max-w-full truncate text-body font-semibold leading-snug @4xl:text-sm",
                   textTone,
                 )}
               />
@@ -524,7 +524,7 @@ function SessionRowContent({
                 {/* Not on a phone: there the line is too short for both, and
                     the mentor is the one a reader needs. */}
                 {second && programName && (
-                  <span className="max-sm:hidden">
+                  <span className="@max-4xl:hidden">
                     <Separator />
                   </span>
                 )}
@@ -532,7 +532,7 @@ function SessionRowContent({
                   <span
                     className={cn(
                       "flex min-w-0 shrink-[2] items-center gap-1.5",
-                      second && "max-sm:hidden",
+                      second && "@max-4xl:hidden",
                     )}
                   >
                     {program && <ProgramDot program={program} />}
@@ -548,9 +548,9 @@ function SessionRowContent({
           <ExpandableText
             text={[when, ...topic].join(" · ")}
             lines={2}
-            className="mt-0.5 text-xs leading-snug text-muted-fg sm:hidden"
+            className="mt-0.5 text-xs leading-snug text-muted-fg @4xl:hidden"
           />
-          <div className="hidden min-w-0 flex-1 sm:block">
+          <div className="hidden min-w-0 flex-1 @4xl:block">
             {topic.length > 0 && (
               <ExpandableText
                 text={topic.join(" · ")}
@@ -565,40 +565,40 @@ function SessionRowContent({
           {chips ? (
             <div
               className={cn(
-                "mt-1.5 sm:mt-0 sm:shrink-0",
-                chipSlot && "sm:flex sm:w-48 sm:justify-end",
+                "mt-1.5 @4xl:mt-0 @4xl:shrink-0",
+                chipSlot && "@4xl:flex @4xl:w-48 @4xl:justify-end",
               )}
             >
               {chips}
             </div>
           ) : (
-            chipSlot && <div aria-hidden="true" className="hidden shrink-0 sm:block sm:w-48" />
+            chipSlot && <div aria-hidden="true" className="hidden shrink-0 @4xl:block @4xl:w-48" />
           )}
         </div>
         {/* The figure on a capsule in a fixed column, so 12, 45 and 150
             stack into one edge, then the menu — which, on a pointer, waits
             for the row to be hovered or focused rather than repeating down
             every line. */}
-        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          <span className="text-body leading-snug sm:flex sm:w-20 sm:justify-end sm:text-sm">
+        <div className="flex shrink-0 items-center gap-1 @4xl:gap-2">
+          <span className="whitespace-nowrap text-body leading-snug @4xl:flex @4xl:min-w-20 @4xl:justify-end @4xl:text-sm">
             <span
               className={cn(
                 charged &&
-                  "sm:inline-flex sm:h-7 sm:items-center sm:rounded-full sm:bg-fill sm:px-2.5",
+                  "@4xl:inline-flex @4xl:h-7 @4xl:items-center @4xl:rounded-full @4xl:bg-fill @4xl:px-2.5",
               )}
             >
               {duration}
             </span>
           </span>
           {actions && (
-            <span className="-my-2.5 shrink-0 transition-opacity sm:-my-1 pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:group-focus-within/row:opacity-100 pointer-fine:has-[[aria-expanded=true]]:opacity-100">
+            <span className="-my-2.5 shrink-0 transition-opacity @4xl:-my-1 pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:group-focus-within/row:opacity-100 pointer-fine:has-[[aria-expanded=true]]:opacity-100">
               {actions}
             </span>
           )}
         </div>
       </div>
 
-      {footer && <div className="mt-2 sm:pl-[7.25rem]">{footer}</div>}
+      {footer && <div className="mt-2 @4xl:pl-[7.25rem]">{footer}</div>}
     </li>
   );
 }
@@ -616,7 +616,7 @@ function DateLeaf({ date, muted }: { date: Date; muted?: boolean }) {
     <span
       aria-hidden="true"
       className={cn(
-        "hidden h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg bg-fill sm:flex",
+        "hidden h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg bg-fill @4xl:flex",
         muted && "opacity-60",
       )}
     >
@@ -749,7 +749,10 @@ export function SessionsList({
   return (
     <ul
       className={cn(
-        "divide-y divide-line",
+        // `@container`: the row's one-line layout is chosen by the width of THIS
+        // list, in rem, not by the viewport — at 200% text on a wide screen the
+        // viewport said "plenty of room" and the row clipped its own figure.
+        "@container divide-y divide-line",
         framed && "overflow-hidden rounded-xl bg-surface shadow-sm",
         className,
       )}
@@ -767,7 +770,7 @@ export function SessionsList({
             {opens && (
               <li
                 aria-hidden="true"
-                className="bg-head px-4 py-2 text-caption font-semibold uppercase tracking-wider text-muted-fg sm:px-6"
+                className="bg-head px-4 py-2 text-caption font-semibold uppercase tracking-wider text-muted-fg @4xl:px-6"
               >
                 {month}
               </li>

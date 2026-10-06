@@ -14,6 +14,9 @@ import { requireMentor, requireUser } from "@/lib/dal";
 import { dictationConfigured } from "@/lib/dictation";
 import { prisma } from "@/lib/prisma";
 import { logSessionOptions, mentorCaseload } from "@/lib/queries";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Log a session" };
 
 /**
  * Log a session, as a whole page.

@@ -15,6 +15,9 @@ import { formatMinutes } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { pastHours } from "@/lib/hours";
 import { studentLedger } from "@/lib/queries";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Allocate time" };
 
 export default async function AllocateStudentTimePage({
   params,

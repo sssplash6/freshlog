@@ -522,6 +522,15 @@
   }
 }
 
+/* A table that is wider than its frame scrolls sideways instead of losing its
+   right-hand columns (ui/table-frame.tsx sets the attribute after measuring).
+   The header stops sticking to the page in this case, because the frame is now
+   the scroll container — better than a column nobody can reach. */
+[data-scrolls] {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
 /* Table rows follow the density choice too, past the root size alone: the
    row height is where compact and comfortable are actually felt. */
 @media (min-width: 40rem) {

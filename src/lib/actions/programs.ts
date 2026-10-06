@@ -11,6 +11,24 @@ import { PROGRAM_SPACE } from "@/lib/constants";
 import { formatDuration } from "@/lib/format";
 import { pickColorIndex } from "@/lib/program-color";
 
+/** A program name as it is stored: trimmed, with any run of whitespace as one space. */
+function cleanName(raw: FormDataEntryValue | null): string {
+  return String(raw ?? "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * The stored name this one collides with, ignoring capitals — or null. The
+ * unique index is case-sensitive, so "global admissions program" sat beside
+ * "Global Admissions Program" and two pickers showed what looked like the same
+ * program twice (October 2026 audit). A program count is small, so the compare
+ * is done here rather than with a raw SQL `COLLATE NOCASE`.
+ */
+async function nameTaken(name: string, exceptId?: string): Promise<string | null> {
+  const programs = await prisma.program.findMany({ select: { id: true, name: true } });
+  const wanted = name.toLowerCase();
+  return programs.find((p) => p.id !== exceptId && p.name.toLowerCase() === wanted)?.name ?? null;
+}
+
 /**
  * A platform admin opens a new program. Programs created here live alongside
  * the seeded ones (the seed only upserts by name, it never deletes). Students
@@ -27,14 +45,14 @@ export async function createProgram(
   const denied = assertPlatformAdmin(actor);
   if (denied) return denied;
 
-  const name = String(formData.get("name") ?? "").trim();
+  const name = cleanName(formData.get("name"));
   if (name.length < 3) {
     return { ok: false, error: "Give the program a name (3+ characters)." };
   }
 
-  const existing = await prisma.program.findUnique({ where: { name } });
+  const existing = await nameTaken(name);
   if (existing) {
-    return { ok: false, error: `A program called ${name} already exists.` };
+    return { ok: false, error: `A program called ${existing} already exists.` };
   }
 
   await prisma.program.create({ data: { name, colorIndex: await pickColorIndex() } });
@@ -63,7 +81,7 @@ export async function renameProgram(
   const program = await prisma.program.findUnique({ where: { id: programId } });
   if (!program) return { ok: false, error: "Program not found." };
 
-  const name = String(formData.get("name") ?? "").trim();
+  const name = cleanName(formData.get("name"));
   if (name.length < 3) {
     return { ok: false, error: "Give the program a name (3+ characters)." };
   }
@@ -71,9 +89,9 @@ export async function renameProgram(
     return { ok: true, message: "No change: that's already its name." };
   }
 
-  const taken = await prisma.program.findUnique({ where: { name } });
+  const taken = await nameTaken(name, program.id);
   if (taken) {
-    return { ok: false, error: `A program called ${name} already exists.` };
+    return { ok: false, error: `A program called ${taken} already exists.` };
   }
 
   await prisma.program.update({ where: { id: programId }, data: { name } });

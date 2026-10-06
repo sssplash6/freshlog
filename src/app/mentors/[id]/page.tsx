@@ -43,6 +43,9 @@ import {
 } from "@/lib/queries";
 import { type ViewerContext } from "@/lib/status";
 import type { User } from "@/generated/prisma/client";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Mentor" };
 
 /** Sessions shown under the record; the figures above them stay complete. */
 const LOG_LIMIT = 10;
@@ -304,13 +307,17 @@ async function MentorRecord({
               {pairings.length > 0 && (
                 <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                   {pairings.map((a) => (
-                    <span key={a.id} className="inline-flex items-center gap-1.5">
+                    // `max-w-full flex-wrap`: a pairing is a program, its cohort and
+                    // a chip, and with a long program name the row was wider than
+                    // a phone — the chip broke one letter per line and the page
+                    // scrolled sideways.
+                    <span key={a.id} className="inline-flex min-w-0 max-w-full flex-wrap items-center gap-x-1.5 gap-y-1">
                       <ProgramChip program={a.program} className="text-sm text-ink" />
                       {a.level || a.cohort ? (
                         <span>/ {[a.level?.name, a.cohort?.name].filter(Boolean).join(" / ")}</span>
                       ) : null}
                       {!a.calendlyUrl && (
-                        <StatusChip severity="attention">No booking link</StatusChip>
+                        <StatusChip severity="attention" className="shrink-0 whitespace-nowrap">No booking link</StatusChip>
                       )}
                     </span>
                   ))}
@@ -543,7 +550,8 @@ async function MentorRecord({
                   {/* Red when overdrawn, and a meter of the total's burn. */}
                   <HoursLeft
                     remaining={row.remaining}
-                    used={Math.max(row.allocated - row.remaining, 0)}
+                    used={Math.max(row.allocated - row.remaining - row.forfeited, 0)}
+                    expired={row.forfeited}
                   />
                 </Td>
                 <Td label="Total" align="right" tone="muted" className="tabular-nums">
@@ -632,7 +640,8 @@ async function MentorRecord({
                 <Td label="Remaining" align="right" className="tabular-nums">
                   <HoursLeft
                     remaining={s.remaining}
-                    used={Math.max(s.allocated - s.remaining, 0)}
+                    used={Math.max(s.allocated - s.remaining - s.forfeited, 0)}
+                    expired={s.forfeited}
                   />
                   {/* Expired time is part of the grant, so it is named here
                       or the row would not add up to the Granted figure. */}

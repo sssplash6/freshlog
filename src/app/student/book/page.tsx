@@ -27,6 +27,9 @@ import {
   type Status,
   type ViewerContext,
 } from "@/lib/status";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Book a session" };
 
 type MentorHours = AllocationSummary["perMentor"][number];
 type Mentor = NonNullable<MentorHours["mentor"]>;

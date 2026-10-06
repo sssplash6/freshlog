@@ -32,6 +32,9 @@ import {
   programPairings,
   programStudents,
 } from "../../reads";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Program settings" };
 
 /**
  * A `ProgramStaff.role` by the name the grants editor gives it. It used to be

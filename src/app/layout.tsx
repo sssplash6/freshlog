@@ -4,6 +4,7 @@ import { Geist_Mono, Inter } from "next/font/google";
 import { Suspense } from "react";
 
 import { NavProgress } from "@/components/nav-progress";
+import { RouteAnnouncer } from "@/components/route-announcer";
 import { Toaster } from "@/components/toaster";
 import { STARTUP_IMAGES } from "@/lib/generated/startup-images";
 import "./globals.css";
@@ -48,7 +49,10 @@ const geistMono = Geist_Mono({
  * stays sharp on a retina tab and in a bookmark bar.
  */
 export const metadata: Metadata = {
-  title: "freshlog",
+  // Every page names itself ("Students · freshlog"): they all used to be plain
+  // "freshlog", so a dozen tabs, the history list and a screen reader's page
+  // announcement were indistinguishable (October 2026 audit).
+  title: { default: "freshlog", template: "%s · freshlog" },
   description: "Track mentoring hours, sessions and meetings.",
   icons: {
     icon: [
@@ -158,6 +162,7 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>
+        <RouteAnnouncer />
         {children}
         <Toaster />
         <noscript>

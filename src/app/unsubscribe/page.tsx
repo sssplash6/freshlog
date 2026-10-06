@@ -4,6 +4,9 @@ import { buttonClasses } from "@/components/ui/button";
 
 import { unsubscribeWeekly } from "@/lib/actions/email-prefs";
 import { verifyUnsubscribeToken } from "@/lib/email/unsubscribe";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Unsubscribe" };
 
 // Reads the database when confirming; never prerender.
 export const dynamic = "force-dynamic";

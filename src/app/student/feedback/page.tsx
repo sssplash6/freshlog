@@ -13,6 +13,9 @@ import { formatDate } from "@/lib/format";
 import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { status, type ViewerContext } from "@/lib/status";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Feedback" };
 
 /** How many ratings stay open before the rest fold away. */
 const RECENT = 3;

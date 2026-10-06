@@ -52,7 +52,7 @@ export type SessionUpdate = {
  */
 export function parseMinutesField(
   raw: FormDataEntryValue | null,
-  { min, label }: { min: number; label: string }
+  { min, max, label }: { min: number; max?: number; label: string }
 ): { value: number } | { error: string } {
   const text = String(raw ?? "").trim();
   const n = Number(text);
@@ -61,9 +61,18 @@ export function parseMinutesField(
     return { error: `${label} must be whole minutes — 90, not 1.5.` };
   }
   if (n < min) return { error: `${label} must be at least ${min}.` };
+  // A caller with a tighter ceiling than "a year of meetings" — one session is
+  // a day at the very most — says so; the audit found 99,999,999 accepted.
+  if (max !== undefined && n > max) {
+    return { error: `${label} can be at most ${max} (${formatCap(max)}).` };
+  }
   // 600000 minutes is a little over a year of continuous meetings.
   if (n > 600000) return { error: `${label} is implausibly large.` };
   return { value: n };
+}
+
+function formatCap(minutes: number): string {
+  return minutes % 60 === 0 ? `${minutes / 60} hours` : `${minutes} minutes`;
 }
 
 /** Parse a required YYYY-MM-DD date field to a UTC-midnight Date. */

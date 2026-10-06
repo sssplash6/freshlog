@@ -55,10 +55,16 @@ export function ProgramChip({
       </span>
     </>
   );
+  // A tag caps itself at 16rem and truncates (the full name stays in `title`):
+  // inside an auto-layout table cell `max-w-full` is no cap at all, so a
+  // 90-character program name once pushed the whole roster's right-hand
+  // columns out of sight. `cn` does not resolve conflicts, so the two caps
+  // are alternatives, never both.
   const classes = cn(
-    "inline-flex max-w-full items-center gap-1.5 text-sm text-ink",
-    variant === "tag" &&
-      "h-6 max-w-52 rounded-full bg-fill pl-2 pr-2.5 text-xs font-medium",
+    "inline-flex items-center gap-1.5 text-sm text-ink",
+    variant === "tag"
+      ? "h-6 max-w-64 rounded-full bg-fill pl-2 pr-2.5 text-xs font-medium"
+      : "max-w-full",
     href && "group transition-colors hover:text-brand",
     className
   );

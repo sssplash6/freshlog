@@ -9,7 +9,7 @@ import { programWallClock } from "@/lib/when";
 
 import { Dashboard } from "./dashboard";
 
-export const metadata: Metadata = { title: "Analytics · freshlog" };
+export const metadata: Metadata = { title: "Analytics" };
 
 /**
  * Hours over time: the school, then one program, then one mentor, each by

@@ -20,6 +20,9 @@ import { studentsWithHours } from "@/lib/queries";
 
 import { MentorPrograms } from "./mentor-programs";
 import { PROGRAM_STATUS, requestNow, studentsOf } from "./reads";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Programs" };
 
 /**
  * Every program this reader administers, and which of them is asking for

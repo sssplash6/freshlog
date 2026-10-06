@@ -18,6 +18,9 @@ import { attentionFor } from "@/lib/attention";
 import { requireUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { profileOf } from "@/lib/profile";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Notifications" };
 
 /**
  * The bell, and the only place either half of it lives.

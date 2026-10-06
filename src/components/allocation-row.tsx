@@ -324,7 +324,7 @@ function AllocationPerson({ entry }: { entry: AllocationEntry }) {
 
 /** A value the row does not have. Never a blank cell — a blank reads as a bug. */
 function Dash() {
-  return <span className="text-disabled">—</span>;
+  return <span className="text-muted-fg">—</span>;
 }
 
 export function AllocationRow({
@@ -381,7 +381,8 @@ export function AllocationRow({
             — taught, missed, expired — against what is left. */}
         <HoursLeft
           remaining={entry.remaining}
-          used={entry.completed + entry.missed + entry.forfeited}
+          used={entry.completed + entry.missed}
+          expired={entry.forfeited}
         />
         {entry.forfeited > 0 && (
           // "3h expired unused" — the status model's own words, so a spent

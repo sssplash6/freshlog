@@ -15,6 +15,9 @@ import {
 } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
 import { programWallClock } from "@/lib/when";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Interview partner" };
 
 /**
  * A classmate, as another student sees them: their name, the programs the two

@@ -5,6 +5,9 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { signIn } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/dal";
 import { homeFor, profileOf } from "@/lib/profile";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Sign in" };
 
 const ERROR_MESSAGES: Record<string, string> = {
   AccessDenied:
