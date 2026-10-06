@@ -157,13 +157,33 @@ export async function createMentor(
     if (denied) return denied;
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    return { ok: false, error: `${email} already has an account.` };
+  // Somebody who tried to sign in before being registered is a PENDING student
+  // on this address, on no roster an admin could remove them from — and the
+  // mentor picker never lists a student, so they could not be found to assign
+  // either. That stub is absorbed; a real account on the address still refuses,
+  // and says what it is.
+  const claim = await claimEmail(actor, email, "");
+  if ("error" in claim) {
+    const holder = await prisma.user.findUnique({ where: { email } });
+    if (holder && canActAsMentor(holder)) {
+      return {
+        ok: false,
+        error: `${email} is already a mentor. Open them under Mentors to add programs.`,
+      };
+    }
+    if (holder?.role === ROLES.STUDENT) {
+      return {
+        ok: false,
+        error: `${email} is already a student here, so they can't be registered as a mentor.`,
+      };
+    }
+    return { ok: false, error: claim.error };
   }
+  const { stub } = claim;
 
   const labels = targets.map((t) => t.label).join(", ");
   await prisma.$transaction(async (tx) => {
+    if (stub) await removeStub(tx, stub);
     const mentor = await tx.user.create({
       data: {
         email,

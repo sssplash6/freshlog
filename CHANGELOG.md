@@ -28,6 +28,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Comfortable is now the default density.** On a laptop, text is full size and table rows have more room. The previous size is still in Settings as Standard, beside Compact.
 
 ### Fixed
+- **Register a mentor who already tried to sign in.** An email that said "already has an account" but could not be found was an empty sign-up. Registering now replaces it, and says plainly when the address is a real student or mentor.
 - **Quieter student pages.** Repeated names, "Booked" and "You confirmed this" labels, explainer sentences, empty-state paragraphs and settings descriptions are gone, so each student page says each thing once.
 - **Long links no longer stretch the page.** Pasting a long link or an unbroken string into a note, task or bug report used to make the whole page scroll sideways. It now wraps inside the box.
 - **Tables never lose their columns.** When a table is too wide for its space — a narrow laptop, larger text, a very long program name — it now scrolls sideways instead of silently cutting off the last columns. A program tag shortens a long name, and the mentor Home caseload fits a 1,024-pixel laptop.

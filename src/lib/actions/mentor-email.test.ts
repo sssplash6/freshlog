@@ -122,3 +122,43 @@ describe("pointing a mentor at the address they actually sign in with", () => {
     ).resolves.not.toBeNull();
   });
 });
+
+describe("registering a mentor on an address that has already signed in", () => {
+  it("absorbs the pending student sign-up and registers the mentor", async () => {
+    const { createMentor } = await import("@/lib/actions/mentors");
+    const prog = await program("Registering");
+    actor.value = await platformAdmin("Registrar");
+    const held = await stub("late@example.com", prog.id);
+
+    const data = new FormData();
+    data.append("email", "late@example.com");
+    data.append("firstName", "Late");
+    data.append("lastName", "Mentor");
+    data.append("targets", `p:${prog.id}`);
+    const result = await createMentor(null, data);
+
+    expect(result?.ok).toBe(true);
+    const user = await prisma.user.findUnique({ where: { email: "late@example.com" } });
+    expect(user?.role).toBe(ROLES.MENTOR);
+    expect(user?.id).not.toBe(held.user.id);
+    expect(await prisma.studentProfile.findUnique({ where: { id: held.profile.id } })).toBeNull();
+  });
+
+  it("still refuses an address held by a real student, and says so", async () => {
+    const { createMentor } = await import("@/lib/actions/mentors");
+    const prog = await program("Refusing");
+    actor.value = await platformAdmin("Registrar Two");
+    const real = await student({ programId: prog.id, name: "Real Student" });
+    const owner = await prisma.user.findUniqueOrThrow({ where: { id: real.userId } });
+
+    const data = new FormData();
+    data.append("email", owner.email);
+    data.append("firstName", "Real");
+    data.append("lastName", "Student");
+    data.append("targets", `p:${prog.id}`);
+    const result = await createMentor(null, data);
+
+    expect(result?.ok).toBe(false);
+    expect((result as { error: string }).error).toMatch(/already a student/);
+  });
+});
