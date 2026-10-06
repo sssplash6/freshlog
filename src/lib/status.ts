@@ -475,7 +475,6 @@ const META: Record<StatusType, Meta> = {
       staff: {
         kind: "actionable",
         label: (d) => `${dur(d)} expires ${when(d)}`,
-        explanation: () => "Unused time is forfeited on the day it expires.",
       },
       mentor: {
         kind: "actionable",
@@ -499,12 +498,10 @@ const META: Record<StatusType, Meta> = {
       staff: {
         kind: "actionable",
         label: (d) => `${dur(d)} expired unused`,
-        explanation: () => "Forfeited on its use-by date. Grant more to replace it.",
       },
       mentor: {
         kind: "blocked",
         label: (d) => `${dur(d)} expired unused`,
-        explanation: () => "You cannot log against an expired allocation.",
       },
       student: {
         kind: "informational",

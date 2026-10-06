@@ -242,19 +242,6 @@ async function MentorRecord({
   const delivered = sum((r) => r.delivered);
   const missed = sum((r) => r.missed);
   const meetings = sum((r) => r.sessions);
-  const extra = sum((r) => r.extra);
-  // The log's caption is built from the SAME rows as the figures at the top
-  // of the page. It used `sessionsCaption`, whose total counts missed time
-  // charged to a grant, under a lead that counts only what was completed —
-  // so one page said 22h 21m and, two sections down, 23h 6m for the same
-  // ninety days.
-  const logCaption =
-    meetings === 0
-      ? "Nothing logged yet"
-      : `${meetings} meeting${meetings === 1 ? "" : "s"} · ${formatDuration(delivered)} completed${
-          missed > 0 ? ` · ${formatDuration(missed)} missed` : ""
-        }${extra > 0 ? ` · ${formatDuration(extra)} extra` : ""}`;
-
   const name = mentor.name ?? mentor.email;
   const rated = feedback._count > 0 && feedback._avg.rating != null;
   const base = `/mentors/${mentor.id}`;
@@ -270,7 +257,7 @@ async function MentorRecord({
     { label: "Completed", align: "right" },
     { label: "Missed", align: "right" },
     { label: "Remaining", align: "right", emphasis: "key" },
-    { label: "Granted", align: "right" },
+    { label: "Total", align: "right" },
   ];
 
   // Soonest use-by first: the row at the top is the time about to be lost.
@@ -584,7 +571,6 @@ async function MentorRecord({
       <Section
         title="Students"
         count={holders.length || undefined}
-        caption={isSelf ? "Students with time on you" : "Students with time on this mentor"}
       >
         {holders.length === 0 ? (
           <EmptyState framed={false} title="Nobody holds their time">
@@ -644,7 +630,7 @@ async function MentorRecord({
                     expired={s.forfeited}
                   />
                   {/* Expired time is part of the grant, so it is named here
-                      or the row would not add up to the Granted figure. */}
+                      or the row would not add up to the Total figure. */}
                   {s.forfeited > 0 && (
                     <span className="block text-xs font-normal text-danger-ink">
                       {formatDuration(s.forfeited)} expired
@@ -652,7 +638,7 @@ async function MentorRecord({
                   )}
                 </Td>
                 <Td
-                  label="Granted"
+                  label="Total"
                   align="right"
                   tone="muted"
                   className="tabular-nums"
@@ -681,15 +667,6 @@ async function MentorRecord({
         eyebrow={null}
         moreHref={`/sessions?mentor=${mentor.id}`}
         moreLabel="All sessions"
-        // The page's own tally, not a row count: it excludes voided and
-        // rescheduled rows, which are history and not hours. Counting the rows
-        // instead said "1 session" above a log holding one voided line, beside
-        // a Delivered figure of zero.
-        caption={
-          entries.length > LOG_LIMIT
-            ? `${logCaption} · showing ${LOG_LIMIT}`
-            : logCaption
-        }
         empty={
           <EmptyState framed={false} title="No sessions in this period">
             {win.kind === "all"

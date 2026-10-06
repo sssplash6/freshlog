@@ -249,7 +249,7 @@ export function Dashboard({
             mentorRow?.name ?? "Analytics"
           )
         }
-        subtitle={crumbs || words.across}
+        subtitle={crumbs}
         actions={
           <>
             {/* A plain link, not a drill: the other frame is a different read
@@ -761,7 +761,6 @@ function MonthsCard({
   return (
     <Section
       title="Month by month"
-      eyebrow={month == null ? "Pick a month to open it day by day." : "Pick the month again, or another, to switch."}
       // The column tooltip rises above the tallest bar, past the card's edge.
       className="overflow-visible!"
     >
@@ -1005,7 +1004,6 @@ function ProgramCards({
           size, too — it was 20px, a step above every other heading. */}
       <div className="pb-2.5 pt-2">
         <h2 className="text-title font-semibold tracking-[-0.01em] text-ink">{words.parts}</h2>
-        <div className="mt-0.5 text-xs font-medium text-muted-fg">Open one to see which mentors carry it.</div>
       </div>
       <div className={cn("grid gap-3", cardColumns(order.length))}>
         {order.map(({ p, i, r }, n) => {
@@ -1157,7 +1155,7 @@ function Leaderboard({
   return (
     <Section
       title={title}
-      eyebrow={`${withRank ? "Ranked by" : "Most"} hours with students in ${period}. Open a mentor to see every month.`}
+      eyebrow={`${withRank ? "Ranked by" : "Most"} hours with students in ${period}.`}
       action={
         // `py-2.5` cancels the action slot's -my-2, which is for a 44px link
         // and left this 12px legend hard against the top edge of the card.
@@ -1191,7 +1189,7 @@ function Leaderboard({
             />
           </label>
           {found.length === 0 && (
-            <p className="px-4 py-3 text-[0.9375rem] text-muted-fg sm:px-5">
+            <p className="px-4 py-3 text-body text-muted-fg sm:px-5">
               No mentor matching “{query.trim()}” logged a session in {period}.
             </p>
           )}
@@ -1342,14 +1340,13 @@ function MentorDetail({
 
   return (
     <>
-      <Section title={`Every day of ${year}`} eyebrow="Stronger colour means more hours that day.">
+      <Section title={`Every day of ${year}`}>
         <div className="px-4 py-3 sm:px-5">
           <Heatmap rows={yearRows} year={year} color={accent} selected={month} onPick={(m) => go({ month: m })} />
         </div>
       </Section>
       <Section
         title={self ? "What you logged each month" : "What they logged each month"}
-        eyebrow="Pick a row to open that month."
       >
         {/* `scroll-x` rather than a bare overflow: on a phone the last columns
             run past the card, and the fade is what says there is more. */}

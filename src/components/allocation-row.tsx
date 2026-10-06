@@ -399,7 +399,7 @@ export function AllocationRow({
           tasks planned past it; nobody could make the figures reconcile. The
           plan, when it runs past the grant, is said underneath in its own
           words. */}
-      <Td label="Granted" align="right" tone="muted" className="tabular-nums">
+      <Td label="Total" align="right" tone="muted" className="tabular-nums">
         <span className="inline-flex items-center justify-end gap-1.5">
           {entry.allocated > 0 ? formatDuration(entry.allocated) : <Dash />}
           {assignedActions}
@@ -450,7 +450,7 @@ export function AllocationsTable({
     { label: "Completed", align: "right" },
     { label: "Missed", align: "right" },
     { label: "Remaining", align: "right", emphasis: "key" },
-    { label: "Granted", align: "right" },
+    { label: "Total", align: "right" },
     ...(showAmountPaid ? [{ label: "Paid", align: "right" } as Column] : []),
     ...(withActions ? [{ label: "", align: "right" } as Column] : []),
   ];

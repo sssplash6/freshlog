@@ -251,11 +251,6 @@ export default async function ProgramSettingsPage({
       ) : (
         <Section
           title="Cohorts"
-          caption={
-            flatCohorts.length === 0
-              ? "Flat — students belong to the program directly"
-              : undefined
-          }
           count={flatCohorts.length > 0 ? flatCohorts.length : undefined}
         >
           {flatCohorts.length > 0 && (

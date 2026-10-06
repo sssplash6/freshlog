@@ -350,7 +350,6 @@ export default async function ProgramPage({
             <Section
               title="Exchange"
               count={lent.length}
-              caption="Students lent to or from this program"
             >
               <ExchangeList
                 exchanges={lent}

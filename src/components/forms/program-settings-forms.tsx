@@ -46,7 +46,6 @@ export function RenameProgramForm({
     <SettingsRow
       label="Program name"
       htmlFor={id}
-      description="Renaming changes it everywhere."
       control={
         <form action={action} className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="programId" value={programId} />
@@ -318,7 +317,7 @@ export function TrackPaymentToggle({
       description={
         tracksPayment
           ? "Allocating time asks for the amount, and the program's total carries it."
-          : "Allocating time asks for hours only."
+          : undefined
       }
       control={
         <form action={action} className="flex flex-wrap items-center gap-3">

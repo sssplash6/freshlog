@@ -150,7 +150,7 @@ export default async function ProgramLayout({
         items={[
           { label: "Students", value: String(totals.students), icon: <UsersIcon className="h-4 w-4" /> },
           { label: "Completed", value: formatDuration(totals.completed), icon: <CheckIcon className="h-4 w-4" /> },
-          { label: "Granted", value: formatDuration(totals.allotted), icon: <LayersIcon className="h-4 w-4" /> },
+          { label: "Total", value: formatDuration(totals.allotted), icon: <LayersIcon className="h-4 w-4" /> },
         ]}
       />
 

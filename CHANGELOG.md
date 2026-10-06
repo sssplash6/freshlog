@@ -7,6 +7,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-06
 
 ### New
+- **Less text to read.** Admin and mentor pages drop lines that repeated a heading or a figure beside them, and time columns say Total instead of Granted.
 - **A big "Report a mentor" button.** It sits right under the greeting on a student's Home, replacing the Feedback tab, and opens a shorter report form.
 - **Meetings you can see, and page through.** A student's Home shows the three latest meetings with page numbers under them, and the Meetings page is numbered too.
 - **Home shows what needs you.** Admin and mentor Homes list the top issues inline, like hours that expired or are about to, and a mentor's students are sorted so whoever is running out of time comes first.

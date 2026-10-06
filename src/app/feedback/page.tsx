@@ -172,16 +172,6 @@ const ANONYMOUS =
   "Anonymous — you never see which student wrote a rating.";
 
 /**
- * Who may see the writer, said where the staff list shows names.
- *
- * For a leader every row is anonymous and this says why; for an admin the
- * named rows are the ones their grants reach, and this says why the rest are
- * not.
- */
-const ADMIN_ONLY =
-  "Who wrote a rating is visible only to that student's admins.";
-
-/**
  * A mentor reading their own: an average, a count, and the comments.
  *
  * No filter bar and no mentors table, because both would be one row and one
@@ -532,9 +522,6 @@ async function AllRatings({
       <Section
         title="Ratings"
         count={stats._count}
-        // Said on the page, not only in a tooltip: whether a name or
-        // "Anonymous" prints under a row, this is the rule both are drawn by.
-        caption={list.length > 0 ? ADMIN_ONLY : undefined}
       >
         {list.length === 0 ? (
           filtered ? (

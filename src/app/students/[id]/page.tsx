@@ -801,10 +801,7 @@ export default async function StudentWorkspacePage({
         )}
 
         {exchanges.length === 0 && sendForm && (
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line px-4 py-3 sm:px-5">
-            <p className="min-w-0 text-xs text-muted-fg">
-              Lend {name} to another program for a set number of hours.
-            </p>
+          <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 border-t border-line px-4 py-3 sm:px-5">
             {sendForm}
           </div>
         )}
