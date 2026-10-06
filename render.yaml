@@ -21,7 +21,12 @@ services:
     # devDependencies (typescript, tailwind, tsx) are needed to build and to
     # run the seed, so force-install them even though Render sets production.
     buildCommand: npm install --include=dev && npm run build
-    # Apply migrations, then start. The seed is NOT run here any more.
+    # Apply migrations, then start. `db:migrate:safe` is `prisma migrate deploy`
+    # with a safety net (scripts/migrate-deploy.mjs): when a migration is
+    # pending it copies the SQLite file first (VACUUM INTO, newest 5 kept beside
+    # it), and if the migration fails it exits non-zero so the deploy stops
+    # before new code meets a half-migrated database. Nothing pending = no-op.
+    # The seed is NOT run here any more.
     #
     # It was, on every boot, and that was load-bearing while staff lived in
     # config/app-config.ts. It stopped being safe the moment access became
@@ -30,7 +35,7 @@ services:
     # next deploy" is the worst way to learn your permission model has a second
     # writer. The seed still exists for a fresh database — `npm run db:seed`,
     # by hand, once.
-    startCommand: npm run db:migrate:deploy && npm start
+    startCommand: npm run db:migrate:safe && npm start
 
     # Persistent storage for the SQLite database. Wiped-on-deploy without this.
     disk:

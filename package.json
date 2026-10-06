@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:safe": "node scripts/migrate-deploy.mjs",
     "db:seed": "prisma db seed",
     "db:sample": "tsx prisma/sample-data.ts",
     "db:reset-data": "tsx prisma/reset-data.ts",
