@@ -91,7 +91,7 @@ async function NeedsYou({ user, preload }: { user: User; preload: StaffPreload }
     >
       <ul className="divide-y divide-line">
         {statuses.slice(0, HOME_ISSUES).map((s, i) => (
-          <IssueRow key={`${s.type}-${s.subject?.id ?? i}`} status={s} />
+          <IssueRow key={`${s.type}-${s.subject?.id ?? ""}-${i}`} status={s} />
         ))}
       </ul>
     </Section>

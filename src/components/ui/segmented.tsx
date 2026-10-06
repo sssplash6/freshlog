@@ -66,7 +66,7 @@ const SEGMENT_DENSE =
 const TRACK_TAB =
   "flex w-fit max-w-full gap-0.5 rounded-lg bg-fill p-0.5 max-sm:scroll-x";
 const SEGMENT_TAB =
-  "inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 text-xs transition-colors sm:min-h-8";
+  "inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 text-xs transition-colors sm:min-h-8";
 // The thumb, raised off the grey track — iOS's segmented control. Its own
 // token rather than `bg-surface`: in dark the surface IS the card, so a
 // selected segment on a card was the card's colour on a lighter track and read
@@ -302,7 +302,8 @@ export function TabLinks({
             {item.label}
             {item.count != null && (
               <span
-                className="text-caption tabular-nums text-muted-fg"
+                // ink at 70%, not muted grey: 4.06:1 in dark mode at 12px.
+                className="text-caption tabular-nums text-ink/70"
               >
                 {item.count}
               </span>

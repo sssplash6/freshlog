@@ -206,7 +206,7 @@ export default async function StudentsPage({
           administers && programs.length > 0 ? (
             <CreateLink
               href={
-                programs.length === 1 ? `/programs/${programs[0].id}?add=1` : "/programs"
+                programs.length === 1 ? `/programs/${programs[0].id}?add=1` : "/programs?for=students"
               }
               label="Add students"
             />
@@ -264,7 +264,7 @@ export default async function StudentsPage({
               administers && programs.length > 0 ? (
                 <CreateLink
                   href={
-                    programs.length === 1 ? `/programs/${programs[0].id}?add=1` : "/programs"
+                    programs.length === 1 ? `/programs/${programs[0].id}?add=1` : "/programs?for=students"
                   }
                   label="Add students"
                 />

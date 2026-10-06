@@ -456,7 +456,7 @@ export function AllocationsTable({
   ];
 
   return (
-    <Table framed={framed} columns={columns} className={className}>
+    <Table framed={framed} columns={columns} label="Time by mentor" className={className}>
       {entries.map((entry, i) => (
         <AllocationRow
           key={`${entry.program.id}:${entry.bank ? "bank" : (entry.mentor?.id ?? "unassigned")}`}

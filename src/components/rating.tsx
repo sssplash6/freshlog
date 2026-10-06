@@ -6,7 +6,9 @@ export function Rating({ value }: { value: number }) {
       aria-label={`${value} out of 5 stars`}
     >
       {"★".repeat(value)}
-      <span className="text-muted-fg/40">{"★".repeat(5 - value)}</span>
+      {/* Hollow, not a faint filled star: the empty ones were 1.8:1 and told
+          the reader nothing the shape could not (October 2026 audit). */}
+      <span className="text-muted-fg">{"☆".repeat(5 - value)}</span>
     </span>
   );
 }

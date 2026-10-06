@@ -73,7 +73,7 @@ export function StarRating({
                 // Muted rather than the control fill: `fill-strong` is a 20%
                 // grey that all but vanished on a white card, so an empty
                 // picker read as no picker at all.
-                n <= shown ? "text-ink" : "text-muted-fg/40"
+                n <= shown ? "text-ink" : "text-muted-fg/70"
               )}
             >
               <StarIcon className="h-7 w-7 transition-transform" aria-hidden="true" />

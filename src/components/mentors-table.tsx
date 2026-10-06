@@ -80,7 +80,7 @@ export function MentorsTable({
   }
 
   return (
-    <Table columns={COLUMNS} framed={framed}>
+    <Table columns={COLUMNS} framed={framed} label="Mentors">
       {rows.map((m, i) => {
         // One chip, the first thing the model has to say about them. A row
         // wearing three chips is a row nobody reads; the full list is on their

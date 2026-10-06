@@ -65,7 +65,7 @@ export function ProgramChip({
     variant === "tag"
       ? "h-6 max-w-64 rounded-full bg-fill pl-2 pr-2.5 text-xs font-medium"
       : "max-w-full",
-    href && "group transition-colors hover:text-brand",
+    href && "tap-target group transition-colors hover:text-brand",
     className
   );
 

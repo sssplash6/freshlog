@@ -71,11 +71,14 @@ export const FILL_CELL = "sm:w-full sm:max-w-0 sm:min-w-36";
 export function Table({
   columns,
   framed = true,
+  label,
   children,
   className,
 }: {
   columns: Column[];
   framed?: boolean;
+  /** What the table lists, for a screen reader's table navigation ("Students"). */
+  label?: string;
   children: ReactNode;
   className?: string;
 }) {
@@ -94,6 +97,7 @@ export function Table({
       )}
     >
       <table
+        aria-label={label}
         data-framed={framed ? "" : undefined}
         className="data-table block w-full text-left text-sm text-ink tabular-nums sm:table"
       >

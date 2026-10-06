@@ -108,7 +108,7 @@ export function ExternalLink({
       className={cn(
         "group",
         variant === "inline" &&
-          "inline-flex items-center gap-1 py-1 align-middle font-medium text-brand hover:underline",
+          "tap-target inline-flex items-center gap-1 py-1 align-middle font-medium text-brand hover:underline",
         variant === "quiet" &&
           "inline-flex min-h-11 items-center gap-1.5 text-xs font-medium text-brand hover:underline",
         variant === "chip" &&

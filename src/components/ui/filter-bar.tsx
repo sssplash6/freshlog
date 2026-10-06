@@ -1,8 +1,8 @@
-import Form from "next/form";
 import Link from "next/link";
 
 import { SearchIcon } from "@/components/icons";
 import { Select } from "@/components/select";
+import { TidyForm } from "@/components/ui/tidy-form";
 import { Button } from "@/components/ui/button";
 import { DateField } from "@/components/ui/date-field";
 import { Disclosure } from "@/components/ui/disclosure";
@@ -226,7 +226,7 @@ export function FilterBar({
       )}
     >
       {showValues && (
-        <Form
+        <TidyForm
           key={shown}
           action={basePath}
           role={q ? "search" : undefined}
@@ -386,7 +386,7 @@ export function FilterBar({
               </div>
             </Disclosure>
           )}
-        </Form>
+        </TidyForm>
       )}
 
       {/* Only reached when there is no form to carry them — otherwise the

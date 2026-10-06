@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { CreateProgramForm } from "@/components/forms/program-forms";
 import { CreateButton, CreatePanel, CreateSlot } from "@/components/page-create";
+import { Callout } from "@/components/ui/callout";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Figure } from "@/components/ui/figure";
 import { ProgramChip } from "@/components/program-chip";
@@ -152,6 +153,15 @@ export default async function ProgramsPage({
         </CreatePanel>
       )}
 
+      {/* Arrived from Students' "Add students": adding happens on a program (that
+          is where the cohort is chosen), and the button used to drop the reader
+          on this list with no word on why. */}
+      {readParam(params, "for") === "students" && (
+        <Callout tone="info" row title="Choose a program to add students to.">
+          Open it, then press Add students.
+        </Callout>
+      )}
+
       <TabLinks
         label="Programs"
         items={[
@@ -178,7 +188,7 @@ export default async function ProgramsPage({
           </EmptyState>
         )
       ) : (
-        <Table columns={columns}>
+        <Table columns={columns} label="Programs">
           {rows.map((p) => (
             <Tr key={p.id}>
               <Td>

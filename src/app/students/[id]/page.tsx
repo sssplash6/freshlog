@@ -244,7 +244,13 @@ export default async function StudentWorkspacePage({
   const canLog = reaches && active;
   const logReason = !active
     ? "This student is not approved yet."
-    : !mine && !pool
+    : // "You" is the reader as a MENTOR. An admin who is not this student's
+      // mentor holds no time with anybody and logs on someone else's behalf, so
+      // being told "you hold no time with them" was a sentence about nothing
+      // they were doing (October 2026 audit).
+      !reaches
+      ? undefined
+      : !mine && !pool
       ? "You hold no time with them — a session you log here counts as extra time or an overdraw."
       : mine && (mine.expired || mine.remaining < 0)
         ? mine.expired

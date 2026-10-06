@@ -28,6 +28,8 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Every page has its own title,** so tabs and history tell pages apart, and moving to a new page now announces it and moves keyboard focus to it.
 - **Hours bars tell the truth about expired time.** Time that lapsed unused is red on the bar instead of looking used, and empty values are readable.
 - **Confirm-session cards say which meeting.** Each card now shows the day and length of the meeting.
+- **Easier to tap on a phone.** Names, chips and links in rows, the Light/Dark and notification switches, and the common session lengths now have finger-sized tap areas.
+- **Clearer details.** Empty rating stars are visible, a Home alert no longer shows twice, "Add students" explains that you pick a program first, a disabled Log session button says what is missing, and search links no longer carry empty filters.
 - **Duplicate program names are caught.** Two names that differ only in capital letters are refused.
 - **A mentor's program totals add up.** On a mentor's page, the per-program table now counts every session ever logged, like its Total and Remaining, so the row adds up whatever period you pick above it. Total comes last.
 - **Figures add up.** Completed, missed, remaining and expired now add up to the time granted, the same total reads the same on every page, and analytics percentages match the period you picked.

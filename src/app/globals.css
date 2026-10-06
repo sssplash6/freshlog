@@ -991,6 +991,31 @@ body {
     transform: scaleX(0);
   }
 }
+/* A touch-sized hit area behind a small link, without moving anything: the
+   link keeps its look and its line, and an invisible 44px-tall (and as wide as
+   the link) box centred on it takes the tap. Only where the pointer is a
+   finger. It was a 22px name in a session row, a 28px person chip and an 18px
+   note toggle, each one a tap that landed on the row beside it (October 2026
+   audit). */
+/* In `components`, a layer BELOW Tailwind's utilities: a link that is also
+   `absolute` or `sticky` keeps its own positioning. */
+@layer components {
+  .tap-target {
+    position: relative;
+  }
+  @media (pointer: coarse) {
+    .tap-target::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: max(100%, 2.75rem);
+      transform: translateY(-50%);
+    }
+  }
+}
+
 @utility bar-grow {
   transform-origin: left center;
   animation: bar-grow 600ms var(--ease-out-strong) both;

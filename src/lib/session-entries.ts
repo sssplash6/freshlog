@@ -48,7 +48,8 @@ export function toSessionEntries(
     late: s.late,
     status: s.status,
     withinPlan: s.withinPlan,
-    note: s.note,
+    // A note of only spaces is no note: it drew an empty row with a chevron.
+    note: s.note?.trim() ? s.note : null,
     studentAnswer: s.studentAnswer ?? null,
     studentRating: feedback ? (s.studentRating ?? null) : null,
     // A DISPUTE's words stay: they are a correction the mentor is told to

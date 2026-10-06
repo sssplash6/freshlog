@@ -38,7 +38,7 @@ export function Switch({
           navigator.vibrate?.(4);
           onChange?.(e);
         }}
-        className="peer absolute inset-0 z-10 m-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+        className="peer absolute left-0 top-1/2 z-10 m-0 h-full w-full -translate-y-1/2 cursor-pointer max-sm:h-11 opacity-0 disabled:cursor-not-allowed"
       />
       {/* Track */}
       <span

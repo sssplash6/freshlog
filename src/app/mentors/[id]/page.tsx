@@ -599,7 +599,7 @@ async function MentorRecord({
             below are AllocationRow's, in its order, so that the prop can
             replace this block without moving a value.
           */
-          <Table framed={false} columns={studentColumns}>
+          <Table framed={false} columns={studentColumns} label="Students with time on this mentor">
             {holders.map((s, i) => (
               <Tr
                 key={s.student.id}

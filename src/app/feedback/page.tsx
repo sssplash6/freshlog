@@ -653,7 +653,7 @@ function AverageStars({ value }: { value: number }) {
       className="ml-1.5 align-middle text-caption tracking-tight text-ink"
     >
       {"★".repeat(filled)}
-      <span className="text-fill-strong">{"★".repeat(5 - filled)}</span>
+      <span className="text-muted-fg">{"☆".repeat(5 - filled)}</span>
     </span>
   );
 }

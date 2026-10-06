@@ -194,7 +194,7 @@ export function StudentsTable({
   ];
 
   return (
-    <Table columns={columns} framed={framed}>
+    <Table columns={columns} framed={framed} label="Students">
       {students.map((s, i) => {
         // ONE chip, and always the same one: has this person ever signed in.
         // It was the highest-severity status true of them, which put "Over by

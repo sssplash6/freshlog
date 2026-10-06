@@ -442,7 +442,7 @@ export default async function MentorHomePage({
               })}
             </ul>
 
-            <Table columns={studentColumns(showProgram)} framed={false} className="max-sm:hidden">
+            <Table columns={studentColumns(showProgram)} framed={false} label="Your students" className="max-sm:hidden">
               {caseloadRows.map((s) => {
                 const balance = balanceOf(s);
                 const seen = lastSeen.get(s.profile.id);

@@ -49,7 +49,7 @@ export function StatusSummary({
     <Section title={title} count={ordered.length} className={className}>
       <ul className="divide-y divide-line">
         {ordered.map((s, i) => (
-          <SummaryRow key={`${s.type}-${s.subject?.id ?? i}`} status={s} />
+          <SummaryRow key={`${s.type}-${s.subject?.id ?? ""}-${i}`} status={s} />
         ))}
       </ul>
     </Section>

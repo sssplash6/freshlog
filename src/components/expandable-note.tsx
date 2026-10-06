@@ -30,11 +30,12 @@ export function ExpandableNote({
   /** The tone the note carries in its own row. */
   className?: string;
 }) {
+  if (!text.trim()) return null;
   return (
     <details className="group/note">
       <summary
         className={cn(
-          "flex cursor-pointer list-none items-start gap-1.5 text-xs text-muted-fg transition-colors hover:text-ink [&::-webkit-details-marker]:hidden",
+          "tap-target flex cursor-pointer list-none items-start gap-1.5 text-xs text-muted-fg transition-colors hover:text-ink [&::-webkit-details-marker]:hidden",
           className
         )}
       >

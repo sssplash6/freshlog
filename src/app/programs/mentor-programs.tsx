@@ -123,7 +123,7 @@ export async function MentorPrograms({ mentorId }: { mentorId: string }) {
           An admin has to add you to a program before you can log anything.
         </EmptyState>
       ) : (
-        <Table columns={columns}>
+        <Table columns={columns} label="Programs">
           {shown.map((row) => (
             // `relative`: the chevron's link covers the row, as on Home.
             <Tr key={row.id} className="relative">

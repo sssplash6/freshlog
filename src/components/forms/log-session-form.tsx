@@ -482,7 +482,7 @@ export function LogSessionForm({
                 touched({ minutes: String(m) });
               }}
               className={cn(
-                "inline-flex min-h-8 items-center rounded-full px-3 text-xs font-medium tabular-nums transition-colors max-sm:min-h-10",
+                "inline-flex min-h-8 items-center rounded-full px-3 text-xs font-medium tabular-nums transition-colors max-sm:min-h-11",
                 on ? "bg-brand-soft text-brand" : "bg-fill text-muted-fg hover:text-ink"
               )}
             >
@@ -796,6 +796,14 @@ export function LogSessionForm({
             "max-sm:sticky max-sm:bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] max-sm:z-10 max-sm:-mx-4 max-sm:-mb-4 max-sm:bg-surface/95 max-sm:px-4 max-sm:py-3 max-sm:backdrop-blur"
         )}
       >
+        {/* A button greyed out with no reason read as broken. With nobody to
+            choose from yet it says what is missing — the same words the empty
+            Student field carries. */}
+        {students.length === 0 && studentPlaceholder && (
+          <p className="mr-3 hidden self-center text-xs text-muted-fg sm:block">
+            {studentPlaceholder.replace(/…$/, ".")}
+          </p>
+        )}
         <SubmitButton
           pendingText="Logging…"
           className="w-full sm:w-auto sm:min-w-40"

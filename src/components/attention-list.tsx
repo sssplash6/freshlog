@@ -85,7 +85,7 @@ export function AttentionList({
     <ul className="divide-y divide-line">
       {rows.map((s, i) => (
         <AttentionRow
-          key={`${s.type}-${s.subject?.id ?? i}`}
+          key={`${s.type}-${s.subject?.id ?? ""}-${i}`}
           status={s}
           action={renderAction?.(s)}
           dismissible={dismissible}

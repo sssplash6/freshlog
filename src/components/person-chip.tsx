@@ -94,7 +94,7 @@ export function PersonChip({
       ? "h-7 gap-1.5 py-0.5 pr-1.5 text-xs"
       : "h-10 gap-2 py-1 pr-1 text-sm",
     href &&
-      "transition-colors hover:text-brand",
+      "tap-target transition-colors hover:text-brand",
     className,
   );
   const title = person.name

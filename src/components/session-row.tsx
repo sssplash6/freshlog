@@ -647,7 +647,7 @@ function PersonName({
     <Link
       href={person.href}
       transitionTypes={["nav-forward"]}
-      className={cn("min-w-0 hover:text-brand", className)}
+      className={cn("tap-target min-w-0 hover:text-brand @max-4xl:py-0.5", className)}
     >
       {nameOf(person)}
     </Link>
