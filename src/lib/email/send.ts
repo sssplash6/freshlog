@@ -2,6 +2,8 @@ import "server-only";
 
 import { after } from "next/server";
 
+import { isGroupEmail } from "@/lib/groups";
+
 /**
  * The one way mail leaves this app.
  *
@@ -90,6 +92,8 @@ async function deliver(mail: Mail): Promise<SendResult> {
 
 /** One mail, with a single retry when Resend rate-limits or briefly fails. */
 export async function sendEmail(mail: Mail): Promise<SendResult> {
+  // A group has no inbox (see lib/groups.ts).
+  if (isGroupEmail(mail.to)) return { ok: true, skipped: "dry-run" };
   if (!emailConfigured()) {
     console.log(
       `[email:dry-run] would send to ${mail.to} — ${JSON.stringify(mail.subject)}`

@@ -28,6 +28,7 @@ import { syncGoalProgress } from "@/lib/goal-progress";
 import { parseOptionalTaskField, TASK_BANK } from "@/lib/tasks";
 import {
   EMAIL_RE,
+  NAME_MAX,
   normalizeEmail,
   parseDateField,
   parseMinutesField,
@@ -43,6 +44,7 @@ import { allocatedUnder, ExchangeCapExceeded, openExchangeFrom } from "@/lib/exc
 import { deadlinePassed } from "@/lib/deadlines";
 import { pastHours } from "@/lib/hours";
 import { grantStandardHours } from "@/lib/standard-hours";
+import { groupEmail } from "@/lib/groups";
 import { carryForward } from "@/lib/carry-forward";
 import { claimEmail, removeStub } from "@/lib/sign-up-stub";
 import type { Cohort, Program, ProgramLevel } from "@/generated/prisma/client";
@@ -178,6 +180,8 @@ export async function createStudents(
 
   const denied = await assertProgramScope(actor, program.id);
   if (denied) return denied;
+
+  if (program.classHours) return createGroups(actor, program, level, cohort, formData);
 
   // One (email, name, folder link) triple per row, index-aligned with the
   // emails. The name is required: every list, chip and log in the app reads
@@ -443,6 +447,101 @@ export async function createStudents(
       (emailConfigured()
         ? ` A welcome email is on its way to ${added === 1 ? "them" : "each of them"}.`
         : "") +
+      (skipped.length > 0 ? ` Skipped: ${skipped.join(", ")}.` : ""),
+  };
+}
+
+/**
+ * The same registration for a program that logs hours as classes: a group is a
+ * name and an optional folder link, with no email, no welcome and no sign-in.
+ * Underneath it is the ordinary student record (see `lib/groups.ts`), so
+ * hours, deadlines and scoping need nothing of their own. A name already in
+ * the program is skipped, since two groups of one name cannot be told apart.
+ */
+async function createGroups(
+  actor: { id: string },
+  program: Program,
+  level: ProgramLevel | null,
+  cohort: Cohort | null,
+  formData: FormData
+): Promise<ActionState> {
+  const folderUrls = formData.getAll("folderUrl");
+  const taken = new Set(
+    (
+      await prisma.studentEnrollment.findMany({
+        where: { programId: program.id },
+        select: { student: { select: { user: { select: { name: true } } } } },
+      })
+    ).map((e) => (e.student.user.name ?? "").toLowerCase())
+  );
+  const skipped: string[] = [];
+  const fresh: { name: string; folderUrl: string | null }[] = [];
+  for (const [i, raw] of formData.getAll("groupName").entries()) {
+    const name = String(raw ?? "").trim().replace(/\s+/g, " ");
+    if (!name) continue;
+    if (name.length > NAME_MAX) {
+      return { ok: false, error: `That name is too long (${NAME_MAX} characters max).` };
+    }
+    if (taken.has(name.toLowerCase())) {
+      skipped.push(`${name} (already in this program)`);
+      continue;
+    }
+    taken.add(name.toLowerCase());
+    const link = parseLinkField(folderUrls[i] ?? null, `The folder link for ${name}`);
+    if ("error" in link) return { ok: false, error: link.error };
+    fresh.push({ name, folderUrl: link.value });
+  }
+  if (fresh.length === 0) {
+    return {
+      ok: false,
+      error: skipped.length ? `No groups added. ${skipped.join(", ")}.` : "Enter at least one group name.",
+    };
+  }
+
+  let standardGranted = 0;
+  await prisma.$transaction(async (tx) => {
+    for (const { name, folderUrl } of fresh) {
+      const user = await tx.user.create({
+        data: {
+          email: groupEmail(crypto.randomUUID()),
+          name,
+          role: ROLES.STUDENT,
+          status: USER_STATUS.ACTIVE,
+          weeklyDigest: false,
+        },
+      });
+      const created = await tx.studentProfile.create({
+        data: {
+          userId: user.id,
+          folderUrl,
+          createdById: actor.id,
+          enrollments: {
+            create: {
+              programId: program.id,
+              levelId: level?.id ?? null,
+              cohortId: cohort?.id ?? null,
+              createdById: actor.id,
+            },
+          },
+        },
+      });
+      const made = await grantStandardHours(tx, {
+        studentId: created.id,
+        programId: program.id,
+        levelId: level?.id,
+        actorId: actor.id,
+      });
+      if (made) standardGranted++;
+    }
+  });
+
+  revalidatePath("/", "layout");
+  const added = fresh.length;
+  return {
+    ok: true,
+    message:
+      `${added} group${added === 1 ? "" : "s"} added to ${enrollmentLabel(program.name, level?.name, cohort?.name)}.` +
+      standardNote(standardOf(program, level), standardGranted, added) +
       (skipped.length > 0 ? ` Skipped: ${skipped.join(", ")}.` : ""),
   };
 }

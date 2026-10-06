@@ -171,6 +171,23 @@ export default async function LogSessionPage({
       ? "Sessions"
       : "Home";
 
+  // Only the title changes in a program that logs hours as classes.
+  const programIds = draft.programId
+    ? [draft.programId]
+    : preselected
+      ? (
+          await prisma.studentEnrollment.findMany({
+            where: { studentId: preselected },
+            select: { programId: true },
+          })
+        ).map((e) => e.programId)
+      : [];
+  const forGroup =
+    programIds.length > 0 &&
+    (await prisma.program.count({
+      where: { id: { in: programIds }, classHours: false },
+    })) === 0;
+
   return (
     // Wider than the 2xl it was: the note and the three one-tap answers sit
     // side by side above `lg`, and at 42rem each column was too narrow to hold
@@ -180,7 +197,7 @@ export default async function LogSessionPage({
       <PageTitle
         backHref={back}
         backLabel={backLabel}
-        title="Log a session"
+        title={forGroup ? "Log an hour for a group" : "Log a session"}
         subtitle={program ? `In ${program.name}` : undefined}
       />
 

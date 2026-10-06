@@ -129,6 +129,11 @@ model Program {
   // reason as `tracksPayment`: Full Support and the Master's Program are
   // identified by a setting an admin can read, not by what they are called.
   hourBank          Boolean               @default(false)
+  // Does this program log its hours as CLASSES? Its roster entries are groups,
+  // added by name with no email or sign-in, and an hour is logged for a group.
+  // A group is an ordinary student record underneath, so ledgers, deadlines and
+  // scoping are the ones every other program has. Off by default.
+  classHours        Boolean               @default(false)
   // The standard grant: every student who joins this program is given
   // `standardMinutes` — in their unassigned pool, or in their hour bank where
   // `hourBank` is on — to use within `standardDays` of joining. Both set or both null (off). It is how a program that is one

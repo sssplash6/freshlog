@@ -3,6 +3,7 @@ import {
   ArchiveProgramButton,
   AssignMentorForm,
   CreateLevelForm,
+  ClassHoursToggle,
   DeleteCohortButton,
   DeleteLevelButton,
   DeleteProgramButton,
@@ -355,6 +356,7 @@ export default async function ProgramSettingsPage({
               spaceName={program.spaceName}
             />
           )}
+          <ClassHoursToggle programId={program.id} classHours={program.classHours} />
           <StandardHoursForm
             programId={program.id}
             standardMinutes={program.standardMinutes}

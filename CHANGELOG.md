@@ -7,6 +7,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-06
 
 ### New
+- **Programs can log hours as classes.** Turn on "Logs hours as classes" in a program's settings (off by default) and the roster becomes groups: add a group by name with no email, and logging an hour is logging it for that group.
 - **Less text to read.** Admin and mentor pages drop lines that repeated a heading or a figure beside them, and time columns say Total instead of Granted.
 - **A big "Report a mentor" button.** It sits right under the greeting on a student's Home, replacing the Feedback tab, and opens a shorter report form.
 - **Meetings you can see, and page through.** A student's Home shows the three latest meetings with page numbers under them, and the Meetings page is numbered too.

@@ -263,6 +263,7 @@ export default async function ProgramPage({
           <div>
             <AddStudentsForm
               defaultOpen={readParam(query, "add") === "1"}
+              classHours={program.classHours}
               program={{
                 id: program.id,
                 name: program.name,

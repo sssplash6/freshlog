@@ -446,7 +446,9 @@ export default async function StudentWorkspacePage({
       className="liquid-edge"
       {...(canLog ? {} : { "aria-disabled": true, title: logReason })}
     >
-      Log a session
+      {enrollments.length > 0 && enrollments.every((e) => e.program.classHours)
+        ? "Log an hour for this group"
+        : "Log a session"}
     </LinkButton>
   ) : null;
   const allocateButton =

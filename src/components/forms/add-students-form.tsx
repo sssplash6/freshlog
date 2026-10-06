@@ -50,10 +50,13 @@ type Row = {
 export function AddStudentsForm({
   program,
   defaultOpen = false,
+  classHours = false,
 }: {
   program: ProgramOption;
   /** Arrive with one row open — a link that said "Add students" landed here. */
   defaultOpen?: boolean;
+  /** The program logs hours as classes: rows are groups, a name and a folder. */
+  classHours?: boolean;
 }) {
   // Empty rows after a successful add, without an effect that re-renders to do
   // it: the wrapped action bumps a counter, and the counter is the child's
@@ -78,6 +81,7 @@ export function AddStudentsForm({
         key={attempt}
         program={program}
         pending={pending}
+        classHours={classHours}
         // Only on arrival: after a successful add the form closes, as it always has.
         open={defaultOpen && attempt === 0}
       />
@@ -95,10 +99,12 @@ function StudentRows({
   program,
   pending,
   open,
+  classHours,
 }: {
   program: ProgramOption;
   pending: boolean;
   open: boolean;
+  classHours: boolean;
 }) {
   const [rows, setRows] = useState<Row[]>(
     open ? [{ id: 0, email: "", first: "", last: "", folderUrl: "" }] : [],
@@ -130,7 +136,9 @@ function StudentRows({
   const fullName = (r: Row) =>
     FULL_NAME_RE.test(`${r.first} ${r.last}`.trim().replace(/\s+/g, " "));
   const ready = (r: Row) =>
-    EMAIL_RE.test(normalizeEmail(r.email)) && fullName(r);
+    classHours
+      ? r.first.trim() !== ""
+      : EMAIL_RE.test(normalizeEmail(r.email)) && fullName(r);
   const validCount = rows.filter(ready).length;
 
   // Why nothing is ready, for the row somebody has started filling in.
@@ -140,7 +148,9 @@ function StudentRows({
   const blocking =
     started.length === 0
       ? null
-      : started.some((r) => !EMAIL_RE.test(normalizeEmail(r.email)))
+      : classHours
+        ? "Every row needs a group name."
+        : started.some((r) => !EMAIL_RE.test(normalizeEmail(r.email)))
         ? "Every row needs a valid email address."
         : "Every row needs a first and last name.";
 
@@ -162,7 +172,7 @@ function StudentRows({
     return (
       <Button type="button" variant="secondary" onClick={addRow} className="gap-1.5">
         <PlusIcon className="h-4 w-4 shrink-0" />
-        Add students
+        {classHours ? "Add group" : "Add students"}
       </Button>
     );
   }
@@ -174,11 +184,13 @@ function StudentRows({
           <div className="mb-1 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-title font-semibold tracking-[-0.01em] text-ink">
-                Add students to {program.name}
+                {classHours ? "Add groups" : "Add students"} to {program.name}
               </h2>
-              <p className="mt-0.5 text-xs text-muted-fg">
-                Each confirms their name on first sign-in.
-              </p>
+              {!classHours && (
+                <p className="mt-0.5 text-xs text-muted-fg">
+                  Each confirms their name on first sign-in.
+                </p>
+              )}
             </div>
           </div>
           {/* The column names, once, from `sm` up: placeholders alone are not
@@ -188,9 +200,15 @@ function StudentRows({
             aria-hidden="true"
             className="hidden gap-2 text-xs font-medium text-muted-fg sm:grid sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem]"
           >
-            <span>Email</span>
-            <span>First name</span>
-            <span>Last name</span>
+            {classHours ? (
+              <span className="col-span-3">Group name</span>
+            ) : (
+              <>
+                <span>Email</span>
+                <span>First name</span>
+                <span>Last name</span>
+              </>
+            )}
           </div>
           {rows.map((r, i) => (
             /* One grid per row, not four equal tracks: the email is the longest
@@ -203,6 +221,26 @@ function StudentRows({
               key={r.id}
               className="relative grid gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem]"
             >
+              {classHours ? (
+                // A group is a name and nothing else: it takes the three
+                // tracks the email and the two names share, so the folder link
+                // and the remove button sit exactly where they do for students.
+                <label className="block min-w-0 sm:col-span-3">
+                  <span className={PHONE_LABEL}>Group name</span>
+                  <Input
+                    name="groupName"
+                    type="text"
+                    autoComplete="off"
+                    maxLength={NAME_MAX}
+                    value={r.first}
+                    onChange={(e) => update(r.id, "first", e.target.value)}
+                    placeholder="e.g. Tuesday class"
+                    aria-label={`Group ${i + 1} name`}
+                    autoFocus={i === rows.length - 1}
+                  />
+                </label>
+              ) : (
+                <>
               <label className="block min-w-0">
                 <span className={PHONE_LABEL}>Email</span>
                 <EmailInput
@@ -240,6 +278,8 @@ function StudentRows({
                   aria-label={`Student ${i + 1} last name`}
                 />
               </label>
+                </>
+              )}
               {/* Not type="url": native validation would reject a pasted
                     `drive.google.com/…`, which the action accepts and https-fixes. */}
               <label className="block min-w-0 sm:col-span-4">
@@ -251,13 +291,13 @@ function StudentRows({
                   value={r.folderUrl}
                   onChange={(e) => update(r.id, "folderUrl", e.target.value)}
                   placeholder="Folder link (optional)"
-                  aria-label={`Student ${i + 1} folder link`}
+                  aria-label={`${classHours ? "Group" : "Student"} ${i + 1} folder link`}
                 />
               </label>
               <button
                 type="button"
                 onClick={() => setRows((rs) => rs.filter((x) => x.id !== r.id))}
-                aria-label={`Remove student ${i + 1}`}
+                aria-label={`Remove ${classHours ? "group" : "student"} ${i + 1}`}
                 className="absolute -right-2 -top-2 flex h-11 w-11 items-center justify-center rounded-lg text-muted-fg transition-colors hover:bg-canvas hover:text-danger-ink sm:static sm:col-start-4 sm:row-start-1 sm:w-9"
               >
                 <XIcon className="h-4 w-4" />
@@ -341,15 +381,17 @@ function StudentRows({
                 {pending
                   ? "Adding…"
                   : validCount > 0
-                    ? `Add ${validCount} student${validCount === 1 ? "" : "s"}`
-                    : "Add students"}
+                    ? `Add ${validCount} ${classHours ? "group" : "student"}${validCount === 1 ? "" : "s"}`
+                    : classHours
+                      ? "Add group"
+                      : "Add students"}
               </Button>
             </div>
           </div>
           {/* Another row, from inside the card it adds to. */}
           <Button type="button" variant="ghost" onClick={addRow} className="-ml-2 gap-1.5">
             <PlusIcon className="h-4 w-4 shrink-0" />
-            Another student
+            {classHours ? "Another group" : "Another student"}
           </Button>
         </div>
       )}

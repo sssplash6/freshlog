@@ -106,7 +106,7 @@ export default async function ProgramLayout({
               variant="secondary"
               size="md"
             >
-              Log a session
+              {program.classHours ? "Log an hour for a group" : "Log a session"}
             </LinkButton>
             {/* One primary, and LAST — the right-hand end, where the student
                 page puts its own. The two pages had the same pair in opposite

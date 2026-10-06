@@ -19,6 +19,7 @@ import {
   renameProgram,
   setLevelStandardHours,
   setProgramHourBank,
+  setProgramClassHours,
   setProgramStandardHours,
   setProgramSpace,
   setProgramTracksPayment,
@@ -428,6 +429,38 @@ export function HourBankToggle({
           <input type="hidden" name="hourBank" value={hourBank ? "off" : "on"} />
           <SubmitButton variant="secondary" pendingText="Saving…">
             {hourBank ? "Stop offering banks" : "Offer hour banks"}
+          </SubmitButton>
+        </form>
+      }
+      state={<SaveState state={save} />}
+    />
+  );
+}
+
+/** Does this program log its hours as classes, for groups rather than students? */
+export function ClassHoursToggle({
+  programId,
+  classHours,
+}: {
+  programId: string;
+  classHours: boolean;
+}) {
+  const [, action, save] = useSaveState(setProgramClassHours);
+
+  return (
+    <SettingsRow
+      label="Logs hours as classes"
+      description={
+        classHours
+          ? "The roster is groups, added by name. Logging an hour is logging it for a group's class."
+          : "The roster is students, and an hour is logged for a student."
+      }
+      control={
+        <form action={action}>
+          <input type="hidden" name="programId" value={programId} />
+          <input type="hidden" name="classHours" value={classHours ? "off" : "on"} />
+          <SubmitButton variant="secondary" pendingText="Saving…">
+            {classHours ? "Log hours per student" : "Log hours as classes"}
           </SubmitButton>
         </form>
       }

@@ -587,6 +587,39 @@ export async function setProgramHourBank(
 }
 
 /**
+ * Does this program log its hours as classes? Its roster is then groups, added
+ * by name, and an hour is logged for a group. A column, like `hourBank`.
+ * Turning it off changes what the add form and the log button OFFER; groups
+ * already added stay, with their hours.
+ */
+export async function setProgramClassHours(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+
+  const programId = String(formData.get("programId") ?? "");
+  const denied = await assertProgramScope(actor, programId);
+  if (denied) return denied;
+
+  const program = await prisma.program.findUnique({ where: { id: programId } });
+  if (!program) return { ok: false, error: "Program not found." };
+
+  const classHours = String(formData.get("classHours") ?? "") === "on";
+  if (classHours === program.classHours) return { ok: true, message: "No change." };
+
+  await prisma.program.update({ where: { id: programId }, data: { classHours } });
+
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: classHours
+      ? `${program.name} now logs hours as classes. Add a group from the program page.`
+      : `${program.name} no longer logs hours as classes. Groups already added keep their hours.`,
+  };
+}
+
+/**
  * Delete a whole program, once it is empty. Anything with history in it —
  * students, staff scoped to it — blocks the delete rather than being swept up:
  * a program is closed by emptying it, and only then removed.
