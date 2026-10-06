@@ -216,6 +216,19 @@ async function MentorRecord({
   ];
   const sum = (pick: (row: (typeof byProgram)[number]) => number) =>
     byProgram.reduce((total, row) => total + pick(row), 0);
+  // The program table is the Students ledger summed by program — every
+  // session ever logged against these grants, whatever the window above. Its
+  // Completed and Missed were the window's while its Total and Remaining were
+  // the ledger's, so under "30 days" a row read 2h completed of 40h with 10h
+  // remaining and could not be made to add up.
+  const ledger = byProgram.map((row) => {
+    const held = students.filter((s) => s.program.id === row.id);
+    const total = (pick: (s: (typeof held)[number]) => number) =>
+      held.reduce((sum, s) => sum + pick(s), 0);
+    return { ...row, completedAll: total((s) => s.completed), missedAll: total((s) => s.missed) };
+  });
+  const programMissed = ledger.some((r) => r.missedAll > 0);
+  const programExpired = ledger.some((r) => r.forfeited > 0);
   // A mentor reading their own record gets it without the student's rating
   // or note — anonymous to them, and stripped before the payload, not hidden
   // after it.
@@ -459,7 +472,7 @@ async function MentorRecord({
               ever logged, so no reporting range can move it — and the Students
               list is that ledger, grant by grant, not a report. */}
           <p className="pb-3 text-xs text-muted-fg">
-            Total and remaining time, and the Students list below, count every session, whatever the range.
+            The tables below count every session ever logged, whatever the range.
           </p>
         </div>
 
@@ -476,12 +489,15 @@ async function MentorRecord({
               { label: "Program" },
               { label: "Students", align: "right" },
               { label: "Completed", align: "right" },
-              { label: "Missed", align: "right" },
-              { label: "Total", align: "right" },
+              // What has gone, what is left, then the grant they add up to.
+              // Missed and Expired take a column only when a row has some.
+              ...(programMissed ? [{ label: "Missed", align: "right" } as Column] : []),
+              ...(programExpired ? [{ label: "Expired", align: "right" } as Column] : []),
               { label: "Remaining", align: "right", emphasis: "key" },
+              { label: "Total", align: "right" },
             ]}
           >
-            {byProgram.map((row, i) => (
+            {ledger.map((row, i) => (
               <Tr
                 key={row.id}
                 className="deal-in"
@@ -505,26 +521,33 @@ async function MentorRecord({
                   align="right"
                   className="tabular-nums"
                 >
-                  {formatDuration(row.delivered)}
+                  {formatDuration(row.completedAll)}
                 </Td>
                 {/* Plain ink. The heading says what it is; amber with no
                     word or glyph beside it was colour alone saying "bad". */}
-                <Td
-                  label="Missed"
-                  align="right"
-                  className={cn("tabular-nums", row.missed > 0 ? "text-ink" : "text-muted-fg")}
-                >
-                  {row.missed > 0 ? formatDuration(row.missed) : "—"}
-                </Td>
-                <Td label="Total" align="right" tone="muted" className="tabular-nums">
-                  {formatDuration(row.allocated)}
-                </Td>
+                {programMissed && (
+                  <Td
+                    label="Missed"
+                    align="right"
+                    className={cn("tabular-nums", row.missedAll > 0 ? "text-ink" : "text-muted-fg")}
+                  >
+                    {row.missedAll > 0 ? formatDuration(row.missedAll) : "—"}
+                  </Td>
+                )}
+                {programExpired && (
+                  <Td label="Expired" align="right" tone="muted" className="tabular-nums">
+                    {row.forfeited > 0 ? formatDuration(row.forfeited) : "—"}
+                  </Td>
+                )}
                 <Td label="Remaining" align="right" className="tabular-nums">
                   {/* Red when overdrawn, and a meter of the total's burn. */}
                   <HoursLeft
                     remaining={row.remaining}
                     used={Math.max(row.allocated - row.remaining, 0)}
                   />
+                </Td>
+                <Td label="Total" align="right" tone="muted" className="tabular-nums">
+                  {formatDuration(row.allocated)}
                 </Td>
               </Tr>
             ))}
@@ -540,9 +563,10 @@ async function MentorRecord({
                 </Td>
                 <Td label="Students" align="right" tone="muted">—</Td>
                 <Td label="Completed" align="right" tone="muted">—</Td>
-                <Td label="Missed" align="right" tone="muted">—</Td>
-                <Td label="Total" align="right" tone="muted">—</Td>
+                {programMissed && <Td label="Missed" align="right" tone="muted">—</Td>}
+                {programExpired && <Td label="Expired" align="right" tone="muted">—</Td>}
                 <Td label="Remaining" align="right" tone="muted">—</Td>
+                <Td label="Total" align="right" tone="muted">—</Td>
               </Tr>
             ))}
           </Table>

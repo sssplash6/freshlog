@@ -133,7 +133,7 @@ export const viewport: Viewport = {
  * place the metas after this script), and again whenever `data-theme` changes —
  * which is how ThemeToggle's switch reaches the bar without knowing about it.
  */
-const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t!=="dark"&&t!=="light"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}var r=document.documentElement;r.dataset.theme=t;if(localStorage.getItem("rail")==="collapsed"){r.dataset.rail="collapsed"}var d=localStorage.getItem("density");if(d==="compact"||d==="comfortable"){r.dataset.density=d}var c=function(){var m=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<m.length;i++){m[i].setAttribute("content",r.dataset.theme==="dark"?"#121417":"#ffffff")}};c();document.addEventListener("DOMContentLoaded",c);new MutationObserver(c).observe(r,{attributes:true,attributeFilter:["data-theme"]})}catch(e){}})()`;
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t!=="dark"&&t!=="light"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}var r=document.documentElement;r.dataset.theme=t;if(localStorage.getItem("rail")==="collapsed"){r.dataset.rail="collapsed"}var d=localStorage.getItem("density");if(d==="compact"||d==="standard"){r.dataset.density=d}var c=function(){var m=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<m.length;i++){m[i].setAttribute("content",r.dataset.theme==="dark"?"#121417":"#ffffff")}};c();document.addEventListener("DOMContentLoaded",c);new MutationObserver(c).observe(r,{attributes:true,attributeFilter:["data-theme"]})}catch(e){}})()`;
 
 export default function RootLayout({
   children,

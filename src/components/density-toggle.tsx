@@ -2,13 +2,14 @@
 
 import { cn } from "@/lib/cn";
 
-const ORDER = ["compact", "default", "comfortable"] as const;
+const ORDER = ["compact", "standard", "comfortable"] as const;
 type Density = (typeof ORDER)[number];
 
 /**
  * How tightly rows and text pack, remembered per browser: compact for the admin
  * who scans a forty-row roster all day, comfortable for somebody who would
- * rather read. Default is the 94% the app has always used.
+ * rather read. Comfortable is the default (October 2026); standard is the 94%
+ * the app used before it.
  *
  * NO REACT STATE, for the reasons `ThemeToggle` records: the choice lives in
  * `data-density` on <html>, set by the root layout's inline script before the
@@ -34,12 +35,12 @@ export function DensityToggle({
 }) {
   const cycle = () => {
     const root = document.documentElement;
-    const current = (root.dataset.density as Density | undefined) ?? "default";
+    const current = (root.dataset.density as Density | undefined) ?? "comfortable";
     const next = ORDER[(ORDER.indexOf(current) + 1) % ORDER.length];
-    if (next === "default") delete root.dataset.density;
+    if (next === "comfortable") delete root.dataset.density;
     else root.dataset.density = next;
     try {
-      if (next === "default") localStorage.removeItem("density");
+      if (next === "comfortable") localStorage.removeItem("density");
       else localStorage.setItem("density", next);
     } catch {
       // Blocked site data: the choice holds for this page and is not kept.
@@ -60,7 +61,7 @@ export function DensityToggle({
     >
       <span className={cn(inline && "sr-only")}>Density</span>
       <span className={cn("density-compact-only text-xs", inline ? "text-ink" : "text-muted-fg")}>Compact</span>
-      <span className={cn("density-default-only text-xs", inline ? "text-ink" : "text-muted-fg")}>Default</span>
+      <span className={cn("density-standard-only text-xs", inline ? "text-ink" : "text-muted-fg")}>Standard</span>
       <span className={cn("density-comfortable-only text-xs", inline ? "text-ink" : "text-muted-fg")}>Comfortable</span>
     </button>
   );

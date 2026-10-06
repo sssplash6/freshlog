@@ -50,12 +50,12 @@ export function ThemeChoice({ className }: { className?: string }) {
   );
 }
 
-function setDensity(next: "compact" | "default" | "comfortable") {
+function setDensity(next: "compact" | "standard" | "comfortable") {
   const root = document.documentElement;
-  if (next === "default") delete root.dataset.density;
+  if (next === "comfortable") delete root.dataset.density;
   else root.dataset.density = next;
   try {
-    if (next === "default") localStorage.removeItem("density");
+    if (next === "comfortable") localStorage.removeItem("density");
     else localStorage.setItem("density", next);
   } catch {
     // Blocked site data: the choice holds for this page and is not kept.
@@ -77,19 +77,19 @@ export function DensityChoice({ className }: { className?: string }) {
       </button>
       <button
         type="button"
-        onClick={() => setDensity("default")}
-        className={cn(BUTTON, "in-[html:not([data-density])]:bg-surface in-[html:not([data-density])]:text-ink in-[html:not([data-density])]:shadow-sm")}
+        onClick={() => setDensity("standard")}
+        className={cn(BUTTON, "in-data-[density=standard]:bg-surface in-data-[density=standard]:text-ink in-data-[density=standard]:shadow-sm")}
       >
-        Default
-        <Current when="in-[html:not([data-density])]:block" />
+        Standard
+        <Current when="in-data-[density=standard]:block" />
       </button>
       <button
         type="button"
         onClick={() => setDensity("comfortable")}
-        className={cn(BUTTON, "in-data-[density=comfortable]:bg-surface in-data-[density=comfortable]:text-ink in-data-[density=comfortable]:shadow-sm")}
+        className={cn(BUTTON, "in-[html:not([data-density])]:bg-surface in-[html:not([data-density])]:text-ink in-[html:not([data-density])]:shadow-sm")}
       >
         Comfortable
-        <Current when="in-data-[density=comfortable]:block" />
+        <Current when="in-[html:not([data-density])]:block" />
       </button>
     </div>
   );

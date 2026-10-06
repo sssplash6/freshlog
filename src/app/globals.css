@@ -229,7 +229,7 @@
   --ease-spring: linear(0, 0.063 2.1%, 0.25 5.1%, 0.5 9.4%, 0.73 14.6%, 0.87 20.2%, 0.95 27%, 0.985 36%, 0.997 48%, 1);
   --ease-spring-soft: linear(0, 0.05 2%, 0.2 5%, 0.45 9.5%, 0.72 15%, 0.9 21%, 1.005 28%, 1.02 35%, 1.012 44%, 1.002 58%, 1);
   /* THE TYPE SCALE. Nine steps, each a size AND its line-height, and there is
-     no tenth (rem, so x0.94 on a laptop):
+     no tenth (rem, so x0.94 on a laptop at Standard density):
 
        caption     12/16  counts in a badge, a keyboard hint, initials. Never
                           a sentence.
@@ -446,10 +446,10 @@
 }
 
 /* DensityToggle's labels, keyed off the same attribute the boot script sets.
-   No attribute means the default. */
+   No attribute means comfortable, the default. */
 :root:not([data-density="compact"]) .density-compact-only,
-:root:not([data-density="comfortable"]) .density-comfortable-only,
-:root[data-density] .density-default-only {
+:root:not([data-density="standard"]) .density-standard-only,
+:root[data-density] .density-comfortable-only {
   display: none;
 }
 
@@ -462,16 +462,16 @@
 }
 
 /*
- * THE WHOLE UI AT 94%, and it is one number because everything else is
- * relative to it.
+ * THE WHOLE UI'S SIZE is one number, the root font size, because everything
+ * else is relative to it: 100% unless the person picked a denser setting.
  *
  * Every size in this app is a rem — Tailwind's spacing, type and radii, and
  * the arbitrary values that used to be written in px (`text-[13px]` and its
  * family, all converted). So the root font size IS the app's zoom, and this
  * is the only place it is set.
  *
- * FROM `sm` UP ONLY. 44px is the smallest reliable touch target and 94% of it
- * is 41px; the people who read this product on a phone are the students and
+ * FROM `sm` UP ONLY. 44px is the smallest reliable touch target and the
+ * denser settings shrink it; the people who read this product on a phone are the students and
  * the mentors, and their rows, chips and buttons keep their full size. The
  * density is for the admin's laptop, where a roster, a rail and a masthead
  * have to share one screen.
@@ -481,18 +481,20 @@
  */
 @media (min-width: 40rem) {
   :root {
-    font-size: 94%;
+    font-size: 100%;
   }
   /* DENSITY. A person's own choice (the account menu), stored beside the theme
      and applied before first paint by the same script. It moves the one number
      above, so every row, chip and gap follows — compact for the admin working
      a roster all day, comfortable for somebody who would rather read than
-     scan. Still `sm` and up: a phone's 44px targets are not a preference. */
+     scan. Comfortable is what nobody has chosen yet (October 2026: it was
+     94%, now "Standard"). Still `sm` and up: a phone's 44px targets are not
+     a preference. */
   :root[data-density="compact"] {
     font-size: 87.5%;
   }
-  :root[data-density="comfortable"] {
-    font-size: 100%;
+  :root[data-density="standard"] {
+    font-size: 94%;
   }
 }
 
@@ -516,7 +518,7 @@
    owner's "so dense, uncomfortable". */
 @media (min-width: 40rem) {
   .data-table td {
-    padding-block: 0.875rem;
+    padding-block: 1rem;
   }
 }
 
@@ -526,8 +528,8 @@
   :root[data-density="compact"] .data-table td {
     padding-block: 0.5rem;
   }
-  :root[data-density="comfortable"] .data-table td {
-    padding-block: 1.125rem;
+  :root[data-density="standard"] .data-table td {
+    padding-block: 0.875rem;
   }
 }
 

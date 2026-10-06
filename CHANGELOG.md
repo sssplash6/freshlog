@@ -17,8 +17,10 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Redesigned tables.** Every table has clear column headings, more room per row and larger faces. Programs show as coloured tags, and each balance has a bar showing how much has been used.
 - **Sessions are easier to scan.** Each session shows its day as a small calendar tile, the student's face, the mentor and the program, and the minutes on the right. The list is split by month.
 - **See how long since the last session.** On the student lists, under the date of a student's last session, you can see how long ago it was, such as "5 days ago".
+- **Comfortable is now the default density.** On a laptop, text is full size and table rows have more room. The previous size is still in Settings as Standard, beside Compact.
 
 ### Fixed
+- **A mentor's program totals add up.** On a mentor's page, the per-program table now counts every session ever logged, like its Total and Remaining, so the row adds up whatever period you pick above it. Total comes last.
 - **Figures add up.** Completed, missed, remaining and expired now add up to the time granted, the same total reads the same on every page, and analytics percentages match the period you picked.
 - **Expired hours look expired.** Time lost on its use-by date shows in red on the hours ring and bars, instead of as used or still available.
 - **Ratings stay anonymous.** Mentors no longer see the rating or comment a student left on a session, as the Feedback page promises. A dispute's wording still reaches them.
