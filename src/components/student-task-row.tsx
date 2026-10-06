@@ -95,6 +95,7 @@ export function StudentTaskRow({
   trailing,
   footer,
   index,
+  hideMentor = false,
 }: {
   task: StudentTaskEntry;
   /** Whose words the chips are in — `lib/status.ts` writes every one of them. */
@@ -105,6 +106,8 @@ export function StudentTaskRow({
   footer?: React.ReactNode;
   /** Position in the list, for the entrance stagger and nothing else. */
   index?: number;
+  /** A student with one mentor does not need that name on every row. */
+  hideMentor?: boolean;
 }) {
   const statuses = studentTaskStatuses(
     {
@@ -177,9 +180,11 @@ export function StudentTaskRow({
           )}
 
           {/* WHO set it. */}
-          <span className="flex min-w-0 max-w-44 @xl:max-w-72">
-            <PersonChip person={task.mentor} size="sm" href={task.mentor.href} />
-          </span>
+          {!hideMentor && (
+            <span className="flex min-w-0 max-w-44 @xl:max-w-72">
+              <PersonChip person={task.mentor} size="sm" href={task.mentor.href} />
+            </span>
+          )}
           {/* Truncates, like the mentor beside it. At full width "Global
               Admissions Program" took the line's slack and left the title a
               column three words wide, seven lines tall. */}

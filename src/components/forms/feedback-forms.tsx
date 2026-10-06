@@ -106,7 +106,7 @@ export function MentorFeedbackForm({
   const [, action, save] = useSaveState(submitMentorFeedback);
 
   return (
-    // No heading of its own: the page's title says "Rate a mentor" directly
+    // No heading of its own: the page's title says "Report a mentor" directly
     // above this, and the form was repeating it word for word.
     <form action={action} className="rounded-xl bg-surface px-4 py-3 shadow-sm sm:px-5">
       <div className="space-y-4">
@@ -129,22 +129,20 @@ export function MentorFeedbackForm({
         <StarRating name="rating" idPrefix="mentor-rating" />
         <label className="block space-y-1.5">
           <span className="block text-sm font-medium text-ink">Comment</span>
-          {/* Under the label, where the worry starts. Under the Send button
-              it arrived after the student had already written — and
-              possibly held back — what they wanted to say. */}
+          {/* Under the label, where the worry starts. */}
           <span className="block text-xs text-muted-fg">
-            Your mentor won&apos;t see your name. Only your school&apos;s admins do.
+            Your mentor can&apos;t see who wrote this.
           </span>
           <textarea
             name="comment"
             rows={3}
-            placeholder="Optional: what went well, what could be better?"
+            placeholder="Optional"
             className={inputClass}
           />
         </label>
       </div>
       <div className="mt-4">
-        <SubmitButton pendingText="Sending…">Send feedback</SubmitButton>
+        <SubmitButton pendingText="Sending…">Send</SubmitButton>
       </div>
       <SaveState state={save} />
     </form>

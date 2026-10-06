@@ -39,7 +39,26 @@ export function pageHref(
 }
 
 /**
- * Prev/next paging with the slice stated in words.
+ * The page numbers worth drawing: the first, the last, and the current one
+ * with a neighbour either side; `null` is a gap ("…"). Seven pages or fewer
+ * are all shown.
+ */
+export function pageWindow(page: number, pages: number): (number | null)[] {
+  if (pages <= 7) return Array.from({ length: pages }, (_, i) => i + 1);
+  const keep = new Set([1, pages, page - 1, page, page + 1]);
+  const out: (number | null)[] = [];
+  let last = 0;
+  for (let n = 1; n <= pages; n++) {
+    if (!keep.has(n)) continue;
+    if (n - last > 1) out.push(null);
+    out.push(n);
+    last = n;
+  }
+  return out;
+}
+
+/**
+ * Numbered paging with the slice stated in words.
  *
  * These lists were unbounded: every mentor, every session, every piece of
  * feedback ever written, read into memory and rendered in full. That is fine
@@ -56,8 +75,11 @@ export function Pagination({
   unit,
   param = "page",
   note,
+  compact = false,
   className,
 }: {
+  /** Page numbers only, with no "1–3 of 7 meetings · page 1 of 3" beside them. */
+  compact?: boolean;
   basePath: string;
   /** The page's own `searchParams`. Hand it the whole object: anything left
       out of it is a filter that vanishes on page two. */
@@ -91,11 +113,13 @@ export function Pagination({
     label: string,
     rel: "prev" | "next",
     disabled: boolean,
+    name: string,
   ) =>
     disabled ? (
       <span
         aria-disabled="true"
-        className="inline-flex min-h-11 items-center rounded-lg bg-fill px-3.5 text-xs font-medium text-disabled sm:min-h-8"
+        aria-label={name}
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-fill text-base text-disabled sm:min-h-8 sm:min-w-8"
       >
         {label}
       </span>
@@ -103,7 +127,8 @@ export function Pagination({
       <Link
         href={pageHref(basePath, params, to, param)}
         rel={rel}
-        className="inline-flex min-h-11 items-center rounded-lg bg-fill px-3.5 text-xs font-medium text-brand transition-colors hover:bg-fill-strong sm:min-h-8"
+        aria-label={name}
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-fill text-base text-brand transition-colors hover:bg-fill-strong sm:min-h-8 sm:min-w-8"
       >
         {label}
       </Link>
@@ -117,7 +142,10 @@ export function Pagination({
         className,
       )}
     >
-      <p className="text-xs tabular-nums text-muted-fg" aria-live="polite">
+      <p
+        className={cn("text-xs tabular-nums text-muted-fg", compact && "sr-only")}
+        aria-live="polite"
+      >
         {total <= pageSize ? (
           <>
             {total} {total === 1 ? unit.replace(/s$/, "") : unit}
@@ -131,9 +159,36 @@ export function Pagination({
         )}
       </p>
       {pages > 1 && (
-        <div className="flex items-center gap-2">
-          {step(page - 1, "Previous", "prev", page <= 1)}
-          {step(page + 1, "Next", "next", page >= pages)}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {step(page - 1, "‹", "prev", page <= 1, "Previous page")}
+          {/* Numbered, the way a search result is: the reader can jump to page
+              three, and sees how many there are, instead of stepping one at a
+              time and being told "page 2 of 5" in grey type. */}
+          {pageWindow(page, pages).map((n, i) =>
+            n === null ? (
+              <span key={`gap-${i}`} aria-hidden="true" className="px-1 text-xs text-muted-fg">
+                …
+              </span>
+            ) : n === page ? (
+              <span
+                key={n}
+                aria-current="page"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-brand text-xs font-semibold tabular-nums text-on-brand sm:min-h-8 sm:min-w-8"
+              >
+                {n}
+              </span>
+            ) : (
+              <Link
+                key={n}
+                href={pageHref(basePath, params, n, param)}
+                aria-label={`Page ${n}`}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-fill text-xs font-medium tabular-nums text-brand transition-colors hover:bg-fill-strong sm:min-h-8 sm:min-w-8"
+              >
+                {n}
+              </Link>
+            ),
+          )}
+          {step(page + 1, "›", "next", page >= pages, "Next page")}
         </div>
       )}
     </nav>

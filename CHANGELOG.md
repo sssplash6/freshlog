@@ -7,6 +7,8 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-06
 
 ### New
+- **A big "Report a mentor" button.** It sits right under the greeting on a student's Home, replacing the Feedback tab, and opens a shorter report form.
+- **Meetings you can see, and page through.** A student's Home shows the three latest meetings with page numbers under them, and the Meetings page is numbered too.
 - **Home shows what needs you.** Admin and mentor Homes list the top issues inline, like hours that expired or are about to, and a mentor's students are sorted so whoever is running out of time comes first.
 - **Faster session logging.** Pick 30, 45, 60 or 90 minutes in one tap, the fields come in the order you fill them, and on a phone the Log button stays in reach above the tab bar.
 - **Log from search.** Press ⌘K, find a student, and log a session with them straight away. The best match now comes first.
@@ -23,6 +25,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Comfortable is now the default density.** On a laptop, text is full size and table rows have more room. The previous size is still in Settings as Standard, beside Compact.
 
 ### Fixed
+- **Quieter student pages.** Repeated names, "Booked" and "You confirmed this" labels, explainer sentences, empty-state paragraphs and settings descriptions are gone, so each student page says each thing once.
 - **Long links no longer stretch the page.** Pasting a long link or an unbroken string into a note, task or bug report used to make the whole page scroll sideways. It now wraps inside the box.
 - **Tables never lose their columns.** When a table is too wide for its space — a narrow laptop, larger text, a very long program name — it now scrolls sideways instead of silently cutting off the last columns. A program tag shortens a long name, and the mentor Home caseload fits a 1,024-pixel laptop.
 - **Phones and larger text.** A mentor's page header no longer runs off a phone screen when their program names are long, and the sessions list and the headline figures re-arrange themselves when text is enlarged instead of being cut off.

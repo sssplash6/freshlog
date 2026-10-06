@@ -373,3 +373,13 @@ export function XIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+/** A flag on a pole: report something. */
+export function FlagIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path d="M5 21V4" />
+      <path d="M5 4h11l-2 4 2 4H5" />
+    </Svg>
+  );
+}

@@ -15,7 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { status, type ViewerContext } from "@/lib/status";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Feedback" };
+export const metadata: Metadata = { title: "Report a mentor" };
 
 /** How many ratings stay open before the rest fold away. */
 const RECENT = 3;
@@ -82,28 +82,25 @@ export default async function StudentFeedbackPage({
 
   return (
     <div className="space-y-4">
-      {/* No back link: Feedback is a tab, not a page under Home. */}
-      <PageTitle title="Rate a mentor" />
+      <PageTitle backHref="/student" backLabel="Home" title="Report a mentor" />
 
       {mentors.length > 0 ? (
         <MentorFeedbackForm mentors={mentors} defaultMentorId={preselect} />
       ) : (
         noMentor && (
-          <EmptyState variant="blocked" title={noMentor.label}>
-            Your program pairs you with one first.
-          </EmptyState>
+          <EmptyState variant="blocked" title={noMentor.label} />
         )
       )}
 
       {given.length > 0 && (
-        <Section title="What you've said" count={given.length}>
+        <Section title="Your reports" count={given.length}>
           <ul className="divide-y divide-line">
             {recent.map((f) => (
               <FeedbackRow key={f.id} feedback={f} />
             ))}
           </ul>
           <Disclosure
-            label="Earlier ratings"
+            label="Earlier"
             count={earlier.length}
             className="border-t border-line px-4 sm:px-5"
           >

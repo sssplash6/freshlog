@@ -123,7 +123,11 @@ export default async function StudentInterviewsPage() {
   const row = (i: (typeof interviews)[number]) => {
     const side = sideOf(i, profile.id);
     const other = side === "host" ? i.guest.user : i.host.user;
-    const chip = status(PHASE_STATUS[interviewPhase(i, now)], viewer);
+    // "Booked" is the ordinary state of a row under "Coming up", and "Done" is
+    // the heading of the list a finished one sits in: only an interview that
+    // needs marking is flagged.
+    const phase = interviewPhase(i, now);
+    const chip = phase === "to-mark" ? status(PHASE_STATUS[phase], viewer) : null;
     return (
       <li key={i.id} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
         <PersonCell
@@ -144,19 +148,15 @@ export default async function StudentInterviewsPage() {
   const classmatesSection = (
     <Section title="Classmates" count={named.length || undefined}>
       {named.length === 0 ? (
-        <EmptyState framed={false} variant="blocked" title="No classmates yet">
-          Nobody else in your programs has signed in.
-        </EmptyState>
+        <EmptyState framed={false} variant="blocked" title="No classmates yet" />
       ) : (
         <>
           {offering.length === 0 ? (
-            <p className="px-4 py-3 text-xs text-muted-fg sm:px-5">
-              None of your {named.length} classmates has offered a time yet. Be the first!
-            </p>
+            <p className="px-4 py-3 text-xs text-muted-fg sm:px-5">No times offered yet.</p>
           ) : (
             <ul className="divide-y divide-line">
               {offering.map((c) => (
-                <ClassmateRow key={c.id} classmate={c} />
+                <ClassmateRow key={c.id} classmate={c} showProgram={myPrograms.length > 1} />
               ))}
             </ul>
           )}
@@ -170,7 +170,7 @@ export default async function StudentInterviewsPage() {
             >
               <ul className="-mx-4 divide-y divide-line border-t border-line sm:-mx-5">
                 {quiet.map((c) => (
-                  <ClassmateRow key={c.id} classmate={c} />
+                  <ClassmateRow key={c.id} classmate={c} showProgram={myPrograms.length > 1} />
                 ))}
               </ul>
             </Disclosure>
@@ -184,10 +184,7 @@ export default async function StudentInterviewsPage() {
     <div className="space-y-4">
       {/* The tab's own name, and no back link: this is a tab, not a page
           under Home. */}
-      <PageTitle
-        title="Interviews"
-        subtitle="Practise interviews with classmates from your programs. Book one of their times, or offer your own."
-      />
+      <PageTitle title="Interviews" />
 
       {open.length > 0 && (
         <Section title="Coming up" count={open.length}>
@@ -197,7 +194,7 @@ export default async function StudentInterviewsPage() {
 
       {classmatesSection}
 
-      <Section title="Your available times" count={mySlots.length || undefined}>
+      <Section title="Your times" count={mySlots.length || undefined}>
         {/* Behind a button: offering a time is the less common half of the
             page, and the open form was the tallest thing on it. Open by
             default only while the student has nothing on offer and nobody
@@ -240,16 +237,8 @@ export default async function StudentInterviewsPage() {
       </Section>
 
       {completed.length > 0 && (
-        <Section title="Done">
-          <Disclosure
-            label="Interviews you've had"
-            count={completed.length}
-            className="px-4 py-2 sm:px-5"
-          >
-            <ul className="-mx-4 divide-y divide-line border-t border-line sm:-mx-5">
-              {completed.map(row)}
-            </ul>
-          </Disclosure>
+        <Section title="Done" count={completed.length}>
+          <ul className="divide-y divide-line">{completed.map(row)}</ul>
         </Section>
       )}
     </div>
@@ -258,7 +247,11 @@ export default async function StudentInterviewsPage() {
 
 function ClassmateRow({
   classmate,
+  showProgram,
 }: {
+  /** Only when the student is in more than one program: otherwise it is their
+      own program, repeated under every name down the list. */
+  showProgram: boolean;
   classmate: {
     id: string;
     user: { id: string; name: string | null; avatarUpdatedAt: Date | null };
@@ -272,7 +265,9 @@ function ClassmateRow({
       <PersonCell
         person={{ ...classmate.user, email: "" }}
         href={`/student/interviews/people/${classmate.id}`}
-        secondary={classmate.enrollments.map((e) => e.program.name).join(" · ")}
+        secondary={
+          showProgram ? classmate.enrollments.map((e) => e.program.name).join(" · ") : false
+        }
         className="min-w-0 flex-1"
       />
       {open > 0 && (

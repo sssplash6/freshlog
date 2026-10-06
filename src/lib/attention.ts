@@ -701,9 +701,10 @@ export async function studentRows(
             // WHICH meeting: two "Confirm this session / Dilnoza Yusupova" cards
             // with no date or length were indistinguishable (October 2026
             // audit), so the line under the name says the day and the minutes.
-            explanation: `${formatDate(s.date)} · ${formatMinutes(s.minutes)} — ${(
-              row.explanation ?? "Say whether it happened, and how it went."
-            ).replace(/^\w/, (c) => c.toLowerCase())}`,
+            // Just which meeting: the chip already says "Confirm this session",
+            // and a sentence under it saying to confirm it was the same thing
+            // a third time.
+            explanation: `${formatDate(s.date)} · ${formatMinutes(s.minutes)}`,
             subject: {
               kind: "mentor" as const,
               id: s.mentor.id,

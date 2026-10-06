@@ -144,7 +144,14 @@ export function SessionRow({
   footer,
   index,
   chipSlot = false,
+  omit,
+  hideMentor = false,
 }: {
+  /** One mentor in the whole list: their name on every row says nothing. */
+  hideMentor?: boolean;
+  /** Status types to leave off this row — a list that sits under a summary of
+      the same thing ("Things to check") need not repeat it row by row. */
+  omit?: string[];
   session: SessionEntry;
   /** Whose words the chips are in. Never who may act — that is `lib/authz.ts`. */
   viewer: ViewerContext;
@@ -175,6 +182,8 @@ export function SessionRow({
         footer={footer}
         index={index}
         chipSlot={chipSlot}
+        omit={omit}
+        hideMentor={hideMentor}
       />
     </SessionLiveProvider>
   );
@@ -189,7 +198,11 @@ function SessionRowContent({
   footer,
   index,
   chipSlot = false,
+  omit,
+  hideMentor = false,
 }: {
+  omit?: string[];
+  hideMentor?: boolean;
   session: SessionEntry;
   viewer: ViewerContext;
   variant?: "log" | "timeline" | "line";
@@ -202,7 +215,14 @@ function SessionRowContent({
   const live = useLiveSession()?.session;
   session = live ?? session;
   const { id, date, minutes, note, mentor, student, task, href } = session;
-  const statuses = sessionStatuses(session, viewer);
+  // A student's own confirmed meetings do not say "You confirmed this" on every
+  // row: it was the same chip down the whole list, announcing the ordinary state
+  // of a meeting that needs nothing.
+  const statuses = sessionStatuses(session, viewer).filter(
+    (s) =>
+      !(viewer.audience === "student" && s.type === "SESSION_CONFIRMED") &&
+      !omit?.includes(s.type),
+  );
   const voided = session.status === SESSION_STATUS.VOIDED;
   // The one question the row's typography answers: did these minutes move a
   // balance? A voided, rescheduled or out-of-plan session was still time
@@ -226,7 +246,7 @@ function SessionRowContent({
           // The timeline is the student's own history, read on a phone —
           // where a `title` tooltip never appears — so the reason a session
           // cost what it cost is printed, not hovered.
-          <StatusChip key={s.type} status={s} explain={variant === "timeline"} />
+          <StatusChip key={s.type} status={s} explain={variant === "timeline" && !footer} />
         ))}
       </span>
     ) : null;
@@ -267,7 +287,7 @@ function SessionRowContent({
   const showStudentNote = showFeedback || disputed;
   // The viewer's own name on their own log is the one name the row need not
   // carry: "Dilnoza Yusupova" five times down Dilnoza's student page.
-  const showMentorChip = mentor.id !== viewer.userId;
+  const showMentorChip = mentor.id !== viewer.userId && !hideMentor;
 
   if (variant === "line") {
     const summary = (

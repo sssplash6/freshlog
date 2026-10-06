@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { SessionAnswerForm } from "@/components/forms/session-answer-form";
@@ -9,7 +8,7 @@ import { ArrowLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
 import { Pagination, parsePage } from "@/components/ui/pagination";
 import { StatusChip } from "@/components/ui/status-chip";
-import { SESSION_STATUS, ROLES, USER_STATUS } from "@/lib/constants";
+import { ROLES, USER_STATUS } from "@/lib/constants";
 import { withoutMentorNotes } from "@/lib/authz";
 import { requireRole } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
@@ -24,7 +23,6 @@ import { prisma } from "@/lib/prisma";
 import { studentLedger } from "@/lib/queries";
 import {
   notHeldNote,
-  sessionsCaption,
   toSessionEntries,
 } from "@/lib/session-entries";
 import {
@@ -38,7 +36,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = { title: "Meetings" };
 
 /** Sessions per page — the spec's count for a history a student scrolls. */
-const MEETINGS_PER_PAGE = 20;
+const MEETINGS_PER_PAGE = 6;
 
 /**
  * The student's meetings: what is coming, and what already happened.
@@ -157,21 +155,17 @@ export default async function StudentMeetingsPage({
           // just booked one came here, found "Nothing booked", and assumed
           // it had not gone through.
           <p className="px-4 py-3 text-xs text-muted-fg sm:px-5">
-            No practice interviews booked. Booked a mentor? That meeting lives
-            in your calendar invite, and shows up below once your mentor logs
-            it.
+            No practice interviews booked.
           </p>
         ) : (
           <ul className="divide-y divide-line">
             {interviews.map((i) => {
               const side = sideOf(i, profile.id);
               const other = side === "host" ? i.guest.user : i.host.user;
-              const chip = status(
-                PHASE_STATUS[
-                  interviewPhase({ slot: i.slot, completedAt: null }, now)
-                ],
-                viewer
-              );
+              // "Booked" under a heading that says "Coming up" is the same word
+              // twice; only a meeting that needs something (to mark) is flagged.
+              const phase = interviewPhase({ slot: i.slot, completedAt: null }, now);
+              const chip = phase === "booked" ? null : status(PHASE_STATUS[phase], viewer);
               return (
                 <li
                   key={i.id}
@@ -191,14 +185,9 @@ export default async function StudentMeetingsPage({
         )}
       </Section>
 
-      <Section
-        title="Past sessions"
-        caption={entries.length > 0 ? sessionsCaption(entries) : undefined}
-      >
+      <Section title="Past sessions" count={entries.length || undefined}>
         {entries.length === 0 ? (
-          <EmptyState framed={false} title="No sessions yet">
-            Your mentors log each meeting once it has happened.
-          </EmptyState>
+          <EmptyState framed={false} title="No sessions yet" />
         ) : (
           <>
             <ul className="divide-y divide-line px-4 sm:px-5">
@@ -213,25 +202,7 @@ export default async function StudentMeetingsPage({
                     viewer={viewer}
                     variant="timeline"
                     index={i}
-                    actions={
-                      // A quiet link to rate the mentor, only on a meeting
-                      // that actually happened: not a voided or rescheduled
-                      // one, not a no-show, and not a row still asking "Did
-                      // this happen?" — one question per row. It rates the
-                      // MENTOR (the feedback form has no session), so it says
-                      // who, and no longer flips to "Change rating" off this
-                      // session's own stars, which it never edited.
-                      session.status === SESSION_STATUS.ACTIVE &&
-                      session.attended &&
-                      !needsAnswer.has(session.id) ? (
-                        <Link
-                          href={`/student/feedback?mentor=${session.mentor.id}`}
-                          className="inline-flex min-h-11 items-center text-xs font-medium text-brand hover:text-brand-dark"
-                        >
-                          Rate {mentorName.split(" ")[0]}
-                        </Link>
-                      ) : undefined
-                    }
+                    hideMentor={new Set(held.map((h) => h.mentor.id)).size <= 1}
                     footer={
                       needsAnswer.has(session.id) ? (
                         <SessionAnswerForm

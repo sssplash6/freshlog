@@ -11,7 +11,6 @@ import { cn } from "@/lib/cn";
 import { SettingsRow } from "@/components/ui/settings-row";
 import {
   EMAIL_BY_DEFAULT,
-  NOTIFICATION_CATEGORY_HINTS,
   NOTIFICATION_CATEGORY_LABELS,
   canActAsMentor,
   type NotificationCategory,
@@ -107,16 +106,10 @@ export default async function SettingsPage() {
               </p>
             }
           />
+          {/* In the profile card, not a "Contact" section of one row. */}
+          {profile && <OwnTelegramForm defaultHandle={profile.telegramUsername ?? ""} />}
         </div>
       </Section>
-
-      {profile && (
-        <Section title="Contact">
-          <div className="px-4 py-2 sm:px-5">
-            <OwnTelegramForm defaultHandle={profile.telegramUsername ?? ""} />
-          </div>
-        </Section>
-      )}
 
       {/* Its own card, no Section around it: the form carries its own
           "Your booking links" title (it folds), and a "Booking links" heading
@@ -142,14 +135,12 @@ export default async function SettingsPage() {
               under it — is hidden and the line would rule off nothing. */}
           <SettingsRow
             label="Theme"
-            description="Light or dark, for this browser."
             trailing
             className="max-sm:border-b-0"
             control={<ThemeChoice />}
           />
           <SettingsRow
             label="Density"
-            description="How tightly tables and text pack on a larger screen. Phones always keep full-size controls."
             trailing
             className="max-sm:hidden"
             control={<DensityChoice />}
@@ -169,7 +160,6 @@ export default async function SettingsPage() {
             ).map((key) => ({
               key,
               label: NOTIFICATION_CATEGORY_LABELS[key],
-              hint: NOTIFICATION_CATEGORY_HINTS[key],
               // No row is the default: in the app always, by email only where
               // `EMAIL_BY_DEFAULT` says so.
               inApp: prefOf.get(key)?.inApp ?? true,

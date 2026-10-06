@@ -178,8 +178,6 @@ export default async function StudentBookPage() {
 
   return (
     <div className="space-y-4">
-      {/* No back link: Book is a tab, not a page under Home, and a "‹ Home"
-          above it said otherwise. */}
       <PageTitle title="Book a session" />
 
       {states.length > 0 && (
@@ -190,7 +188,7 @@ export default async function StudentBookPage() {
         </div>
       )}
 
-      <Section title="Your mentors" count={all.length || undefined}>
+      <BookList titled={all.length > 1} count={all.length}>
         {nothingToShow ? (
           <EmptyState framed={false} variant="blocked" title={nothingToShow.label}>
             {nothingToShow.explanation}
@@ -231,9 +229,27 @@ export default async function StudentBookPage() {
             </ul>
           </Disclosure>
         )}
-      </Section>
+      </BookList>
     </div>
   );
+}
+
+/**
+ * The mentors' card, under a "Mentors" heading only when there is more than one
+ * to tell apart. A heading over a single card said "Your mentors 1" about the
+ * one person the card named (October 2026 audit).
+ */
+function BookList({
+  titled,
+  count,
+  children,
+}: {
+  titled: boolean;
+  count: number;
+  children: React.ReactNode;
+}) {
+  if (titled) return <Section title="Mentors" count={count}>{children}</Section>;
+  return <div className="overflow-clip rounded-xl bg-surface shadow-sm">{children}</div>;
 }
 
 /**

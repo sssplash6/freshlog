@@ -37,7 +37,6 @@ export function OwnTelegramForm({ defaultHandle }: { defaultHandle: string }) {
     <SettingsRow
       label="Telegram"
       htmlFor={id}
-      description="Your mentors use it to message you."
       state={<SaveState state={save} />}
       control={
         <form action={action} className="flex items-center gap-2">
@@ -103,7 +102,6 @@ export function WeeklyDigestForm({ defaultOn }: { defaultOn: boolean }) {
       htmlFor={id}
       // Names its channel: the switch sat at the Email column's x, above the
       // "In app / Email" header, and could be read as either.
-      description="An email every Monday with your week at a glance."
       trailing
       control={
         <form action={setWeeklyDigest} className="flex items-center gap-2">

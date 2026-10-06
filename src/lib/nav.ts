@@ -68,7 +68,8 @@ const STUDENT_NAV: NavItem[] = [
   { href: "/student", label: "Home" },
   { href: "/student/book", label: "Book" },
   { href: "/student/interviews", label: "Interviews" },
-  { href: "/student/feedback", label: "Feedback" },
+  // No Feedback tab: reporting a mentor is the big button under the greeting on
+  // Home (components/report-mentor-button.tsx), not a fourth word in the bar.
 ];
 
 /**
