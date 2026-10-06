@@ -45,6 +45,7 @@ export function AttentionList({
   dismissible = false,
   moreHref,
   moreLabel,
+  collapsible = false,
   className,
 }: {
   statuses: Status[];
@@ -58,6 +59,12 @@ export function AttentionList({
   dismissible?: boolean;
   moreHref?: string;
   moreLabel?: string;
+  /**
+   * Closed until the reader opens it, the title and count staying in view.
+   * For a home page, where the list is a prompt and not the page; the inbox
+   * at /notifications is the list, and stays open.
+   */
+  collapsible?: boolean;
   className?: string;
 }) {
   // The rows the reader can see, not the subset that is actionable: "6" over
@@ -94,29 +101,7 @@ export function AttentionList({
     </ul>
   );
 
-  if (groups) {
-    // Grouped, the way a grouped list is: each group its own card under a
-    // small caption on the page ground. It used to be one card with grey
-    // header bands through it — a lid inside a card, which is the shape the
-    // rest of the app gave up. The title and count are `Section`'s, repeated
-    // here because `Section` owns exactly one card.
-    return (
-      <section className={cn("min-w-0 space-y-2", className)}>
-        {/* `Section`'s own heading, to the pixel: 17px title, the count in
-            the same size at regular weight. This one was 20px over a 15px
-            medium count, a heading a size up from every other on the page. */}
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-0.5 pt-2">
-          <h2 className="flex items-baseline gap-2 text-title font-semibold tracking-[-0.01em] text-ink">
-            <span className="min-w-0 truncate">{title}</span>
-            {count > 0 && (
-              <span className="shrink-0 font-normal tabular-nums text-muted-fg">
-                {count}
-              </span>
-            )}
-          </h2>
-          {action && <div className="-my-2 min-w-0">{action}</div>}
-        </div>
-        {groups.map(({ group, rows }) => {
+  const groupedBody = groups?.map(({ group, rows }) => {
           // Four rows that each say "Allocate time from a mentor on their page."
           // say it once: said under the group's own heading, and left off the
           // rows (October 2026 audit — the notifications page read as the same
@@ -141,7 +126,60 @@ export function AttentionList({
               </div>
             </div>
           );
-        })}
+        });
+
+  // Collapsed, the header is the summary and the body is what was inside the
+  // card: the same rows, grouped or not, under the same heading.
+  if (collapsible && statuses.length > 0) {
+    return (
+      <details className={cn("group/needs min-w-0", className)}>
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-title font-semibold text-ink [&::-webkit-details-marker]:hidden">
+          <ChevronRightIcon
+            aria-hidden="true"
+            className="h-4 w-4 shrink-0 text-muted-fg transition-transform group-open/needs:rotate-90"
+          />
+          <span className="min-w-0 truncate">{title}</span>
+          {count > 0 && (
+            <span className="shrink-0 font-normal tabular-nums text-muted-fg">{count}</span>
+          )}
+        </summary>
+        <div className="space-y-2">
+          {groups ? (
+            groupedBody
+          ) : (
+            <div className="overflow-clip rounded-xl bg-surface shadow-sm">
+              {rowsOf(statuses)}
+            </div>
+          )}
+          {action && <div className="pt-1">{action}</div>}
+        </div>
+      </details>
+    );
+  }
+
+  if (groups) {
+    // Grouped, the way a grouped list is: each group its own card under a
+    // small caption on the page ground. It used to be one card with grey
+    // header bands through it — a lid inside a card, which is the shape the
+    // rest of the app gave up. The title and count are `Section`'s, repeated
+    // here because `Section` owns exactly one card.
+    return (
+      <section className={cn("min-w-0 space-y-2", className)}>
+        {/* `Section`'s own heading, to the pixel: 17px title, the count in
+            the same size at regular weight. This one was 20px over a 15px
+            medium count, a heading a size up from every other on the page. */}
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-0.5 pt-2">
+          <h2 className="flex items-baseline gap-2 text-title font-semibold tracking-[-0.01em] text-ink">
+            <span className="min-w-0 truncate">{title}</span>
+            {count > 0 && (
+              <span className="shrink-0 font-normal tabular-nums text-muted-fg">
+                {count}
+              </span>
+            )}
+          </h2>
+          {action && <div className="-my-2 min-w-0">{action}</div>}
+        </div>
+        {groupedBody}
       </section>
     );
   }

@@ -318,6 +318,7 @@ export default async function MentorHomePage({
       {attention.statuses.length > 0 && (
         <AttentionList
           title="Needs you"
+          collapsible
           statuses={attention.statuses.slice(0, ATTENTION_ROWS)}
           dismissible={attention.dismissible}
           {...(attentionTotal > ATTENTION_ROWS
