@@ -40,7 +40,7 @@ export function ExpandableNote({
         )}
       >
         <ChevronRightIcon className="mt-[0.1875rem] h-3.5 w-3.5 shrink-0 transition-transform group-open/note:rotate-90" />
-        <span className="line-clamp-1 min-w-0 whitespace-pre-line group-open/note:line-clamp-none">
+        <span className="line-clamp-1 min-w-0 whitespace-pre-line [overflow-wrap:anywhere] group-open/note:line-clamp-none">
           {text}
         </span>
       </summary>
