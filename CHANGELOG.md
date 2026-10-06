@@ -14,6 +14,9 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Every program has its own colour.** Programs are easy to tell apart, keep the same colour on every page and chart, and stay readable in dark mode.
 - **One place to add things.** New program, Register a mentor and Add students are the same button at the top right of their page, and open a form right under the title.
 - **Neater phone lists.** Students, programs and a mentor's caseload are one or two lines each on a phone instead of tall stacked cards.
+- **Redesigned tables.** Every table has clear column headings, more room per row and larger faces. Programs show as coloured tags, and each balance has a bar showing how much has been used.
+- **Sessions are easier to scan.** Each session shows its day as a small calendar tile, the student's face, the mentor and the program, and the minutes on the right. The list is split by month.
+- **See how long since the last session.** On the student lists, under the date of a student's last session, you can see how long ago it was, such as "5 days ago".
 
 ### Fixed
 - **Figures add up.** Completed, missed, remaining and expired now add up to the time granted, the same total reads the same on every page, and analytics percentages match the period you picked.

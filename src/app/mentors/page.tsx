@@ -110,7 +110,7 @@ export default async function MentorsPage({
         mentorId: true,
         programId: true,
         calendlyUrl: true,
-        program: { select: { name: true } },
+        program: { select: { id: true, name: true, colorIndex: true } },
         cohort: { select: { name: true } },
       },
       orderBy: { createdAt: "asc" },
@@ -166,13 +166,14 @@ export default async function MentorsPage({
       avatarUpdatedAt: m.avatarUpdatedAt,
       accountStatus: m.status,
       isAdmin: m.role === ROLES.ADMIN,
-      programs: theirs.map((p) =>
-        p.cohort
+      programs: theirs.map((p) => ({
+        program: p.program,
+        label: p.cohort
           ? `${p.program.name} / ${p.cohort.name}`
           : programsWithCohorts.has(p.programId)
             ? `${p.program.name} (all cohorts)`
-            : p.program.name
-      ),
+            : p.program.name,
+      })),
       pairings: theirs.length,
       pairingsWithLink: theirs.filter((p) => p.calendlyUrl).length,
       students: holdingByMentor.get(m.id) ?? 0,

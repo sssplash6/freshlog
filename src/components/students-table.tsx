@@ -8,7 +8,8 @@ import { StatusChip } from "@/components/ui/status-chip";
 import { FILL_CELL, Table, Td, Tr, type Column } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import { sortEnrollments } from "@/lib/enrollments";
-import { formatBalance, formatDate, formatDuration } from "@/lib/format";
+import { HoursLeft } from "@/components/ui/hours-left";
+import { formatDate, formatDaysAgo, formatDuration } from "@/lib/format";
 import { studentStatuses, type ViewerContext } from "@/lib/status";
 import type { StudentWithHours } from "@/lib/queries";
 
@@ -89,7 +90,7 @@ function ProgramChips({
     <span className={cn("flex min-w-0", className)}>
       {enrollments.map((e) => (
         <span key={e.program.id} className="flex min-w-0 items-center gap-x-1.5">
-          <ProgramChip program={e.program} className="text-xs" />
+          <ProgramChip program={e.program} variant="tag" />
           {e.exchangeId && (
             <span className="shrink-0 whitespace-nowrap text-caption text-muted-fg">
               (on exchange)
@@ -302,7 +303,7 @@ export function StudentsTable({
                 // line with the text above (avatar 32 + gap 10).
                 <ProgramChips
                   enrollments={enrollments}
-                  className="hidden flex-wrap gap-x-3 pl-[2.625rem] sm:max-xl:flex"
+                  className="mt-1.5 hidden flex-wrap gap-x-2 gap-y-1 pl-12 sm:max-xl:flex"
                 />
               )}
             </Td>
@@ -316,7 +317,7 @@ export function StudentsTable({
                     string, because two enrollments is the case this column
                     exists for and "Global Admissions · Master's" is a sentence
                     the reader has to parse. */}
-                <ProgramChips enrollments={enrollments} className="flex-col gap-y-0.5" />
+                <ProgramChips enrollments={enrollments} className="flex-col items-start gap-y-1" />
               </Td>
             )}
 
@@ -324,20 +325,30 @@ export function StudentsTable({
               {s.completedMinutes > 0 ? (
                 formatDuration(s.completedMinutes)
               ) : (
-                <span className="text-muted-fg">—</span>
+                <span className="text-disabled">—</span>
               )}
             </Td>
 
-            <Td label="Remaining" align="right" tone="key" className="tabular-nums" data-fold>
-              <span className={cn(overdrawn ? "text-danger-ink" : "text-ink")}>
-                {formatBalance(s.remainingMinutes)}
-              </span>
+            <Td label="Remaining" align="right" className="tabular-nums" data-fold>
+              <HoursLeft remaining={s.remainingMinutes} used={s.completedMinutes} />
             </Td>
 
-            <Td label="Last session" tone="muted" className="whitespace-nowrap" data-fold>
+            <Td label="Last session" className="whitespace-nowrap" data-fold>
               {/* A dash for "nothing has happened", the one way every table
-                  writes it — not "never" here and "—" in the next column. */}
-              {s.lastSessionAt ? formatDate(s.lastSessionAt) : "—"}
+                  writes it — not "never" here and "—" in the next column.
+                  Under the date, how long ago: "who has gone quiet" is the
+                  question this column is for, and "September 8" made the
+                  reader count to it. */}
+              {s.lastSessionAt ? (
+                <span className="flex flex-col">
+                  <span className="text-ink">{formatDate(s.lastSessionAt)}</span>
+                  <span className="text-xs text-muted-fg">
+                    {formatDaysAgo(s.lastSessionAt, viewer.now)}
+                  </span>
+                </span>
+              ) : (
+                <span className="text-disabled">—</span>
+              )}
             </Td>
 
             <Td label="Contact" data-fold>
@@ -375,7 +386,7 @@ export function StudentsTable({
                   </a>
                 ) : null}
                 {!telegramHref && !folderHref && (
-                  <span className="text-muted-fg">—</span>
+                  <span className="text-disabled">—</span>
                 )}
               </span>
             </Td>

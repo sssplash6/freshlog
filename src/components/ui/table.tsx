@@ -103,11 +103,14 @@ export function Table({
                 key={i}
                 sortKey={c.sort && c.label ? c.sort : undefined}
                 className={cn(
-                  // The heading row is the card's own surface with one hairline
-                  // under it: small muted labels name the columns without a
-                  // tinted band competing with the rows. The surface is on the
-                  // cells because a sticky cell paints its own background.
-                  "sticky top-(--sticky-top) z-10 h-10 whitespace-nowrap border-b border-line bg-surface px-4 text-xs font-medium",
+                  // A BAND, in small capitals (October 2026, second pass). The
+                  // heading row was the card's own white with grey sentence-
+                  // case labels, and at a glance it was one more row of the
+                  // table — the owner's "unorganised": nothing said where the
+                  // names of things stopped and the things began. The band is
+                  // the `head` token the palette kept for exactly this, and
+                  // it is on the cells because a sticky cell paints its own.
+                  "sticky top-(--sticky-top) z-10 h-10 whitespace-nowrap border-b border-line bg-head px-4 text-caption font-semibold uppercase tracking-wider sm:first:pl-6 sm:last:pr-6",
                   c.emphasis === "key" ? "text-ink" : "text-muted-fg",
                   framed && "first:rounded-tl-xl last:rounded-tr-xl",
                   c.align === "right" && "text-right",
@@ -131,7 +134,7 @@ export function Table({
             ))}
           </tr>
         </thead>
-        <tbody className="block divide-y divide-line/70 sm:table-row-group">
+        <tbody className="block divide-y divide-line sm:table-row-group">
           {children}
         </tbody>
       </table>
@@ -145,7 +148,7 @@ export function Tr({ className, ...props }: ComponentProps<"tr">) {
       className={cn(
         // No zebra: soft hairlines carry the eye across a row, and the hover
         // wash says which row is under the pointer.
-        "block py-2 transition-colors hover:bg-fill/60 sm:table-row sm:py-0",
+        "block py-2 transition-colors hover:bg-brand-soft/45 sm:table-row sm:py-0",
         // A stacked row with a corner cell (see `Td`) is the anchor for it, and
         // its first line leaves room so a long name cannot run under the menu.
         "max-sm:relative max-sm:has-[td[data-corner]]:[&>td:first-child]:pr-12",
@@ -188,7 +191,10 @@ export function Td({
     <td
       data-corner={corner ? "" : undefined}
       className={cn(
-        "block px-4 py-0.5 sm:table-cell sm:py-2",
+        // The outer cells sit further in than the gaps between columns, so
+        // a row's first name and last figure line up with the card's own
+        // padding rather than crowding its edge.
+        "block px-4 py-0.5 sm:table-cell sm:py-2 sm:first:pl-6 sm:last:pr-6",
         corner && "max-sm:absolute max-sm:right-1 max-sm:top-1 max-sm:p-0",
         // A right-aligned cell holds a figure, and a figure on two lines —
         // "45 / min", "15+ / hours" — reads as two values. The name column

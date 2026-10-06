@@ -7,6 +7,7 @@ import { AvatarForm, OwnNameForm } from "@/components/forms/profile-forms";
 import { CreateButton, CreatePanel, CreateSlot } from "@/components/page-create";
 import { PersonCell } from "@/components/person-chip";
 import { ProgramChip } from "@/components/program-chip";
+import { HoursLeft } from "@/components/ui/hours-left";
 import { StatusChip } from "@/components/ui/status-chip";
 import { SessionsLog } from "@/components/session-row";
 import { toSessionEntries } from "@/lib/session-entries";
@@ -29,7 +30,7 @@ import { cn } from "@/lib/cn";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
-import { formatBalance, formatDate, formatDuration } from "@/lib/format";
+import { formatDate, formatDuration } from "@/lib/format";
 import { allocationSummary, canBookOn } from "@/lib/hours";
 import { mentorWindow } from "@/lib/mentor-window";
 import { prisma } from "@/lib/prisma";
@@ -518,19 +519,12 @@ async function MentorRecord({
                 <Td label="Total" align="right" tone="muted" className="tabular-nums">
                   {formatDuration(row.allocated)}
                 </Td>
-                <Td
-                  label="Remaining"
-                  align="right"
-                  tone="key"
-                  className={cn(
-                    "tabular-nums",
-                    // The tone this table lost in the palette sweep: without it
-                    // an overdrawn program reads in plain ink, exactly like one
-                    // in credit.
-                    row.remaining < 0 ? "text-danger-ink" : "text-ink"
-                  )}
-                >
-                  {formatBalance(row.remaining)}
+                <Td label="Remaining" align="right" className="tabular-nums">
+                  {/* Red when overdrawn, and a meter of the total's burn. */}
+                  <HoursLeft
+                    remaining={row.remaining}
+                    used={Math.max(row.allocated - row.remaining, 0)}
+                  />
                 </Td>
               </Tr>
             ))}
@@ -611,16 +605,11 @@ async function MentorRecord({
                 >
                   {s.missed > 0 ? formatDuration(s.missed) : "—"}
                 </Td>
-                <Td
-                  label="Remaining"
-                  align="right"
-                  tone="key"
-                  className={cn(
-                    "tabular-nums",
-                    s.remaining < 0 ? "text-danger-ink" : "text-ink"
-                  )}
-                >
-                  {formatBalance(s.remaining)}
+                <Td label="Remaining" align="right" className="tabular-nums">
+                  <HoursLeft
+                    remaining={s.remaining}
+                    used={Math.max(s.allocated - s.remaining, 0)}
+                  />
                   {/* Expired time is part of the grant, so it is named here
                       or the row would not add up to the Granted figure. */}
                   {s.forfeited > 0 && (

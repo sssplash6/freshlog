@@ -1,5 +1,6 @@
 import { StarIcon } from "@/components/icons";
 import { PersonCell } from "@/components/person-chip";
+import { ProgramChip, type ProgramRef } from "@/components/program-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { RowFold } from "@/components/ui/row-fold";
 import { StatusChip } from "@/components/ui/status-chip";
@@ -35,7 +36,8 @@ export type MentorRow = {
   /** A dual-role admin who also mentors. */
   isAdmin: boolean;
   /** Program (or program / cohort) labels, already narrowed to the reader. */
-  programs: string[];
+  /** One per pairing; `label` names the cohort when the pairing has one. */
+  programs: { program: ProgramRef; label: string }[];
   pairings: number;
   pairingsWithLink: number;
   /** Students holding time from this mentor, inside the reader's programs. */
@@ -149,13 +151,17 @@ export function MentorsTable({
                 // One per line. Joined with " · " they wrapped wherever the
                 // column ran out, so "Master's" sat on one line and "Program"
                 // on the next, and two programs read as three.
-                <span className="flex flex-col gap-y-0.5">
-                  {m.programs.map((name) => (
-                    <span key={name} className="min-w-0 truncate">{name}</span>
+                <span className="flex flex-col items-start gap-y-1">
+                  {m.programs.map(({ program, label }) => (
+                    <ProgramChip
+                      key={label}
+                      program={{ ...program, name: label }}
+                      variant="tag"
+                    />
                   ))}
                 </span>
               ) : (
-                <span className="text-muted-fg">—</span>
+                <span className="text-disabled">—</span>
               )}
             </Td>
 
@@ -182,7 +188,7 @@ export function MentorsTable({
               {m.students > 0 ? (
                 m.students
               ) : (
-                <span className="text-muted-fg">—</span>
+                <span className="text-disabled">—</span>
               )}
             </Td>
           </Tr>

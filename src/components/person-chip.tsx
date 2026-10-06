@@ -189,9 +189,11 @@ export function PersonCell({
 
   const body = (
     <>
-      <Avatar person={person} className="h-7 w-7 shrink-0 text-caption" />
+      {/* 36px: at 28 the face was a bullet point beside the name rather than
+          the thing a column is scanned by (October 2026, second pass). */}
+      <Avatar person={person} className="h-9 w-9 shrink-0 text-xs" />
       <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 flex-wrap items-center gap-x-2 font-medium text-ink group-hover:text-brand">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2 font-semibold text-ink group-hover:text-brand">
           <span className="min-w-0 truncate">{person.name ?? person.email}</span>
           {/* The name gives way FIRST, never the chip. These used to wrap
               freely to a second line, so a roster of forty stood at two
@@ -234,7 +236,7 @@ export function PersonCell({
         href={href}
         transitionTypes={["nav-forward"]}
         className={cn(
-          "group flex min-w-0 items-center gap-2.5 max-sm:min-h-11",
+          "group flex min-w-0 items-center gap-3 max-sm:min-h-11",
           className,
         )}
       >
@@ -244,7 +246,7 @@ export function PersonCell({
   }
 
   return (
-    <div className={cn("flex min-w-0 items-center gap-2.5", className)}>
+    <div className={cn("flex min-w-0 items-center gap-3", className)}>
       {body}
     </div>
   );

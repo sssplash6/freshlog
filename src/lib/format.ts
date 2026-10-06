@@ -175,3 +175,23 @@ export function formatDateTime(d: Date): string {
 
 
 
+
+/**
+ * How long since a calendar day, in whole days: "today", "yesterday",
+ * "5 days ago", "3 weeks ago". For a date column's second line, where the
+ * question is "how long has it been" and the date above already says which
+ * day. `day` is a session date (UTC midnight); `now` is the viewer's instant.
+ */
+export function formatDaysAgo(day: Date, now: Date = new Date()): string {
+  const DAY = 24 * 60 * 60 * 1000;
+  // Both sides on Tashkent's calendar (UTC+5, no DST — see formatDateTime),
+  // so a session logged "October 5" is "yesterday" all of October 6 there.
+  const today = Math.floor((now.getTime() + 5 * 60 * 60 * 1000) / DAY);
+  const then = Math.floor(day.getTime() / DAY);
+  const days = today - then;
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 14) return `${days} days ago`;
+  if (days < 60) return `${Math.round(days / 7)} weeks ago`;
+  return `${Math.round(days / 30)} months ago`;
+}

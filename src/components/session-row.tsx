@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { Fragment } from "react";
 
 import { ExpandableNote } from "@/components/expandable-note";
 import { ExpandableText } from "@/components/expandable-text";
+import { Avatar } from "@/components/avatar";
 import { PersonChip } from "@/components/person-chip";
+import { ProgramDot, type ProgramRef } from "@/components/program-chip";
 import { Rating } from "@/components/rating";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusChip } from "@/components/ui/status-chip";
@@ -95,7 +98,7 @@ export type SessionEntry = {
   studentNote?: string | null;
   mentor: RowPerson;
   /** Present only on a log that spans students. */
-  student?: (RowPerson & { program?: string | null }) | null;
+  student?: (RowPerson & { program?: string | null; programRef?: ProgramRef | null }) | null;
   /** The task this session went toward; null when none was named. */
   task?: { id: string; purpose: string } | null;
   /**
@@ -318,9 +321,12 @@ function SessionRowContent({
         // them. It was `pb-3 last:pb-0` — space under a row and none above
         // it — so every date sat hard against the hairline above it while the
         // note under it had room to spare, which is the exact inverse.
-        className={cn("group py-3", index != null && "deal-in")}
+        className={cn("group flex items-start gap-3 py-3", index != null && "deal-in")}
         style={stagger}
       >
+        {/* The day as a leaf, the same shape the ledger uses, from `sm` up;
+            on a phone the date stays a word on the row's first line. */}
+        <DateLeaf date={date} muted={voided} />
         {/* NO RAIL. It was a dot in the mentor's own hue joined by a hairline
             down the column — twenty-six pixels of width and a vertical line
             running through the gap between every pair of rows, tying together
@@ -367,7 +373,7 @@ function SessionRowContent({
                   thing on the row. The figure at the other end is the one that
                   earns a fixed column: a ledger is scanned down its numbers,
                   not down the left edge of its names. */}
-              <span className="shrink-0 whitespace-nowrap tabular-nums text-muted-fg">
+              <span className="shrink-0 whitespace-nowrap tabular-nums text-muted-fg sm:hidden">
                 {formatDate(date)}
               </span>
               {showMentorChip && (
@@ -447,12 +453,14 @@ function SessionRowContent({
   // One string so the clamp can count it as one run: the program when the log
   // spans them, the agenda item, then the note. On a phone the date leads it;
   // from `sm` up the date has a column of its own.
-  const topic = [
-    student?.program,
-    showTask ? task?.purpose : null,
-    showNote ? note : null,
-  ].filter(Boolean);
+  // The topic is what the meeting was about — the agenda item, then the note.
+  // The program used to lead it, as a third grey phrase in the same run; it
+  // is the people's context, not the meeting's, so it now rides under the
+  // names with its own dot.
+  const topic = [showTask ? task?.purpose : null, showNote ? note : null].filter(Boolean);
   const when = formatDate(date);
+  const program = student?.programRef ?? null;
+  const programName = student?.program ?? null;
 
   const lead = showStudent && student ? student : showMentor ? mentor : null;
   const second = showStudent && student && showMentor ? mentor : null;
@@ -461,50 +469,76 @@ function SessionRowContent({
     <li
       id={anchor}
       className={cn(
-        "group/row px-4 py-3 transition-colors sm:px-5 sm:py-2.5 sm:hover:bg-fill/60",
+        "group/row px-4 py-3 transition-colors sm:px-6 sm:hover:bg-brand-soft/45",
         index != null && "deal-in",
       )}
       style={stagger}
     >
-      {/* One line from `sm` up, in fixed columns — WHEN, WHO, WHAT, then the
-          figure — so a page of sessions scans down its dates and its minutes
-          instead of reading as a wall of two-line blocks. On a phone the same
-          facts stack: who and how long, then when and what. */}
-      <div className="flex items-start gap-3 sm:items-center">
-        <span className="hidden w-24 shrink-0 text-xs tabular-nums text-muted-fg sm:block">
-          {when}
-        </span>
-        <div className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-4">
-          {/* Student · mentor on one line from `sm` up. On a phone the
-              two shared one line beside the figure and both truncated until
-              neither could be told apart ("Ulugbek Alimuk… · Ulugbek …"),
-              so there the mentor drops to a line of their own, introduced
-              by "with" since the separator is gone. */}
-          {/* A MINIMUM, not a width. Fixed at 24rem, a long double-barrelled
-              name truncated ("Dilshodbek Abdurakhmonov-Yulda…") beside four
-              hundred pixels of empty note column. Now the people take what
-              they need and the topic — the column that can afford to — gives
-              way first; with no topic at all, the people take the row. */}
+      {/* October 2026, second pass: a row was four runs of grey text on one
+          line — date, names, program, note — and a page of them read as a
+          spreadsheet nobody had formatted (the owner: "very boring"). Each
+          fact now has a SHAPE, so the eye finds it without reading: the day
+          is a small calendar leaf, the person is a face, the program is a
+          dot, the note is the quiet run in the middle, and the minutes are a
+          figure on a capsule against the right edge. On a phone the same
+          facts stack, as before. */}
+      <div className="flex items-start gap-3 sm:items-center sm:gap-4">
+        <DateLeaf date={date} muted={voided} />
+        {lead && (
+          <Avatar
+            person={lead}
+            className={cn("h-9 w-9 shrink-0 text-xs", voided && "opacity-60")}
+          />
+        )}
+        <div className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-6">
+          {/* A MINIMUM, not a width, as before: the people take what they
+              need and the topic — the column that can afford to — gives way
+              first; with no topic at all, the people take the row. */}
           <div
             className={cn(
-              "flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-body leading-snug sm:flex-nowrap sm:text-sm",
+              "min-w-0",
               topic.length > 0
-                ? second
-                  ? "sm:max-w-[60%] sm:shrink-0 sm:basis-auto sm:min-w-[19rem] lg:min-w-[24rem]"
-                  : "sm:max-w-[60%] sm:shrink-0 sm:basis-auto sm:min-w-52 lg:min-w-60"
+                ? "sm:w-64 sm:shrink-0 lg:w-80"
                 : "sm:flex-1",
             )}
           >
             {lead && (
               <PersonName
                 person={lead}
-                className={cn("max-w-full truncate font-medium", textTone)}
+                className={cn(
+                  "block max-w-full truncate text-body font-semibold leading-snug sm:text-sm",
+                  textTone,
+                )}
               />
             )}
-            {second && (
-              <span className="flex min-w-0 basis-full items-baseline gap-x-1 text-xs text-muted-fg sm:shrink-[2] sm:basis-auto sm:text-sm">
-                <span className="shrink-0">with</span>
-                <PersonName person={second} className="min-w-0 truncate" />
+            {(second || programName) && (
+              <span className="mt-0.5 flex min-w-0 items-center gap-x-2 text-xs text-muted-fg">
+                {second && (
+                  // The mentor keeps their name; the program, which the dot
+                  // already identifies, is what truncates.
+                  <span className="flex min-w-0 max-w-[65%] shrink-0 items-baseline gap-x-1">
+                    <span className="shrink-0">with</span>
+                    <PersonName person={second} className="min-w-0 truncate text-ink" />
+                  </span>
+                )}
+                {/* Not on a phone: there the line is too short for both, and
+                    the mentor is the one a reader needs. */}
+                {second && programName && (
+                  <span className="max-sm:hidden">
+                    <Separator />
+                  </span>
+                )}
+                {programName && (
+                  <span
+                    className={cn(
+                      "flex min-w-0 shrink-[2] items-center gap-1.5",
+                      second && "max-sm:hidden",
+                    )}
+                  >
+                    {program && <ProgramDot program={program} />}
+                    <span className="min-w-0 truncate">{programName}</span>
+                  </span>
+                )}
               </span>
             )}
           </div>
@@ -512,22 +546,22 @@ function SessionRowContent({
               so a wrap starts the next line with "· note" rather than leaving
               "October 5 ·" dangling at the end of the first. */}
           <ExpandableText
-            text={[when, ...topic].join(" · ")}
+            text={[when, ...topic].join(" · ")}
             lines={2}
             className="mt-0.5 text-xs leading-snug text-muted-fg sm:hidden"
           />
           <div className="hidden min-w-0 flex-1 sm:block">
             {topic.length > 0 && (
               <ExpandableText
-                text={topic.join(" · ")}
-                lines={1}
-                className="text-xs leading-snug text-muted-fg"
+                text={topic.join(" · ")}
+                lines={2}
+                className="text-xs leading-relaxed text-muted-fg"
               />
             )}
           </div>
           {/* A fixed slot when any row in the list has a chip, right-aligned,
-              so "Show more", the chip and the figure land at the same x down
-              the page instead of wherever each row's chip happened to end. */}
+              so the chip and the figure land at the same x down the page
+              instead of wherever each row's chip happened to end. */}
           {chips ? (
             <div
               className={cn(
@@ -541,12 +575,20 @@ function SessionRowContent({
             chipSlot && <div aria-hidden="true" className="hidden shrink-0 sm:block sm:w-48" />
           )}
         </div>
-        {/* The figure in a fixed column so 12, 45 and 150 stack into one
-            edge, then the menu — which, on a pointer, waits for the row to
-            be hovered or focused rather than repeating down every line. */}
+        {/* The figure on a capsule in a fixed column, so 12, 45 and 150
+            stack into one edge, then the menu — which, on a pointer, waits
+            for the row to be hovered or focused rather than repeating down
+            every line. */}
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          <span className="text-body leading-snug sm:w-16 sm:text-right sm:text-sm">
-            {duration}
+          <span className="text-body leading-snug sm:flex sm:w-20 sm:justify-end sm:text-sm">
+            <span
+              className={cn(
+                charged &&
+                  "sm:inline-flex sm:h-7 sm:items-center sm:rounded-full sm:bg-fill sm:px-2.5",
+              )}
+            >
+              {duration}
+            </span>
           </span>
           {actions && (
             <span className="-my-2.5 shrink-0 transition-opacity sm:-my-1 pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:group-focus-within/row:opacity-100 pointer-fine:has-[[aria-expanded=true]]:opacity-100">
@@ -556,9 +598,41 @@ function SessionRowContent({
         </div>
       </div>
 
-      {footer && <div className="mt-2 sm:pl-28">{footer}</div>}
+      {footer && <div className="mt-2 sm:pl-[7.25rem]">{footer}</div>}
     </li>
   );
+}
+
+/**
+ * The day as a small calendar leaf — month over date — from `sm` up. A date
+ * written out as "September 22" was the widest grey word on the row and the
+ * one read least; as a leaf it is a shape the eye runs down to find a week.
+ * Session dates are calendar days stored at UTC midnight, so they are read
+ * in UTC.
+ */
+function DateLeaf({ date, muted }: { date: Date; muted?: boolean }) {
+  const month = date.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "hidden h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg bg-fill sm:flex",
+        muted && "opacity-60",
+      )}
+    >
+      <span className="text-caption font-semibold uppercase tracking-wider text-muted-fg">
+        {month}
+      </span>
+      <span className="-mt-0.5 text-body font-semibold tabular-nums text-ink">
+        {date.getUTCDate()}
+      </span>
+    </span>
+  );
+}
+
+/** "September 2026" — a session date is a calendar day at UTC midnight. */
+function monthOf(date: Date): string {
+  return date.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 }
 
 /** A name on a log row: the link to their page when this reader may open it. */
@@ -669,6 +743,8 @@ export function SessionsList({
   });
   if (withActions) resolved.push("actions");
   const chipSlot = sessions.some((s) => sessionStatuses(s, viewer).length > 0);
+  const groupByMonth =
+    sessions.length > 6 && new Set(sessions.map((s) => monthOf(s.date))).size > 1;
 
   return (
     <ul
@@ -678,17 +754,35 @@ export function SessionsList({
         className,
       )}
     >
-      {sessions.map((session, i) => (
-        <SessionRow
-          key={session.id}
-          session={session}
-          viewer={viewer}
-          columns={resolved}
-          actions={rowActions[i]}
-          index={i}
-          chipSlot={chipSlot}
-        />
-      ))}
+      {sessions.map((session, i) => {
+        const month = monthOf(session.date);
+        const opens = groupByMonth && (i === 0 || monthOf(sessions[i - 1].date) !== month);
+        return (
+          <Fragment key={session.id}>
+            {/* A month band where the log turns a month, on a log long enough
+                to span two. Forty rows of dates was one undivided column; the
+                band is where a reader finds "September" without scanning. It
+                names the month and nothing else — a count or a total here
+                would be one page of a paginated ledger posing as the month. */}
+            {opens && (
+              <li
+                aria-hidden="true"
+                className="bg-head px-4 py-2 text-caption font-semibold uppercase tracking-wider text-muted-fg sm:px-6"
+              >
+                {month}
+              </li>
+            )}
+            <SessionRow
+              session={session}
+              viewer={viewer}
+              columns={resolved}
+              actions={rowActions[i]}
+              index={i}
+              chipSlot={chipSlot}
+            />
+          </Fragment>
+        );
+      })}
     </ul>
   );
 }

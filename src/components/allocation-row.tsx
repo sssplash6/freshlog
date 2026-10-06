@@ -1,12 +1,13 @@
 import { CrownIcon } from "@/components/icons";
-import { PersonChip } from "@/components/person-chip";
+import { PersonCell } from "@/components/person-chip";
+import { HoursLeft } from "@/components/ui/hours-left";
 import { ProgramChip } from "@/components/program-chip";
 import { Meter } from "@/components/ui/meter";
 import { DeadlineText, StatusChip } from "@/components/ui/status-chip";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import { ASSIGNMENT_PROGRESS } from "@/lib/constants";
-import { formatBalance, formatDuration, formatMoney } from "@/lib/format";
+import { formatDuration, formatMoney } from "@/lib/format";
 import { EXPIRY_WINDOW_DAYS, type ViewerContext } from "@/lib/status";
 
 /**
@@ -315,14 +316,15 @@ function AllocationPerson({ entry }: { entry: AllocationEntry }) {
     );
   }
   if (entry.mentor) {
-    return <PersonChip person={entry.mentor} size="sm" href={entry.mentor.href} lead />;
+    // A face and a name, like every other table's person column.
+    return <PersonCell person={entry.mentor} href={entry.mentor.href} secondary={false} />;
   }
   return <StatusChip severity="attention">Needs a mentor</StatusChip>;
 }
 
 /** A value the row does not have. Never a blank cell — a blank reads as a bug. */
 function Dash() {
-  return <span className="text-muted-fg">—</span>;
+  return <span className="text-disabled">—</span>;
 }
 
 export function AllocationRow({
@@ -374,16 +376,13 @@ export function AllocationRow({
       <Td label="Missed" align="right" className="tabular-nums">
         {entry.missed > 0 ? formatDuration(entry.missed) : <Dash />}
       </Td>
-      <Td
-        label="Remaining"
-        align="right"
-        tone="key"
-        className={cn(
-          "tabular-nums",
-          entry.remaining < 0 ? "text-danger-ink" : "text-ink"
-        )}
-      >
-        {formatBalance(entry.remaining)}
+      <Td label="Remaining" align="right" className="tabular-nums">
+        {/* The meter is the grant's burn: everything that has come out of it
+            — taught, missed, expired — against what is left. */}
+        <HoursLeft
+          remaining={entry.remaining}
+          used={entry.completed + entry.missed + entry.forfeited}
+        />
         {entry.forfeited > 0 && (
           // "3h expired unused" — the status model's own words, so a spent
           // balance and a forfeited one stop wearing the same 0 min. Red, and

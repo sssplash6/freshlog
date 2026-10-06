@@ -509,12 +509,14 @@
   }
 }
 
-/* A table row is 48px or so, iOS list height, rather than a spreadsheet's
-   36: `py-2` is the spacing scale's inside-a-section step, and the cell adds
-   its own breath here so the scale itself stays three values. */
+/* A table row is 56px or so, rather than a spreadsheet's 36: `py-2` is the
+   spacing scale's inside-a-section step, and the cell adds its own breath here
+   so the scale itself stays three values. October 2026, second pass: it was
+   48, and a two-line person cell left 6px above and below the name — the
+   owner's "so dense, uncomfortable". */
 @media (min-width: 40rem) {
   .data-table td {
-    padding-block: 0.625rem;
+    padding-block: 0.875rem;
   }
 }
 
@@ -522,10 +524,10 @@
    row height is where compact and comfortable are actually felt. */
 @media (min-width: 40rem) {
   :root[data-density="compact"] .data-table td {
-    padding-block: 0.375rem;
+    padding-block: 0.5rem;
   }
   :root[data-density="comfortable"] .data-table td {
-    padding-block: 1rem;
+    padding-block: 1.125rem;
   }
 }
 

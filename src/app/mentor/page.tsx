@@ -16,7 +16,7 @@ import { attentionFor } from "@/lib/attention";
 import { cn } from "@/lib/cn";
 import { SESSION_STATUS, USER_STATUS } from "@/lib/constants";
 import { requireMentor } from "@/lib/dal";
-import { formatBalance, formatDate, formatDuration } from "@/lib/format";
+import { formatBalance, formatDate, formatDaysAgo, formatDuration } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { applySort, readSort } from "@/lib/sort";
 import { mentorCaseload, type CaseloadStudent } from "@/lib/queries";
@@ -467,7 +467,7 @@ export default async function MentorHomePage({
                     {showProgram && (
                       <Td>
                         <span className="flex min-w-0">
-                          <ProgramChip program={s.program} />
+                          <ProgramChip program={s.program} variant="tag" />
                         </span>
                       </Td>
                     )}
@@ -483,8 +483,17 @@ export default async function MentorHomePage({
                         within={EXPIRY_WINDOW_DAYS.mentor}
                       />
                     </Td>
-                    <Td tone="muted" className="whitespace-nowrap max-lg:sm:hidden">
-                      {seen ? formatDate(seen) : "—"}
+                    <Td className="whitespace-nowrap max-lg:sm:hidden">
+                      {seen ? (
+                        <span className="flex flex-col">
+                          <span className="text-ink">{formatDate(seen)}</span>
+                          <span className="text-xs text-muted-fg">
+                            {formatDaysAgo(seen, viewer.now)}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-disabled">—</span>
+                      )}
                     </Td>
                     <Td align="right" corner>
                       <Link

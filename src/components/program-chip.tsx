@@ -22,10 +22,20 @@ export type ProgramRef = { id: string; name: string; colorIndex: number };
 export function ProgramChip({
   program,
   href,
+  variant = "plain",
   className,
 }: {
   program: ProgramRef;
   href?: string;
+  /**
+   * `tag` sets the dot and name on a small neutral capsule, for a table cell
+   * (October 2026, second pass). A bare dot and name in a column of figures
+   * read as one more line of grey text; on a capsule it is a value the eye
+   * lands on. The capsule is the neutral `fill`, never the program's own
+   * tint — a program is still a place and not a face (see above), and its hue
+   * stays in the dot.
+   */
+  variant?: "plain" | "tag";
   className?: string;
 }) {
   const body = (linked: boolean) => (
@@ -47,6 +57,8 @@ export function ProgramChip({
   );
   const classes = cn(
     "inline-flex max-w-full items-center gap-1.5 text-sm text-ink",
+    variant === "tag" &&
+      "h-6 max-w-52 rounded-full bg-fill pl-2 pr-2.5 text-xs font-medium",
     href && "group transition-colors hover:text-brand",
     className
   );

@@ -20,7 +20,8 @@ export type LoggedSession = {
     // The USER's id, for the face: identity colour and picture are keyed by
     // the person, and the profile id gave one student two colours.
     user: { id: string; name: string | null; email: string; avatarUpdatedAt?: Date | null };
-    program?: { name: string } | null;
+    /** With `id` and `colorIndex` when the query selected them, for the dot. */
+    program?: { name: string; id?: string; colorIndex?: number } | null;
   } | null;
   assignment?: { id: string; purpose: string } | null;
 };
@@ -70,6 +71,14 @@ export function toSessionEntries(
           email: s.student.user.email,
           avatarUpdatedAt: s.student.user.avatarUpdatedAt,
           program: s.student.program?.name ?? null,
+          programRef:
+            s.student.program?.id != null && s.student.program.colorIndex != null
+              ? {
+                  id: s.student.program.id,
+                  name: s.student.program.name,
+                  colorIndex: s.student.program.colorIndex,
+                }
+              : null,
           href: links.studentBase ? `${links.studentBase}/${s.student.id}` : undefined,
         }
       : null,
