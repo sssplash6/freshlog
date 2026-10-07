@@ -11,9 +11,10 @@ import {
   splitItem,
   type ChangelogEntry,
 } from "@/lib/changelog";
-import { ROLES } from "@/lib/constants";
+import { inStudentLens } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import { formatDate } from "@/lib/format";
+import { profileOf } from "@/lib/profile";
 
 import { FreshChip, MarkChangelogSeen } from "./seen";
 import type { Metadata } from "next";
@@ -35,7 +36,7 @@ export default async function ChangelogPage() {
   // student the app was broken rather than that it got better. The entries
   // themselves are not tagged by who they are for, so the whole log stays;
   // only the framing around it changes.
-  const student = user.role === ROLES.STUDENT;
+  const student = inStudentLens(user, await profileOf(user));
 
   return (
     <div className="space-y-4">

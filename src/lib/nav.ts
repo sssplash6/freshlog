@@ -1,7 +1,7 @@
 import "server-only";
 
 import { adminScope, scopeIsEmpty, staffLevel, type StaffLevel } from "@/lib/authz";
-import { canActAsMentor, ROLES } from "@/lib/constants";
+import { canActAsMentor, inStudentLens } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import type { Profile } from "@/lib/profile";
 import { SCHOOL, type Space } from "@/lib/space";
@@ -196,8 +196,9 @@ export async function navFor(
 ): Promise<NavItem[]> {
   // Role first, not lens. `profileOf` answers "admin" for anybody who cannot
   // mentor, students included — the lens is a staff idea and a student is
-  // never in one.
-  if (viewer.role === ROLES.STUDENT) return STUDENT_NAV;
+  // never in one, unless they are a student who also mentors and have
+  // switched to the mentor half.
+  if (inStudentLens(viewer, profile)) return STUDENT_NAV;
   if (profile === "mentor" && canActAsMentor(viewer)) return mentorNav(inbox);
   return staffNav(viewer, space, inbox);
 }

@@ -16,7 +16,7 @@ import {
   staffLevel,
   type AdminScope,
 } from "@/lib/authz";
-import { canActAsMentor, ROLES } from "@/lib/constants";
+import { canActAsMentor, inStudentLens } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import {
   activeFilterCount,
@@ -138,7 +138,7 @@ export default async function FeedbackPage({
   // form AND the history (§2.1 row 27), so a second copy of that history here
   // would be the "two pages for one person" defect this reorganisation exists
   // to remove.
-  if (user.role === ROLES.STUDENT) redirect("/student/feedback");
+  if (inStudentLens(user, await profileOf(user))) redirect("/student/feedback");
 
   // Gate first, query second — and the gate is the reader's grants, never the
   // lens. Someone who can read a program's ratings gets the staff shape in

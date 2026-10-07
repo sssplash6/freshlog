@@ -53,6 +53,10 @@ export function isProfile(value: unknown): value is Profile {
  */
 export async function canSwitchProfile(user: User): Promise<boolean> {
   if (!canActAsMentor(user)) return false;
+  // A student who also mentors has two halves too. Their "admin" lens is the
+  // student side — the lens names are staff words, kept so one cookie serves
+  // everybody; the switch labels it "Student" (`ProfileSwitch`).
+  if (user.role === ROLES.STUDENT) return true;
   return user.role === ROLES.ADMIN || !scopeIsEmpty(await adminScope(user));
 }
 
@@ -86,8 +90,8 @@ export const profileOf = cache(async (user: User): Promise<Profile> => {
  * in dal.ts).
  */
 export function homeFor(user: User, profile?: Profile | null): string {
-  if (user.role === ROLES.STUDENT) return "/student";
   if (profile === "mentor" && canActAsMentor(user)) return "/mentor";
+  if (user.role === ROLES.STUDENT) return "/student";
   // `profileOf` only answers "admin" for a MENTOR who was granted a program.
   if (profile === "admin" && user.role === ROLES.MENTOR) return "/admin";
   return ROLE_HOME[user.role as Role] ?? "/login";

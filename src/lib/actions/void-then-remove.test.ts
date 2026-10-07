@@ -35,7 +35,7 @@ vi.mock("@/lib/dal", () => ({
     actor.value ? prisma.user.findUnique({ where: { id: actor.value.id } }) : null,
 }));
 
-const { removeMentorAllocation, unenrollStudent } = await import("@/lib/actions/students");
+const { deleteStudent, removeMentorAllocation, unenrollStudent } = await import("@/lib/actions/students");
 const { restoreSession, voidSession } = await import("@/lib/actions/sessions");
 const { sendOnExchange, returnExchange } = await import("@/lib/actions/exchanges");
 
@@ -230,5 +230,31 @@ describe("calling an exchange off", () => {
     const state = await returnExchange(null, form({ exchangeId: exchange.id }));
 
     expect(state).toMatchObject({ ok: true });
+  });
+});
+
+describe("removing a student", () => {
+  const remove = (pupilId: string) =>
+    deleteStudent(null, form({ studentProfileId: pupilId })).catch((e) => e);
+
+  it("is refused while a session of theirs still stands", async () => {
+    const { pupil } = await doubleLogged();
+
+    await expect(remove(pupil.id)).resolves.toMatchObject({ ok: false });
+    await expect(prisma.session.count()).resolves.toBe(1);
+  });
+
+  it("goes through once their sessions are voided, and frees the address", async () => {
+    const { pupil, duplicate } = await doubleLogged();
+    const email = (await prisma.user.findFirstOrThrow({ where: { studentProfile: { id: pupil.id } } })).email;
+    await voidSession(null, form({ sessionId: duplicate.id }));
+
+    // A successful delete redirects, which Next implements by throwing.
+    await remove(pupil.id);
+
+    await expect(prisma.studentProfile.count({ where: { id: pupil.id } })).resolves.toBe(0);
+    await expect(prisma.session.count()).resolves.toBe(0);
+    await expect(prisma.hourAllocation.count()).resolves.toBe(0);
+    await expect(prisma.user.count({ where: { email } })).resolves.toBe(0);
   });
 });

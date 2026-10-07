@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { ROLES } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { parseNameField, parseTelegramField } from "@/lib/actions/shared";
@@ -71,7 +72,9 @@ export async function setProfile(formData: FormData): Promise<void> {
   // while standing in the one you just left goes to its counterpart. When the
   // routes stop being role-scoped there is nothing left for this to catch.
   const from = String(formData.get("path") ?? "");
-  const left = next === "admin" ? "/mentor" : "/admin";
+  // A student who also mentors has /student where staff have /admin.
+  const own = user.role === ROLES.STUDENT ? "/student" : "/admin";
+  const left = next === "admin" ? "/mentor" : own;
   if (from === left || from.startsWith(`${left}/`)) {
     redirect(homeFor(user, next));
   }

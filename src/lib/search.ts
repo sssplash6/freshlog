@@ -7,7 +7,7 @@ import {
   type SearchPerson,
   type SearchResults,
 } from "@/lib/command-search";
-import { canActAsMentor, ROLES } from "@/lib/constants";
+import { canActAsMentor } from "@/lib/constants";
 import { enrollmentLabel } from "@/lib/enrollments";
 import { mentorsWhere, studentsWhere } from "@/lib/filters";
 import { prisma } from "@/lib/prisma";
@@ -31,7 +31,6 @@ const CANDIDATES = 25;
 export async function searchReach(
   user: User
 ): Promise<{ administers: boolean; programIds?: readonly string[] } | null> {
-  if (user.role === ROLES.STUDENT) return null;
   const scope = await adminScope(user);
   const administers = !scopeIsEmpty(scope);
   if (!administers && !canActAsMentor(user)) return null;

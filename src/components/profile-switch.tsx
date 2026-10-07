@@ -7,10 +7,16 @@ import { CheckIcon } from "@/components/icons";
 import { setProfile } from "@/lib/actions/profile";
 import type { Profile } from "@/lib/profile";
 
-const ITEMS = [
-  { value: "admin", label: "Admin" },
-  { value: "mentor", label: "Mentor" },
-] as const satisfies readonly { value: Profile; label: string }[];
+/**
+ * "admin" is the lens's name for the person's own half, and that half is the
+ * student side for a student who also mentors — so its label is passed in.
+ */
+function itemsFor(adminLabel: string): readonly { value: Profile; label: string }[] {
+  return [
+    { value: "admin", label: adminLabel },
+    { value: "mentor", label: "Mentor" },
+  ];
+}
 
 /**
  * Alt+M, and ⌥M on a Mac — "M for mode". Chosen because it is free in every
@@ -98,7 +104,14 @@ export function ProfileShortcut() {
  * the page you are on repaints in the other lens at the same URL. `path` rides
  * along because the two homes are still separate trees — see `setProfile`.
  */
-export function ProfileSwitch({ active }: { active: Profile }) {
+export function ProfileSwitch({
+  active,
+  adminLabel = "Admin",
+}: {
+  active: Profile;
+  adminLabel?: string;
+}) {
+  const items = itemsFor(adminLabel);
   const pathname = usePathname();
   const shortcut = useShortcutLabel();
   return (
@@ -115,7 +128,7 @@ export function ProfileSwitch({ active }: { active: Profile }) {
       className="flex w-full items-center gap-0.5 rounded-lg bg-fill p-0.5"
     >
       <input type="hidden" name="path" value={pathname} />
-      {ITEMS.map((it) =>
+      {items.map((it) =>
         it.value === active ? (
           <span
             key={it.value}
@@ -152,7 +165,14 @@ export function ProfileSwitch({ active }: { active: Profile }) {
  * the switch is the one of the four that can live inside the menu without being
  * any harder to find.
  */
-export function ProfileSwitchMenu({ active }: { active: Profile }) {
+export function ProfileSwitchMenu({
+  active,
+  adminLabel = "Admin",
+}: {
+  active: Profile;
+  adminLabel?: string;
+}) {
+  const items = itemsFor(adminLabel);
   const pathname = usePathname();
   const shortcut = useShortcutLabel();
   return (
@@ -171,7 +191,7 @@ export function ProfileSwitchMenu({ active }: { active: Profile }) {
           {shortcut}
         </span>
       </p>
-      {ITEMS.map((it) =>
+      {items.map((it) =>
         it.value === active ? (
           <span
             key={it.value}

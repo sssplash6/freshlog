@@ -3,7 +3,7 @@ import "server-only";
 import { cache } from "react";
 
 import { adminScope } from "@/lib/authz";
-import { canActAsMentor, PROGRAM_SPACE, ROLES } from "@/lib/constants";
+import { canActAsMentor, inStudentLens, PROGRAM_SPACE } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import type { Profile } from "@/lib/profile";
 import type { User } from "@/generated/prisma/client";
@@ -76,7 +76,7 @@ async function framingPrograms(
   user: User,
   profile: Profile
 ): Promise<string[] | null> {
-  if (user.role === ROLES.STUDENT) {
+  if (inStudentLens(user, profile)) {
     const rows = await prisma.studentEnrollment.findMany({
       where: { student: { userId: user.id }, exchangeId: null },
       select: { programId: true },

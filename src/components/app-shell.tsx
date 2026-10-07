@@ -44,7 +44,7 @@ import { cn } from "@/lib/cn";
 import { attentionFor } from "@/lib/attention";
 import { adminScope, scopeIsEmpty } from "@/lib/authz";
 import { hasUnseenChangelog, readChangelog } from "@/lib/changelog";
-import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
+import { canActAsMentor, inStudentLens, ROLES, USER_STATUS } from "@/lib/constants";
 import { navFor, type NavItem } from "@/lib/nav";
 import { prisma } from "@/lib/prisma";
 import { canSwitchProfile, profileOf, type Profile } from "@/lib/profile";
@@ -194,7 +194,7 @@ function AccountMenu({
   // A student's menu is about them, not about running the product: no bug
   // queue (a staff tool), and no second "What's new" mark on the avatar
   // beside the bell's count — one notification mark in a top bar, not two.
-  const student = user.role === ROLES.STUDENT;
+  const student = user.role === ROLES.STUDENT && lens !== "mentor";
 
   return (
     <Popover
@@ -252,8 +252,11 @@ function AccountMenu({
       {/* Below `lg` only: from `lg` the rail carries the same switch, and
           the menu was a second copy of it one click away. */}
       {lens && (
-        <div className="mt-1 lg:hidden">
-          <ProfileSwitchMenu active={lens} />
+        <div className={cn("mt-1", !student && "lg:hidden")}>
+          <ProfileSwitchMenu
+            active={lens}
+            adminLabel={user.role === ROLES.STUDENT ? "Student" : "Admin"}
+          />
         </div>
       )}
 
@@ -529,7 +532,7 @@ function StaffShell({
         // corner: it was the one row in a column of PLACES that changes on its
         // own, which made what has happened look like somewhere to go.
         utility={[{ href: "/settings", label: "Settings" }]}
-        switcher={lens ? <ProfileSwitch active={lens} /> : undefined}
+        switcher={lens ? <ProfileSwitch active={lens} adminLabel={user.role === ROLES.STUDENT ? "Student" : "Admin"} /> : undefined}
         search={search}
         account={account}
         place={place}
@@ -608,6 +611,7 @@ function StudentShell({
   items,
   whatsNew,
   place,
+  lens,
   children,
 }: {
   user: User;
@@ -615,11 +619,14 @@ function StudentShell({
   items: NavItem[];
   whatsNew: boolean;
   place?: React.ReactNode;
+  /** Set only for a student who also mentors: the way over to that side. */
+  lens: Profile | null;
   children: React.ReactNode;
 }) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <SkipLink />
+      {lens && <ProfileShortcut />}
       <TopBar
         width="max-w-2xl"
         unread={unread}
@@ -635,7 +642,7 @@ function StudentShell({
         account={
           <AccountMenu
             user={user}
-            lens={null}
+            lens={lens}
             mentorProfile={false}
             whatsNew={whatsNew}
             named={false}
@@ -744,7 +751,7 @@ export async function AppShell({
   const place =
     space.kind === "institute" ? <InstituteMark space={space} /> : undefined;
 
-  if (user.role === ROLES.STUDENT) {
+  if (inStudentLens(user, profile)) {
     return (
       <StudentShell
         user={user}
@@ -752,6 +759,7 @@ export async function AppShell({
         items={items}
         whatsNew={whatsNew}
         place={place}
+        lens={(await canSwitchProfile(user)) ? profile : null}
       >
         {children}
       </StudentShell>

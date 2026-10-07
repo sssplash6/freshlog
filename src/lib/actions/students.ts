@@ -1285,7 +1285,6 @@ export async function deleteStudent(
     include: {
       user: true,
       enrollments: { select: { id: true, programId: true } },
-      _count: { select: { sessions: true } },
     },
   });
   if (!profile) return { ok: false, error: "Student not found." };
@@ -1307,15 +1306,27 @@ export async function deleteStudent(
     }
   }
 
-  if (profile._count.sessions > 0) {
+  // A voided session is a meeting that did not count, so it does not hold the
+  // record in place — the same rule every other guard here applies. Anything
+  // else (a standing meeting, a rescheduled one) is still the ledger.
+  const standing = await prisma.session.count({
+    where: { studentId: profile.id, ...STANDING_SESSION },
+  });
+  if (standing > 0) {
     return {
       ok: false,
       error:
-        "This student has logged sessions, so their record can't be deleted.",
+        "This student has logged sessions, so their record can't be deleted. Void them first.",
     };
   }
 
-  await prisma.$transaction(async (tx) => {
+  const refused = await prisma.$transaction(async (tx) => {
+    // Re-checked where a session logged in the meantime is finally visible.
+    const late = await tx.session.count({
+      where: { studentId: profile.id, ...STANDING_SESSION },
+    });
+    if (late > 0) return true;
+    await tx.session.deleteMany({ where: { studentId: profile.id } });
     await tx.hourAllotmentChange.deleteMany({ where: { studentId: profile.id } });
     await tx.hourAllocation.deleteMany({ where: { studentId: profile.id } });
     // The tasks their time bought. Nothing was logged against them (no
@@ -1327,7 +1338,14 @@ export async function deleteStudent(
     // deleted here — naming them would only be a second place to keep in step.
     await tx.studentProfile.delete({ where: { id: profile.id } });
     await tx.user.delete({ where: { id: profile.userId } });
+    return false;
   });
+  if (refused) {
+    return {
+      ok: false,
+      error: "A session was just logged for this student, so their record can't be deleted.",
+    };
+  }
 
   const back = profile.enrollments[0]?.programId;
   revalidatePath("/", "layout");

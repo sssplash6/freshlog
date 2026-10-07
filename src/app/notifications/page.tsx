@@ -15,6 +15,7 @@ import { Section } from "@/components/ui/section";
 import { ArrowLink } from "@/components/ui/link";
 import { Pagination, parsePage } from "@/components/ui/pagination";
 import { attentionFor } from "@/lib/attention";
+import { inStudentLens } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { profileOf } from "@/lib/profile";
@@ -76,6 +77,7 @@ export default async function NotificationsPage({
   searchParams: Promise<{ page?: string; category?: string }>;
 }) {
   const user = await requireUser();
+  const profile = await profileOf(user);
   const params = await searchParams;
   const page = parsePage(params.page);
 
@@ -91,7 +93,7 @@ export default async function NotificationsPage({
   // rather than the unread ones that happened to be on screen.
   const [attention, notifications, total, unread, byCategory] =
     await Promise.all([
-      attentionFor(user, await profileOf(user)),
+      attentionFor(user, profile),
       prisma.notification.findMany({
         where,
         include: {
@@ -184,7 +186,7 @@ export default async function NotificationsPage({
         // "Active issues" is the staff word for a queue they work through. A
         // student has no queue — these are things about their own time to look
         // at — so they are told so in their own words.
-        title={user.role === "STUDENT" ? "Things to check" : "Active issues"}
+        title={inStudentLens(user, profile) ? "Things to check" : "Active issues"}
         empty={attention.empty}
         dismissible={attention.dismissible}
         renderAction={(s) => {

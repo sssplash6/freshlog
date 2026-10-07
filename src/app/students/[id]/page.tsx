@@ -912,7 +912,7 @@ export default async function StudentWorkspacePage({
               <RemoveStudentButton
                 studentProfileId={profile.id}
                 name={name}
-                hasSessions={ledger.sessions.length > 0}
+                hasSessions={ledger.sessions.some((s) => s.status !== SESSION_STATUS.VOIDED)}
               />
             </div>
           )}

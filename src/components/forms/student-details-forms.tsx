@@ -438,9 +438,9 @@ export function StudentFolderChange({
 }
 
 /**
- * Removing the record entirely. Refused once anything has been logged against
+ * Removing the record entirely. Refused while any session still stands against
  * them — the sessions are the ledger, and a ledger with a hole in it is worse
- * than a student who left.
+ * than a student who left. Voided ones are retractions, and go with the record.
  */
 export function RemoveStudentButton({
   studentProfileId,
@@ -467,7 +467,7 @@ export function RemoveStudentButton({
         pending={save.kind === "saving"}
         disabledReason={
           hasSessions
-            ? "Can't be removed: they have logged sessions."
+            ? "Can't be removed while sessions count for them. Void those first."
             : undefined
         }
       />

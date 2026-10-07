@@ -73,7 +73,10 @@ export default async function OnboardingPage() {
   // page this replaces used `requireRole(MENTOR)`, which turned away the
   // dual-role admin `requireMentor` had just sent here — /mentor bounced them
   // to onboarding, onboarding bounced them to /mentor, forever.
-  if (canActAsMentor(user)) {
+  // A student who also mentors is registered as the student they are: they
+  // already have the name this step asks for, and the student step below is the
+  // one that is missing a Telegram handle.
+  if (canActAsMentor(user) && user.role !== ROLES.STUDENT) {
     if (user.name?.trim()) redirect(homeFor(user, await profileOf(user)));
     return (
       <Step

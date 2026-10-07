@@ -7,9 +7,11 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-07
 
 ### New
+- **A student can also be a mentor.** Somebody who studies here and mentors here gets a Student / Mentor switch in their menu, like a mentoring admin.
 - **"Report a mentor" moves under your picture.** On a student's Home the button sits in the top-right corner at half its old width, slimmer, and red.
 
 ### Fixed
+- **Remove a student once their sessions are voided.** A student whose only sessions were voided could not be removed. They can now, and their email is free to register again.
 - **An email change takes over an empty account.** If the new address already has one, it is removed with the change instead of refusing.
 - **A mentor's program table counts every meeting.** Hours drawn from a student's hour bank, and time given out of plan, now show under their program (the latter in a new Extra column), so a program no longer reads "0 min" while the total above it counts those hours.
 

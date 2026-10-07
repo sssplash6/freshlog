@@ -522,14 +522,33 @@ export const NOTIFICATION_META: Record<
 
 /**
  * Whether a user may operate as a mentor: either a plain MENTOR, or an ADMIN
- * who was also flagged as a mentor (dual-role admins). Used by the mentor-side
- * gates and the mentor-pool queries so admin-mentors are first-class mentors.
+ * (or, by exception, a STUDENT) who was also flagged as a mentor. Used by the
+ * mentor-side gates and the mentor-pool queries so admin-mentors are
+ * first-class mentors.
  */
 export function canActAsMentor(user: {
   role: string;
   isMentor?: boolean | null;
 }): boolean {
-  return user.role === ROLES.MENTOR || (user.role === ROLES.ADMIN && !!user.isMentor);
+  return (
+    user.role === ROLES.MENTOR ||
+    ((user.role === ROLES.ADMIN || user.role === ROLES.STUDENT) && !!user.isMentor)
+  );
+}
+
+/**
+ * Is this person looking through the student's side of the app right now?
+ * Every student is, unless they are also flagged as a mentor and have switched
+ * to the mentor lens. Asked wherever a page, the nav or the chrome used to ask
+ * `role === STUDENT`: that question is about who somebody IS, and the chrome
+ * needs to know which of their two halves they are standing in.
+ */
+export function inStudentLens(
+  user: { role: string; isMentor?: boolean | null },
+  profile: string | null | undefined
+): boolean {
+  if (user.role !== ROLES.STUDENT) return false;
+  return !(profile === "mentor" && canActAsMentor(user));
 }
 
 // Home route for each role after sign-in.

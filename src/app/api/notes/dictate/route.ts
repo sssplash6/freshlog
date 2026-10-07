@@ -45,7 +45,11 @@ export async function POST(request: Request) {
   // endpoint is not a free transcriber for anyone with a student account.
   let kind: DictationKind;
   let names: string[];
-  if (canActAsMentor(actor)) {
+  // A student who also mentors dictates in both halves; the interview they are
+  // naming decides which, since only the student half has one.
+  const ownInterview =
+    actor.role === ROLES.STUDENT && String(form.get("interviewId") ?? "").trim() !== "";
+  if (canActAsMentor(actor) && !ownInterview) {
     kind = "session";
     names = await nameHints(actor, form);
   } else if (actor.role === ROLES.STUDENT) {

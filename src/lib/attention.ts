@@ -5,10 +5,10 @@ import { cache } from "react";
 import { adminScope, scopeProgramFilter } from "@/lib/authz";
 import {
   ASSIGNMENT_PROGRESS,
-  ROLES,
   SESSION_STATUS,
   USER_STATUS,
   canActAsMentor,
+  inStudentLens,
 } from "@/lib/constants";
 import { soonestExpiry } from "@/lib/deadlines";
 import { formatDate, formatMinutes } from "@/lib/format";
@@ -112,7 +112,7 @@ async function attentionForUncached(
   user: User,
   profile: Profile
 ): Promise<Attention> {
-  if (user.role === ROLES.STUDENT) return studentAttention(user);
+  if (inStudentLens(user, profile)) return studentAttention(user);
   if (profile === "mentor" && canActAsMentor(user)) return mentorAttention(user);
   return staffAttention(user);
 }
