@@ -538,7 +538,7 @@ export async function mentorOverview(
         }
       : {};
 
-  const [allocations, lifetimeSums, sessions] = await Promise.all([
+  const [allocations, lifetimeSums, everyMeeting, sessions] = await Promise.all([
     prisma.hourAllocation.findMany({
       where: { mentorId, ...inProgram },
       include: {
@@ -555,6 +555,16 @@ export async function mentorOverview(
     prisma.session.groupBy({
       by: ["studentId", "programId", "attended"],
       where: { mentorId, fromBank: false, ...CHARGED_SESSION },
+      _sum: { minutes: true },
+    }),
+    // Every active meeting this mentor ever logged, by program and by what it
+    // drew on. The grant sums above deliberately leave out the two kinds that
+    // charge none of this mentor's grants — a draw on a student's hour bank,
+    // and time given out of plan — so a program row built from grants alone
+    // read "0 min" for a program the mentor had met students in all month.
+    prisma.session.groupBy({
+      by: ["programId", "attended", "fromBank", "withinPlan"],
+      where: { mentorId, status: SESSION_STATUS.ACTIVE, ...inProgram },
       _sum: { minutes: true },
     }),
     prisma.session.findMany({
@@ -619,6 +629,14 @@ export async function mentorOverview(
     /** Hours given out of plan in the window — delivered, but charged to nobody. */
     extra: number;
     sessions: number;
+    /**
+     * Ledger figures, whatever the window: meetings drawn from a student's hour
+     * bank (attended / no-show), and time given out of plan. The grant's own
+     * `used` leaves all three out, since none of them spends it.
+     */
+    bankCompleted: number;
+    bankMissed: number;
+    extraAll: number;
   };
   const rows = new Map<string, ProgramRow>();
   const rowFor = (program: { id: string; name: string; colorIndex: number }) => {
@@ -638,6 +656,9 @@ export async function mentorOverview(
       missed: 0,
       extra: 0,
       sessions: 0,
+      bankCompleted: 0,
+      bankMissed: 0,
+      extraAll: 0,
     };
     rows.set(id, fresh);
     return fresh;
@@ -650,6 +671,34 @@ export async function mentorOverview(
     row.forfeited += s.forfeited;
     row.remaining += s.remaining;
   }
+  // A program the mentor has only ever met students in through a bank or out of
+  // plan has no grant and, under a narrow window, no session in it — and would
+  // otherwise be listed as "Nothing granted or logged yet".
+  const named = new Map<string, { id: string; name: string; colorIndex: number }>(
+    [...rows.values()].map((r) => [r.id, r])
+  );
+  const unnamed = [...new Set(everyMeeting.map((m) => m.programId))].filter(
+    (id) => !named.has(id)
+  );
+  if (unnamed.length > 0) {
+    const found = await prisma.program.findMany({
+      where: { id: { in: unnamed } },
+      select: { id: true, name: true, colorIndex: true },
+    });
+    for (const program of found) named.set(program.id, program);
+  }
+  for (const m of everyMeeting) {
+    const program = named.get(m.programId);
+    if (!program) continue;
+    const row = rowFor(program);
+    const minutes = m._sum.minutes ?? 0;
+    if (!m.withinPlan) row.extraAll += minutes;
+    else if (m.fromBank) {
+      if (m.attended) row.bankCompleted += minutes;
+      else row.bankMissed += minutes;
+    }
+  }
+
   // A session can outlive its allocation (an admin may remove one), so the
   // window's hours land in their program's row either way.
   for (const s of active) {

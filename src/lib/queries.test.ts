@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { logSessionOptions, mentorCaseload } from "@/lib/queries";
+import { logSessionOptions, mentorCaseload, mentorOverview } from "@/lib/queries";
 import {
   allocation,
   assignment,
   cohort,
   enroll,
+  inDays,
   mentor,
   pairing,
   program,
@@ -226,5 +227,67 @@ describe("who a mentor may log for", () => {
     const options = logSessionOptions(await mentorCaseload(m.id));
 
     expect(optionFor(options, s.id)).toBeUndefined();
+  });
+});
+
+/**
+ * The mentor page's program table is read as "what did this mentor do in this
+ * program". A session drawn from a student's hour bank, or given out of plan,
+ * charges none of the mentor's own grants — and a table summed from grants
+ * alone read "0 min" for a program the mentor had met students in all month,
+ * while the headline above it counted the same hours.
+ */
+describe("mentorOverview program rows", () => {
+  it("counts a bank session in its program's Completed, and in its Missed", async () => {
+    const p = await program("Full Support");
+    const s = await student({ programId: p.id });
+    const m = await mentor("Umid");
+    await allocation({ studentId: s.id, mentorId: m.id, minutes: 0 });
+    await session({ studentId: s.id, mentorId: m.id, minutes: 60, fromBank: true });
+    await session({ studentId: s.id, mentorId: m.id, minutes: 30, fromBank: true, attended: false });
+
+    const { byProgram, totals } = await mentorOverview(m.id);
+
+    expect(byProgram).toHaveLength(1);
+    expect(byProgram[0]).toMatchObject({ bankCompleted: 60, bankMissed: 30, allocated: 0 });
+    // The headline's figure and the table's agree.
+    expect(totals.delivered).toBe(60);
+  });
+
+  it("shows a program that has only bank or extra sessions, with no grant at all", async () => {
+    const p = await program("Full Support");
+    const s = await student({ programId: p.id });
+    const m = await mentor();
+    await session({ studentId: s.id, mentorId: m.id, minutes: 45, withinPlan: false });
+
+    const { byProgram } = await mentorOverview(m.id);
+
+    expect(byProgram.map((r) => r.id)).toEqual([p.id]);
+    expect(byProgram[0]).toMatchObject({ extraAll: 45, students: 0 });
+  });
+
+  it("leaves a grant-drawn session out of the bank figures, and ignores voided ones", async () => {
+    const p = await program("Flexible");
+    const s = await student({ programId: p.id });
+    const m = await mentor();
+    await allocation({ studentId: s.id, mentorId: m.id, minutes: 600 });
+    await session({ studentId: s.id, mentorId: m.id, minutes: 60 });
+    await session({ studentId: s.id, mentorId: m.id, minutes: 60, fromBank: true, status: "VOIDED" });
+
+    const { byProgram } = await mentorOverview(m.id);
+
+    expect(byProgram[0]).toMatchObject({ bankCompleted: 0, bankMissed: 0, extraAll: 0, used: 60 });
+  });
+
+  it("ignores the date window: the bank figures are the ledger's, like the grant's", async () => {
+    const p = await program("Full Support");
+    const s = await student({ programId: p.id });
+    const m = await mentor();
+    await session({ studentId: s.id, mentorId: m.id, minutes: 60, fromBank: true });
+
+    const { byProgram } = await mentorOverview(m.id, { from: inDays(10), to: inDays(20) });
+
+    expect(byProgram[0].bankCompleted).toBe(60);
+    expect(byProgram[0].delivered).toBe(0);
   });
 });

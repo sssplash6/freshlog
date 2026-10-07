@@ -228,9 +228,17 @@ async function MentorRecord({
     const held = students.filter((s) => s.program.id === row.id);
     const total = (pick: (s: (typeof held)[number]) => number) =>
       held.reduce((sum, s) => sum + pick(s), 0);
-    return { ...row, completedAll: total((s) => s.completed), missedAll: total((s) => s.missed) };
+    // The bank's meetings are this mentor's work too, and spend none of the
+    // grants summed above — left out, a program they only ever met students in
+    // through a bank read "0 min" under a headline that counted those hours.
+    return {
+      ...row,
+      completedAll: total((s) => s.completed) + row.bankCompleted,
+      missedAll: total((s) => s.missed) + row.bankMissed,
+    };
   });
   const programMissed = ledger.some((r) => r.missedAll > 0);
+  const programExtra = ledger.some((r) => r.extraAll > 0);
   const programExpired = ledger.some((r) => r.forfeited > 0);
   // A mentor reading their own record gets it without the student's rating
   // or note — anonymous to them, and stripped before the payload, not hidden
@@ -487,6 +495,7 @@ async function MentorRecord({
               // Missed and Expired take a column only when a row has some.
               ...(programMissed ? [{ label: "Missed", align: "right" } as Column] : []),
               ...(programExpired ? [{ label: "Expired", align: "right" } as Column] : []),
+              ...(programExtra ? [{ label: "Extra", align: "right" } as Column] : []),
               { label: "Remaining", align: "right", emphasis: "key" },
               { label: "Total", align: "right" },
             ]}
@@ -533,6 +542,11 @@ async function MentorRecord({
                     {row.forfeited > 0 ? formatDuration(row.forfeited) : "—"}
                   </Td>
                 )}
+                {programExtra && (
+                  <Td label="Extra" align="right" tone="muted" className="tabular-nums">
+                    {row.extraAll > 0 ? formatDuration(row.extraAll) : "—"}
+                  </Td>
+                )}
                 <Td label="Remaining" align="right" className="tabular-nums">
                   {/* Red when overdrawn, and a meter of the total's burn. */}
                   <HoursLeft
@@ -560,6 +574,7 @@ async function MentorRecord({
                 <Td label="Completed" align="right" tone="muted">—</Td>
                 {programMissed && <Td label="Missed" align="right" tone="muted">—</Td>}
                 {programExpired && <Td label="Expired" align="right" tone="muted">—</Td>}
+                {programExtra && <Td label="Extra" align="right" tone="muted">—</Td>}
                 <Td label="Remaining" align="right" tone="muted">—</Td>
                 <Td label="Total" align="right" tone="muted">—</Td>
               </Tr>

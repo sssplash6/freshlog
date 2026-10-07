@@ -249,6 +249,8 @@ export async function session(opts: {
   late?: boolean;
   status?: string;
   withinPlan?: boolean;
+  /** Drawn from the student's hour bank rather than the mentor's own grant. */
+  fromBank?: boolean;
   assignmentId?: string | null;
 }) {
   return prisma.session.create({
@@ -262,6 +264,7 @@ export async function session(opts: {
       late: opts.late ?? false,
       status: opts.status ?? SESSION_STATUS.ACTIVE,
       withinPlan: opts.withinPlan ?? true,
+      fromBank: opts.fromBank ?? false,
       assignmentId: opts.assignmentId ?? null,
     },
   });

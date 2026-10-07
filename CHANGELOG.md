@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-07
+
+### Fixed
+- **A mentor's program table counts every meeting.** Hours drawn from a student's hour bank, and time given out of plan, now show under their program (the latter in a new Extra column), so a program no longer reads "0 min" while the total above it counts those hours.
+
 ## 2026-10-06
 
 ### New
