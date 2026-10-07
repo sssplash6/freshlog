@@ -44,13 +44,17 @@ async function setup() {
 }
 
 /** The account Google sign-in writes the moment an unknown email appears. */
-async function stub(email: string, programId?: string) {
+async function stub(
+  email: string,
+  programId?: string,
+  status: string = USER_STATUS.PENDING
+) {
   const user = await prisma.user.create({
     data: {
       email,
       name: "Second Account",
       role: ROLES.STUDENT,
-      status: USER_STATUS.PENDING,
+      status,
     },
   });
   if (!programId) return { user, profile: null };
@@ -116,6 +120,39 @@ describe("taking an address back from a stray sign-up", () => {
     await expect(
       prisma.notification.count({ where: { actorId: stray.user.id } })
     ).resolves.toBe(0);
+  });
+
+  it("absorbs an ACTIVE account that sits in no program and holds nothing", async () => {
+    const { pupil } = await setup();
+    const stray = await stub("empty@test.invalid", undefined, USER_STATUS.ACTIVE);
+
+    const state = await setStudentEmail(
+      null,
+      form({ studentProfileId: pupil.id, email: "empty@test.invalid" })
+    );
+
+    expect(state).toMatchObject({ ok: true });
+    await expect(
+      prisma.user.findUnique({ where: { id: stray.user.id } })
+    ).resolves.toBeNull();
+    await expect(
+      prisma.user.findUnique({ where: { email: "empty@test.invalid" } })
+    ).resolves.toMatchObject({ id: pupil.userId });
+  });
+
+  it("refuses an ACTIVE account that is still enrolled somewhere", async () => {
+    const { prog, pupil } = await setup();
+    const stray = await stub("enrolled@test.invalid", prog.id, USER_STATUS.ACTIVE);
+
+    const state = await setStudentEmail(
+      null,
+      form({ studentProfileId: pupil.id, email: "enrolled@test.invalid" })
+    );
+
+    expect(state).toMatchObject({ ok: false });
+    await expect(
+      prisma.user.findUnique({ where: { id: stray.user.id } })
+    ).resolves.not.toBeNull();
   });
 
   it("refuses an address a real account already holds", async () => {

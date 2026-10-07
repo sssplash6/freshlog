@@ -9,9 +9,14 @@ import type { Prisma, User } from "@/generated/prisma/client";
  * nothing else. It is the usual reason a sign-in email change finds its new
  * address TAKEN — the person already tried it — and it appears on no roster
  * an admin could remove it from. A stub like that is absorbed by the change
- * rather than blocking it. An account that was approved or holds anything — a
- * session, an allocation — is a real one and refuses: merging two real records
- * is a decision nobody has asked an email field for.
+ * rather than blocking it. An account that holds anything — a session, an
+ * allocation — is a real one and refuses: merging two real records is a
+ * decision nobody has asked an email field for.
+ *
+ * "Never approved" is not the test, because an account can be ACTIVE and still
+ * empty: a student whose enrollment was removed, or who was approved and never
+ * given time, sits in no program with nothing logged. Nobody administers them
+ * and no roster lists them, so there is no one else to ask about removing them.
  */
 async function loadHolder(email: string) {
   return prisma.user.findUnique({
@@ -41,12 +46,15 @@ export async function claimEmail(
   const taken = await loadHolder(email);
   if (!taken || taken.id === ownerId) return { stub: null };
 
-  // PENDING is enough to say self-made: staff-registered students are ACTIVE
-  // from the moment `createStudents` writes them.
+  // PENDING says self-made: staff-registered students are ACTIVE from the
+  // moment `createStudents` writes them, with a program. An ACTIVE account in
+  // no program at all is just as empty, so that qualifies too.
   const profile = taken.studentProfile;
+  const selfMade =
+    taken.status === USER_STATUS.PENDING || (profile?.enrollments.length ?? 0) === 0;
   const absorbable =
     taken.role === ROLES.STUDENT &&
-    taken.status === USER_STATUS.PENDING &&
+    selfMade &&
     (profile?._count.sessions ?? 0) === 0 &&
     (profile?._count.hourAllocations ?? 0) === 0;
   if (!absorbable) return { error: `${email} already has an account.` };
