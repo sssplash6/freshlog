@@ -417,6 +417,10 @@ export default async function StudentHomePage({
         // thing to read before the one number.
         eyebrow={`Hi, ${first}`}
         title={<Balance hours={hours} />}
+        // The one big button on the page, in the corner under the profile
+        // picture (October 2026, at the owner's ask) — half the width it was
+        // when it ran the full column under the greeting.
+        actions={<ReportMentorButton />}
         subtitle={
           <span className="flex flex-col items-start gap-1">
             {useBy && (
@@ -445,9 +449,6 @@ export default async function StudentHomePage({
           </span>
         }
       />
-
-      {/* The one big button on the page, straight under the greeting. */}
-      <ReportMentorButton />
 
       {/* Account truth, between the balance and the work: a chip, and the
           sentence that goes with it, most urgent first. */}

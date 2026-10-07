@@ -3,8 +3,8 @@ import Link from "next/link";
 import { FlagIcon } from "@/components/icons";
 
 /**
- * The way to tell the school about a mentor, as the biggest thing under the
- * greeting.
+ * The way to tell the school about a mentor, as the biggest thing on Home —
+ * in the top-right, under the profile picture, half a column wide from `sm` up.
  *
  * It used to be a "Feedback" tab at the end of the bottom bar: a word that did
  * not say what it was for, among three that did, and a star icon on a page that
@@ -19,7 +19,7 @@ export function ReportMentorButton() {
     <Link
       href="/student/feedback"
       transitionTypes={["nav-forward"]}
-      className="press sheen flex h-14 w-full items-center justify-center gap-2.5 rounded-xl bg-brand text-title font-semibold text-on-brand shadow-lg transition-colors hover:bg-brand-dark"
+      className="press sheen flex h-14 w-full items-center justify-center gap-2.5 sm:w-80 rounded-xl bg-brand text-title font-semibold text-on-brand shadow-lg transition-colors hover:bg-brand-dark"
     >
       <FlagIcon className="h-5 w-5" />
       Report a mentor
