@@ -56,3 +56,6 @@ __pycache__/
 prisma/test.db*
 .playwright-mcp/
 prisma/*.db.pre-migrate-*
+
+# Daily backups the db-backup cron writes beside the database (dev runs only)
+/prisma/backups/

@@ -111,6 +111,29 @@ services:
           name: freshform
           envVarKey: CRON_SECRET
 
+  # Daily copy of the database onto the same disk (kept 30 days) — see
+  # src/lib/db-backup.ts and scripts/restore-backup.mjs. Same arrangement as
+  # the jobs around it: the cron calls the web service, which owns the disk.
+  # 02:00 UTC = 07:00 in Tashkent, before the working day.
+  - type: cron
+    name: freshform-db-backup
+    runtime: node
+    plan: starter
+    schedule: "0 2 * * *"
+    buildCommand: "true"
+    startCommand: >-
+      curl -fsSL --retry 3 --retry-delay 10
+      -H "Authorization: Bearer $CRON_SECRET"
+      "$APP_URL/api/cron/db-backup"
+    envVars:
+      - key: APP_URL
+        value: "https://www.freshlog.net"
+      - key: CRON_SECRET
+        fromService:
+          type: web
+          name: freshform
+          envVarKey: CRON_SECRET
+
   # The weekly hours email: what each person redeemed last week, what is still
   # theirs to redeem, and when it expires. Same arrangement as the reminders
   # above — the cron calls the web service, which owns the SQLite disk.
