@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-08
+
+### Fixed
+- **Roomier tabs above the admin Programs table.** The All / Over capacity tabs no longer crowd the card edge and the table heading.
+
 ## 2026-10-07
 
 ### New

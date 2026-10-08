@@ -345,14 +345,19 @@ export default async function AdminHomePage({
           {/* The outliers, one click away. Only offered when there are some:
               a filter that can only ever show the same table is furniture. */}
           {overCount > 0 && (
-            <TabLinks
-              label="Programs shown"
-              className="mx-1 mb-2"
-              items={[
-                { href: "/admin", label: "All" },
-                { href: "/admin?show=over", label: "Over capacity", count: overCount },
-              ]}
-            />
+            // Its own band, on the table's own side padding (`px-4`, `sm:px-6`
+            // — see `Td`), so the tabs line up with the first column's name
+            // and have air above and below instead of hugging the card edge
+            // and the heading row.
+            <div className="px-4 pb-4 pt-4 sm:px-6">
+              <TabLinks
+                label="Programs shown"
+                items={[
+                  { href: "/admin", label: "All" },
+                  { href: "/admin?show=over", label: "Over capacity", count: overCount },
+                ]}
+              />
+            </div>
           )}
           <Table columns={columns} framed={false}>
             {rows.map((p) => (
