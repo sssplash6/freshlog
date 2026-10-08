@@ -28,11 +28,15 @@ export const metadata: Metadata = { title: "Mentor tasks" };
  */
 export default async function ProgramMentorTasksPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ new?: string }>;
 }) {
   const { id } = await params;
   const viewer = await requireProgramScope(id);
+  // Arrived from the header's "Set a mentor task": the form starts open.
+  const startOpen = (await searchParams).new === "1";
 
   const [canWrite, team, tasks, enrollments] = await Promise.all([
     canManageProgram(viewer, id),
@@ -61,7 +65,13 @@ export default async function ProgramMentorTasksPage({
       <Section title="Open" count={open.length || undefined}>
         {canWrite && (
           <div className="border-b border-line">
-            <SetMentorTaskForm programId={id} team={team} students={students} />
+            <SetMentorTaskForm
+              key={startOpen ? "open" : "closed"}
+              programId={id}
+              team={team}
+              students={students}
+              defaultOpen={startOpen}
+            />
           </div>
         )}
         {open.length === 0 ? (

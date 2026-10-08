@@ -108,6 +108,14 @@ export default async function ProgramLayout({
             >
               {program.classHours ? "Log an hour for a group" : "Log a session"}
             </LinkButton>
+            {/* Opens the Mentor tasks tab with its form already unfolded. */}
+            <LinkButton
+              href={`${base}/tasks?new=1`}
+              variant="secondary"
+              size="md"
+            >
+              Set a mentor task
+            </LinkButton>
             {/* One primary, and LAST — the right-hand end, where the student
                 page puts its own. The two pages had the same pair in opposite
                 orders. Granting time is what a program admin opens this page

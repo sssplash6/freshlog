@@ -49,13 +49,16 @@ export function SetMentorTaskForm({
   programId,
   team,
   students,
+  defaultOpen = false,
 }: {
   programId: string;
   team: Person[];
   students: StudentOption[];
+  /** Start unfolded — the header's "Set a mentor task" lands here. */
+  defaultOpen?: boolean;
 }) {
   const [state, action, save] = useSaveState(setMentorTask);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen && team.length > 0);
   const [mentors, setMentors] = useState<string[]>([]);
   const [picked, setPicked] = useState<string[]>([]);
   const [query, setQuery] = useState("");
