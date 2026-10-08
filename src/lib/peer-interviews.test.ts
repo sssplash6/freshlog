@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   areClassmates,
+  feedbackEditable,
   feedbackVisibleTo,
   formatSlotSpan,
   guideOpen,
@@ -95,6 +96,12 @@ describe("interviewPhase", () => {
   it("is completed once somebody says so", () => {
     expect(interviewPhase({ completedAt: NOW, slot }, NOW)).toBe("completed");
   });
+
+  it("is absent once a student is marked absent", () => {
+    expect(
+      interviewPhase({ completedAt: null, absentId: "s1", slot }, new Date("2026-09-03T13:05:00Z"))
+    ).toBe("absent");
+  });
 });
 
 describe("formatSlotSpan", () => {
@@ -160,6 +167,23 @@ describe("guideOpen", () => {
     expect(guideOpen({ startsAt: at("2026-09-03T18:00") }, null, NOW)).toBe(false);
     expect(guideOpen(slot, null, NOW)).toBe(true);
     expect(guideOpen(slot, NOW, NOW)).toBe(false);
+    expect(guideOpen(slot, null, NOW, "s1")).toBe(false);
+  });
+});
+
+describe("feedbackEditable", () => {
+  // 16:00 for 30 minutes: ends 16:30, editable until 17:00 Tashkent — which is NOW.
+  const slot = { startsAt: at("2026-09-03T16:00"), minutes: 30 };
+  const sent = at("2026-09-03T16:20");
+
+  it("is open from sending until 30 minutes past the scheduled end", () => {
+    expect(feedbackEditable({ ...slot, minutes: 31 }, sent, NOW)).toBe(true);
+    expect(feedbackEditable(slot, sent, NOW)).toBe(false);
+  });
+
+  it("is never open for unsent feedback or an absent interview", () => {
+    expect(feedbackEditable({ ...slot, minutes: 60 }, null, NOW)).toBe(false);
+    expect(feedbackEditable({ ...slot, minutes: 60 }, sent, NOW, "s1")).toBe(false);
   });
 });
 

@@ -28,7 +28,9 @@ const {
   addInterviewSlot,
   bookInterview,
   cancelInterview,
+  editInterviewFeedback,
   markInterviewDone,
+  markPartnerAbsent,
   removeInterviewSlot,
   saveInterviewAnswer,
   saveInterviewFeedback,
@@ -306,6 +308,66 @@ describe("after booking", () => {
     expect(second.completedAt).toEqual(first.completedAt);
   });
 
+  it("lets the student who joined mark the other absent, and tells them", async () => {
+    const { host, guest, interview } = await heldScene();
+    as(host);
+
+    const result = await markPartnerAbsent(null, form({ interviewId: interview.id }));
+
+    expect(result).toMatchObject({ ok: true });
+    const after = await prisma.peerInterview.findUniqueOrThrow({ where: { id: interview.id } });
+    expect(after.absentId).toBe(guest.id);
+    expect(after.completedAt).toBeNull();
+    const notice = await prisma.notification.findFirstOrThrow({
+      where: { type: "PEER_INTERVIEW_ABSENT" },
+    });
+    expect(notice.userId).toBe(guest.userId);
+  });
+
+  it("cannot mark absent before it starts", async () => {
+    const { guest, slot } = await scene();
+    as(guest);
+    await book(slot.id);
+    const upcoming = await prisma.peerInterview.findUniqueOrThrow({ where: { slotId: slot.id } });
+
+    expect(await markPartnerAbsent(null, form({ interviewId: upcoming.id }))).toMatchObject({
+      ok: false,
+    });
+  });
+
+  it("cannot mark absent once it is done", async () => {
+    const { host, interview } = await heldScene();
+    as(host);
+    await markInterviewDone(null, form({ interviewId: interview.id }));
+    expect(await markPartnerAbsent(null, form({ interviewId: interview.id }))).toMatchObject({
+      ok: false,
+    });
+    const after = await prisma.peerInterview.findUniqueOrThrow({ where: { id: interview.id } });
+    expect(after.absentId).toBeNull();
+  });
+
+  it("closes an absent interview: no mark done, no second mark, no cancel", async () => {
+    const { host, guest, interview } = await heldScene();
+    as(host);
+    await markPartnerAbsent(null, form({ interviewId: interview.id }));
+
+    // The absent student cannot turn it around by marking it done or marking
+    // the host absent in return.
+    as(guest);
+    expect(await markInterviewDone(null, form({ interviewId: interview.id }))).toMatchObject({
+      ok: false,
+    });
+    expect(await markPartnerAbsent(null, form({ interviewId: interview.id }))).toMatchObject({
+      ok: false,
+    });
+    expect(await cancelInterview(null, form({ interviewId: interview.id }))).toMatchObject({
+      ok: false,
+    });
+    const after = await prisma.peerInterview.findUniqueOrThrow({ where: { id: interview.id } });
+    expect(after.absentId).toBe(guest.id);
+    expect(after.completedAt).toBeNull();
+  });
+
   it("keeps each student's notes on their own side", async () => {
     const { host, guest, interview } = await heldScene();
     as(guest);
@@ -359,10 +421,10 @@ describe("after booking", () => {
 
 describe("the guide", () => {
   /** An interview that started two hours ago, template Session 1. */
-  async function liveScene() {
+  async function liveScene(startsAt = wallHoursFromNow(-2)) {
     const s = await scene();
     const past = await prisma.interviewSlot.create({
-      data: { studentId: s.host.id, startsAt: wallHoursFromNow(-2), minutes: 45 },
+      data: { studentId: s.host.id, startsAt, minutes: 45 },
     });
     const interview = await prisma.peerInterview.create({
       data: { slotId: past.id, hostId: s.host.id, guestId: s.guest.id, template: "freshman-session-1" },
@@ -491,5 +553,65 @@ describe("the guide", () => {
     });
     expect(fb.submittedAt).not.toBeNull();
     expect(await prisma.notification.count({ where: { type: "PEER_INTERVIEW_CANCELLED" } })).toBe(0);
+  });
+
+  /** Started 20 minutes ago on the program's clock: well inside the edit window. */
+  const justStarted = () => new Date(programWallClock(new Date()).getTime() - HOUR / 3);
+  const edit = (interviewId: string, fields: Record<string, string>) =>
+    editInterviewFeedback(null, form({ interviewId, ...fields }));
+
+  it("lets the author correct sent feedback until 30 minutes after the end, without a second notice", async () => {
+    const { guest, interview } = await liveScene(justStarted());
+    as(guest);
+    await submitInterviewFeedback(null, form({ interviewId: interview.id, ...FULL }));
+    const sent = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.id } });
+    await prisma.notification.deleteMany();
+
+    expect(await edit(interview.id, { ...FULL, toImprove: "Slow down, and pause." })).toMatchObject({ ok: true });
+
+    const after = await prisma.interviewFeedback.findUniqueOrThrow({ where: { id: sent.id } });
+    expect(after.toImprove).toBe("Slow down, and pause.");
+    expect(after.submittedAt).toEqual(sent.submittedAt);
+    expect(await prisma.notification.count()).toBe(0);
+    // The guide stays closed: only the sent feedback reopens.
+    expect(await answer(interview.id, "0", "late")).toMatchObject({ ok: false });
+  });
+
+  it("refuses an edit with a box emptied", async () => {
+    const { guest, interview } = await liveScene(justStarted());
+    as(guest);
+    await submitInterviewFeedback(null, form({ interviewId: interview.id, ...FULL }));
+
+    expect(await edit(interview.id, { ...FULL, wentWell: "  " })).toMatchObject({ ok: false });
+    const fb = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.id } });
+    expect(fb.wentWell).toBe(FULL.wentWell);
+  });
+
+  it("refuses an edit once the window has closed", async () => {
+    // Started two hours ago for 45 minutes: ended over an hour ago.
+    const { guest, interview } = await liveScene();
+    as(guest);
+    await submitInterviewFeedback(null, form({ interviewId: interview.id, ...FULL }));
+
+    expect(await edit(interview.id, { ...FULL, summary: "changed" })).toMatchObject({ ok: false });
+    const fb = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.id } });
+    expect(fb.summary).toBe(FULL.summary);
+  });
+
+  it("refuses to edit a draft, or another student's feedback", async () => {
+    const { p, host, guest, interview } = await liveScene(justStarted());
+    as(guest);
+    await saveInterviewFeedback(null, form({ interviewId: interview.id, summary: "draft" }));
+    expect(await edit(interview.id, FULL)).toMatchObject({ ok: false });
+    const draft = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.id } });
+    expect(draft.submittedAt).toBeNull();
+
+    await submitInterviewFeedback(null, form({ interviewId: interview.id, ...FULL }));
+    as(host);
+    expect(await edit(interview.id, { ...FULL, summary: "host rewrote it" })).toMatchObject({ ok: false });
+    as(await student({ programId: p.id }));
+    expect(await edit(interview.id, FULL)).toEqual({ ok: false, error: "That interview isn't one of yours." });
+    const fb = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.id } });
+    expect(fb.summary).toBe(FULL.summary);
   });
 });

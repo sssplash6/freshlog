@@ -9,8 +9,10 @@ import { getCurrentUser } from "@/lib/dal";
 import { templateById } from "@/lib/interview-templates";
 import { notify } from "@/lib/notify";
 import {
+  FEEDBACK_EDIT_MINUTES,
   NOTES_MAX,
   areClassmates,
+  feedbackEditable,
   formatSlotWhen,
   guideOpen,
   hasStarted,
@@ -231,6 +233,7 @@ async function myInterview(studentId: string, interviewId: string) {
       hostId: true,
       guestId: true,
       completedAt: true,
+      absentId: true,
       template: true,
       slot: { select: { startsAt: true, minutes: true } },
       host: { select: { user: { select: { id: true, name: true } } } },
@@ -245,6 +248,11 @@ async function myInterview(studentId: string, interviewId: string) {
 const NOT_YOURS: ActionState = {
   ok: false,
   error: "That interview isn't one of yours.",
+};
+
+const ALREADY_ABSENT: ActionState = {
+  ok: false,
+  error: "Your partner was marked absent, so this interview is closed.",
 };
 
 /**
@@ -263,6 +271,7 @@ export async function cancelInterview(
   if (interview.completedAt) {
     return { ok: false, error: "This interview is already marked done." };
   }
+  if (interview.absentId) return ALREADY_ABSENT;
 
   const other = side === "host" ? interview.guest.user.id : interview.host.user.id;
   // Scoped to "still not completed" in the delete itself: the partner may have
@@ -270,7 +279,7 @@ export async function cancelInterview(
   // above and here, and that submission must not be cascaded away.
   const cancelled = await prisma.$transaction(async (tx) => {
     const { count } = await tx.peerInterview.deleteMany({
-      where: { id: interview.id, completedAt: null },
+      where: { id: interview.id, completedAt: null, absentId: null },
     });
     if (count === 0) return false;
     await notify(tx, {
@@ -283,7 +292,7 @@ export async function cancelInterview(
     return true;
   });
   if (!cancelled) {
-    return { ok: false, error: "This interview is already marked done." };
+    return { ok: false, error: "This interview is already closed." };
   }
 
   // The interview's own page is gone with the row.
@@ -304,16 +313,70 @@ export async function markInterviewDone(
   if (!hasStarted(interview.slot.startsAt, new Date())) {
     return { ok: false, error: "You can mark it done once the interview has started." };
   }
+  if (interview.absentId) return ALREADY_ABSENT;
 
   // `completedAt: null` in the filter: the other student may have got there
-  // first, and the first moment is the one kept.
+  // first, and the first moment is the one kept. `absentId: null` keeps the two
+  // outcomes apart if a partner marked absence in the meantime.
   await prisma.peerInterview.updateMany({
-    where: { id: interview.id, completedAt: null },
+    where: { id: interview.id, completedAt: null, absentId: null },
     data: { completedAt: new Date() },
   });
 
   revalidatePath(INTERVIEWS, "layout");
   return { ok: true, message: "Marked as completed." };
+}
+
+/**
+ * Say the partner did not join. Once the interview has started and neither
+ * student has called it done, either one may name the other absent — never
+ * themself. It closes the interview for both without completing it, and the
+ * absent student is told.
+ */
+export async function markPartnerAbsent(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const me = await activeStudent();
+  if (!me) return NOT_A_STUDENT;
+  const found = await myInterview(me.profile.id, String(formData.get("interviewId") ?? ""));
+  if (!found) return NOT_YOURS;
+  const { interview, side } = found;
+  if (!hasStarted(interview.slot.startsAt, new Date())) {
+    return { ok: false, error: "You can mark your partner absent once the interview has started." };
+  }
+  if (interview.completedAt) {
+    return { ok: false, error: "This interview is already marked done." };
+  }
+  if (interview.absentId) return ALREADY_ABSENT;
+
+  const absent = side === "host" ? interview.guest : interview.host;
+  const absentId = side === "host" ? interview.guestId : interview.hostId;
+
+  // Scoped to "still open" in the write itself: the partner may have marked it
+  // done, or marked you absent, between the read above and here, and whichever
+  // landed first is the outcome.
+  const marked = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.peerInterview.updateMany({
+      where: { id: interview.id, completedAt: null, absentId: null },
+      data: { absentId },
+    });
+    if (count === 0) return false;
+    await notify(tx, {
+      to: [absent.user.id],
+      type: NOTIFICATION_TYPES.PEER_INTERVIEW_ABSENT,
+      message: `${me.user.name ?? "Your classmate"} marked you absent from the practice interview on ${formatSlotWhen(interview.slot.startsAt)}.`,
+      href: `${INTERVIEWS}/${interview.id}`,
+      actorId: me.user.id,
+    });
+    return true;
+  });
+  if (!marked) {
+    return { ok: false, error: "This interview was just closed. Reload to see how." };
+  }
+
+  revalidatePath(INTERVIEWS, "layout");
+  return { ok: true, message: `Marked ${absent.user.name ?? "your partner"} absent.` };
 }
 
 /** Save this student's own notes. The other student never reads them. */
@@ -377,7 +440,7 @@ export async function saveInterviewAnswer(
   const { interview } = found;
 
   const mine = await myFeedback(interview.id, me.profile.id);
-  if (!guideOpen(interview.slot, mine?.submittedAt ?? null, new Date())) return GUIDE_CLOSED;
+  if (!guideOpen(interview.slot, mine?.submittedAt ?? null, new Date(), interview.absentId)) return GUIDE_CLOSED;
 
   const rawIndex = String(formData.get("questionIndex") ?? "");
   const notAQuestion: ActionState = { ok: false, error: "That question isn't in this interview." };
@@ -432,7 +495,7 @@ export async function saveInterviewFeedback(
   const { interview } = found;
 
   const mine = await myFeedback(interview.id, me.profile.id);
-  if (!guideOpen(interview.slot, mine?.submittedAt ?? null, new Date())) return GUIDE_CLOSED;
+  if (!guideOpen(interview.slot, mine?.submittedAt ?? null, new Date(), interview.absentId)) return GUIDE_CLOSED;
 
   const read = readFeedback(formData);
   if ("error" in read) return { ok: false, error: read.error };
@@ -472,7 +535,7 @@ export async function submitInterviewFeedback(
   const { interview, side } = found;
 
   const mine = await myFeedback(interview.id, me.profile.id);
-  if (!guideOpen(interview.slot, mine?.submittedAt ?? null, new Date())) return GUIDE_CLOSED;
+  if (!guideOpen(interview.slot, mine?.submittedAt ?? null, new Date(), interview.absentId)) return GUIDE_CLOSED;
 
   const read = readFeedback(formData);
   if ("error" in read) return { ok: false, error: read.error };
@@ -512,4 +575,46 @@ export async function submitInterviewFeedback(
 
   revalidatePath(INTERVIEWS, "layout");
   return { ok: true, message: "Feedback sent." };
+}
+
+/**
+ * Change feedback already sent, while the edit window is open — until
+ * FEEDBACK_EDIT_MINUTES after the interview's scheduled end. The partner reads
+ * the new wording in place; they were told once when it was sent, and are not
+ * told again for a correction.
+ */
+export async function editInterviewFeedback(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const me = await activeStudent();
+  if (!me) return NOT_A_STUDENT;
+  const found = await myInterview(me.profile.id, String(formData.get("interviewId") ?? ""));
+  if (!found) return NOT_YOURS;
+  const { interview } = found;
+
+  const closed: ActionState = {
+    ok: false,
+    error: `Feedback can be changed until ${FEEDBACK_EDIT_MINUTES} minutes after the interview ends.`,
+  };
+  const mine = await myFeedback(interview.id, me.profile.id);
+  if (!feedbackEditable(interview.slot, mine?.submittedAt ?? null, new Date(), interview.absentId)) {
+    return closed;
+  }
+
+  const read = readFeedback(formData);
+  if ("error" in read) return { ok: false, error: read.error };
+  if (!read.value.summary || !read.value.wentWell || !read.value.toImprove) {
+    return { ok: false, error: "Fill in all three boxes before you save.", values: read.value };
+  }
+
+  // Only a sent row: a draft is changed through the guide, never here.
+  const { count } = await prisma.interviewFeedback.updateMany({
+    where: { interviewId: interview.id, fromId: me.profile.id, submittedAt: { not: null } },
+    data: read.value,
+  });
+  if (count === 0) return closed;
+
+  revalidatePath(`${INTERVIEWS}/${interview.id}`);
+  return { ok: true, message: "Feedback updated." };
 }

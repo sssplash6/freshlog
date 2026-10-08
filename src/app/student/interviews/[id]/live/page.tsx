@@ -43,6 +43,7 @@ export default async function InterviewGuidePage({
       hostId: true,
       guestId: true,
       template: true,
+      absentId: true,
       slot: { select: { startsAt: true, meetingUrl: true } },
       host: { select: { user: { select: { name: true } } } },
       guest: { select: { user: { select: { name: true } } } },
@@ -60,7 +61,7 @@ export default async function InterviewGuidePage({
   if (!interview || !side) notFound();
 
   const mine = interview.feedback[0] ?? null;
-  if (mine?.submittedAt) redirect(`/student/interviews/${interview.id}`);
+  if (mine?.submittedAt || interview.absentId) redirect(`/student/interviews/${interview.id}`);
 
   const template = templateById(interview.template);
   const partner = (side === "host" ? interview.guest : interview.host).user.name ?? "your partner";

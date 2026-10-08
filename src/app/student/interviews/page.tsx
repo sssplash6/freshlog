@@ -66,6 +66,7 @@ export default async function StudentInterviewsPage() {
         guestId: true,
         template: true,
         completedAt: true,
+        absentId: true,
         slot: { select: { startsAt: true, minutes: true } },
         host: { select: { user: { select: { id: true, name: true, avatarUpdatedAt: true } } } },
         guest: { select: { user: { select: { id: true, name: true, avatarUpdatedAt: true } } } },
@@ -107,8 +108,8 @@ export default async function StudentInterviewsPage() {
         }),
   ]);
 
-  const open = interviews.filter((i) => !i.completedAt);
-  const completed = interviews.filter((i) => i.completedAt).reverse();
+  const open = interviews.filter((i) => !i.completedAt && !i.absentId);
+  const completed = interviews.filter((i) => i.completedAt || i.absentId).reverse();
 
   const named = classmates.filter((c) => c.user.name?.trim());
   const byName = (a: (typeof named)[number], b: (typeof named)[number]) =>
@@ -127,7 +128,8 @@ export default async function StudentInterviewsPage() {
     // the heading of the list a finished one sits in: only an interview that
     // needs marking is flagged.
     const phase = interviewPhase(i, now);
-    const chip = phase === "to-mark" ? status(PHASE_STATUS[phase], viewer) : null;
+    const chip =
+      phase === "to-mark" || phase === "absent" ? status(PHASE_STATUS[phase], viewer) : null;
     return (
       <li key={i.id} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
         <PersonCell

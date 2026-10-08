@@ -83,6 +83,7 @@ export type StatusType =
   | "INTERVIEW_BOOKED"
   | "INTERVIEW_TO_MARK"
   | "INTERVIEW_COMPLETED"
+  | "INTERVIEW_ABSENT"
   // A mentor's setup
   | "BOOKING_LINK_MISSING"
   | "MENTOR_UNASSIGNED"
@@ -173,6 +174,7 @@ export const GROUP_OF: Record<StatusType, StatusGroup> = {
   INTERVIEW_BOOKED: "SESSIONS",
   INTERVIEW_TO_MARK: "SESSIONS",
   INTERVIEW_COMPLETED: "SESSIONS",
+  INTERVIEW_ABSENT: "SESSIONS",
 
   // Something was never finished being wired up. None of it is urgent and all
   // of it blocks something else quietly.
@@ -643,6 +645,15 @@ const META: Record<StatusType, Meta> = {
     severity: "ok",
     voices: {
       student: { kind: "informational", label: () => "Completed" },
+    },
+  },
+
+  // The partner did not join and was marked absent. Closed, not a problem for
+  // the reader, who did turn up.
+  INTERVIEW_ABSENT: {
+    severity: "neutral",
+    voices: {
+      student: { kind: "informational", label: () => "Absent" },
     },
   },
 

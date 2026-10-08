@@ -925,6 +925,11 @@ model InterviewSlot {
 // one column, as `StudentTask.completedAt` is, because two would let them
 // disagree. Either student may set it.
 //
+// Absent is `absentId`: the student who did not join, named by the one who did.
+// It is a student id rather than a flag per side so that only one of the two can
+// ever be absent. An absent interview is closed but not completed — there is
+// nothing to write notes about — and the actions refuse to do both.
+//
 // Notes are per side and private to their writer: what one student thought of
 // the other's answers is theirs to keep, not something the other reads.
 model PeerInterview {
@@ -937,6 +942,8 @@ model PeerInterview {
   // product; students choose one and never write their own.
   template    String
   completedAt DateTime?
+  // The student marked absent by their partner — hostId or guestId — or null.
+  absentId    String?
   hostNotes   String?
   guestNotes  String?
   createdAt   DateTime  @default(now())
@@ -974,8 +981,9 @@ model InterviewAnswer {
 }
 
 // What one student says about their partner's answers. A draft is its author's
-// alone; `submittedAt` is the moment it becomes the partner's to read, and
-// after it the row does not change.
+// alone; `submittedAt` is the moment it becomes the partner's to read. After it
+// the author may still correct the wording until 30 minutes past the slot's end
+// (FEEDBACK_EDIT_MINUTES), and then the row does not change.
 model InterviewFeedback {
   id          String    @id @default(cuid())
   interviewId String

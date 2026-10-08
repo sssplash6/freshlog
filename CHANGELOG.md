@@ -8,6 +8,8 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ### New
 - **Set tasks for a program's mentors.** From the new Set a mentor task button on a program, admins can set a task with a deadline for every mentor in it or the ones they pick, and attach the students it is about. Mentors see it on Home and tick it Done.
+- **Fix feedback after you send it.** You can edit practice-interview feedback you sent until 30 minutes after the interview ends.
+- **Mark a partner absent.** If your practice-interview partner never joins, tap Mark absent once it has started. The interview closes without notes and they are told.
 - **A "Mark incomplete" button on finished tasks.** A task marked Done now has a clear button to say it is not complete after all, in place of the small link.
 - **Mentors can read a student's practice interviews.** A mentor who has worked with a student sees their interviews on the student's page, with their answers, notes and the feedback sent each way.
 

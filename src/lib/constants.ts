@@ -362,6 +362,7 @@ export const NOTIFICATION_TYPES = {
   BUG_FIXED: "BUG_FIXED", // to the reporter: their report was fixed
   BUG_CLOSED: "BUG_CLOSED", // to the reporter: their report was closed, with a note
   PEER_INTERVIEW_CANCELLED: "PEER_INTERVIEW_CANCELLED", // to the other student: a practice interview is off
+  PEER_INTERVIEW_ABSENT: "PEER_INTERVIEW_ABSENT", // to the other student: their partner marked them absent from a practice interview
   PEER_INTERVIEW_FEEDBACK: "PEER_INTERVIEW_FEEDBACK", // to the other student: their partner sent feedback on a practice interview
   WEEKLY_SUMMARY: "WEEKLY_SUMMARY", // to everyone who wants it: the Monday digest, in the feed too
 } as const;
@@ -474,6 +475,7 @@ export const CATEGORY_OF: Record<NotificationType, NotificationCategory> = {
   BUG_FIXED: "ACCOUNTS",
   BUG_CLOSED: "ACCOUNTS",
   PEER_INTERVIEW_CANCELLED: "SESSIONS",
+  PEER_INTERVIEW_ABSENT: "SESSIONS",
   PEER_INTERVIEW_FEEDBACK: "SESSIONS",
   WEEKLY_SUMMARY: "ACCOUNTS",
 };
@@ -522,6 +524,7 @@ export const NOTIFICATION_META: Record<
   BUG_FIXED: { label: "Bug fixed", tone: "success" },
   BUG_CLOSED: { label: "Bug closed", tone: "warning" },
   PEER_INTERVIEW_CANCELLED: { label: "Interview cancelled", tone: "warning" },
+  PEER_INTERVIEW_ABSENT: { label: "Marked absent", tone: "warning" },
   PEER_INTERVIEW_FEEDBACK: { label: "Interview feedback", tone: "brand" },
   WEEKLY_SUMMARY: { label: "Weekly summary", tone: "plan" },
 };

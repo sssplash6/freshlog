@@ -133,14 +133,15 @@ export function sideOf(
   return null;
 }
 
-export type InterviewPhase = "booked" | "to-mark" | "completed";
+export type InterviewPhase = "booked" | "to-mark" | "completed" | "absent";
 
 /** Where an interview stands, for the chip and for which controls it offers. */
 export function interviewPhase(
-  interview: { completedAt: Date | null; slot: Timed },
+  interview: { completedAt: Date | null; absentId?: string | null; slot: Timed },
   now: Date
 ): InterviewPhase {
   if (interview.completedAt) return "completed";
+  if (interview.absentId) return "absent";
   return hasStarted(interview.slot.startsAt, now) ? "to-mark" : "booked";
 }
 
@@ -149,6 +150,7 @@ export const PHASE_STATUS: Record<InterviewPhase, StatusType> = {
   booked: "INTERVIEW_BOOKED",
   "to-mark": "INTERVIEW_TO_MARK",
   completed: "INTERVIEW_COMPLETED",
+  absent: "INTERVIEW_ABSENT",
 };
 
 /** Long enough for any meeting link with its query string. */
@@ -200,7 +202,35 @@ export function feedbackVisibleTo(
 export function guideOpen(
   slot: { startsAt: Date },
   mySubmittedAt: Date | null,
-  now: Date
+  now: Date,
+  absentId: string | null = null
 ): boolean {
-  return mySubmittedAt === null && hasStarted(slot.startsAt, now);
+  return absentId === null && mySubmittedAt === null && hasStarted(slot.startsAt, now);
+}
+
+/** How long after an interview's end its feedback can still be corrected. */
+export const FEEDBACK_EDIT_MINUTES = 30;
+
+/** The moment sent feedback stops changing: the slot's end plus the grace. */
+export function feedbackEditableUntil(slot: Timed): Date {
+  return new Date(slot.startsAt.getTime() + (slot.minutes + FEEDBACK_EDIT_MINUTES) * MINUTE);
+}
+
+/**
+ * Whether this student may still change feedback they have already sent:
+ * until FEEDBACK_EDIT_MINUTES after the interview's scheduled end. A typo or a
+ * second thought said in the call can be fixed; a judgement read days later
+ * cannot be rewritten under the partner.
+ */
+export function feedbackEditable(
+  slot: Timed,
+  mySubmittedAt: Date | null,
+  now: Date,
+  absentId: string | null = null
+): boolean {
+  return (
+    absentId === null &&
+    mySubmittedAt !== null &&
+    programWallClock(now).getTime() < feedbackEditableUntil(slot).getTime()
+  );
 }

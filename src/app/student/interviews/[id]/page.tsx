@@ -2,7 +2,9 @@ import { notFound, redirect } from "next/navigation";
 
 import {
   CancelInterviewButton,
+  EditFeedbackForm,
   InterviewNotesForm,
+  MarkAbsentButton,
   MarkDoneButton,
 } from "@/components/forms/interview-forms";
 import { PersonChip } from "@/components/person-chip";
@@ -17,6 +19,8 @@ import { formatDate } from "@/lib/format";
 import { templateById } from "@/lib/interview-templates";
 import {
   PHASE_STATUS,
+  feedbackEditable,
+  feedbackEditableUntil,
   feedbackVisibleTo,
   formatSlotSpan,
   formatSlotWhen,
@@ -26,6 +30,7 @@ import {
 } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
 import { status, type ViewerContext } from "@/lib/status";
+import { formatTimeOfDay } from "@/lib/when";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Interview" };
@@ -61,6 +66,7 @@ export default async function InterviewPage({
       guestId: true,
       template: true,
       completedAt: true,
+      absentId: true,
       hostNotes: true,
       guestNotes: true,
       slot: { select: { startsAt: true, minutes: true, meetingUrl: true } },
@@ -92,7 +98,8 @@ export default async function InterviewPage({
   const theirs = interview.feedback.find(
     (f) => f.fromId !== me.id && feedbackVisibleTo(f, me.id)
   ) ?? null;
-  const canGuide = guideOpen(interview.slot, myFeedback?.submittedAt ?? null, now);
+  const canGuide = guideOpen(interview.slot, myFeedback?.submittedAt ?? null, now, interview.absentId);
+  const canEditFeedback = feedbackEditable(interview.slot, myFeedback?.submittedAt ?? null, now, interview.absentId);
 
   return (
     <div className="space-y-4">
@@ -156,6 +163,20 @@ export default async function InterviewPage({
         </Section>
       )}
 
+      {canEditFeedback && myFeedback && (
+        <Section title={`Your feedback to ${other.name ?? "your partner"}`} caption="Sent. Fix anything you missed while the interview is fresh.">
+          <EditFeedbackForm
+            interviewId={interview.id}
+            saved={{
+              summary: myFeedback.summary ?? "",
+              wentWell: myFeedback.wentWell ?? "",
+              toImprove: myFeedback.toImprove ?? "",
+            }}
+            until={formatTimeOfDay(feedbackEditableUntil(interview.slot), true) ?? ""}
+          />
+        </Section>
+      )}
+
       {phase === "completed" || myFeedback?.submittedAt ? (
         <Section title={`Feedback from ${other.name ?? "your partner"}`}>
           {theirs?.submittedAt ? (
@@ -172,7 +193,15 @@ export default async function InterviewPage({
         </Section>
       ) : null}
 
-      {phase === "completed" ? (
+      {phase === "absent" ? (
+        <Section title="Marked absent">
+          <EmptyState framed={false} title={interview.absentId === me.id ? "You were marked absent" : `${other.name ?? "Your partner"} was marked absent`}>
+            {interview.absentId === me.id
+              ? `${other.name ?? "Your partner"} said you didn't join this interview, so it is closed.`
+              : "You said they didn't join this interview, so it is closed."}
+          </EmptyState>
+        </Section>
+      ) : phase === "completed" ? (
         <Section
           title="Notes"
           caption={interview.completedAt ? `Completed ${formatDate(interview.completedAt)}` : undefined}
@@ -186,6 +215,9 @@ export default async function InterviewPage({
       ) : (
         <div className="flex flex-wrap items-center gap-3">
           {phase === "to-mark" && <MarkDoneButton interviewId={interview.id} />}
+          {phase === "to-mark" && (
+            <MarkAbsentButton interviewId={interview.id} partner={other.name ?? "your partner"} />
+          )}
           <CancelInterviewButton interviewId={interview.id} />
         </div>
       )}

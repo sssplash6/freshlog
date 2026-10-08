@@ -13,12 +13,14 @@ import {
   addInterviewSlot,
   bookInterview,
   cancelInterview,
+  editInterviewFeedback,
   markInterviewDone,
+  markPartnerAbsent,
   removeInterviewSlot,
   saveInterviewNotes,
 } from "@/lib/actions/interviews";
 import { cn } from "@/lib/cn";
-import type { InterviewTemplate } from "@/lib/interview-templates";
+import { FEEDBACK_PROMPTS, type InterviewTemplate } from "@/lib/interview-templates";
 import { MEETING_URL_MAX, NOTES_MAX, SLOT_LENGTHS } from "@/lib/peer-interviews";
 
 /**
@@ -242,6 +244,32 @@ export function MarkDoneButton({ interviewId }: { interviewId: string }) {
   );
 }
 
+/** The partner never joined. Closes the interview for both without completing it. */
+export function MarkAbsentButton({
+  interviewId,
+  partner,
+}: {
+  interviewId: string;
+  partner: string;
+}) {
+  const [, action, save] = useSaveState(markPartnerAbsent);
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <ConfirmInline
+        label="Mark absent"
+        question={`Mark ${partner} absent? The interview closes without notes, and ${partner} is told.`}
+        confirmLabel="Yes, they didn't join"
+        cancelLabel="Keep it open"
+        pendingLabel="Saving…"
+        pending={save.kind === "saving"}
+        action={action}
+        values={{ interviewId }}
+      />
+      <SaveState state={save} />
+    </div>
+  );
+}
+
 /**
  * This student's own notes on the interview: typed, dictated, or both, and
  * edited before saving. Dictation appends — a second take adds to the first
@@ -284,6 +312,58 @@ export function InterviewNotesForm({
       <p className="text-xs text-muted-fg">Only you and your mentors can read these.</p>
       <div className="flex flex-wrap items-center gap-3">
         <SubmitButton pendingText="Saving…">Save notes</SubmitButton>
+        <SaveState state={save} />
+      </div>
+    </form>
+  );
+}
+
+type SentFeedback = { summary: string; wentWell: string; toImprove: string };
+
+/**
+ * Correct feedback already sent, while its edit window is open. The page stops
+ * rendering this once the window closes, and the action refuses after it too.
+ */
+export function EditFeedbackForm({
+  interviewId,
+  saved,
+  until,
+}: {
+  interviewId: string;
+  saved: SentFeedback;
+  /** "15:30 Tashkent (UTC+5)" — when the window closes. */
+  until: string;
+}) {
+  const [feedback, setFeedback] = useState(saved);
+  const unsaved = (Object.keys(saved) as (keyof SentFeedback)[]).some(
+    (key) => feedback[key].trim() !== saved[key].trim()
+  );
+  const [, action, save] = useSaveState(editInterviewFeedback, unsaved);
+  const boxes: { key: keyof SentFeedback; label: string }[] = [
+    { key: "summary", label: "Summary" },
+    { key: "wentWell", label: "What went well" },
+    { key: "toImprove", label: "What to improve" },
+  ];
+
+  return (
+    <form action={action} className="space-y-3 px-4 py-3 sm:px-5">
+      <input type="hidden" name="interviewId" value={interviewId} />
+      {boxes.map(({ key, label }) => (
+        <div key={key} className="space-y-1">
+          <p className="text-sm font-semibold text-ink">{label}</p>
+          <p className="text-xs text-muted-fg">{FEEDBACK_PROMPTS[key]}</p>
+          <GrowingField
+            name={key}
+            aria-label={label}
+            value={feedback[key]}
+            maxLength={NOTES_MAX}
+            onChange={(event) => setFeedback((was) => ({ ...was, [key]: event.target.value }))}
+          />
+        </div>
+      ))}
+      <p className="text-xs text-muted-fg">You can change this until {until}.</p>
+      <div className="flex flex-wrap items-center gap-3">
+        <SubmitButton pendingText="Saving…">Save changes</SubmitButton>
         <SaveState state={save} />
       </div>
     </form>
