@@ -158,16 +158,45 @@ export default async function LogSessionPage({
   const backStudent = draft.studentProfileId
     ? students.find((s) => s.profileId === draft.studentProfileId)
     : undefined;
+  // `?from=`, passed on from a student page opened through a program's
+  // roster, so the way back is still that page — whose Back is still the
+  // program. The student page checks it; this page only carries it.
+  const from = one("from");
+  const fromQuery = from ? `?from=${encodeURIComponent(from)}` : "";
+  // `?back=sessions`, from the Sessions list: Back returns to it, keeping the
+  // program it was filtered to.
+  const fromList = one("back") === "sessions";
+  const listHref = `/sessions${asked ? `?program=${encodeURIComponent(asked)}` : ""}`;
+  // "Log another" keeps where this form came from, so its Back is the same.
+  const againQuery = new URLSearchParams();
+  if (from) againQuery.set("from", from);
+  if (fromList) againQuery.set("back", "sessions");
+  if (asked) againQuery.set("program", asked);
+  const againHref = `/sessions/new${againQuery.size ? `?${againQuery}` : ""}`;
+  // Opened from a program's own page (`?program=`), an admin of it goes back
+  // there; it said "Home" and left them on their dashboard.
+  const backProgram =
+    !backStudent && program && administers && (scope === "ALL" || scope.has(program.id))
+      ? program
+      : undefined;
   const back = backStudent
-    ? `/students/${backStudent.profileId}`
-    : !canActAsMentor(user)
+    ? `/students/${backStudent.profileId}${fromQuery}`
+    : fromList
+      ? listHref
+      : backProgram
+      ? `/programs/${backProgram.id}`
+      : !canActAsMentor(user)
       ? "/sessions"
       : "/mentor";
   // Named for where it goes, the way every other back row in the app is. It
   // said "Back" here and "‹ Home" in the phone's top bar for the same link.
   const backLabel = backStudent
     ? backStudent.label
-    : back === "/sessions"
+    : fromList
+      ? "Sessions"
+      : backProgram
+      ? backProgram.name
+      : back === "/sessions"
       ? "Sessions"
       : "Home";
 
@@ -231,8 +260,9 @@ export default async function LogSessionPage({
           }
           mode="page"
           draft={draft}
-                    correctBase="/sessions#session-"
-          againHref="/sessions/new"
+                    correctBase="/sessions"
+          againHref={againHref}
+          from={from}
           canDictate={dictationConfigured()}
         />
       )}

@@ -24,6 +24,7 @@ export function Receipt({
   correctHref,
   onAgainHref,
   againLabel = "Log another",
+  from,
 }: {
   receipt: ActionReceipt;
   /** Where the just-written row can be edited. */
@@ -31,6 +32,8 @@ export function Receipt({
   /** The same form, empty. A link rather than a reset, so back still works. */
   onAgainHref?: string;
   againLabel?: string;
+  /** The program the reader came through, so the student's page still goes back to it. */
+  from?: string;
 }) {
   const { headline, notes, subject } = receipt;
 
@@ -75,7 +78,7 @@ export function Receipt({
           </ArrowLink>
         )}
         {subject && (
-          <ArrowLink href={`/students/${subject.id}`} className="text-sm">
+          <ArrowLink href={`/students/${subject.id}${from ? `?from=${encodeURIComponent(from)}` : ""}`} className="text-sm">
             {subject.name}
           </ArrowLink>
         )}

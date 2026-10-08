@@ -158,7 +158,9 @@ export function LogSessionForm({
   mode = "inline",
   draft,
     /**
-   * Where "Correct it" goes, minus the session id — this is a base rather than
+   * The ledger "Edit it" opens, with `?edit=<id>#session-<id>` added so the
+   * row's edit panel is open on arrival — it went to the ledger only, and
+   * "edit" that lands on a list reads as being sent away. A base rather than
    * a `(id) => href` function because a function cannot cross the server-to-
    * client boundary. Passing one type-checks, builds, and throws at render
    * with "Functions cannot be passed directly to Client Components".
@@ -166,6 +168,7 @@ export function LogSessionForm({
   correctBase,
   /** The same form, empty — a link, so the back button still works. */
   againHref,
+  from,
   /** Whether this deployment has the keys for a spoken note. */
   canDictate = false,
 }: {
@@ -183,6 +186,8 @@ export function LogSessionForm({
   draft?: LogSessionDraft;
     correctBase?: string;
   againHref?: string;
+  /** The program the reader came through, kept on the link back to the student. */
+  from?: string;
   canDictate?: boolean;
 }) {
     // The attempt counter is what lets the two SegmentedRadio pickers survive a
@@ -722,8 +727,13 @@ export function LogSessionForm({
     return (
       <Receipt
         receipt={state.receipt}
-        correctHref={correctBase ? `${correctBase}${state.receipt.id}` : undefined}
+        correctHref={
+          correctBase
+            ? `${correctBase}?edit=${state.receipt.id}#session-${state.receipt.id}`
+            : undefined
+        }
         onAgainHref={nextSessionHref}
+        from={from}
       />
     );
   }

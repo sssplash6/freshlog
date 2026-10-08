@@ -158,6 +158,11 @@ export function SessionRowActions({
   return (
     <RowActionMenu
       trigger="pencil"
+      // "Edit it" on a receipt lands here with `?edit=<id>`: the panel it
+      // promised is open, rather than a list to find the pencil in.
+      openOnArrival={() =>
+        canEdit && new URLSearchParams(window.location.search).get("edit") === session.id
+      }
       label={`${canEdit ? "Edit this session" : "Manage this session"}${
         who ? `: ${who}, ${when}` : ""
       }`}

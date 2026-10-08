@@ -60,6 +60,13 @@ export default async function SessionsPage({
   const isMentor = canActAsMentor(user);
 
   const params = await searchParams;
+  // The form's Back returns here (`back=sessions`), to this program's list
+  // when one is picked — the form then offers that program's people too. It
+  // said "Home", and an admin who had filtered to their program lost it.
+  const listedProgram = readParam(params, "program");
+  const logHref = `/sessions/new?back=sessions${
+    listedProgram ? `&program=${encodeURIComponent(listedProgram)}` : ""
+  }`;
   const page = parsePage(readParam(params, "page"));
   const now = new Date();
   // Somebody who only mentors sees their own rows and no others, whatever the
@@ -213,7 +220,7 @@ export default async function SessionsPage({
 
   return (
     <div className="space-y-4">
-      <Header />
+      <Header logHref={logHref} />
       {filters}
 
       {/* One figure leads — what was logged — and the rest is its caption.
@@ -271,7 +278,7 @@ export default async function SessionsPage({
                     Reset all filters
                   </ArrowLink>
                 )}
-                <ArrowLink href="/sessions/new" className="text-xs">
+                <ArrowLink href={logHref} className="text-xs">
                   Log a session
                 </ArrowLink>
               </div>
@@ -311,13 +318,13 @@ export default async function SessionsPage({
  * The title and the one action — full width on a phone, as on Home, so the
  * same button is the same shape on both pages a mentor logs from.
  */
-function Header() {
+function Header({ logHref }: { logHref: string }) {
   return (
     <PageTitle
       title="Sessions"
       actions={
         <LinkButton
-          href="/sessions/new"
+          href={logHref}
           variant="primary"
           size="md"
           className="w-full sm:w-auto"

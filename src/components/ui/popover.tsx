@@ -122,6 +122,7 @@ export function Popover({
   width = "md",
   triggerClassName,
   className,
+  openOnArrival,
 }: {
   /** What goes inside the trigger button — an icon, or an icon and a word. */
   trigger: React.ReactNode;
@@ -141,8 +142,21 @@ export function Popover({
   /** Classes for the trigger button. Include `group` to style its contents by state. */
   triggerClassName?: string;
   className?: string;
+  /**
+   * Asked once, after mount, of the page's address: true opens the panel as
+   * if its trigger had been pressed. After mount, not as the initial state,
+   * because the server has no address to ask and the panel anchors to a
+   * trigger that has to be on screen first.
+   */
+  openOnArrival?: () => boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const arrivalCheck = useRef(openOnArrival);
+  useEffect(() => {
+    if (!arrivalCheck.current?.()) return;
+    triggerRef.current?.scrollIntoView({ block: "center" });
+    setOpen(true);
+  }, []);
   // Whether the close that is about to happen was ours. Kept in state rather
   // than a ref so `close` captures nothing but setters — it is handed to
   // `children` during render, and a function that reads a ref must not be.

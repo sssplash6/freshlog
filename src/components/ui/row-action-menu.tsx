@@ -42,6 +42,7 @@ export function RowActionMenu({
   children,
   contents = "fields",
   width = "lg",
+  openOnArrival,
 }: {
   /**
    * `"dots"` for a menu of several things, `"pencil"` for a row whose menu is
@@ -55,6 +56,8 @@ export function RowActionMenu({
   /** `"actions"` only when the panel holds no fields at all. See `Popover`. */
   contents?: PopoverContents;
   width?: "sm" | "md" | "lg" | "xl";
+  /** See `Popover`: opens the panel once on arrival when this returns true. */
+  openOnArrival?: () => boolean;
 }) {
   return (
     // The menu is the last cell of a row, so it is pinned right and the panel
@@ -65,6 +68,7 @@ export function RowActionMenu({
         contents={contents}
         origin="end"
         width={width}
+        openOnArrival={openOnArrival}
         // One box for both triggers, and the glyph is the only difference.
         // The pencil used to widen on hover to reveal the word "Edit" — a
         // control that changes size under the cursor, in a column of rows that

@@ -15,9 +15,14 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Mentors can read a student's practice interviews.** A mentor who has worked with a student sees their interviews on the student's page, with their answers, notes and the feedback sent each way.
 
 ### Fixed
+- **Log a session's Back goes where you were.** Opened from a program's page, the form's Back link returns to that program; opened from Sessions, it returns to Sessions, still filtered to the program you picked. It used to say Home.
+- **Edit it opens the session.** After logging, Edit it now opens that session's edit panel, rather than leaving you on the list to find it.
+- **The orange line around Log session keeps moving.** It stopped after two laps; it now circles for as long as the page is open again.
 - **"Log a session" is always blue.** The button was grey on a program's page and on a student's page in the admin view, and blue everywhere else. It is now blue wherever it appears.
 - **No more blank names.** Somebody whose Google account sent an empty name showed as nothing at all. They now show by email until a name is set.
 - **Full names for the team.** Mentors and admins who showed by first name only now show their full name.
+- **Session dates and mentors are back.** In the Sessions list beside a student's tasks, each session shows its date again, and your own sessions name you as the mentor too.
+- **Back goes to the program you came from.** Open a student from a program, log a session for them, and Back on their page still takes you to that program instead of Home. Students opened from a program's Mentor tasks page do the same.
 - **Roomier tabs above the admin Programs table.** The All / Over capacity tabs no longer crowd the card edge and the table heading.
 
 ## 2026-10-07

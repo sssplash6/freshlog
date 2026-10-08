@@ -954,11 +954,11 @@ body {
       var(--color-accent-dark) 335deg,
       transparent 360deg
     );
-    /* Twice, not forever. DESIGN.md says nothing loops, and a thread
-       circling a button for as long as the page is open stops reading as
-       "this one spends hours" and starts reading as "something is loading"
-       (October 2026). Two laps catch the eye on arrival; then it rests. */
-    animation: liquid-edge 3.2s linear 2;
+    /* Forever, again. It ran two laps and rested (6 October 2026), and the
+       mentors missed it within days: the thread circling Log session is how
+       they find the button, not decoration. The one loop DESIGN.md allows;
+       reduced motion still stops it. */
+    animation: liquid-edge 3.2s linear infinite;
   }
 }
 

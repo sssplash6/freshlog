@@ -81,13 +81,13 @@ export default async function ProgramMentorTasksPage({
               : "The program's admins have not set its mentors anything open."}
           </EmptyState>
         ) : (
-          <TaskList tasks={open} now={now} canWrite={canWrite} />
+          <TaskList tasks={open} programId={id} now={now} canWrite={canWrite} />
         )}
       </Section>
 
       {finished.length > 0 && (
         <Section title="Done" count={finished.length}>
-          <TaskList tasks={finished} now={now} canWrite={canWrite} />
+          <TaskList tasks={finished} programId={id} now={now} canWrite={canWrite} />
         </Section>
       )}
     </div>
@@ -98,10 +98,12 @@ type Task = Awaited<ReturnType<typeof programMentorTasks>>[number];
 
 function TaskList({
   tasks,
+  programId,
   now,
   canWrite,
 }: {
   tasks: Task[];
+  programId: string;
   now: Date;
   canWrite: boolean;
 }) {
@@ -159,7 +161,7 @@ function TaskList({
                   <span key={s.studentId}>
                     {i > 0 && ", "}
                     <Link
-                      href={`/students/${s.student.id}`}
+                      href={`/students/${s.student.id}?from=${programId}`}
                       className="font-medium text-brand hover:underline"
                     >
                       {s.student.user.name ?? s.student.user.email}

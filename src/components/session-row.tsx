@@ -285,9 +285,10 @@ function SessionRowContent({
   // rating itself never does.
   const disputed = session.studentAnswer === SESSION_ANSWER.DISPUTED;
   const showStudentNote = showFeedback || disputed;
-  // The viewer's own name on their own log is the one name the row need not
-  // carry: "Dilnoza Yusupova" five times down Dilnoza's student page.
-  const showMentorChip = mentor.id !== viewer.userId && !hideMentor;
+  // The mentor's name shows even on the mentor's own log. Leaving it off
+  // "because the reader knows who they are" left a row with no person on it,
+  // and the owner read that as a bug: a session says who held it.
+  const showMentorChip = !hideMentor;
 
   if (variant === "line") {
     const summary = (
@@ -344,8 +345,11 @@ function SessionRowContent({
         className={cn("group flex items-start gap-3 py-3", index != null && "deal-in")}
         style={stagger}
       >
-        {/* The day as a leaf, the same shape the ledger uses, from `sm` up;
-            on a phone the date stays a word on the row's first line. */}
+        {/* The day as a leaf, the same shape the ledger uses, once the
+            CONTAINER is `@4xl` wide; below that the date stays a word on the
+            row's first line. The two must switch on the same query: the word
+            was on `sm` (the viewport) while the leaf moved to `@4xl`, so a
+            narrow column on a wide screen showed neither. */}
         <DateLeaf date={date} muted={voided} />
         {/* NO RAIL. It was a dot in the mentor's own hue joined by a hairline
             down the column — twenty-six pixels of width and a vertical line
@@ -393,7 +397,7 @@ function SessionRowContent({
                   thing on the row. The figure at the other end is the one that
                   earns a fixed column: a ledger is scanned down its numbers,
                   not down the left edge of its names. */}
-              <span className="shrink-0 whitespace-nowrap tabular-nums text-muted-fg sm:hidden">
+              <span className="shrink-0 whitespace-nowrap tabular-nums text-muted-fg @4xl:hidden">
                 {formatDate(date)}
               </span>
               {showMentorChip && (

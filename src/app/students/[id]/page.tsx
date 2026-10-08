@@ -450,7 +450,7 @@ export default async function StudentWorkspacePage({
   const logButton = reaches ? (
     <LinkButton
       key="log"
-      href={`/sessions/new?student=${profile.id}`}
+      href={`/sessions/new?student=${profile.id}${backProgram ? `&from=${backProgram.programId}` : ""}`}
       // Blue in either lens. It was grey in the admin lens, so a mentor who
       // also administers saw the same button change colour between pages.
       variant="primary"

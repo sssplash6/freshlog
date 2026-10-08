@@ -610,10 +610,12 @@ label off and let the nav name it. Chip rows that would wrap use the
 `scroll-x` utility instead — horizontal scroll, hidden scrollbar, edge fade,
 and an exclusion in the gesture layer so a chip fling can't arm swipe-back.
 
-Nothing loops and nothing idles, and no motion celebrates. The `liquid-edge`
-thread runs two laps and rests; loading skeletons are still blocks, not a
-pulse. (October 2026: both used to run forever. `hint-bounce`, which had no
-call site, is gone.)
+Nothing loops and nothing idles, and no motion celebrates — with one
+exception: the `liquid-edge` thread on Log session circles for as long as the
+page is open, because mentors find the button by it (it ran two laps and
+rested for two days in October 2026, and they asked for it back). Loading
+skeletons are still blocks, not a pulse. `hint-bounce`, which had no call
+site, is gone.
 
 **Four durations** (`--dur-*` in globals.css): `instant` 100ms for a press,
 `fast` 160ms for hover, colour and focus, `base` 240ms for menus, rows and
