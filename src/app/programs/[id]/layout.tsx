@@ -103,7 +103,9 @@ export default async function ProgramLayout({
                 should land in. */}
             <LinkButton
               href={`/sessions/new?program=${program.id}`}
-              variant="secondary"
+              // Blue wherever it appears, as on Home, Sessions and a
+              // student's page — one action, one look.
+              variant="primary"
               size="md"
             >
               {program.classHours ? "Log an hour for a group" : "Log a session"}
@@ -116,7 +118,7 @@ export default async function ProgramLayout({
             >
               Set a mentor task
             </LinkButton>
-            {/* One primary, and LAST — the right-hand end, where the student
+            {/* Primary, and LAST — the right-hand end, where the student
                 page puts its own. The two pages had the same pair in opposite
                 orders. Granting time is what a program admin opens this page
                 to do that no other page does for the whole program. */}

@@ -451,7 +451,9 @@ export default async function StudentWorkspacePage({
     <LinkButton
       key="log"
       href={`/sessions/new?student=${profile.id}`}
-      variant={primaryIsLog ? "primary" : "secondary"}
+      // Blue in either lens. It was grey in the admin lens, so a mentor who
+      // also administers saw the same button change colour between pages.
+      variant="primary"
       size="md"
       // The one control on the page that spends the student's hours, marked by
       // a filament of the colour those hours are drawn in.

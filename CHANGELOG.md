@@ -15,6 +15,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Mentors can read a student's practice interviews.** A mentor who has worked with a student sees their interviews on the student's page, with their answers, notes and the feedback sent each way.
 
 ### Fixed
+- **"Log a session" is always blue.** The button was grey on a program's page and on a student's page in the admin view, and blue everywhere else. It is now blue wherever it appears.
 - **Roomier tabs above the admin Programs table.** The All / Over capacity tabs no longer crowd the card edge and the table heading.
 
 ## 2026-10-07
