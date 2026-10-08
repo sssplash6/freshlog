@@ -289,14 +289,17 @@ export function TaskProgressControl({
     return (
       <form action={action} aria-busy={pending}>
         <input type="hidden" name="taskId" value={taskId} />
+        {/* A real button, not a link: a finished task needs an obvious way to
+            say "this is not complete", and a 12px text link was easy to
+            miss. */}
         <button
           type="submit"
           name="intent"
           value="reopen"
           disabled={pending}
-          className="inline-flex min-h-11 items-center rounded-lg px-2 text-xs font-medium text-brand transition-colors hover:bg-brand-soft disabled:opacity-50"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-fill px-3 text-xs font-semibold text-brand transition-colors hover:bg-fill-strong disabled:opacity-50"
         >
-          Not finished after all
+          <span aria-hidden="true">↺</span> Mark incomplete
         </button>
         <SaveState state={save} />
       </form>

@@ -6,6 +6,9 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ## 2026-10-08
 
+### New
+- **A "Mark incomplete" button on finished tasks.** A task marked Done now has a clear button to say it is not complete after all, in place of the small link.
+
 ### Fixed
 - **Roomier tabs above the admin Programs table.** The All / Over capacity tabs no longer crowd the card edge and the table heading.
 
