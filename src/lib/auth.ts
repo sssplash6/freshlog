@@ -36,15 +36,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user, account }) {
       if (account?.provider !== "google") return false;
       const email = user.email?.toLowerCase();
+      // Google can send a blank or all-space name. Stored as-is it is a name
+      // that renders as nothing: every `name ?? email` fallback skips it.
+      const name = user.name?.trim().replace(/\s+/g, " ") || null;
       if (!email) return false;
 
       const existing = await prisma.user.findUnique({ where: { email } });
       if (existing) {
         // Backfill the name from Google for staff/students created by email only.
-        if (!existing.name && user.name) {
+        if (!existing.name?.trim() && name) {
           await prisma.user.update({
             where: { id: existing.id },
-            data: { name: user.name },
+            data: { name },
           });
         }
         return true;
@@ -55,7 +58,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         await prisma.user.create({
           data: {
             email,
-            name: user.name ?? null,
+            name,
             role: ROLES.MENTOR,
             status: USER_STATUS.UNASSIGNED,
           },
@@ -67,7 +70,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       await prisma.user.create({
         data: {
           email,
-          name: user.name ?? null,
+          name,
           role: ROLES.STUDENT,
           status: USER_STATUS.PENDING,
         },

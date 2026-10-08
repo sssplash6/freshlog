@@ -49,10 +49,10 @@ model User {
   // The Monday hours email. On by default — it is the reminder that stops hours
   // expiring unnoticed — and switchable off from /notifications or the
   // unsubscribe link in the footer of every send.
-  weeklyDigest Boolean   @default(true)
+  weeklyDigest    Boolean   @default(true)
   // When the last digest actually went out. This is the idempotency guard: a
   // re-run of the cron, or two instances firing at once, must not send twice.
-  digestSentAt DateTime?
+  digestSentAt    DateTime?
   // The last time this person opened /changelog. The dot on the account button
   // is "the newest entry is dated after this" — or after createdAt, for someone
   // who has never opened it, so a new user is not shown history that predates
@@ -64,7 +64,7 @@ model User {
   // before their last visit but deployed after it, both light the dot — which a
   // comparison of dates against `changelogSeenAt` never could. Null until the
   // first visit; the createdAt floor above applies until then.
-  changelogSeen String?
+  changelogSeen   String?
 
   studentProfile      StudentProfile?          @relation("StudentUser")
   createdStudents     StudentProfile[]         @relation("CreatedBy")
@@ -228,9 +228,9 @@ model ProgramStaff {
 // cohorts (see createLevel): a cohort that could sit under two shapes is one
 // nobody has to ask about.
 model ProgramLevel {
-  id        String @id @default(cuid())
-  programId String
-  name      String
+  id              String @id @default(cuid())
+  programId       String
+  name            String
   // The standard grant for THIS level — same pair as Program.standardMinutes /
   // standardDays, resolved by grantStandardHours level-first. A leveled program
   // leaves its own pair null: the level is what was bought.
@@ -246,7 +246,7 @@ model ProgramLevel {
 }
 
 model Cohort {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   name      String
   programId String
   // The level this intake sits under, in programs that have levels. Null in a

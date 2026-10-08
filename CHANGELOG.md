@@ -16,6 +16,8 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ### Fixed
 - **"Log a session" is always blue.** The button was grey on a program's page and on a student's page in the admin view, and blue everywhere else. It is now blue wherever it appears.
+- **No more blank names.** Somebody whose Google account sent an empty name showed as nothing at all. They now show by email until a name is set.
+- **Full names for the team.** Mentors and admins who showed by first name only now show their full name.
 - **Roomier tabs above the admin Programs table.** The All / Over capacity tabs no longer crowd the card edge and the table heading.
 
 ## 2026-10-07
