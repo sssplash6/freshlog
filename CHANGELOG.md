@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-09
+
+### Fixed
+- **Clicking a student opens that student.** In Safari, clicking any row in Your students on Home, or in your Programs list, opened the last row instead. Each row now opens its own.
+
 ## 2026-10-08
 
 ### New

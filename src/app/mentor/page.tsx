@@ -13,7 +13,8 @@ import { PageTitle, Section } from "@/components/ui/section";
 import { StatStrip } from "@/components/ui/stat-strip";
 import { TabLinks } from "@/components/ui/segmented";
 import { DeadlineText } from "@/components/ui/status-chip";
-import { FILL_CELL, Table, Td, Tr, type Column } from "@/components/ui/table";
+import { LinkRow } from "@/components/ui/link-row";
+import { FILL_CELL, Table, Td, type Column } from "@/components/ui/table";
 import { attentionFor } from "@/lib/attention";
 import { cn } from "@/lib/cn";
 import { SESSION_STATUS, USER_STATUS } from "@/lib/constants";
@@ -516,11 +517,14 @@ export default async function MentorHomePage({
                 const balance = balanceOf(s);
                 const seen = lastSeen.get(s.profile.id);
                 return (
-                  // `relative`: the chevron's link stretches over the whole
-                  // row, so the row that tints on hover is the row that opens.
-                  // It tinted everywhere and opened only from the name and a
-                  // 32px chevron.
-                  <Tr key={`${s.profile.id}:${s.program.id}`} className="relative">
+                  // The whole row opens, so the row that tints on hover is the
+                  // row that opens. It tinted everywhere and opened only from
+                  // the name and a 32px chevron.
+                  <LinkRow
+                    key={`${s.profile.id}:${s.program.id}`}
+                    href={`/students/${s.profile.id}`}
+                    transitionTypes={["nav-forward"]}
+                  >
                     <Td className={FILL_CELL}>
                       <PersonCell
                         person={{
@@ -574,12 +578,12 @@ export default async function MentorHomePage({
                         href={`/students/${s.profile.id}`}
                         transitionTypes={["nav-forward"]}
                         aria-label={`Open ${nameOf(s)}`}
-                        className="-my-2 inline-flex h-8 w-8 items-center justify-center rounded-lg align-middle text-muted-fg transition-colors after:absolute after:inset-0 hover:text-brand"
+                        className="-my-2 inline-flex h-8 w-8 items-center justify-center rounded-lg align-middle text-muted-fg transition-colors hover:text-brand"
                       >
                         <ChevronRightIcon className="h-4 w-4" />
                       </Link>
                     </Td>
-                  </Tr>
+                  </LinkRow>
                 );
               })}
             </Table>

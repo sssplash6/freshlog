@@ -5,7 +5,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Figure } from "@/components/ui/figure";
 import { ProgramChip } from "@/components/program-chip";
 import { PageTitle } from "@/components/ui/section";
-import { Table, Td, Tr, type Column } from "@/components/ui/table";
+import { LinkRow } from "@/components/ui/link-row";
+import { Table, Td, type Column } from "@/components/ui/table";
 import { formatBalance, formatDuration } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { mentorCaseload } from "@/lib/queries";
@@ -125,8 +126,8 @@ export async function MentorPrograms({ mentorId }: { mentorId: string }) {
       ) : (
         <Table columns={columns} label="Programs">
           {shown.map((row) => (
-            // `relative`: the chevron's link covers the row, as on Home.
-            <Tr key={row.id} className="relative">
+            // The whole row opens, as on Home.
+            <LinkRow key={row.id} href={`/sessions?program=${row.id}`}>
               <Td label="Program">
                 {/* The way in is the mentor's own log, narrowed to this
                     program — the long form of the two figures on this row.
@@ -163,12 +164,12 @@ export async function MentorPrograms({ mentorId }: { mentorId: string }) {
                 <Link
                   href={`/sessions?program=${row.id}`}
                   aria-label={`Sessions in ${row.name}`}
-                  className="-my-2 inline-flex h-8 w-8 items-center justify-center rounded-lg align-middle text-muted-fg transition-colors after:absolute after:inset-0 hover:text-brand"
+                  className="-my-2 inline-flex h-8 w-8 items-center justify-center rounded-lg align-middle text-muted-fg transition-colors hover:text-brand"
                 >
                   <ChevronRightIcon className="h-4 w-4" />
                 </Link>
               </Td>
-            </Tr>
+            </LinkRow>
           ))}
         </Table>
       )}
