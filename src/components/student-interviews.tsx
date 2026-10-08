@@ -68,7 +68,7 @@ export function StudentInterviews({
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <PersonChip person={i.partner} size="sm" />
+                  <PersonChip person={{ ...i.partner, email: "" }} size="sm" />
                   {chip && <StatusChip status={chip} />}
                 </div>
               </div>

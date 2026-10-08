@@ -10,7 +10,8 @@ import { prisma } from "@/lib/prisma";
  * and notes belong to the partner and are never selected, and a feedback draft
  * is never selected from either side — `submittedAt: { not: null }` is in the
  * query, not in the page, so an unfinished judgement cannot be rendered by
- * accident.
+ * accident. The partner is a name and a face only: their email is not selected,
+ * since they may belong to a program the reader has no standing in.
  *
  * Callers gate on `mentorHasWorkedWith` first; this reads whatever it is given.
  */
@@ -25,8 +26,8 @@ export async function interviewsOfStudent(studentId: string) {
       hostNotes: true,
       guestNotes: true,
       slot: { select: { startsAt: true, minutes: true } },
-      host: { select: { user: { select: { id: true, name: true, email: true, avatarUpdatedAt: true } } } },
-      guest: { select: { user: { select: { id: true, name: true, email: true, avatarUpdatedAt: true } } } },
+      host: { select: { user: { select: { id: true, name: true, avatarUpdatedAt: true } } } },
+      guest: { select: { user: { select: { id: true, name: true, avatarUpdatedAt: true } } } },
       answers: {
         where: { studentId },
         orderBy: { questionIndex: "asc" },

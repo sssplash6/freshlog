@@ -68,6 +68,8 @@ describe("interviewsOfStudent", () => {
     const [row] = await interviewsOfStudent(host.id);
     expect(row.notes).toBe("host private note");
     expect(row.partner.name).toBe("Bobur Aliyev");
+    // A name and a face, never the classmate's address.
+    expect(row.partner).not.toHaveProperty("email");
     expect(row.answers.map((a) => a.text)).toEqual(["host answer"]);
     expect(row.received?.summary).toBe("sent");
     expect(row.given).toBeNull();
