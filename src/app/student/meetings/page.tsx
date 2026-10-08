@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { SessionAnswerForm } from "@/components/forms/session-answer-form";
+import { InterviewLogRow } from "@/components/interview-log-row";
 import { PersonCell } from "@/components/person-chip";
 import { SessionRow } from "@/components/session-row";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -22,6 +23,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { studentLedger } from "@/lib/queries";
 import {
+  meetingLog,
   notHeldNote,
   toSessionEntries,
 } from "@/lib/session-entries";
@@ -30,6 +32,7 @@ import {
   status,
   type ViewerContext,
 } from "@/lib/status";
+import { interviewsForLog } from "@/lib/student-interviews";
 import { programWallClock } from "@/lib/when";
 import type { Metadata } from "next";
 
@@ -45,8 +48,9 @@ const MEETINGS_PER_PAGE = 6;
  * it. "Coming up" is booked practice interviews — the only thing in the app a
  * student can schedule ahead. (Mentors do not book meetings here; a session
  * exists once it has been logged, so nothing a mentor plans can appear on
- * this page before it happens.) "Past sessions" is the ledger they already
- * met on the home disclosure, all of it now, paged.
+ * this page before it happens.) "Past meetings" is the ledger they already
+ * met on the home disclosure, all of it now, paged — with their practice
+ * interviews among the sessions, marked as costing no hours.
  *
  * The page's one job is §6.5's: every session waits for the student's answer,
  * and a row inside the confirm window carries the "Did this happen?" form on
@@ -80,8 +84,9 @@ export default async function StudentMeetingsPage({
   }
 
   const wallNow = programWallClock(now);
-  const [ledger, interviews] = await Promise.all([
+  const [ledger, pastInterviews, interviews] = await Promise.all([
     studentLedger(profile.id),
+    interviewsForLog(profile.id, now),
     prisma.peerInterview.findMany({
       where: {
         OR: [{ hostId: profile.id }, { guestId: profile.id }],
@@ -126,12 +131,18 @@ export default async function StudentMeetingsPage({
       .map((s) => s.id)
   );
 
+  // Practice interviews join the log once their time has come: a student reads
+  // one history of who they met. They are rows, not sessions — no mentor, no
+  // program, and nothing here or anywhere adds their minutes to an hour figure.
+  const log = meetingLog(entries, pastInterviews);
+
   const page = parsePage(readParam(params, "page"));
-  const shown = entries.slice(
+  const shown = log.slice(
     (page - 1) * MEETINGS_PER_PAGE,
     page * MEETINGS_PER_PAGE
   );
   const rawById = new Map(held.map((s) => [s.id, s]));
+  const oneMentor = new Set(held.map((h) => h.mentor.id)).size <= 1;
 
   return (
     <div className="space-y-4">
@@ -185,13 +196,24 @@ export default async function StudentMeetingsPage({
         )}
       </Section>
 
-      <Section title="Past sessions" count={entries.length || undefined}>
-        {entries.length === 0 ? (
-          <EmptyState framed={false} title="No sessions yet" />
+      <Section title="Past meetings" count={log.length || undefined}>
+        {log.length === 0 ? (
+          <EmptyState framed={false} title="No meetings yet" />
         ) : (
           <>
             <ul className="divide-y divide-line px-4 sm:px-5">
-              {shown.map((session, i) => {
+              {shown.map((item, i) => {
+                if (item.kind === "interview") {
+                  return (
+                    <InterviewLogRow
+                      key={`interview-${item.interview.id}`}
+                      interview={item.interview}
+                      viewer={viewer}
+                      index={i}
+                    />
+                  );
+                }
+                const session = item.session;
                 const raw = rawById.get(session.id);
                 const mentorName =
                   raw?.mentor.name ?? raw?.mentor.email ?? "your mentor";
@@ -202,7 +224,7 @@ export default async function StudentMeetingsPage({
                     viewer={viewer}
                     variant="timeline"
                     index={i}
-                    hideMentor={new Set(held.map((h) => h.mentor.id)).size <= 1}
+                    hideMentor={oneMentor}
                     footer={
                       needsAnswer.has(session.id) ? (
                         <SessionAnswerForm
@@ -219,13 +241,13 @@ export default async function StudentMeetingsPage({
                 "5 sessions · 1 rescheduled" was a second count, in a second
                 vocabulary, of the list the heading had just counted as
                 "4 meetings". */}
-            {entries.length > MEETINGS_PER_PAGE && (
+            {log.length > MEETINGS_PER_PAGE && (
               <Pagination
                 basePath="/student/meetings"
                 params={params}
                 page={page}
                 pageSize={MEETINGS_PER_PAGE}
-                total={entries.length}
+                total={log.length}
                 unit="meetings"
                 note={notHeldNote(entries)}
                 className="border-t border-line px-4 py-2 sm:px-5"

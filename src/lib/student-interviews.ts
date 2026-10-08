@@ -1,6 +1,8 @@
 import "server-only";
 
+import { interviewPhase } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
+import { programWallClock } from "@/lib/when";
 
 /**
  * One student's practice interviews, as their mentors read them.
@@ -61,3 +63,44 @@ export async function interviewsOfStudent(studentId: string) {
 }
 
 export type StudentInterview = Awaited<ReturnType<typeof interviewsOfStudent>>[number];
+
+/**
+ * A student's practice interviews as entries in their own meetings log: every
+ * one whose time has come, newest first — held, missed, or still to be marked.
+ *
+ * They sit beside the sessions because a student reads one history of the
+ * meetings they had, but they are not sessions. Two classmates meet with no
+ * mentor and no program, so nothing here is drawn from an allocation, and no
+ * figure about hours reads this. The partner is a name and a face, as on
+ * /student/meetings' coming-up list.
+ */
+export async function interviewsForLog(studentId: string, now: Date) {
+  const rows = await prisma.peerInterview.findMany({
+    where: {
+      OR: [{ hostId: studentId }, { guestId: studentId }],
+      slot: { startsAt: { lte: programWallClock(now) } },
+    },
+    select: {
+      id: true,
+      hostId: true,
+      template: true,
+      completedAt: true,
+      absentId: true,
+      slot: { select: { startsAt: true, minutes: true } },
+      host: { select: { user: { select: { id: true, name: true, avatarUpdatedAt: true } } } },
+      guest: { select: { user: { select: { id: true, name: true, avatarUpdatedAt: true } } } },
+    },
+    orderBy: { slot: { startsAt: "desc" } },
+  });
+
+  return rows.map((row) => ({
+    id: row.id,
+    startsAt: row.slot.startsAt,
+    minutes: row.slot.minutes,
+    template: row.template,
+    phase: interviewPhase(row, now),
+    partner: { ...(row.hostId === studentId ? row.guest : row.host).user, email: "" },
+  }));
+}
+
+export type LogInterview = Awaited<ReturnType<typeof interviewsForLog>>[number];

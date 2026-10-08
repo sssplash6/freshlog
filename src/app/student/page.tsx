@@ -10,8 +10,10 @@ import {
 } from "@/components/student-task-row";
 import { TaskProgressControl } from "@/components/forms/student-task-forms";
 import { Disclosure } from "@/components/ui/disclosure";
+import { InterviewLogRow } from "@/components/interview-log-row";
 import { SessionRow } from "@/components/session-row";
-import { meetingCount, toSessionEntries } from "@/lib/session-entries";
+import { meetingCount, meetingLog, toSessionEntries } from "@/lib/session-entries";
+import { interviewsForLog } from "@/lib/student-interviews";
 import { ArrowLink } from "@/components/ui/link";
 import { Pagination, parsePage } from "@/components/ui/pagination";
 import { readParam, type SearchParams } from "@/lib/filters";
@@ -334,9 +336,10 @@ export default async function StudentHomePage({
     redirect("/onboarding");
   }
 
-  const [hours, ledger] = await Promise.all([
+  const [hours, ledger, interviews] = await Promise.all([
     allocationSummary(profile.id),
     studentLedger(profile.id),
+    interviewsForLog(profile.id, now),
   ]);
 
   // Everything already delivered, newest first — the ledger's own order.
@@ -345,6 +348,10 @@ export default async function StudentHomePage({
   // the audience for. Stripped here, before anything renders: a row that
   // merely declines to print it would still ship it to the browser.
   const held = withoutMentorNotes(ledger.sessions);
+  // Practice interviews read in the same history, but are not sessions: they
+  // spend no allocation and nothing on this page adds them to an hour figure.
+  const log = meetingLog(held, interviews);
+  const oneMentorMet = new Set(held.map((h) => h.mentor.id)).size <= 1;
 
   const tasks = ledger.assignments.map((task) => ({
     task,
@@ -593,10 +600,13 @@ export default async function StudentHomePage({
           happened without leaving home — but open by default it is the longest
           thing on the page and pushes everything that needs doing off screen.
           So: on the page, closed, counted. */}
-      {held.length > 0 && (
+      {log.length > 0 && (
         <Section
           title="Meetings"
-          count={meetingCount(held)}
+          count={
+            meetingCount(held) +
+            interviews.filter((i) => i.phase === "completed").length
+          }
           action={
             // 44px tall: at its text height it was an 18px target.
             <Link
@@ -613,28 +623,37 @@ export default async function StudentHomePage({
               then — opened — as long as the page. The rest, numbered, are on
               the Meetings page. */}
           <ol className="divide-y divide-line px-4 sm:px-5">
-            {toSessionEntries(
-              held.slice((meetingsPage - 1) * HOME_MEETINGS, meetingsPage * HOME_MEETINGS)
-            ).map((session, i) => (
-              <SessionRow
-                key={session.id}
-                session={session}
-                viewer={viewer}
-                variant="timeline"
-                index={i}
-                // Said once, under "Things to check", not again here.
-                omit={["SESSION_UNCONFIRMED"]}
-                hideMentor={new Set(held.map((h) => h.mentor.id)).size <= 1}
-              />
-            ))}
+            {log
+              .slice((meetingsPage - 1) * HOME_MEETINGS, meetingsPage * HOME_MEETINGS)
+              .map((item, i) =>
+                item.kind === "interview" ? (
+                  <InterviewLogRow
+                    key={`interview-${item.interview.id}`}
+                    interview={item.interview}
+                    viewer={viewer}
+                    index={i}
+                  />
+                ) : (
+                  <SessionRow
+                    key={item.session.id}
+                    session={toSessionEntries([item.session])[0]}
+                    viewer={viewer}
+                    variant="timeline"
+                    index={i}
+                    // Said once, under "Things to check", not again here.
+                    omit={["SESSION_UNCONFIRMED"]}
+                    hideMentor={oneMentorMet}
+                  />
+                )
+              )}
           </ol>
-          {held.length > HOME_MEETINGS && (
+          {log.length > HOME_MEETINGS && (
             <Pagination
               basePath="/student"
               params={query}
               page={meetingsPage}
               pageSize={HOME_MEETINGS}
-              total={held.length}
+              total={log.length}
               unit="meetings"
               param="meetings"
               compact

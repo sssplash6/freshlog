@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { SESSION_ANSWER, SESSION_STATUS } from "@/lib/constants";
-import { toSessionEntries, type LoggedSession } from "@/lib/session-entries";
+import { meetingLog, toSessionEntries, type LoggedSession } from "@/lib/session-entries";
 
 function session(over: Partial<LoggedSession> = {}): LoggedSession {
   return {
@@ -48,5 +48,25 @@ describe("toSessionEntries feedback", () => {
       { feedback: false },
     );
     expect(entry.studentNote).toBe("It ran 30 minutes, not 60.");
+  });
+});
+
+describe("meetingLog", () => {
+  it("interleaves sessions and interviews newest first, keeping each kind's entry", () => {
+    const day = (iso: string) => new Date(`${iso}T00:00:00Z`);
+    const sessions = [{ id: "s2", date: day("2026-10-05") }, { id: "s1", date: day("2026-10-01") }];
+    const interviews = [
+      { id: "i2", startsAt: new Date("2026-10-05T15:00:00Z") },
+      { id: "i1", startsAt: new Date("2026-10-03T10:00:00Z") },
+    ];
+
+    const log = meetingLog(sessions, interviews);
+
+    expect(log.map((item) => (item.kind === "session" ? item.session.id : item.interview.id))).toEqual([
+      "i2",
+      "s2",
+      "i1",
+      "s1",
+    ]);
   });
 });

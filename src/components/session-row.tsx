@@ -630,7 +630,7 @@ function SessionRowContent({
  * Session dates are calendar days stored at UTC midnight, so they are read
  * in UTC.
  */
-function DateLeaf({ date, muted }: { date: Date; muted?: boolean }) {
+export function DateLeaf({ date, muted }: { date: Date; muted?: boolean }) {
   const month = date.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
   return (
     <span

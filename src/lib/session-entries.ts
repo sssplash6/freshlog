@@ -134,3 +134,27 @@ export function notHeldNote(sessions: readonly { status: string }[]): string | u
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : undefined;
 }
+
+/** One line of a student's meetings log: a logged session or a practice interview. */
+export type MeetingLogItem<S, I> =
+  | { kind: "session"; date: Date; session: S }
+  | { kind: "interview"; date: Date; interview: I };
+
+/**
+ * Sessions and practice interviews as one history, newest first. Each list
+ * keeps its own order within a day; an interview on the same day as a session
+ * reads above it, since a session's date is that day's midnight.
+ */
+export function meetingLog<S extends { date: Date }, I extends { startsAt: Date }>(
+  sessions: readonly S[],
+  interviews: readonly I[],
+): MeetingLogItem<S, I>[] {
+  return [
+    ...sessions.map((session) => ({ kind: "session" as const, date: session.date, session })),
+    ...interviews.map((interview) => ({
+      kind: "interview" as const,
+      date: interview.startsAt,
+      interview,
+    })),
+  ].sort((a, b) => b.date.getTime() - a.date.getTime());
+}
