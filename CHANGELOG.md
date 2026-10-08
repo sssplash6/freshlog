@@ -8,6 +8,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ### New
 - **A "Mark incomplete" button on finished tasks.** A task marked Done now has a clear button to say it is not complete after all, in place of the small link.
+- **Mentors can read a student's practice interviews.** A mentor who has worked with a student sees their interviews on the student's page, with their answers, notes and the feedback sent each way.
 
 ### Fixed
 - **Roomier tabs above the admin Programs table.** The All / Over capacity tabs no longer crowd the card edge and the table heading.

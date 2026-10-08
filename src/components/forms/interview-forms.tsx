@@ -281,7 +281,7 @@ export function InterviewNotesForm({
         onChange={(event) => setNotes(event.target.value)}
         className={cn("min-h-32 px-2.5 py-2")}
       />
-      <p className="text-xs text-muted-fg">Only you can read these.</p>
+      <p className="text-xs text-muted-fg">Only you and your mentors can read these.</p>
       <div className="flex flex-wrap items-center gap-3">
         <SubmitButton pendingText="Saving…">Save notes</SubmitButton>
         <SaveState state={save} />

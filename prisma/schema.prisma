@@ -821,7 +821,9 @@ model MentorFeedback {
 // the questions. Nothing here touches the ledger — no hours, no mentor, no
 // program column. It is not a meeting a mentor arranges (that left the product
 // on 15 Sep 2026, with the old `Interview` table); it is two students
-// practising, and the only people who read these rows are the two of them.
+// practising. The two of them read these rows, and so does any mentor who has
+// ever held a grant, a session or a task with either student (`mentorHasWorkedWith`,
+// read by `interviewsOfStudent`) — never another student, never an admin by role.
 //
 // `startsAt` is the program's wall clock in a UTC field, the convention
 // lib/when.ts documents: the student types "15:00" meaning 15:00 Tashkent,

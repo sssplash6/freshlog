@@ -144,7 +144,7 @@ export default async function InterviewPage({
       )}
 
       {interview.answers.length > 0 && (
-        <Section title="Your answers" caption="Only you can see these.">
+        <Section title="Your answers" caption="Only you and your mentors can see these.">
           <dl className="divide-y divide-line">
             {interview.answers.map((a) => (
               <div key={a.questionIndex} className="px-4 py-2 sm:px-5">

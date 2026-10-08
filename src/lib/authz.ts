@@ -266,6 +266,28 @@ export async function mentorReaches(
 }
 
 /**
+ * Has this mentor EVER worked with this student — a grant, a session or a task,
+ * current or long gone.
+ *
+ * Narrower than `mentorReaches`, which also admits every mentor in the
+ * student's program: that is the right width for logging an hour, and the wrong
+ * one for reading what a student wrote in a practice interview. Those are
+ * answers and private notes, so only the mentors who have actually held time
+ * with them — and who stay mentors of theirs after a grant expires or is
+ * forfeited — may read them.
+ */
+export async function mentorHasWorkedWith(
+  mentor: User,
+  profile: { id: string }
+): Promise<boolean> {
+  const match = await prisma.studentProfile.findFirst({
+    where: { id: profile.id, ...mentorReachWhere(mentor.id) },
+    select: { id: true },
+  });
+  return match !== null;
+}
+
+/**
  * Scope check for a server action, as a returnable refusal.
  *
  *   const denied = await assertProgramScope(actor, profile.programId);

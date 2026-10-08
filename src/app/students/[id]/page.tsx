@@ -19,6 +19,7 @@ import {
 import { ExchangeList } from "@/components/exchange-panel";
 import { SendOnExchangeForm } from "@/components/forms/exchange-forms";
 import { LedgerBoard } from "@/components/ledger-board";
+import { StudentInterviews } from "@/components/student-interviews";
 import { toStudentTaskEntries } from "@/components/student-task-row";
 import {
   SetStudentTaskForm,
@@ -49,6 +50,7 @@ import {
   adminWriteScope,
   canAdministerStudent,
   canManageStudent,
+  mentorHasWorkedWith,
   mentorReaches,
   scopeCovers,
   staffLevel,
@@ -70,6 +72,7 @@ import { readParam, type SearchParams } from "@/lib/filters";
 import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { profileOf } from "@/lib/profile";
+import { interviewsOfStudent } from "@/lib/student-interviews";
 import {
   programOptions,
   studentLedger,
@@ -130,6 +133,15 @@ export default async function StudentWorkspacePage({
     canActAsMentor(me) ? mentorReaches(me, profile) : Promise.resolve(false),
   ]);
   if (!manages && !reaches) notFound();
+
+  // Practice interviews are the student's own answers and notes, so the reader
+  // is a mentor who has actually worked with them — a grant, a session or a
+  // task, even one long expired — not just anybody in the program. Admins do
+  // not read them by virtue of managing the student.
+  const interviews =
+    canActAsMentor(me) && (await mentorHasWorkedWith(me, profile))
+      ? await interviewsOfStudent(profile.id)
+      : [];
 
   const lens = await profileOf(me);
   const viewer = {
@@ -710,6 +722,10 @@ export default async function StudentWorkspacePage({
           ) : null
         }
       />
+
+      {interviews.length > 0 && (
+        <StudentInterviews interviews={interviews} viewer={viewer} />
+      )}
 
       {/* Placements between two programs, above the grant form on purpose: a
           host admin about to allocate has to see the cap first, and a sending
