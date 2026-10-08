@@ -6,6 +6,8 @@ import { PersonCell } from "@/components/person-chip";
 import { ProgramChip } from "@/components/program-chip";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MentorTaskDoneButton } from "@/components/forms/mentor-task-forms";
+import { MentorTaskDue } from "@/components/mentor-task-due";
 import { CheckIcon, ChevronRightIcon } from "@/components/icons";
 import { PageTitle, Section } from "@/components/ui/section";
 import { StatStrip } from "@/components/ui/stat-strip";
@@ -17,6 +19,7 @@ import { cn } from "@/lib/cn";
 import { SESSION_STATUS, USER_STATUS } from "@/lib/constants";
 import { requireMentor } from "@/lib/dal";
 import { formatBalance, formatDate, formatDaysAgo, formatDuration } from "@/lib/format";
+import { mentorOwnTasks } from "@/lib/mentor-tasks";
 import { prisma } from "@/lib/prisma";
 import { applySort, readSort } from "@/lib/sort";
 import { mentorCaseload, type CaseloadStudent } from "@/lib/queries";
@@ -181,10 +184,12 @@ export default async function MentorHomePage({
   // address for the same nine rows.
   const showAllStudents = studentRows === "all";
 
-  const [caseload, attention] = await Promise.all([
+  const [caseload, attention, adminTasks] = await Promise.all([
     mentorCaseload(user.id),
     attentionFor(user, "mentor"),
+    mentorOwnTasks(user.id, viewer.now),
   ]);
+  const openAdminTasks = adminTasks.filter((a) => !a.completedAt).length;
   const { students, assignments } = caseload;
 
   // The date of this mentor's most recent session with each student. A
@@ -325,6 +330,69 @@ export default async function MentorHomePage({
             ? { moreHref: "/notifications", moreLabel: `See all ${attentionTotal}` }
             : {})}
         />
+      )}
+
+      {/* Only when an admin has set something. Open first, then what this
+          mentor ticked off in the last fortnight, so a mistaken tick can be
+          taken back from the same place it was made. */}
+      {adminTasks.length > 0 && (
+        <Section title="From your program admins" count={openAdminTasks || undefined}>
+          <ul className="divide-y divide-line">
+            {adminTasks.map((a) => {
+              const done = Boolean(a.completedAt);
+              return (
+                <li
+                  key={a.id}
+                  className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-5"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={cn(
+                        "text-body font-semibold",
+                        done ? "text-muted-fg line-through" : "text-ink"
+                      )}
+                    >
+                      {a.task.title}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-fg">
+                      Due{" "}
+                      <MentorTaskDue
+                        dueOn={a.task.dueOn}
+                        now={viewer.now}
+                        done={done}
+                        className="text-xs"
+                      />
+                      {" · "}
+                      {a.task.program.name}
+                      {" · from "}
+                      {a.task.createdBy.name ?? a.task.createdBy.email}
+                    </p>
+                    {a.task.note && (
+                      <p className="mt-1.5 whitespace-pre-line text-sm text-ink">{a.task.note}</p>
+                    )}
+                    {a.task.students.length > 0 && (
+                      <p className="mt-1.5 text-xs text-muted-fg">
+                        About{" "}
+                        {a.task.students.map((s, i) => (
+                          <span key={s.studentId}>
+                            {i > 0 && ", "}
+                            <Link
+                              href={`/students/${s.student.id}`}
+                              className="font-medium text-brand hover:underline"
+                            >
+                              {s.student.user.name ?? s.student.user.email}
+                            </Link>
+                          </span>
+                        ))}
+                      </p>
+                    )}
+                  </div>
+                  <MentorTaskDoneButton assigneeId={a.id} done={done} />
+                </li>
+              );
+            })}
+          </ul>
+        </Section>
       )}
 
       <Section

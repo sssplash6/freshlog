@@ -77,6 +77,8 @@ model User {
   assignments         Assignment[]             @relation("AssignmentMentor")
   createdAssignments  Assignment[]             @relation("AssignmentCreatedBy")
   tasksSet            StudentTask[]            @relation("StudentTaskMentor")
+  mentorTasksSet      MentorTask[]             @relation("MentorTaskCreatedBy")
+  mentorTasks         MentorTaskAssignee[]     @relation("MentorTaskAssignee")
   allotmentChanges    HourAllotmentChange[]    @relation("ChangedBy")
   allotmentMentions   HourAllotmentChange[]    @relation("ChangeMentor")
   notifications       Notification[]
@@ -172,6 +174,7 @@ model Program {
   sessions          Session[]
   assignments       Assignment[]
   studentTasks      StudentTask[]
+  mentorTasks       MentorTask[]
   allotmentChanges  HourAllotmentChange[]
   // Students this program lent out, and students it took in. Two relations
   // because they are two questions an admin asks separately.
@@ -328,6 +331,7 @@ model StudentProfile {
   mentorFeedback    MentorFeedback[]
   exchanges         ProgramExchange[]
   interviewSlots    InterviewSlot[]
+  mentorTasks       MentorTaskStudent[]
   interviewsHosted  PeerInterview[]       @relation("InterviewHost")
   interviewsBooked  PeerInterview[]       @relation("InterviewGuest")
   interviewAnswers  InterviewAnswer[]
@@ -563,6 +567,69 @@ model StudentTask {
   @@index([studentId, dueOn])
   @@index([programId])
   @@index([mentorId])
+}
+
+// Work a program's admin hands its MENTORS — the third thing called a task,
+// and the only one whose doer is staff.
+//
+// Not a `StudentTask`, whose doer is the student and whose setter is the
+// mentor; and not an `Assignment`, which is a budget of hours a mentor delivers
+// TO a student. This is a to-do between colleagues: "write Aziza's
+// recommendation by Friday", set to one mentor, several, or the whole team at
+// once, about none, one or several students.
+//
+// One task, many assignees, because "set this to everyone" is one act with one
+// title and one deadline: copying the row per mentor would let an edit reach
+// some of the copies. Each assignee finishes their own share, so the
+// completion lives on the assignee row, not here.
+//
+// Program-scoped like everything else in the ledger: only an admin of
+// `programId` sets, reads or withdraws it, and the mentors and students on it
+// are that program's own.
+model MentorTask {
+  id          String   @id @default(cuid())
+  programId   String
+  title       String
+  note        String?
+  dueOn       DateTime
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  program   Program              @relation(fields: [programId], references: [id], onDelete: Cascade)
+  createdBy User                 @relation("MentorTaskCreatedBy", fields: [createdById], references: [id])
+  assignees MentorTaskAssignee[]
+  students  MentorTaskStudent[]
+
+  @@index([programId, dueOn])
+}
+
+// One mentor's share of a MentorTask. `completedAt` is the flag and the date
+// in one column, as on StudentTask, so the two cannot disagree.
+model MentorTaskAssignee {
+  id          String    @id @default(cuid())
+  taskId      String
+  mentorId    String
+  completedAt DateTime?
+
+  task   MentorTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  mentor User       @relation("MentorTaskAssignee", fields: [mentorId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, mentorId])
+  @@index([mentorId])
+}
+
+// A student a MentorTask is about. None is ordinary ("update your booking
+// link"), and so is several ("read the three essays that came in").
+model MentorTaskStudent {
+  taskId    String
+  studentId String
+
+  task    MentorTask     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, studentId])
+  @@index([studentId])
 }
 
 // Mentoring time an admin granted a student FROM a specific mentor, in minutes

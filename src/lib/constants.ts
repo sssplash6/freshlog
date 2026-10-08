@@ -350,6 +350,8 @@ export const NOTIFICATION_TYPES = {
   TASK_SET: "TASK_SET", // to the student: a mentor gave them something to go away and do
   TASK_CHANGED: "TASK_CHANGED", // to the student: that task was reworded, re-dated or withdrawn
   TASK_MOVED: "TASK_MOVED", // to the mentor: the student moved their task along, or finished it
+  MENTOR_TASK_SET: "MENTOR_TASK_SET", // to mentors: a program admin set them a task
+  MENTOR_TASK_DONE: "MENTOR_TASK_DONE", // to the admin who set it: a mentor finished their share
   SESSION_ANSWERED: "SESSION_ANSWERED", // to the mentor + admins: the student confirmed or disputed a logged session
   FEEDBACK_RECEIVED: "FEEDBACK_RECEIVED", // to admins: a student rated a mentor
   EXCHANGE_SENT: "EXCHANGE_SENT", // to the host program's admins: a student was lent to you, with hours to allocate
@@ -456,6 +458,8 @@ export const CATEGORY_OF: Record<NotificationType, NotificationCategory> = {
   TASK_SET: "TASKS",
   TASK_CHANGED: "TASKS",
   TASK_MOVED: "TASKS",
+  MENTOR_TASK_SET: "TASKS",
+  MENTOR_TASK_DONE: "TASKS",
   FEEDBACK_RECEIVED: "ACCOUNTS",
   // Time, not an account: what the host admin does about it is allocate hours,
   // and what the sender waits to hear is that somebody holds them.
@@ -507,6 +511,8 @@ export const NOTIFICATION_META: Record<
   TASK_SET: { label: "New task", tone: "plan" },
   TASK_CHANGED: { label: "Task changed", tone: "plan" },
   TASK_MOVED: { label: "Task progress", tone: "success" },
+  MENTOR_TASK_SET: { label: "Task from admin", tone: "plan" },
+  MENTOR_TASK_DONE: { label: "Mentor task done", tone: "success" },
   FEEDBACK_RECEIVED: { label: "Feedback", tone: "brand" },
   EXCHANGE_SENT: { label: "Exchange", tone: "accent" },
   EXCHANGE_ALLOCATED: { label: "Exchange", tone: "accent" },

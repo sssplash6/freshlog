@@ -174,6 +174,8 @@ export default async function ProgramLayout({
             label: l.name,
             count: students.filter((s) => s.byProgram.get(id)?.level?.id === l.id).length,
           })),
+          // What the program's admins have asked its mentors to do.
+          { href: `${base}/tasks`, label: "Mentor tasks" },
           { href: `${base}/settings`, label: "⚙ Settings" },
         ]}
       />

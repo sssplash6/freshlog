@@ -7,6 +7,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-08
 
 ### New
+- **Set tasks for a program's mentors.** Program admins can set a task with a deadline for every mentor in the program or the ones they pick, and attach the students it is about. Mentors see it on Home and tick it Done.
 - **A "Mark incomplete" button on finished tasks.** A task marked Done now has a clear button to say it is not complete after all, in place of the small link.
 - **Mentors can read a student's practice interviews.** A mentor who has worked with a student sees their interviews on the student's page, with their answers, notes and the feedback sent each way.
 

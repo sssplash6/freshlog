@@ -16,6 +16,7 @@ export async function resetDb() {
   await prisma.interviewSlot.deleteMany();
   await prisma.session.deleteMany();
   await prisma.studentTask.deleteMany();
+  await prisma.mentorTask.deleteMany();
   await prisma.hourAllotmentChange.deleteMany();
   await prisma.hourAllocation.deleteMany();
   await prisma.assignment.deleteMany();
