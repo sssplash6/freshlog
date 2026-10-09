@@ -6,6 +6,9 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ## 2026-10-09
 
+### New
+- **Cards and menus have depth.** Cards, tables, menus and the side menu now cast a soft shadow, so they stand off the page instead of reading as one flat sheet. In dark mode, cards also sit a step lighter than the background.
+
 ### Fixed
 - **Clicking a student opens that student.** In Safari, clicking any row in Your students on Home, or in your Programs list, opened the last row instead. Each row now opens its own.
 
