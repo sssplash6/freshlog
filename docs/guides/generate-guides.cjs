@@ -50,16 +50,20 @@ function build({ file, title, subtitle, sections }) {
   doc.y += 26;
 
   const heading = (n, text) => {
-    ensure(48);
+    // Room for the heading and the start of what it introduces, so a heading
+    // is never the last line on a page.
+    ensure(100);
     const y = doc.y;
     doc.circle(MARGIN + 9, y + 9, 10).fill(BRAND);
-    doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(11).text(String(n), MARGIN + 5, y + 4, { width: 8, align: "center" });
+    // Centred on the circle and wide enough for "10", which wrapped at 8pt.
+    doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(11).text(String(n), MARGIN - 1, y + 4, { width: 20, align: "center" });
     doc.fillColor(INK).font("Helvetica-Bold").fontSize(14).text(text, MARGIN + 28, y + 1, { width: contentW - 28 });
     doc.y = Math.max(doc.y, y + 22) + 6;
   };
 
   const para = (text) => {
-    ensure(26);
+    // A lead-in ("What you can practise:") stays with the list it introduces.
+    ensure(text.endsWith(":") ? 100 : 26);
     doc.fillColor(INK).font("Helvetica").fontSize(10.5).text(text, MARGIN, doc.y, { width: contentW, lineGap: 2 });
     doc.y += 6;
   };
@@ -111,7 +115,7 @@ function build({ file, title, subtitle, sections }) {
     doc.page.margins.bottom = 0;
     doc.moveTo(MARGIN, pageH - 54).lineTo(pageW - MARGIN, pageH - 54).strokeColor(LINE).lineWidth(1).stroke();
     doc.fillColor(MUTED).font("Helvetica").fontSize(8);
-    doc.text(`freshlog — ${title}`, MARGIN, pageH - 46, { width: contentW / 2, lineBreak: false });
+    doc.text(`freshlog - ${title}`, MARGIN, pageH - 46, { width: contentW / 2, lineBreak: false });
     doc.text(`Page ${i + 1} of ${range.count}`, MARGIN + contentW / 2, pageH - 46, { width: contentW / 2, align: "right", lineBreak: false });
     doc.page.margins.bottom = savedBottom;
   }
@@ -298,7 +302,129 @@ const admin = {
   ],
 };
 
+const interviews = {
+  file: "interview-guide.pdf",
+  title: "Interview Practice Guide",
+  subtitle: "How to offer a time, book a classmate, run a practice interview and give feedback on freshlog.",
+  sections: [
+    { n: 1, heading: "What practice interviews are", blocks: [
+      { p: "Students rehearse admissions interviews on each other. You offer a few times, a classmate books one and picks what to practise, and at the time you take turns interviewing each other and then give each other feedback. No mentoring hours are used." },
+      { bullets: [
+        "You need an approved account. Everything lives under the Interviews tab.",
+        "A classmate is a student who shares one of your own programs. Students you only visit on an exchange do not appear.",
+        "All times are Tashkent time.",
+      ] },
+    ] },
+    { n: 2, heading: "Offer a time", blocks: [
+      { steps: [
+        'Open Interviews, find "Your times" and press "Offer a time".',
+        "Choose the day, the start time (Tashkent) and the length: 30, 45 or 60 minutes.",
+        "Optional: paste a meeting link (Google Meet, Zoom) that starts with https://. Only you and the classmate who books will see it.",
+        'Press "Add this time".',
+      ] },
+      { bullets: [
+        "A time can be up to 60 days ahead and cannot be in the past.",
+        "It cannot overlap anything already on your calendar: times you offered, or interviews you booked. Back to back is fine.",
+        'Changed your mind? Press "Remove" on a time nobody has booked. Once somebody has booked it, cancel the interview instead (section 4).',
+      ] },
+      { tip: "Offer several times. Classmates can only book what is open, and a classmate with open times is listed first." },
+    ] },
+    { n: 3, heading: "Book a classmate's time", blocks: [
+      { steps: [
+        'Open Interviews and look under "Classmates". Those with times open are listed first, with how many. Open a name.',
+        "Pick a time, then pick what to practise (see the list below).",
+        'Press "Book with" and their first name. You land on the interview page, and your classmate is notified.',
+      ] },
+      { p: "What you can practise:" },
+      { bullets: [
+        "Freshman Interview Practice: Session 1. The school's first session: getting to know you, and why college.",
+        "University admissions. An admissions officer or alumnus meeting an applicant.",
+        "Scholarship panel. A funding panel deciding who to invest in.",
+        "Behavioral (STAR). Questions answered as situation, task, action, result.",
+        "Student visa. A consular officer checking study plans and ties to home.",
+      ] },
+      { p: "The questions are on the interview page as soon as it is booked, so you can read them ahead. If somebody books a time just before you, you will see that it is not available any more: pick another." },
+      { tip: "The student who offered the time is the host and the one who booked it is the guest. It makes no difference in the session: you interview each other and both of you give feedback." },
+    ] },
+    { n: 4, heading: "Before the interview", blocks: [
+      { bullets: [
+        'Your booked interviews are under "Coming up" on the Interviews page. Open one to see the time, your partner and the questions.',
+        'If a meeting link was offered, press "Join meeting". If not, arrange between you where to meet.',
+        'Need to call it off? Open the interview, press "Cancel interview", then "Yes, cancel it". The time goes back to open and your partner is told. You can cancel until the interview is marked done or absent.',
+      ] },
+    ] },
+    { n: 5, heading: "Run the interview", blocks: [
+      { p: 'When the start time arrives, open the interview and press "Start interview" (it says "Continue interview" if you have already begun). Keep it open beside your call. You each use your own screen at your own pace, so talk to each other to stay in step.' },
+      { steps: [
+        "Introductions. Share your name, where you are from, and a little about what you have been up to this week.",
+        "Review the feedback rubric. Read the four criteria together before you start (section 6).",
+        "Interview practice. One question per screen. Take turns interviewing each other and listen carefully to your partner's answers. Type your own answer, or press Speak to dictate it where the button is shown.",
+        "Partner feedback (section 7).",
+      ] },
+      { tip: "Your answers save as you click out of each box and when you press Next, so a closed tab loses at most the box you were typing in. Only you and the mentors you have worked with can read them (section 9)." },
+    ] },
+    { n: 6, heading: "The four criteria", blocks: [
+      { p: "Use these to judge your partner's answers, and to know what is being looked at in yours." },
+      { bullets: [
+        "Content. How relevant, detailed and insightful was the response? Did your partner give specific examples? Did you learn something interesting?",
+        "Flow and structure. Was it easy to follow? Were the ideas logically connected, or did your partner jump from point to point? Was there a clear structure?",
+        "Grammar and language. Was the language accurate? Was the vocabulary appropriate and varied? Were there recurring mistakes?",
+        "Confidence. Did your partner speak clearly and confidently, at a natural pace, without too many filler words and pauses?",
+      ] },
+    ] },
+    { n: 7, heading: "Give your feedback", blocks: [
+      { p: "The last step has three boxes, each up to 5,000 characters, and all three are required:" },
+      { bullets: [
+        "Summary. Briefly summarize your partner's answers.",
+        "What went well. Always start with the positive. Highlight what your partner did particularly well.",
+        "What to improve. Name areas for improvement and give specific, constructive suggestions.",
+      ] },
+      { steps: [
+        "Talk your feedback through with your partner before you submit it.",
+        'Press "Send feedback to" and your partner\'s name.',
+      ] },
+      { bullets: [
+        "When you send, your partner is notified and can read it, and the interview counts as completed for both of you.",
+        'Spotted a mistake? You can change what you sent until 30 minutes after the interview ends. Open the interview, find "Your feedback to" and their name, edit it and press "Save changes". The page shows the exact cut-off time. Your partner reads the new wording in place and is not told again.',
+      ] },
+      { tip: "The guide closes for you the moment you send, so finish your own answers first: after that only your feedback can be corrected, not your answers. Until you send, your feedback is a draft that saves as you type and that only you can see." },
+    ] },
+    { n: 8, heading: "After the interview", blocks: [
+      { bullets: [
+        'Your partner\'s feedback appears on the interview page under "Feedback from" their name. It says "Not sent yet" until they send it.',
+        'Once the interview is done, a "Your notes" box opens: write how it went, which answers landed and what to work on next time, then press "Save notes". Only you can read it.',
+        'Did the interview happen without anyone sending feedback? After the start time, either of you can press "Mark as done", then "Yes, it happened".',
+        'Partner never joined? Once the interview has started, press "Mark absent", then "Yes, they didn\'t join". The interview closes for both of you without notes, and your partner is told. You can only mark your partner, never yourself. If you were the one marked absent, the interview page says so and the interview stays closed.',
+        'Finished and closed interviews move to "Done" on the Interviews page, and your own answers stay on them.',
+        "Interviews that have taken place also appear in your meetings log on Home and Meetings, marked as not counted toward your hours. Your hours balance does not change.",
+      ] },
+    ] },
+    { n: 9, heading: "Who sees what", blocks: [
+      { bullets: [
+        "Only you: your feedback while it is still a draft. Your partner's answers and notes are theirs alone, and you never see them.",
+        "You and the mentors you have worked with: your answers, your notes, and the feedback sent each way. The app says so under \"Your answers\" and \"Your notes\".",
+        "You and your partner: the meeting link, and your feedback once you send it.",
+        "Classmates: your name and the programs you share, and the times you have offered. Never your email address.",
+      ] },
+    ] },
+    { n: 10, heading: "If something is not working", blocks: [
+      { bullets: [
+        "A classmate is missing: they must be approved, have their name filled in, and share one of your own programs.",
+        '"You already have something at that time": the time overlaps one you offered or an interview you booked.',
+        "No Start interview button: it appears at the start time and goes away once you have sent your feedback, or if the interview was marked absent.",
+        "Your partner did not turn up: see \"Mark absent\" in section 8.",
+        "Something did not save: check your connection and go back to the step the page names.",
+      ] },
+      { tip: "Practice interview updates land in the bell: a booking, a cancellation, feedback from your partner, and being marked absent." },
+    ] },
+  ],
+};
+
 (async () => {
-  for (const g of [student, mentor, admin]) await build(g);
+  // Optional third argument builds one guide only: `node generate-guides.cjs <outDir> interviews`.
+  // Without it all four are rebuilt, which rewrites every PDF.
+  const only = process.argv[3];
+  const guides = { student, mentor, admin, interviews };
+  for (const [name, g] of Object.entries(guides)) if (!only || only === name) await build(g);
   console.log("Generated:", fs.readdirSync(OUT).filter((f) => f.endsWith(".pdf")).join(", "));
 })();
