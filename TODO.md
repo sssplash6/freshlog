@@ -7,6 +7,144 @@ Everything that used to be in Batch 1 and Batch 2 was done by the reorganisation
 problem. `REDESIGN.md` §11 is the other half of this file: things deliberately
 kept out of that work, each with the reason.
 
+## Reported issues — 11 October 2026
+
+Pasted one at a time, worked one at a time, top to bottom. The quote is the
+report as given; the notes under it are ours. Status is **open**,
+**in progress**, or **done** with the commit that fixed it.
+
+### 1. Back from "Log a session" goes to All students, not Full Support — open
+
+> when Valera, admin, tries to log in a session and tries to go back, it goes
+> to all students, he has to go to full support instead.
+
+- Reported for Valera Arakelyan (admin).
+- Screenshot: Abdulhamid Nuriddinov's student page, opened from the Full
+  Support program (its back link reads "← Full Support"). **Log a session** is
+  at the top right. Back from the log-session form should land where he came
+  from, not on the all-students list.
+- Where a student page's Back link leads is one of the owner's decisions that
+  got undone once already (AGENTS.md). Blame the Back-link code first, and keep
+  whatever he decided.
+
+### 2. Set one task for every student in a program at once — open
+
+> also admin wants to assign one task to all students at once, a button on
+> full support page, that would select all students
+
+- A feature request, not a bug. The button lives on the program page (Full
+  Support) and selects all of that program's students for a single task.
+- Decided 11 October: **every student in the program, no list to edit.** That
+  includes students visiting on exchange. One click, one task each.
+
+### 3. Student page and roster row disagree on the same student's hours — open
+
+> data discrepancy
+
+Two screenshots of Jahongir Karimbaev:
+
+| | Student page | Roster row |
+|---|---|---|
+| Remaining | 31h (10h to use by December 1) | 22h |
+| Used | 4h completed + 2h missed, charged | 1h |
+| Total | 37h | — |
+| Last session | October 9, Cila Warncke, 1h | October 8, "2 days ago" |
+
+- The student page header reads "Advanced Research Program / September 2026 ·
+  Flexible Program" and shows 7 sessions (Oct 9 Cila Warncke 1h, Oct 8 Nigel Li
+  25 min, Oct 4 Nigel Li 20 min, Sep 26 Nigel Li 2h, …). It also says "You hold
+  no time with them", so the viewer has no allocation of their own.
+- The row's column headers are cropped out. Confirm which list it came from
+  (probably the Advanced Research Program roster) and what its "1h" column
+  means.
+- Leads to check: the two figures may come from different scopes (one program
+  against all of his programs, or the viewer's own allocations against
+  everyone's), or the row may be read from a stale or cached total. The October
+  9 session is missing from the row, which points the same way.
+
+### 4. Merge Pre-Full Support into Full Support as a subsection — waiting on Valera
+
+> We should also merge Pre-Full Support and Full support
+>
+> Pre-Full Support being the subsection
+
+- From Valera, 10 October 2026, 14:53.
+- Today they are two programs. Asked for: one program, Full Support, with
+  Pre-Full Support as a subsection inside it.
+- Decided 11 October: Pre-Full Support is **a stage students move up from**.
+  An admin moves each student up by hand. Nothing promotes them
+  automatically.
+- **Open, for Valera:** what happens to Pre-Full Support's existing hours and
+  sessions when the programs merge. Either they move into Full Support's ledger,
+  or they stay as Pre-Full Support history and only new work goes under Full
+  Support. Do not start until he answers.
+- Check whether the existing grouping under a program (the "September 2026 ·
+  Flexible Program" line on a student page) can carry the stage, or whether
+  something new is needed.
+- Every ledger row (allocations, sessions, tasks, allotment changes) carries
+  its program, so merging moves those rows too. A student enrolled in both
+  programs with the same mentor holds two allocations that would collide on
+  `(student, program, mentor)` and have to be combined. Count those before
+  deciding anything.
+
+### 5. Program page: students first, mentors back on the side, recent sessions at the bottom — open
+
+> ...students shoudl be the first tab I see in programs
+>
+> Mentors are on the side like before
+>
+> It was much more useful
+>
+> Also, last meetings on the bottom woudl be good too
+
+- Screenshot: the Full Support program page. **Students** is already the first
+  tab, but inside it the Mentors panel (22 mentors, plus "Assign a mentor")
+  fills the top, and "Add students", the search and the student table come
+  only after it. The complaint is what you see first, not the tab order.
+- Asked for, in three parts:
+  1. The student list is the first thing on the page.
+  2. Mentors move back into a side column, the way it used to be. Find that
+     earlier layout in `git log` before redesigning it. It may be one of the
+     layouts lost in the stale-branch merges.
+  3. A list of recent sessions ("last meetings") at the bottom of the page.
+
+### 6. Saving button should read "Loading…", not "Allocating…" — open
+
+> lets say loading in that butotn instead of relocating
+
+- Clarified 11 October: not a hang. While the Allocate time form saves, the
+  button should say "Loading…" rather than "Allocating…".
+- Screenshot: Allocate time for Deniz Sattar, button showing a spinner and
+  "Allocating…".
+- Other forms' saving buttons probably follow the same "verb-ing…" pattern.
+  Check them, and ask whether "Loading…" should replace them all or only this
+  one.
+- Also small: the back link reads "← Student" rather than the student's name.
+
+### 7. Hour-bank students: "Allocate time" refuses, and the way forward is not offered — open
+
+> cant log hour
+>
+> can you investigate?
+
+- From Samandar.
+- Screenshot: Allocate time for Azim Egamberdiev (Full Support), mentor Milutin
+  Milojkovic, use by October 31. Submitting shows "This student's hours in Full
+  Support are in an hour bank, which every meeting draws. Add to the bank
+  instead." The Minutes box is empty again.
+- They say "log hour" but the screen is Allocate time. Find out which they
+  were trying to do. Either way the app let them fill in the whole form before
+  refusing, and the error names "the bank" without a link to it.
+- The fix probably sits upstream of the form. For a student whose program uses
+  an hour bank, "Allocate time" should lead to adding to the bank, or not be
+  offered at all, rather than open a form that cannot succeed.
+- Keep the refusal itself. `src/lib/actions/students.ts` refuses on purpose:
+  time granted beside a bank would sit unspent, because meetings draw the bank.
+  The fix routes people to the bank; it does not remove the check.
+- Check whether the add-to-bank path still exists and is reachable. A
+  stale-branch merge (45f095e) is believed to have dropped some hour-bank code;
+  confirm that before relying on it.
+
 ## Batch 1 — what the owner asked for on 4 September, unbuilt
 
 Voice notes, transcribed from a phone. Check each against what he meant before
