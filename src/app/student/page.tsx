@@ -29,6 +29,8 @@ import { requireRole } from "@/lib/dal";
 import { formatDate, formatDuration, formatMinutes } from "@/lib/format";
 import { allocationSummary, type AllocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
+import { profileOf } from "@/lib/profile";
+import { spaceOf } from "@/lib/space";
 import { studentRows } from "@/lib/attention";
 import { studentLedger, type LedgerAssignment } from "@/lib/queries";
 import { taskIsOpen } from "@/lib/student-tasks";
@@ -336,10 +338,12 @@ export default async function StudentHomePage({
     redirect("/onboarding");
   }
 
-  const [hours, ledger, interviews] = await Promise.all([
+  const [hours, ledger, interviews, space] = await Promise.all([
     allocationSummary(profile.id),
     studentLedger(profile.id),
     interviewsForLog(profile.id, now),
+    // The frame the shell already drew, asked again for free (request-cached).
+    profileOf(user).then((lens) => spaceOf(user, lens)),
   ]);
 
   // Everything already delivered, newest first — the ledger's own order.
@@ -389,6 +393,20 @@ export default async function StudentHomePage({
 
   const first = user.name.split(" ")[0];
 
+  // Where they stand in the institute, when they study in one: its top bar
+  // already names the program, so the level and cohort are the part of "where
+  // am I" nothing else on the page says. Their own membership, never a visit —
+  // the same rule that put them in the frame.
+  const standing =
+    space.kind === "institute"
+      ? profile.enrollments.find(
+          (e) => e.programId === space.programId && !e.exchangeId
+        )
+      : undefined;
+  const standingLabel = standing
+    ? [standing.level?.name, standing.cohort?.name].filter(Boolean).join(" · ")
+    : "";
+
   // What their mentors set them to go away and do — already soonest-deadline
   // first from the query, because that is the order a to-do list is read in.
   const myTasks = toStudentTaskEntries(ledger.tasks, {
@@ -421,8 +439,9 @@ export default async function StudentHomePage({
         // the friendliest words on the page were also its loudest, and the one
         // number a student opens the app for was a badge beside them.
         // The program is on Settings and in every ledger row; here it was a third
-        // thing to read before the one number.
-        eyebrow={`Hi, ${first}`}
+        // thing to read before the one number. In an institute the level and
+        // cohort ride the greeting instead (owner decision 7).
+        eyebrow={standingLabel ? `Hi, ${first} · ${standingLabel}` : `Hi, ${first}`}
         title={<Balance hours={hours} />}
         // The one big button on the page, in the corner under the profile
         // picture (October 2026, at the owner's ask) — half the width it was
