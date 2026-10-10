@@ -22,7 +22,9 @@ import { requireMentor } from "@/lib/dal";
 import { formatBalance, formatDate, formatDaysAgo, formatDuration } from "@/lib/format";
 import { mentorOwnTasks } from "@/lib/mentor-tasks";
 import { prisma } from "@/lib/prisma";
+import { profileOf } from "@/lib/profile";
 import { applySort, readSort } from "@/lib/sort";
+import { spaceOf } from "@/lib/space";
 import { mentorCaseload, type CaseloadStudent } from "@/lib/queries";
 import { EXPIRY_WINDOW_DAYS, type ViewerContext } from "@/lib/status";
 import type { Metadata } from "next";
@@ -113,15 +115,21 @@ const nameOf = (s: CaseloadStudent) => s.profile.user.name ?? s.profile.user.ema
  * because a student can be enrolled twice — two rows, one name, two balances —
  * and without the column those two rows look like a duplicate.
  *
+ * Level is the same rule one step down, for a mentor in an institute: every
+ * row is the one program, and the level is what tells their students apart.
+ *
  * Every column but the name has a fixed width. Unfolding the rest of the
  * caseload — a longer name, a date with a year — used to shift every column
  * 40px sideways under the reader's eye.
  */
-function studentColumns(showProgram: boolean): Column[] {
+function studentColumns(showProgram: boolean, showLevel: boolean): Column[] {
   return [
     { label: "Student", sort: "student" },
     ...(showProgram
       ? [{ label: "Program", sort: "program", className: "w-52" } as Column]
+      : []),
+    ...(showLevel
+      ? [{ label: "Level", sort: "level", className: "w-36" } as Column]
       : []),
     {
       label: "Remaining with you",
@@ -144,6 +152,7 @@ function studentColumns(showProgram: boolean): Column[] {
 const CASELOAD_SORTS = [
   "student",
   "program",
+  "level",
   "remaining",
   "deadline",
   "seen",
@@ -170,6 +179,7 @@ export default async function MentorHomePage({
 }: {
   searchParams: Promise<{
     program?: string;
+    level?: string;
     students?: string;
     sort?: string;
     dir?: string;
@@ -179,16 +189,18 @@ export default async function MentorHomePage({
   // One instant for the whole page, so two sections cannot disagree about what
   // "today" is — and so nothing reads the clock during a render.
   const viewer: ViewerContext = { audience: "mentor", userId: user.id, now: new Date() };
-  const { program = "", students: studentRows, sort, dir } = await searchParams;
+  const { program = "", level = "", students: studentRows, sort, dir } = await searchParams;
   // "Show me the rest of them", in the URL, so it survives a reload and can be
   // linked. The whole caseload on the page it is already on beats a second
   // address for the same nine rows.
   const showAllStudents = studentRows === "all";
 
-  const [caseload, attention, adminTasks] = await Promise.all([
+  const [caseload, attention, adminTasks, space] = await Promise.all([
     mentorCaseload(user.id),
     attentionFor(user, "mentor"),
     mentorOwnTasks(user.id, viewer.now),
+    // The frame the shell already drew, asked again for free (request-cached).
+    profileOf(user).then((lens) => spaceOf(user, lens)),
   ]);
   const openAdminTasks = adminTasks.filter((a) => !a.completedAt).length;
   const { students, assignments } = caseload;
@@ -211,7 +223,27 @@ export default async function MentorHomePage({
   // A caseload row is one (student, program) balance, so filtering by program
   // is a question about the row rather than about the person: a student in two
   // of this mentor's programs contributes one row to each.
-  const inView = selected ? students.filter((s) => s.program.id === selected) : students;
+  const inProgram = selected ? students.filter((s) => s.program.id === selected) : students;
+
+  // In an institute every row is the one program, so the program tabs never
+  // appear, and what a mentor there tells their students apart by is the
+  // level. A row's level is the student's membership in the row's program —
+  // the ledger carries none, so it is their level now (lib/space.ts).
+  const institute = space.kind === "institute" ? space : null;
+  const levelOf = (s: CaseloadStudent) => {
+    if (!institute || s.program.id !== institute.programId) return null;
+    const id = s.profile.enrollments.find((e) => e.programId === s.program.id)?.levelId;
+    return institute.levels.find((l) => l.id === id) ?? null;
+  };
+  // Only the levels somebody in the caseload is in, in the sidebar's order: a
+  // tab that can only ever show an empty table is a question with no answer.
+  const caseloadLevels = institute
+    ? institute.levels.filter((l) => students.some((s) => levelOf(s)?.id === l.id))
+    : [];
+  const selectedLevel = caseloadLevels.some((l) => l.id === level) ? level : "";
+  const inView = selectedLevel
+    ? inProgram.filter((s) => levelOf(s)?.id === selectedLevel)
+    : inProgram;
 
   // -------------------------------------------------------------- Title figure
   //
@@ -229,6 +261,8 @@ export default async function MentorHomePage({
   // Two rows for one student in two programs is not a duplicate, and the
   // column is what says so.
   const showProgram = new Set(inView.map((s) => s.program.id)).size > 1;
+  // The same rule one step down: under a level tab every row says the same.
+  const showLevel = new Set(inView.map((s) => levelOf(s)?.id ?? null)).size > 1;
 
   // The reader's own order when they have asked for one; otherwise the page's,
   // which is the answer to "who needs me first".
@@ -240,6 +274,7 @@ export default async function MentorHomePage({
     ? applySort(inView, asked, {
         student: nameOf,
         program: (s) => s.program.name,
+        level: (s) => levelOf(s)?.name ?? null,
         remaining: (s) => s.remaining,
         deadline: (s) => s.deadline,
         seen: (s) => lastSeen.get(s.profile.id) ?? null,
@@ -255,9 +290,10 @@ export default async function MentorHomePage({
   // This page's own address, with both of its states kept: a mentor who
   // narrowed to one program must not be thrown back to all of them for asking
   // to see more rows, and switching program must not silently re-fold them.
-  const homeHref = (opts: { program?: string; all?: boolean }) => {
+  const homeHref = (opts: { program?: string; level?: string; all?: boolean }) => {
     const q = new URLSearchParams();
     if (opts.program) q.set("program", opts.program);
+    if (opts.level) q.set("level", opts.level);
     if (opts.all) q.set("students", "all");
     // The three states compose. Narrowing to one program while the table is
     // ordered by use-by must not silently put it back in the page's own order:
@@ -419,6 +455,21 @@ export default async function MentorHomePage({
                 ]}
               />
             </div>
+          ) : caseloadLevels.length > 1 ? (
+            // An institute mentor's one program never draws the tabs above, so
+            // its levels take their place, on the same track.
+            <div className="scroll-x -mx-1 mt-1.5 px-1 [&>nav]:max-w-none [&>nav]:flex-nowrap [&>nav>a]:shrink-0 [&>nav>a]:whitespace-nowrap">
+              <TabLinks
+                label="Level"
+                items={[
+                  { href: homeHref({ all: showAllStudents }), label: "All" },
+                  ...caseloadLevels.map((l) => ({
+                    href: homeHref({ level: l.id, all: showAllStudents }),
+                    label: l.name,
+                  })),
+                ]}
+              />
+            </div>
           ) : undefined
         }
         action={
@@ -428,7 +479,7 @@ export default async function MentorHomePage({
           // toggle — it was "All 13 →" one way and an arrowless "First 8" back.
           inView.length > CASELOAD_ROWS ? (
             <Link
-              href={homeHref({ program: selected, all: !showAllStudents })}
+              href={homeHref({ program: selected, level: selectedLevel, all: !showAllStudents })}
               scroll={false}
               className="inline-flex min-h-11 items-center text-xs font-medium text-brand transition-colors hover:underline"
             >
@@ -479,6 +530,13 @@ export default async function MentorHomePage({
                           <span className="min-w-0 truncate text-body font-semibold text-ink">
                             {nameOf(s)}
                           </span>
+                          {/* Beside the name, not at the end of the line under
+                              it: behind a long use-by date it was cut to "Advanc…". */}
+                          {showLevel && levelOf(s) && (
+                            <span className="shrink-0 text-xs text-muted-fg">
+                              {levelOf(s)?.name}
+                            </span>
+                          )}
                           {s.profile.user.status !== USER_STATUS.ACTIVE && (
                             <span className="shrink-0 text-xs text-muted-fg">
                               not approved
@@ -512,7 +570,7 @@ export default async function MentorHomePage({
               })}
             </ul>
 
-            <Table columns={studentColumns(showProgram)} framed={false} label="Your students" className="max-sm:hidden">
+            <Table columns={studentColumns(showProgram, showLevel)} framed={false} label="Your students" className="max-sm:hidden">
               {caseloadRows.map((s) => {
                 const balance = balanceOf(s);
                 const seen = lastSeen.get(s.profile.id);
@@ -547,6 +605,11 @@ export default async function MentorHomePage({
                         <span className="flex min-w-0">
                           <ProgramChip program={s.program} variant="tag" />
                         </span>
+                      </Td>
+                    )}
+                    {showLevel && (
+                      <Td className="whitespace-nowrap">
+                        {levelOf(s)?.name ?? <span className="text-muted-fg">—</span>}
                       </Td>
                     )}
                     <Td align="right" tone="key" className="whitespace-nowrap tabular-nums">
