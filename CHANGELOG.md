@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-11
+
+### New
+- **Programs show their levels.** On the Programs list, a program with levels, like Research, says how many it has beside its name.
+
 ## 2026-10-09
 
 ### New
