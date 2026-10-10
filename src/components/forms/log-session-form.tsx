@@ -169,6 +169,7 @@ export function LogSessionForm({
   /** The same form, empty — a link, so the back button still works. */
   againHref,
   from,
+  pageProgram,
   /** Whether this deployment has the keys for a spoken note. */
   canDictate = false,
 }: {
@@ -188,6 +189,14 @@ export function LogSessionForm({
   againHref?: string;
   /** The program the reader came through, kept on the link back to the student. */
   from?: string;
+  /**
+   * The program the reader is working in: the one this page is IN (opened from
+   * a program's own page), or the one they came through to the student. A fact
+   * about where they are rather than an answer about one student, so it is
+   * what a student's program starts at — wherever that student is in it — and
+   * the student's own last answer is not.
+   */
+  pageProgram?: string;
   canDictate?: boolean;
 }) {
     // The attempt counter is what lets the two SegmentedRadio pickers survive a
@@ -297,7 +306,14 @@ export function LogSessionForm({
   // Reset with the student: last week's program is not an answer about this
   // one, and a stale id would be rejected by the action rather than silently
   // used — but a rejection the mentor cannot see the cause of is worse.
-  const [programId, setProgramId] = useState(opening.programId ?? "");
+  // Picking a student on a page that is "In Master's Program" went to the
+  // student's alphabetically first program, so a session could be logged in
+  // Global Admissions from the Master's page.
+  const startingProgram = (offered: readonly { value: string }[]) =>
+    pageProgram && offered.some((p) => p.value === pageProgram) ? pageProgram : "";
+  const [programId, setProgramId] = useState(
+    opening.programId ?? startingProgram(programs)
+  );
   const chosen =
     programs.find((p) => p.value === programId) ??
     (programs.length === 1 ? programs[0] : undefined);
@@ -577,7 +593,9 @@ export function LogSessionForm({
           placeholder={studentPlaceholder ?? "Choose a student"}
           onChange={(value) => {
             setStudentId(value);
-            setProgramId("");
+            setProgramId(
+              startingProgram(students.find((s) => s.profileId === value)?.programs ?? [])
+            );
             touched();
           }}
           // A mentor logs for the same few students week after week, and a
@@ -720,8 +738,11 @@ export function LogSessionForm({
   );
 
   if (page && state?.ok && state.receipt) {
+    // The student goes in as the DRAFT's field, not as `?student=`: that one
+    // means "opened from this student's page", and the page takes its Back
+    // from it. `againHref` already carries it when that is where they came from.
     const nextSessionHref = againHref
-      ? `${againHref}${againHref.includes("?") ? "&" : "?"}student=${encodeURIComponent(state.receipt.subject?.id ?? "")}`
+      ? `${againHref}${againHref.includes("?") ? "&" : "?"}studentProfileId=${encodeURIComponent(state.receipt.subject?.id ?? "")}`
       : undefined;
 
     return (
