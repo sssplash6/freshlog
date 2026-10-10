@@ -7,6 +7,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-11
 
 ### New
+- **Set one task for a whole program.** Admins can press Set a student task on a program to give every student in it the same task in one go, including students there on exchange. Each student gets their own copy and is told about it.
 - **Program pages lead with students.** A program's student list is the first thing on its page again, with the program's mentors in a column beside it on a wide screen. Its latest sessions are listed under the students, with a link to all of them.
 - **Programs show their levels.** On the Programs list, a program with levels, like Research, says how many it has beside its name.
 - **Your students by level.** Mentors who work only in the Research Institute can narrow Your students on Home to one level, and see each student's level beside their name.

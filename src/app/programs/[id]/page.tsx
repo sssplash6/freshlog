@@ -2,6 +2,7 @@ import { ExchangeList } from "@/components/exchange-panel";
 import { CrownIcon } from "@/components/icons";
 import { AddStudentsForm } from "@/components/forms/add-students-form";
 import { AssignMentorForm } from "@/components/forms/program-settings-forms";
+import { ProgramTaskForm } from "@/components/forms/student-task-forms";
 import { PersonChip } from "@/components/person-chip";
 import { SessionsList } from "@/components/session-row";
 import { STUDENT_SORTS, StudentsTable } from "@/components/students-table";
@@ -10,7 +11,8 @@ import { FilterBar } from "@/components/ui/filter-bar";
 import { ArrowLink } from "@/components/ui/link";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
 import { Section } from "@/components/ui/section";
-import { SESSION_STATUS } from "@/lib/constants";
+import { canManageProgram } from "@/lib/authz";
+import { SESSION_STATUS, USER_STATUS } from "@/lib/constants";
 import { requireProgramScope } from "@/lib/dal";
 import { formatDuration } from "@/lib/format";
 import { programExchanges } from "@/lib/exchanges";
@@ -90,7 +92,11 @@ export default async function ProgramPage({
 
   // The first three are the layout's reads, memoised: opening a program asks
   // for its row, its roster and its pairings once between the two files.
-  const [program, pairings, cohorts, levels, exchanges, grants, pool, recent] =
+  // `?task=1`, from the header's "Set a student task": the form opens above
+  // the roster, for an admin who may set it.
+  const settingTask =
+    readParam(query, "task") === "1" && (await canManageProgram(user, id));
+  const [program, pairings, cohorts, levels, exchanges, grants, pool, recent, approved] =
     await Promise.all([
       programOf(id),
       programPairings(id),
@@ -109,6 +115,13 @@ export default async function ProgramPage({
         orderBy: [{ date: "desc" }, { createdAt: "desc" }],
         take: RECENT_SESSIONS,
       }),
+      // Who a task for everyone reaches — the action's own set, counted only
+      // when the form is open.
+      settingTask
+        ? prisma.studentEnrollment.count({
+            where: { programId: id, student: { user: { status: USER_STATUS.ACTIVE } } },
+          })
+        : Promise.resolve(0),
     ]);
 
   const where = studentsWhere(
@@ -217,6 +230,14 @@ export default async function ProgramPage({
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
       <div className="min-w-0 space-y-4">
+        {settingTask && (
+          <ProgramTaskForm
+            programId={program.id}
+            programName={program.name}
+            students={approved}
+            closeHref={basePath}
+          />
+        )}
         {/* ONE way in, at the head of the roster it adds to: the same
             plus-button every page uses for "new", which the form REPLACES
             when it opens (add-students-form.tsx). `?add=1` — the link from
