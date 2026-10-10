@@ -13,7 +13,7 @@ Pasted one at a time, worked one at a time, top to bottom. The quote is the
 report as given; the notes under it are ours. Status is **open**,
 **in progress**, or **done** with the commit that fixed it.
 
-### 1. Back from "Log a session" goes to All students, not Full Support — open
+### 1. Back from "Log a session" goes to All students, not Full Support — done (d4ba69d)
 
 > when Valera, admin, tries to log in a session and tries to go back, it goes
 > to all students, he has to go to full support instead.
@@ -27,7 +27,7 @@ report as given; the notes under it are ours. Status is **open**,
   got undone once already (AGENTS.md). Blame the Back-link code first, and keep
   whatever he decided.
 
-### 2. Set one task for every student in a program at once — open
+### 2. Set one task for every student in a program at once — done (7c829b2)
 
 > also admin wants to assign one task to all students at once, a button on
 > full support page, that would select all students
@@ -37,7 +37,7 @@ report as given; the notes under it are ours. Status is **open**,
 - Decided 11 October: **every student in the program, no list to edit.** That
   includes students visiting on exchange. One click, one task each.
 
-### 3. Student page and roster row disagree on the same student's hours — open
+### 3. Student page and roster row disagree on the same student's hours — done (68f10ca)
 
 > data discrepancy
 
@@ -57,10 +57,14 @@ Two screenshots of Jahongir Karimbaev:
 - The row's column headers are cropped out. Confirm which list it came from
   (probably the Advanced Research Program roster) and what its "1h" column
   means.
-- Leads to check: the two figures may come from different scopes (one program
-  against all of his programs, or the viewer's own allocations against
-  everyone's), or the row may be read from a stale or cached total. The October
-  9 session is missing from the row, which points the same way.
+- Cause: he is in two programs (Advanced Research Program and Flexible
+  Program). His page adds up every program the reader can see, and a
+  program's roster counts only its own hours. Both figures were right, but
+  neither page said so. Fixed by listing each program's figures under the
+  Progress bar.
+- It also shows that the Research merge (`npm run db:merge-research`) had not
+  run in production as of 10 October: "Advanced Research Program" is still its
+  own program there.
 
 ### 4. Merge Pre-Full Support into Full Support as a subsection — waiting on Valera
 
@@ -78,16 +82,22 @@ Two screenshots of Jahongir Karimbaev:
   sessions when the programs merge. Either they move into Full Support's ledger,
   or they stay as Pre-Full Support history and only new work goes under Full
   Support. Do not start until he answers.
-- Check whether the existing grouping under a program (the "September 2026 ·
-  Flexible Program" line on a student page) can carry the stage, or whether
-  something new is needed.
+- Found 11 October: this has a precedent. `prisma/merge-research-programs.ts`
+  folded Emerging, Advanced and Frontiers into one Research Program with
+  levels. Pre-Full Support can be a level of Full Support the same way, and a
+  student moves up when an admin changes their level, so nothing promotes them
+  automatically. That script moved every recorded hour into the merged
+  program's ledger, so if Valera agrees, the same script can be reused with
+  different names.
+- Collisions to count first: a student in both programs, and two hour banks
+  (both programs may bank) that would need adding together.
 - Every ledger row (allocations, sessions, tasks, allotment changes) carries
   its program, so merging moves those rows too. A student enrolled in both
   programs with the same mentor holds two allocations that would collide on
   `(student, program, mentor)` and have to be combined. Count those before
   deciding anything.
 
-### 5. Program page: students first, mentors back on the side, recent sessions at the bottom — open
+### 5. Program page: students first, mentors back on the side, recent sessions at the bottom — done (25d635b)
 
 > ...students shoudl be the first tab I see in programs
 >
@@ -108,12 +118,13 @@ Two screenshots of Jahongir Karimbaev:
      layouts lost in the stale-branch merges.
   3. A list of recent sessions ("last meetings") at the bottom of the page.
 
-### 6. Saving button should read "Loading…", not "Allocating…" — open
+### 6. Saving button should read "Loading…", not "Allocating…" — done (4b48c24)
 
 > lets say loading in that butotn instead of relocating
 
 - Clarified 11 October: not a hang. While the Allocate time form saves, the
-  button should say "Loading…" rather than "Allocating…".
+  button should say "Loading…" rather than "Allocating…". Changed on this form
+  only. Every other form says what it is doing ("Saving…", "Setting…").
 - Screenshot: Allocate time for Deniz Sattar, button showing a spinner and
   "Allocating…".
 - Other forms' saving buttons probably follow the same "verb-ing…" pattern.
@@ -121,7 +132,7 @@ Two screenshots of Jahongir Karimbaev:
   one.
 - Also small: the back link reads "← Student" rather than the student's name.
 
-### 7. Hour-bank students: "Allocate time" refuses, and the way forward is not offered — open
+### 7. Hour-bank students: "Allocate time" refuses, and the way forward is not offered — done (13e02b3)
 
 > cant log hour
 >
@@ -141,6 +152,9 @@ Two screenshots of Jahongir Karimbaev:
 - Keep the refusal itself. `src/lib/actions/students.ts` refuses on purpose:
   time granted beside a bank would sit unspent, because meetings draw the bank.
   The fix routes people to the bank; it does not remove the check.
+- Done: when the student already holds a bank, the form now IS the bank's
+  top-up (no mentor, no agenda) and says why. The add-to-bank path existed
+  all along, as "Hour bank" on the Agenda list.
 - Check whether the add-to-bank path still exists and is reachable. A
   stale-branch merge (45f095e) is believed to have dropped some hour-bank code;
   confirm that before relying on it.
