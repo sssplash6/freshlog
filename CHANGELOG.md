@@ -11,6 +11,9 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Your students by level.** Mentors who work only in the Research Institute can narrow Your students on Home to one level, and see each student's level beside their name.
 - **Your level on Home.** Students in the Research Institute see their level and cohort beside the greeting on Home.
 
+### Fixed
+- **Allocate time works for students with an hour bank.** For a student whose hours are in an hour bank, Allocate time now adds to the bank straight away, instead of asking for a mentor and then refusing. Any mentor in the program can log meetings against the bank.
+
 ## 2026-10-09
 
 ### New

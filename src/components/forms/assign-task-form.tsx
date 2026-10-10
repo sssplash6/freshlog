@@ -75,7 +75,15 @@ export function AssignTaskForm({
   // The bank is picked as the agenda, and takes the mentor, the note and the
   // money with it: it is one balance for every mentor, and nobody is asked what
   // was paid for it.
-  const isBank = agenda === TASK_BANK && bankPrograms.includes(programId);
+  //
+  // Once the student HOLDS a bank in this program it is the only balance there:
+  // the action refuses a mentor's grant beside it, because meetings draw the
+  // bank and the grant would sit unspent. So the form stops offering one. With
+  // no mentor and no agenda left to pick it is the bank's top-up, and an admin
+  // who came to give a mentor time is told why there is no mentor to name,
+  // before typing a figure, not after.
+  const banked = bankedPrograms.includes(programId) && bankPrograms.includes(programId);
+  const isBank = banked || (agenda === TASK_BANK && bankPrograms.includes(programId));
   const showAmountPaid = !isBank && paymentPrograms.includes(programId);
   const openTasks = openTasksByMentor[`${programId}:${mentorId}`] ?? [];
 
@@ -89,8 +97,11 @@ export function AssignTaskForm({
       {programs.length === 1 && (
         <input type="hidden" name="programId" value={programs[0].value} />
       )}
+      {banked && <input type="hidden" name="bank" value="1" />}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Hidden when empty — a banked student in one program has no program,
+          mentor or agenda to pick — so its margin goes with it. */}
+      <div className="mb-3 grid gap-3 empty:hidden sm:grid-cols-2 lg:grid-cols-3">
         {programs.length > 1 && (
           <div className="min-w-0">
             <span className={labelClass}>
@@ -126,14 +137,16 @@ export function AssignTaskForm({
         {/* Remounted per mentor: their open tasks lead the list, and a task
             picked for one mentor must never be left selected under another's.
             The "" key is the unassigned pool's own open tasks. */}
-        <TaskPicker
-          key={`${programId}:${mentorId}`}
-          className="lg:col-span-2"
-          optional
-          openTasks={openTasks}
-          bankOption={bankPrograms.includes(programId)}
-          onPick={setAgenda}
-        />
+        {!banked && (
+          <TaskPicker
+            key={`${programId}:${mentorId}`}
+            className="lg:col-span-2"
+            optional
+            openTasks={openTasks}
+            bankOption={bankPrograms.includes(programId)}
+            onPick={setAgenda}
+          />
+        )}
 
       </div>
 
@@ -148,7 +161,7 @@ export function AssignTaskForm({
           student, and the submit button where it does not: a program with no
           money field had an empty cell under its deadline and its own action
           orphaned below the form. */}
-      <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_16rem]">
         {isBank ? (
           <BankChoice
             created={!bankedPrograms.includes(programId)}
@@ -244,7 +257,8 @@ function BankChoice({
   if (!created || !past || (past.allocated === 0 && past.logged === 0)) {
     return (
       <p className="self-center text-sm text-muted-fg">
-        These minutes are added to their hour bank. Every meeting draws from it.
+        These minutes are added to their hour bank. Every meeting draws from it,
+        whichever mentor holds it, so no mentor is named here.
       </p>
     );
   }

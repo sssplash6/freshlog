@@ -1629,7 +1629,7 @@ export async function setMentorAllocation(
   ) {
     return {
       ok: false,
-      error: `This student's hours in ${program.name} are in an hour bank, which every meeting draws. Add to the bank instead.`,
+      error: `This student's hours in ${program.name} are in an hour bank, which every meeting draws, whichever mentor holds it. Add these minutes to the bank instead: pick "Hour bank" on the Agenda list.`,
     };
   }
   const existing = isBank
