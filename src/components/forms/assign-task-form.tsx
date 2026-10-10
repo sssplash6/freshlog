@@ -235,7 +235,7 @@ export function AssignTaskForm({
           cell, an auto-width one under it — so the same form moved its button
           between programs. */}
       <div className="mt-3 flex justify-end">
-        <SubmitButton pendingText="Allocating…">Allocate time</SubmitButton>
+        <SubmitButton pendingText="Loading…">Allocate time</SubmitButton>
       </div>
       <SaveState state={save} />
     </form>
