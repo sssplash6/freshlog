@@ -12,9 +12,9 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Your level on Home.** Students in the Research Institute see their level and cohort beside the greeting on Home.
 
 ### Fixed
-- **Allocate time works for students with an hour bank.** For a student whose hours are in an hour bank, Allocate time now adds to the bank straight away, instead of asking for a mentor and then refusing. Any mentor in the program can log meetings against the bank.
+- **Allocate time works with an hour bank.** For a student whose hours are in an hour bank, Allocate time now adds to the bank straight away, instead of asking for a mentor and then refusing. Any mentor in the program can log meetings against the bank.
 - **Allocate time says Loading while it saves.** The button reads Loading… while your allocation is being saved.
-- **A student in two programs shows each program's hours.** A student's page adds up every program they are in, while a program's student list counts only its own. So the two could disagree, with nothing saying why. The Progress card now lists each program's completed, remaining and total hours, matching that program's list.
+- **Each program's hours on a student's page.** A student's page adds up every program they are in, while a program's student list counts only its own. So the two could disagree, with nothing saying why. The Progress card now lists each program's completed, remaining and total hours, matching that program's list.
 - **Back goes where you came from after logging.** Logging a session from a program's page, or from a student you opened through one, now takes you back to that program instead of the full student list. The session is also logged in that program unless you pick another.
 
 ## 2026-10-09
