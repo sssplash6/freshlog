@@ -7,6 +7,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-11
 
 ### New
+- **Program pages lead with students.** A program's student list is the first thing on its page again, with the program's mentors in a column beside it on a wide screen. Its latest sessions are listed under the students, with a link to all of them.
 - **Programs show their levels.** On the Programs list, a program with levels, like Research, says how many it has beside its name.
 - **Your students by level.** Mentors who work only in the Research Institute can narrow Your students on Home to one level, and see each student's level beside their name.
 - **Your level on Home.** Students in the Research Institute see their level and cohort beside the greeting on Home.
