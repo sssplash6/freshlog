@@ -87,6 +87,43 @@ Four rules, and breaking any of them is silent:
    appends "(on exchange)", the rosters mark it, and `studiesIn()` is how you
    ask for a student's own programs.
 
+## The owner's recent decisions are not yours to undo
+
+`freshmanac` owns this repository, and other contributors' agents push to
+`main` beside him with no review in between. From 23 September to 6 October
+six of his decisions were undone that way: how Assigned adds up, who may grant
+their own hours, how past hours enter an hour bank, where a student page's Back
+link leads, the access table's columns, the session form's layout. Each was an
+agent fixing code it read as wrong, days after he had made it that way on
+purpose. His reasons were in the code's comments and were deleted with it. He
+found out from production, and reverted one himself (`905ec39`).
+
+So, before you change how something looks or behaves in code you did not write
+in this session:
+
+1. **Blame it.** `git blame -w` the lines you are replacing. If they are his
+   from the last three weeks, `git show` that commit and read its message and
+   its comments.
+2. **A comment that gives a reason is a decision.** "One column per program" is
+   not stale prose for a refactor to tidy away. A change that contradicts it
+   overrides him, whatever the commit message calls it.
+3. **If your change undoes what he decided, stop and ask the user.** Say what
+   he decided, in which commit, and what you would do instead. Do not settle it
+   yourself because it looks like a bug: all six above looked like bugs.
+4. **Changing his code while keeping his decision is fine.** That means a
+   rename, a move, a type that gains a field, or a refactor that renders and
+   behaves the same.
+
+`scripts/owner-guard.mjs`, run as the pre-push hook, refuses a commit that
+deletes three or more lines from one of his commits of the last 21 days, and
+names that commit. An `Owner-reviewed:` trailer gets past it:
+
+- Write it yourself only for rule 4, and say where his decision now lives:
+  `Owner-reviewed: kept, the fold moved into Disclosure and is closed by default`.
+- Otherwise, only after the user has said yes, naming them:
+  `Owner-reviewed: Doston agreed 2026-10-11 to drop the sideways scroll`.
+- Never `git push --no-verify` unless the user says so in this conversation.
+
 ## Every commit writes its changelog entry
 
 `CHANGELOG.md` at the repo root is what users read on `/changelog`. It ships
