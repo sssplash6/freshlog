@@ -5,6 +5,7 @@ import { applicationAccess } from "@/lib/authz";
 import {
   admin,
   allocation,
+  platformAdmin,
   grant,
   mentor,
   pairing,
@@ -24,6 +25,7 @@ vi.mock("@/lib/dal", () => ({
     actor.value ? prisma.user.findUnique({ where: { id: actor.value.id } }) : null,
 }));
 
+const { setProgramTracksAdmissions } = await import("@/lib/actions/programs");
 const {
   addStudentUniversity,
   correctUniversityWords,
@@ -217,5 +219,37 @@ describe("the university list", () => {
       await correctUniversityWords(null, form({ universityId: stanford.id, words: "650" }))
     ).toMatchObject({ ok: true });
     expect((await prisma.university.findUniqueOrThrow({ where: { id: stanford.id } })).supplementalWords).toBe(650);
+  });
+});
+
+describe("switching applications on and off", () => {
+  const toggle = (programId: string, on: boolean) =>
+    setProgramTracksAdmissions(null, form({ programId, tracksAdmissions: on ? "on" : "off" }));
+
+  it("refuses a program admin who would switch it on for their own program", async () => {
+    const { kid } = await setup();
+    const ga = await program("Global Admissions");
+    await enroll({ studentId: kid.id, programId: ga.id });
+    const gaAdmin = await admin("GA admin");
+    await grant({ userId: gaAdmin.id, programId: ga.id });
+    actor.value = gaAdmin;
+
+    expect(await toggle(ga.id, true)).toMatchObject({ ok: false });
+    expect((await prisma.program.findUniqueOrThrow({ where: { id: ga.id } })).tracksAdmissions).toBe(false);
+    // So the student's Full Support application stays out of their reach.
+    expect(await access(gaAdmin.id, kid.id)).toEqual({ read: false, write: false });
+  });
+
+  it("lets the program's admin switch it off, and a platform admin back on", async () => {
+    const { fs } = await setup();
+    const boss = await admin("FS admin");
+    await grant({ userId: boss.id, programId: fs.id });
+    actor.value = boss;
+    expect(await toggle(fs.id, false)).toMatchObject({ ok: true });
+    expect(await toggle(fs.id, true)).toMatchObject({ ok: false });
+
+    actor.value = await platformAdmin();
+    expect(await toggle(fs.id, true)).toMatchObject({ ok: true });
+    expect((await prisma.program.findUniqueOrThrow({ where: { id: fs.id } })).tracksAdmissions).toBe(true);
   });
 });

@@ -591,6 +591,15 @@ export async function setProgramHourBank(
  * like `hourBank`. Turning it off hides the Application section from the
  * program's student pages; what was entered is kept, and comes back if it is
  * turned on again.
+ *
+ * The two directions are not the same act. Turning it OFF is the program's own
+ * business, so its admins may. Turning it ON is a platform admin's only: the
+ * application is one record per student, and switching it on in a program
+ * opens every application its students hold — the Full Support one included —
+ * to that program's admins and mentors. A Global Admissions admin flipping
+ * this would have read Full Support's applications of every student the two
+ * programs share. It is a Full Support feature, switched on there by the
+ * migration.
  */
 export async function setProgramTracksAdmissions(
   _prev: ActionState,
@@ -602,10 +611,14 @@ export async function setProgramTracksAdmissions(
   const denied = await assertProgramScope(actor, programId);
   if (denied) return denied;
 
+  const tracksAdmissions = String(formData.get("tracksAdmissions") ?? "") === "on";
+  if (tracksAdmissions) {
+    const notPlatform = assertPlatformAdmin(actor);
+    if (notPlatform) return notPlatform;
+  }
+
   const program = await prisma.program.findUnique({ where: { id: programId } });
   if (!program) return { ok: false, error: "Program not found." };
-
-  const tracksAdmissions = String(formData.get("tracksAdmissions") ?? "") === "on";
   if (tracksAdmissions === program.tracksAdmissions) return { ok: true, message: "No change." };
 
   await prisma.program.update({ where: { id: programId }, data: { tracksAdmissions } });

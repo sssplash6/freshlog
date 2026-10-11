@@ -358,10 +358,16 @@ export default async function ProgramSettingsPage({
             />
           )}
           <ClassHoursToggle programId={program.id} classHours={program.classHours} />
-          <TracksAdmissionsToggle
-            programId={program.id}
-            tracksAdmissions={program.tracksAdmissions}
-          />
+          {/* Off is the program's own call; on is a platform admin's, since
+              it opens students' applications to everybody here — see
+              `setProgramTracksAdmissions`. Where it is off and the reader
+              cannot turn it on, there is nothing to show. */}
+          {(program.tracksAdmissions || viewer.platformAdmin) && (
+            <TracksAdmissionsToggle
+              programId={program.id}
+              tracksAdmissions={program.tracksAdmissions}
+            />
+          )}
           <StandardHoursForm
             programId={program.id}
             standardMinutes={program.standardMinutes}
