@@ -587,6 +587,39 @@ export async function setProgramHourBank(
 }
 
 /**
+ * Does this program follow its students' university applications? A column,
+ * like `hourBank`. Turning it off hides the Application section from the
+ * program's student pages; what was entered is kept, and comes back if it is
+ * turned on again.
+ */
+export async function setProgramTracksAdmissions(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+
+  const programId = String(formData.get("programId") ?? "");
+  const denied = await assertProgramScope(actor, programId);
+  if (denied) return denied;
+
+  const program = await prisma.program.findUnique({ where: { id: programId } });
+  if (!program) return { ok: false, error: "Program not found." };
+
+  const tracksAdmissions = String(formData.get("tracksAdmissions") ?? "") === "on";
+  if (tracksAdmissions === program.tracksAdmissions) return { ok: true, message: "No change." };
+
+  await prisma.program.update({ where: { id: programId }, data: { tracksAdmissions } });
+
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: tracksAdmissions
+      ? `${program.name} now tracks applications. Each student's page has an Application section.`
+      : `${program.name} no longer tracks applications. What was entered is kept.`,
+  };
+}
+
+/**
  * Does this program log its hours as classes? Its roster is then groups, added
  * by name, and an hour is logged for a group. A column, like `hourBank`.
  * Turning it off changes what the add form and the log button OFFER; groups

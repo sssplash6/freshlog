@@ -288,6 +288,97 @@ export async function mentorHasWorkedWith(
 }
 
 /**
+ * May this person read — and may they change — a student's university
+ * application?
+ *
+ * The application is one record per student, but whether anybody sees it is a
+ * question about PROGRAMS: the student's own programs (a visit is not one)
+ * that set `tracksAdmissions`. A student in none of them has no application to
+ * show, whoever is asking.
+ *
+ * Within those programs, two kinds of reader, the same two the request named:
+ *
+ *   - an admin of one of them, by `adminScope` to read and `adminWriteScope` to
+ *     change — so a LEADER or SALES grant reads it and gets no controls;
+ *   - a mentor who works with the student THERE: assigned to the program, or
+ *     holding a grant, a session or an agenda item in it. A mentor who reaches
+ *     the student only through Global Admissions does not see their Full
+ *     Support application, which is the rule every other figure on the page
+ *     follows (§ "Reaching a student is not reading them").
+ *
+ * Mentors who may read may also write: the mentor is who moves an essay from
+ * Writing to Finalizing.
+ */
+export async function applicationAccess(
+  user: User,
+  profile: {
+    id: string;
+    enrollments: readonly { programId: string; exchangeId?: string | null }[];
+  }
+): Promise<{ read: boolean; write: boolean }> {
+  const own = profile.enrollments.filter((e) => !e.exchangeId).map((e) => e.programId);
+  if (own.length === 0) return { read: false, write: false };
+  const tracked = (
+    await prisma.program.findMany({
+      where: { id: { in: own }, tracksAdmissions: true },
+      select: { id: true },
+    })
+  ).map((p) => p.id);
+  if (tracked.length === 0) return { read: false, write: false };
+
+  const [readScope, writeScope] = await Promise.all([
+    adminScope(user),
+    adminWriteScope(user),
+  ]);
+  if (tracked.some((id) => scopeCovers(writeScope, id))) return { read: true, write: true };
+  const adminReads = tracked.some((id) => scopeCovers(readScope, id));
+
+  if (canActAsMentor(user)) {
+    const inProgram = { mentorId: user.id, programId: { in: tracked } };
+    const works = await prisma.studentProfile.findFirst({
+      where: {
+        id: profile.id,
+        OR: [
+          { hourAllocations: { some: inProgram } },
+          { sessions: { some: inProgram } },
+          { assignments: { some: inProgram } },
+          {
+            enrollments: {
+              some: {
+                programId: { in: tracked },
+                exchangeId: null,
+                program: { mentorAssignments: { some: { mentorId: user.id } } },
+              },
+            },
+          },
+        ],
+      },
+      select: { id: true },
+    });
+    if (works) return { read: true, write: true };
+  }
+
+  return { read: adminReads, write: false };
+}
+
+/**
+ * The same question as a refusal for a server action. One sentence for "not
+ * yours", "no such student" and "not in a program that tracks applications",
+ * so the answer cannot be used to find out which is which.
+ */
+export async function assertApplicationWrite(
+  actor: User | null,
+  profile: {
+    id: string;
+    enrollments: readonly { programId: string; exchangeId?: string | null }[];
+  } | null
+): Promise<Denied | null> {
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+  if (profile && (await applicationAccess(actor, profile)).write) return null;
+  return { ok: false, error: "You can't change that student's application." };
+}
+
+/**
  * Scope check for a server action, as a returnable refusal.
  *
  *   const denied = await assertProgramScope(actor, profile.programId);

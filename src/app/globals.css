@@ -61,6 +61,18 @@
      accent stays for fills (progress bars, rings). */
   --color-accent-ink: #a35200;
 
+  /* ---- Essay stages ---------------------------------------------------- *
+   * The one place colour is spent on progress, by request (October 2026):
+   * an application's essays move Brainstorming → Writing → Finalizing → Done,
+   * and the mentors who follow twenty of them read the stage at a glance by
+   * its colour. FILLS only, on the stage bar (components/essay-stage.tsx),
+   * and the stage is always named in words beside it — never colour alone.
+   * Nothing else may use them: a green here is not "good" anywhere else. */
+  --color-stage-brainstorming: #e0a800;
+  --color-stage-writing: #2f6fd6;
+  --color-stage-finalizing: #7cc96b;
+  --color-stage-done: #2e8b3e;
+
   --color-ink: #1c1c1e; /* primary text */
   --color-muted-fg: #63636a; /* secondary text — 4.66:1 on the strongest fill (#e3e3e9) */
   /* What cannot be pressed or chosen, as a COLOUR rather than an opacity.
@@ -439,6 +451,11 @@
   --color-danger-soft: #37262b;
   --color-danger-line: #5a3136;
   --color-danger-ink: #f28f8f; /* the only red for text, on the card */
+
+  --color-stage-brainstorming: #e6c04a;
+  --color-stage-writing: #6ea0ec;
+  --color-stage-finalizing: #8fd47f;
+  --color-stage-done: #4bb05b;
 
   /* Each soft is its own dot laid at 24% over the card, so every tint sits
      the same distance above the surface; each ink clears 6:1 on it. */

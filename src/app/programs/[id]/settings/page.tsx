@@ -4,6 +4,7 @@ import {
   AssignMentorForm,
   CreateLevelForm,
   ClassHoursToggle,
+  TracksAdmissionsToggle,
   DeleteCohortButton,
   DeleteLevelButton,
   DeleteProgramButton,
@@ -357,6 +358,10 @@ export default async function ProgramSettingsPage({
             />
           )}
           <ClassHoursToggle programId={program.id} classHours={program.classHours} />
+          <TracksAdmissionsToggle
+            programId={program.id}
+            tracksAdmissions={program.tracksAdmissions}
+          />
           <StandardHoursForm
             programId={program.id}
             standardMinutes={program.standardMinutes}

@@ -7,6 +7,9 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-11
 
 ### New
+- **A Full Support student's application.** A Full Support student's page now opens with their SAT, IELTS, school and GPA, and the motivational essay's stage: Brainstorming, Writing, Finalizing or Done. Their mentors and the program's admins can edit these, and tap the bar to move the essay to a new stage.
+- **Each student's universities.** List the universities a student is applying to, with one marked as their primary choice and its round (ED, REA or EA) if they have one. Each university tracks its supplemental essays through the same four stages.
+- **Word counts entered once.** The first time anyone adds a university, they enter its supplemental word count. After that, search for it and the count fills in. Program admins can correct a count, and the correction applies to every student who lists that university.
 - **Programs show their levels.** On the Programs list, a program with levels, like Research, says how many it has beside its name.
 - **Your students by level.** Mentors who work only in the Research Institute can narrow Your students on Home to one level, and see each student's level beside their name.
 - **Your level on Home.** Students in the Research Institute see their level and cohort beside the greeting on Home.

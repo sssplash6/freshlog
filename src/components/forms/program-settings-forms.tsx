@@ -20,6 +20,7 @@ import {
   setLevelStandardHours,
   setProgramHourBank,
   setProgramClassHours,
+  setProgramTracksAdmissions,
   setProgramStandardHours,
   setProgramSpace,
   setProgramTracksPayment,
@@ -461,6 +462,39 @@ export function ClassHoursToggle({
           <input type="hidden" name="classHours" value={classHours ? "off" : "on"} />
           <SubmitButton variant="secondary" pendingText="Saving…">
             {classHours ? "Log hours per student" : "Log hours as classes"}
+          </SubmitButton>
+        </form>
+      }
+      state={<SaveState state={save} />}
+    />
+  );
+}
+
+/** Does this program follow its students' university applications? */
+export function TracksAdmissionsToggle({
+  programId,
+  tracksAdmissions,
+}: {
+  programId: string;
+  tracksAdmissions: boolean;
+}) {
+  const [, action, save] = useSaveState(setProgramTracksAdmissions);
+
+  return (
+    <SettingsRow
+      label="University applications"
+      description={
+        tracksAdmissions
+          ? "Each student's page shows their scores, essays and university list, for their mentors and this program's admins."
+          : "Turn this on to follow each student's scores, essays and university list on their page."
+      }
+      control={
+        <form action={action} className="flex flex-wrap items-center gap-3">
+          <OnOff on={tracksAdmissions} />
+          <input type="hidden" name="programId" value={programId} />
+          <input type="hidden" name="tracksAdmissions" value={tracksAdmissions ? "off" : "on"} />
+          <SubmitButton variant="secondary" pendingText="Saving…">
+            {tracksAdmissions ? "Stop tracking applications" : "Track applications"}
           </SubmitButton>
         </form>
       }

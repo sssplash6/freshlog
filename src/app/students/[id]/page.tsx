@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { FolderIcon, SendIcon } from "@/components/icons";
+import { ApplicationSection } from "@/components/application-section";
 import {
   AllocationsTable,
   timeByMentorEntries,
@@ -48,6 +49,7 @@ import {
 import {
   adminScope,
   adminWriteScope,
+  applicationAccess,
   canAdministerStudent,
   canManageStudent,
   mentorHasWorkedWith,
@@ -142,6 +144,41 @@ export default async function StudentWorkspacePage({
     canActAsMentor(me) && (await mentorHasWorkedWith(me, profile))
       ? await interviewsOfStudent(profile.id)
       : [];
+
+  // The university application, for a student in a program that tracks them,
+  // read by its admins and by the mentors who work with the student THERE —
+  // `applicationAccess` is narrower than this page's gate on purpose.
+  const appAccess = await applicationAccess(me, profile);
+  const application = appAccess.read
+    ? await Promise.all([
+        prisma.studentApplication.findUnique({ where: { studentId: profile.id } }),
+        prisma.studentUniversity.findMany({
+          where: { studentId: profile.id },
+          include: {
+            university: { select: { id: true, name: true, supplementalWords: true } },
+          },
+          orderBy: { createdAt: "asc" },
+        }),
+        appAccess.write
+          ? prisma.university.findMany({
+              orderBy: { name: "asc" },
+              select: { id: true, name: true, supplementalWords: true },
+            })
+          : Promise.resolve([]),
+        // A word count is the university's, for every student who lists it, so
+        // correcting one is an admin's — of any program that tracks them.
+        appAccess.write
+          ? adminWriteScope(me).then(async (scope) =>
+              (
+                await prisma.program.findMany({
+                  where: { tracksAdmissions: true },
+                  select: { id: true },
+                })
+              ).some((p) => scopeCovers(scope, p.id))
+            )
+          : Promise.resolve(false),
+      ])
+    : null;
 
   const lens = await profileOf(me);
   const viewer = {
@@ -593,6 +630,26 @@ export default async function StudentWorkspacePage({
         ) : (
           <p className="text-sm text-muted-fg">{logReason}</p>
         )
+      )}
+
+      {/* Where their application stands, for the programs that track one
+          (Full Support): opened to answer that before anything else, so it sits
+          above the hours. Nobody else's page grows it. */}
+      {application && (
+        <ApplicationSection
+          studentProfileId={profile.id}
+          application={{
+            sat: application[0]?.sat ?? null,
+            ielts: application[0]?.ielts ?? null,
+            school: application[0]?.school ?? null,
+            gpa: application[0]?.gpa ?? null,
+            essayStage: application[0]?.essayStage ?? null,
+            universities: application[1],
+          }}
+          editable={appAccess.write}
+          canCorrectWords={application[3]}
+          universities={application[2]}
+        />
       )}
 
       {/* The tracking sheet's whole tab: what happened on the left, what the
