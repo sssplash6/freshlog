@@ -92,7 +92,7 @@ export default async function ProgramPage({
 
   // The first three are the layout's reads, memoised: opening a program asks
   // for its row, its roster and its pairings once between the two files.
-  // `?task=1`, from the header's "Set a student task": the form opens above
+  // `?task=1`, from the header's "Set a task": the form opens above
   // the roster, for an admin who may set it.
   const settingTask =
     readParam(query, "task") === "1" && (await canManageProgram(user, id));

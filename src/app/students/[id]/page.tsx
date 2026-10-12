@@ -538,10 +538,12 @@ export default async function StudentWorkspacePage({
         Allocate time
       </LinkButton>
     ) : null;
-  // The primary is always LAST — the right end, where every page keeps it. The
-  // mentor lens put its primary first and the program page put its own last,
-  // so the same two buttons swapped places between pages.
-  const headerButtons = primaryIsLog ? [allocateButton, logButton] : [logButton, allocateButton];
+  // Log a session is always LAST, in the right-hand corner, in either lens and
+  // on the program page too (12 October 2026, asked for in that order: "Log a
+  // session should always be in right corner, Allocate time to the left"). It
+  // had followed whichever button was primary, so the two swapped places
+  // between a mentor's view and an admin's.
+  const headerButtons = [allocateButton, logButton];
 
   return (
     <div className="space-y-4">

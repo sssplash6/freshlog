@@ -101,6 +101,25 @@ export default async function ProgramLayout({
         }
         actions={
           <span className="flex flex-wrap items-center gap-2">
+            {/* Allocate time FIRST and Log a session LAST, in the right-hand
+                corner (12 October 2026, asked for in that order: "Log a
+                session should always be in right corner, Allocate time to the
+                left"). Granting time is what a program admin opens this page
+                to do that no other page does for the whole program. */}
+            <LinkButton href={`${base}/allocate`} variant="primary" size="md">
+              Allocate time
+            </LinkButton>
+            {/* One task for every student in the program, set above the
+                roster — asked for by the program's admins (11 October 2026).
+                "Set a task", and the only task button up here: "Set a task,
+                not mentor tasks — I need to send tasks to students mostly"
+                (12 October 2026). The mentors' form is on the Mentor tasks
+                tab, one click below. */}
+            {writes && (
+              <LinkButton href={`${base}?task=1`} variant="secondary" size="md">
+                Set a task
+              </LinkButton>
+            )}
             {/* The program travels with it: a student in two of them has two
                 balances, and the one being looked at is the one this log
                 should land in. */}
@@ -112,28 +131,6 @@ export default async function ProgramLayout({
               size="md"
             >
               {program.classHours ? "Log an hour for a group" : "Log a session"}
-            </LinkButton>
-            {/* One task for every student in the program, set above the
-                roster — asked for by the program's admins (11 October 2026). */}
-            {writes && (
-              <LinkButton href={`${base}?task=1`} variant="secondary" size="md">
-                Set a student task
-              </LinkButton>
-            )}
-            {/* Opens the Mentor tasks tab with its form already unfolded. */}
-            <LinkButton
-              href={`${base}/tasks?new=1`}
-              variant="secondary"
-              size="md"
-            >
-              Set a mentor task
-            </LinkButton>
-            {/* Primary, and LAST — the right-hand end, where the student
-                page puts its own. The two pages had the same pair in opposite
-                orders. Granting time is what a program admin opens this page
-                to do that no other page does for the whole program. */}
-            <LinkButton href={`${base}/allocate`} variant="primary" size="md">
-              Allocate time
             </LinkButton>
           </span>
         }

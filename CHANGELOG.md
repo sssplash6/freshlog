@@ -4,13 +4,18 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-12
+
+### Fixed
+- **Log a session sits in the corner.** On a program's page and a student's page, Log a session is now always the right-most button, with Allocate time on the left. A program's Set a task sends the task to its students; tasks for mentors are set on the Mentor tasks tab.
+
 ## 2026-10-11
 
 ### New
 - **A Full Support student's application.** A Full Support student's page now opens with their SAT, IELTS, school and GPA, and the motivational essay's stage: Brainstorming, Writing, Finalizing or Done. Their mentors and the program's admins can edit these, and tap the bar to move the essay to a new stage.
 - **Each student's universities.** List the universities a student is applying to, with one marked as their primary choice and its round (ED, REA or EA) if they have one. Each university tracks its supplemental essays through the same four stages.
 - **Word counts entered once.** The first time anyone adds a university, they enter its supplemental word count. After that, search for it and the count fills in. Program admins can correct a count, and the correction applies to every student who lists that university.
-- **Set one task for a whole program.** Admins can press Set a student task on a program to give every student in it the same task in one go, including students there on exchange. Each student gets their own copy and is told about it.
+- **Set one task for a whole program.** Admins can press Set a task on a program to give every student in it the same task in one go, including students there on exchange. Each student gets their own copy and is told about it.
 - **Program pages lead with students.** A program's student list is the first thing on its page again, with the program's mentors in a column beside it on a wide screen. Its latest sessions are listed under the students, with a link to all of them.
 - **Programs show their levels.** On the Programs list, a program with levels, like Research, says how many it has beside its name.
 - **Your students by level.** Mentors who work only in the Research Institute can narrow Your students on Home to one level, and see each student's level beside their name.
