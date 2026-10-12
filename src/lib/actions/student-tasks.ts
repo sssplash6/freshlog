@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { assertTaskAssigner, assertTaskScope } from "@/lib/authz";
+import { assertProgramScope, assertTaskAssigner, assertTaskScope } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import {
@@ -211,6 +211,98 @@ export async function setStudentTask(
   return {
     ok: true,
     message: `"${fields.title}" is on their list, due ${formatDate(fields.dueOn)}.`,
+  };
+}
+
+/**
+ * Set the same task for every student in a program, in one go.
+ *
+ * Asked for by the program admins (11 October 2026): an essay deadline or a
+ * form everybody has to fill in was the same task typed onto forty student
+ * pages. EVERY student the program holds, exchange visitors included, and no
+ * list to untick, by the same decision — it is the program's task, not a pick.
+ * Students not yet approved are skipped: they have no home to see it on.
+ *
+ * Admins of the program only, which is narrower than `setStudentTask`'s gate:
+ * a mentor sets work for the students they sit with, and a mentor who works in
+ * a program does not sit with all of it. The admin owns every row, as an admin
+ * owns a task they set one student.
+ *
+ * Each student is told and mailed as for one task. Their mentors are not
+ * mailed per student — a mentor with ten students here would get ten copies
+ * of one announcement — and see the task on each student's page.
+ */
+export async function setProgramTask(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+
+  const programId = String(formData.get("programId") ?? "");
+  const denied = await assertProgramScope(actor, programId);
+  if (denied) return denied;
+
+  const fields = parseFields(formData);
+  if ("error" in fields) return { ok: false, error: fields.error };
+
+  const [program, enrollments] = await Promise.all([
+    prisma.program.findUnique({ where: { id: programId }, select: { name: true } }),
+    prisma.studentEnrollment.findMany({
+      where: { programId, student: { user: { status: USER_STATUS.ACTIVE } } },
+      select: { student: { select: { id: true, userId: true, user: true } } },
+    }),
+  ]);
+  if (!program) return { ok: false, error: "You don't administer that program." };
+  const students = enrollments.map((e) => e.student);
+  if (students.length === 0) {
+    return { ok: false, error: `${program.name} has no approved students to set it for.` };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.studentTask.createMany({
+      data: students.map((student) => ({
+        studentId: student.id,
+        programId,
+        mentorId: actor.id,
+        title: fields.title,
+        note: fields.note,
+        dueOn: fields.dueOn,
+      })),
+    });
+    await notify(tx, {
+      to: students.map((student) => student.userId),
+      type: NOTIFICATION_TYPES.TASK_SET,
+      actorId: actor.id,
+      href: notificationHref.studentHome(),
+      message: `${actor.name ?? actor.email} set you a task: "${fields.title}", due ${formatDate(fields.dueOn)}.`,
+    });
+  });
+
+  // After the transaction, as for one task: a rollback cannot recall an email.
+  const wants = await wantTaskEmail(students.map((student) => student.userId));
+  const setterName = actor.name ?? actor.email;
+  sendTaskEmails(
+    students
+      .filter((student) => wants.has(student.userId))
+      .map((student) =>
+        taskSetMail({
+          to: student.user.email,
+          studentName: student.user.name,
+          mentorName: setterName,
+          programName: program.name,
+          title: fields.title,
+          dueOn: fields.dueOn,
+          note: fields.note,
+        })
+      )
+  );
+
+  revalidatePath(`/programs/${programId}`);
+  const count = students.length === 1 ? "1 student" : `${students.length} students`;
+  return {
+    ok: true,
+    message: `"${fields.title}" is set for ${count}, due ${formatDate(fields.dueOn)}.`,
   };
 }
 

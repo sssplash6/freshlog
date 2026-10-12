@@ -10,9 +10,17 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **A Full Support student's application.** A Full Support student's page now opens with their SAT, IELTS, school and GPA, and the motivational essay's stage: Brainstorming, Writing, Finalizing or Done. Their mentors and the program's admins can edit these, and tap the bar to move the essay to a new stage.
 - **Each student's universities.** List the universities a student is applying to, with one marked as their primary choice and its round (ED, REA or EA) if they have one. Each university tracks its supplemental essays through the same four stages.
 - **Word counts entered once.** The first time anyone adds a university, they enter its supplemental word count. After that, search for it and the count fills in. Program admins can correct a count, and the correction applies to every student who lists that university.
+- **Set one task for a whole program.** Admins can press Set a student task on a program to give every student in it the same task in one go, including students there on exchange. Each student gets their own copy and is told about it.
+- **Program pages lead with students.** A program's student list is the first thing on its page again, with the program's mentors in a column beside it on a wide screen. Its latest sessions are listed under the students, with a link to all of them.
 - **Programs show their levels.** On the Programs list, a program with levels, like Research, says how many it has beside its name.
 - **Your students by level.** Mentors who work only in the Research Institute can narrow Your students on Home to one level, and see each student's level beside their name.
 - **Your level on Home.** Students in the Research Institute see their level and cohort beside the greeting on Home.
+
+### Fixed
+- **Allocate time works with an hour bank.** For a student whose hours are in an hour bank, Allocate time now adds to the bank straight away, instead of asking for a mentor and then refusing. Any mentor in the program can log meetings against the bank.
+- **Allocate time says Loading while it saves.** The button reads Loading… while your allocation is being saved.
+- **Each program's hours on a student's page.** A student's page adds up every program they are in, while a program's student list counts only its own. So the two could disagree, with nothing saying why. The Progress card now lists each program's completed, remaining and total hours, matching that program's list.
+- **Back goes where you came from after logging.** Logging a session from a program's page, or from a student you opened through one, now takes you back to that program instead of the full student list. The session is also logged in that program unless you pick another.
 
 ## 2026-10-09
 

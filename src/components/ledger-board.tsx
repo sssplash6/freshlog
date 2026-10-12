@@ -66,6 +66,7 @@ export function LedgerBoard({
   tasks,
   assignments,
   totals,
+  byProgram = [],
   mentorBase,
   renderSessionActions,
   renderTaskActions,
@@ -95,6 +96,22 @@ export function LedgerBoard({
     remaining: number;
     extra: number;
   };
+  /**
+   * The same figures, one row per program, when `totals` adds up more than one.
+   *
+   * A program's roster counts only that program's hours, and this page counts
+   * every program the reader can see, so a student in two programs read 31h
+   * remaining here and 22h on the roster they were opened from, with nothing
+   * on either page saying why. Each row here is what that program's roster
+   * shows. Left out, or with one entry, nothing is drawn.
+   */
+  byProgram?: {
+    id: string;
+    name: string;
+    allotted: number;
+    completed: number;
+    remaining: number;
+  }[];
   mentorBase?: string;
   /**
    * The ⋮ menus, resolved by the page for this reader.
@@ -217,6 +234,25 @@ export function LedgerBoard({
             remaining={totals.remaining}
             expired={totals.forfeited}
           />
+          {byProgram.length > 1 && (
+            <ul className="mt-3 divide-y divide-line border-t border-line">
+              {byProgram.map((p) => (
+                <li
+                  key={p.id}
+                  className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-2 text-sm"
+                >
+                  <span className="min-w-0 font-medium text-ink">{p.name}</span>
+                  <span className="tabular-nums text-muted-fg">
+                    {formatDuration(p.completed)} completed ·{" "}
+                    {p.remaining < 0
+                      ? `${formatDuration(-p.remaining)} over`
+                      : `${formatDuration(p.remaining)} remaining`}{" "}
+                    · {formatDuration(p.allotted)} total
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </Section>
 

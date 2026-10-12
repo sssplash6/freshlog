@@ -5,7 +5,7 @@ import { StatStrip } from "@/components/ui/stat-strip";
 import { TabLinks } from "@/components/ui/segmented";
 import { ProgramDot } from "@/components/program-chip";
 import { StatusChip } from "@/components/ui/status-chip";
-import { adminScope } from "@/lib/authz";
+import { adminScope, canManageProgram } from "@/lib/authz";
 import { requireProgramScope } from "@/lib/dal";
 import { formatBalance, formatDuration } from "@/lib/format";
 import { programTotals } from "@/lib/hours";
@@ -61,6 +61,9 @@ export default async function ProgramLayout({
   ]);
 
   const scope = await adminScope(user);
+  // A read-only grant (LEADER, SALES) sees the program and changes nothing in
+  // it, so it is not offered a control that sets every student a task.
+  const writes = await canManageProgram(user, id);
   // Back to the index, unless this reader's whole scope is this program — then
   // `/programs` redirects straight back here and the link is a loop.
   const toIndex = scope === "ALL" || scope.size > 1;
@@ -110,6 +113,13 @@ export default async function ProgramLayout({
             >
               {program.classHours ? "Log an hour for a group" : "Log a session"}
             </LinkButton>
+            {/* One task for every student in the program, set above the
+                roster — asked for by the program's admins (11 October 2026). */}
+            {writes && (
+              <LinkButton href={`${base}?task=1`} variant="secondary" size="md">
+                Set a student task
+              </LinkButton>
+            )}
             {/* Opens the Mentor tasks tab with its form already unfolded. */}
             <LinkButton
               href={`${base}/tasks?new=1`}

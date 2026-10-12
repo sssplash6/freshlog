@@ -59,7 +59,12 @@ import {
   scopeProgramFilter,
   studentScope,
 } from "@/lib/authz";
-import { enrollmentLabel, enrollmentsLabel, studiesIn } from "@/lib/enrollments";
+import {
+  enrollmentLabel,
+  enrollmentsLabel,
+  sortEnrollments,
+  studiesIn,
+} from "@/lib/enrollments";
 import { visibleExchanges } from "@/lib/exchanges";
 import { requireUser } from "@/lib/dal";
 import { deadlinePassed, soonestExpiry } from "@/lib/deadlines";
@@ -267,6 +272,24 @@ export default async function StudentWorkspacePage({
       select: { id: true, name: true },
     }),
   ]);
+
+  // Each program's own figures, when the totals above add up more than one —
+  // so the page agrees, row by row, with the roster of every program it sums.
+  const byProgram =
+    enrollments.length > 1
+      ? await Promise.all(
+          sortEnrollments(enrollments).map(async (e) => {
+            const sum = await allocationSummary(profile.id, [e.programId]);
+            return {
+              id: e.programId,
+              name: e.exchangeId ? `${e.program.name} (on exchange)` : e.program.name,
+              allotted: sum.allotted,
+              completed: sum.completed,
+              remaining: sum.remaining,
+            };
+          })
+        )
+      : [];
 
   const name = profile.user.name ?? profile.user.email;
   const isPending = profile.user.status === USER_STATUS.PENDING;
@@ -688,6 +711,7 @@ export default async function StudentWorkspacePage({
           ) : null
         }
         totals={hours}
+        byProgram={byProgram}
         mentorBase="/mentors"
         // The board is where these rows are READ, so it is where they have to
         // be correctable. Neither menu was here: a logged session had to be

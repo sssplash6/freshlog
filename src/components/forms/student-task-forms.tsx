@@ -1,10 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import { PlusIcon } from "@/components/icons";
 import { Select, type SelectOption } from "@/components/select";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClasses } from "@/components/ui/button";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { DateField } from "@/components/ui/date-field";
 import { Field, GrowingField } from "@/components/ui/field";
@@ -14,6 +15,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { toDateInputValue } from "@/lib/format";
 import {
   deleteStudentTask,
+  setProgramTask,
   setStudentTask,
   setStudentTaskProgress,
   updateStudentTask,
@@ -155,6 +157,105 @@ export function SetStudentTaskForm({
         <Button variant="ghost" onClick={() => setOpen(false)}>
           Cancel
         </Button>
+      </div>
+      <SaveState state={save} />
+    </form>
+  );
+}
+
+/**
+ * Set one task for every student in a program — the header's "Set a student
+ * task", which opens this above the roster.
+ *
+ * The same three fields as one student's, and no list of names: by the admins'
+ * own decision it goes to everyone the program holds, exchange visitors too,
+ * so a list to untick would be a control nobody is meant to use. The count is
+ * on the button, so what one press will do is said before it is pressed.
+ */
+export function ProgramTaskForm({
+  programId,
+  programName,
+  students,
+  closeHref,
+}: {
+  programId: string;
+  programName: string;
+  /** Approved students, which is who the action sets it for. */
+  students: number;
+  /** The roster without the form open. */
+  closeHref: string;
+}) {
+  const [state, action, save] = useSaveState(setProgramTask);
+  const [open, setOpen] = useState(true);
+  const today = programToday();
+  const everyone = students === 1 ? "1 student" : `all ${students} students`;
+
+  // Collapse once it is set, as one student's form does, so the filled-in
+  // fields cannot be sent to every student a second time.
+  const [seen, setSeen] = useState(state);
+  if (state !== seen) {
+    setSeen(state);
+    if (state?.ok) setOpen(false);
+  }
+
+  if (!open) return <SaveState state={save} className="px-1" />;
+  if (students === 0) {
+    return (
+      <p className="px-1 text-sm text-muted-fg">
+        Nobody in {programName} is approved yet, so there is nobody to set a task for.
+      </p>
+    );
+  }
+
+  return (
+    <form action={action} className="rise-in space-y-3 rounded-xl bg-surface p-4 shadow-sm sm:p-5">
+      <input type="hidden" name="programId" value={programId} />
+      <div>
+        <h2 className="text-title font-semibold tracking-[-0.01em] text-ink">
+          A task for {everyone}
+        </h2>
+        <p className="mt-1 text-sm text-muted-fg">
+          Everyone in {programName} gets their own copy, including students here
+          on exchange, and is told about it.
+        </p>
+      </div>
+
+      <Field label="Task" required>
+        <GrowingField
+          name="title"
+          required
+          autoFocus
+          maxLength={MAX_TASK_TITLE}
+          placeholder="Submit your activities list"
+        />
+      </Field>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {/* A div, not a `Field`: the date field's trigger is a button, and a
+            label around it would toggle the calendar on every click. */}
+        <div className="min-w-0 space-y-1.5">
+          <span className="block text-sm font-medium text-ink">
+            Deadline<RequiredMark />
+          </span>
+          <DateField name="dueOn" label="Deadline" required min={today} />
+        </div>
+      </div>
+
+      <Field label="Notes">
+        <GrowingField
+          name="note"
+          maxLength={MAX_TASK_NOTE}
+          placeholder="Optional — what to hand in, and where."
+        />
+      </Field>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <SubmitButton pendingText="Setting…">
+          Set for {everyone}
+        </SubmitButton>
+        <Link href={closeHref} className={buttonClasses("ghost", "md")}>
+          Cancel
+        </Link>
       </div>
       <SaveState state={save} />
     </form>
