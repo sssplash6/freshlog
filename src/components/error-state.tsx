@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect } from "react";
 
-import { StandaloneCard } from "@/components/standalone-card";
 import { Button, buttonClasses } from "@/components/ui/button";
 
 /**
@@ -25,7 +24,7 @@ export function ErrorState({
   error: Error & { digest?: string };
   retry: () => void;
   title?: string;
-  /** Where "Home" goes — the role's own home, where there is one. */
+  /** Where "back to safety" goes — the role's own home, where there is one. */
   home?: string;
 }) {
   useEffect(() => {
@@ -34,25 +33,37 @@ export function ErrorState({
   }, [error]);
 
   return (
-    <StandaloneCard title={title} line="Nothing was lost." className="rise-in mx-auto">
-      <div className="flex flex-wrap items-center justify-center gap-2">
+    // One centred card, like every other page a reader lands on with nothing
+    // else around it — sign in, a 404, an unsubscribe.
+    <div className="rise-in mx-auto w-full max-w-md rounded-2xl bg-surface px-6 py-8 text-center shadow-sm">
+      <p className="text-xs font-medium text-muted-fg">
+        Something broke
+      </p>
+      <h1 className="mt-1 text-figure-lg font-bold leading-tight tracking-[-0.01em] text-ink">
+        {title}
+      </h1>
+      <p className="mt-2 text-body text-muted-fg">
+        Nothing you did caused this, and nothing was lost. Most of the time it is
+        a hiccup reading the data — try again first.
+      </p>
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
         <Button onClick={retry}>Try again</Button>
         <Link
           href={home}
           transitionTypes={["nav-back"]}
           className={buttonClasses("ghost")}
         >
-          Home
+          Back to safety
         </Link>
       </div>
       {error.digest && (
         <p className="mt-5 text-xs text-muted-fg">
-          Error code{" "}
+          If it keeps happening, quote this code:{" "}
           <code className="rounded-md bg-fill px-1.5 py-0.5 font-mono text-caption text-ink">
             {error.digest}
           </code>
         </p>
       )}
-    </StandaloneCard>
+    </div>
   );
 }

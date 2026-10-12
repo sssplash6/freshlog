@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 
-import { PencilIcon, PlusIcon } from "@/components/icons";
+import { PencilIcon, PlusIcon, XIcon } from "@/components/icons";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
@@ -105,10 +105,13 @@ export function CreateButton({
  */
 export function CreatePanel({
   title,
+  hint,
   children,
   className,
 }: {
   title: string;
+  /** One line under the title, ≤ 12 words. */
+  hint?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -135,12 +138,23 @@ export function CreatePanel({
         // the Escape first.
         if (e.key === "Escape" && !e.defaultPrevented) close();
       }}
-      // 36rem: a create form is a few short fields, never the page's width (DESIGN.md W3).
-      className={cn("rise-in max-w-xl rounded-xl bg-surface px-4 py-3 shadow-sm sm:px-5", className)}
+      className={cn("rise-in rounded-xl bg-surface px-4 py-3 shadow-sm sm:px-5", className)}
     >
-      {/* One way out in the panel — Cancel (and Escape). The title button that
-          opened it toggles it shut too; a third × was one too many. */}
-      <h2 className="mb-3 text-title font-semibold tracking-[-0.01em] text-ink">{title}</h2>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-title font-semibold tracking-[-0.01em] text-ink">{title}</h2>
+          {hint && <p className="mt-0.5 text-xs text-muted-fg">{hint}</p>}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={close}
+          aria-label={`Close ${title.toLowerCase()}`}
+          className="-mr-2 -mt-1 h-11 w-11 px-0 sm:h-9 sm:w-9"
+        >
+          <XIcon className="h-4 w-4" />
+        </Button>
+      </div>
       {children}
       <div className="mt-3 flex justify-end border-t border-line pt-3">
         <Button variant="ghost" size="sm" onClick={close}>

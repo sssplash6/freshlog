@@ -4,17 +4,21 @@ import { GrantsEditor, type GrantRow } from "@/components/forms/grants-editor";
 import { PersonCell } from "@/components/person-chip";
 import { ProgramChip } from "@/components/program-chip";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FactList } from "@/components/ui/fact-list";
 import { PageTitle, Section } from "@/components/ui/section";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
+import { ALLOWED_MENTOR_DOMAIN } from "../../../../config/app-config";
 import { ROLES } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
+import { emailConfigured } from "@/lib/email/send";
+import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Platform settings" };
 
 /**
- * Who administers what.
+ * Who administers what, and the handful of facts about this deployment.
  *
  * This page is the reason the grants model exists. Admins were a list in
  * `config/app-config.ts`, seeded on every boot — so there was no way to remove
@@ -54,7 +58,7 @@ export default async function PlatformPage() {
   // knowing this address resolves.
   if (!me.platformAdmin) notFound();
 
-  const [programs, people] = await Promise.all([
+  const [programs, people, lastDigest] = await Promise.all([
     prisma.program.findMany({ orderBy: { name: "asc" } }),
     // Everyone who could plausibly be given access: staff, mentors, and
     // anybody already holding a grant. Students are not offered — a grant is
@@ -70,6 +74,7 @@ export default async function PlatformPage() {
       include: { staffGrants: { select: { programId: true, role: true } } },
       orderBy: [{ name: "asc" }, { email: "asc" }],
     }),
+    prisma.user.aggregate({ _max: { digestSentAt: true } }),
   ]);
 
   const rows: GrantRow[] = people.map((p) => ({
@@ -95,16 +100,22 @@ export default async function PlatformPage() {
   ];
 
   return (
-    // Full width: a table page.
+    // Full width: a grid with a column per program is a table page, and grows a
+    // column with every program the school opens.
     <div className="space-y-4">
-      <PageTitle title="Platform" />
+      <PageTitle
+        title="Platform"
+        subtitle="Who administers which program, and how this deployment is set up."
+      />
 
       <Section
-        eyebrow={`${withAccess.length} of ${rows.length} have access`}
+        eyebrow={`${withAccess.length} of ${rows.length} people have access. Each admin manages only the programs listed.`}
         title="Program access"
       >
         {rows.length === 0 ? (
-          <EmptyState framed={false} title="No staff or mentors yet" />
+          <EmptyState framed={false} title="Nobody to grant yet">
+            Register a mentor or a staff account first.
+          </EmptyState>
         ) : (
           <Table framed={false} columns={columns}>
             {rows.map((row) => (
@@ -125,13 +136,23 @@ export default async function PlatformPage() {
                         <span className="max-sm:hidden">{row.email}</span>
                       </>
                     }
-                  />
+                  >
+                    {/* Muted words, not ✓ chips: a role is a fact about the
+                        account, and a ticked pill beside a name reads as a
+                        state somebody has to check — the same call the
+                        mentors roster makes for "Admin". */}
+                    {row.platformAdmin && (
+                      <span className="shrink-0 text-xs font-normal text-muted-fg">
+                        Platform admin
+                      </span>
+                    )}
+                  </PersonCell>
                 </Td>
                 <Td className="max-sm:hidden">
                   {row.platformAdmin ? (
                     // Not a grant, and shown differently on purpose: the
                     // platform flag covers programs that do not exist yet.
-                    <span className="text-muted-fg">Platform admin · all programs</span>
+                    <span className="text-muted-fg">All programs, including new ones</span>
                   ) : programs.some((p) => row.grants[p.id]) ? (
                     <span className="flex flex-col gap-y-1">
                       {programs
@@ -161,6 +182,34 @@ export default async function PlatformPage() {
         )}
       </Section>
 
+      <Section eyebrow="Read-only" title="Organisation">
+        <div className="px-4 py-2 sm:px-5">
+          <FactList
+            items={[
+              {
+                label: "Mentor sign-up domain",
+                value: `@${ALLOWED_MENTOR_DOMAIN}`,
+              },
+              {
+                label: "Programs",
+                value: `${programs.length} · ${programs.map((p) => p.name).join(", ")}`,
+              },
+              {
+                label: "Email",
+                value: emailConfigured()
+                  ? "Live — messages are sent"
+                  : "Dry run — nothing leaves the server",
+              },
+              {
+                label: "Last weekly summary",
+                value: lastDigest._max.digestSentAt
+                  ? formatDate(lastDigest._max.digestSentAt)
+                  : "Never sent",
+              },
+            ]}
+          />
+        </div>
+      </Section>
     </div>
   );
 }

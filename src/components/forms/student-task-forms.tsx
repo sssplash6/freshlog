@@ -1,11 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import { PlusIcon } from "@/components/icons";
 import { Select, type SelectOption } from "@/components/select";
-import { Labelled } from "@/components/forms/labelled";
-import { Button, LinkButton } from "@/components/ui/button";
+import { Button, buttonClasses } from "@/components/ui/button";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { DateField } from "@/components/ui/date-field";
 import { Field, GrowingField } from "@/components/ui/field";
@@ -22,6 +22,7 @@ import {
 } from "@/lib/actions/student-tasks";
 import { MAX_TASK_NOTE, MAX_TASK_TITLE, PERCENT_STEPS } from "@/lib/student-tasks";
 import { programToday } from "@/lib/when";
+import { RequiredMark } from "@/components/ui/required-mark";
 
 /**
  * The three controls a task has, and they belong to two different people.
@@ -40,9 +41,10 @@ import { programToday } from "@/lib/when";
 /**
  * Set a student a task.
  *
- * Closed, it is a button at the foot of the Tasks group, under the list it
- * adds to. It used to be a floating "+" pinned to the column's corner, and
- * then a full-width row (DESIGN.md W4: a trigger hugs its label).
+ * Closed, it is the last row of the Tasks group — iOS's blue "Add…" row, the
+ * one place in the list where "add one of these" is unambiguous. It used to be
+ * a floating "+" pinned to the column's corner, which was the only floating
+ * button in the app and sat over the bottom of the list it added to.
  *
  * Open, it expands in place of that row rather than in a dialog: what it does
  * is visible without being explained, and the list it adds to stays readable
@@ -77,11 +79,15 @@ export function SetStudentTaskForm({
 
   if (!open) {
     return (
-      <div className="border-t border-line px-1 py-1 sm:px-2">
-        <Button variant="ghost" onClick={() => setOpen(true)}>
+      <div className="border-t border-line">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex min-h-11 w-full items-center gap-2 px-4 py-3 text-left text-body font-medium text-brand transition-colors hover:bg-fill focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand sm:px-5"
+        >
           <PlusIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
           Set a task
-        </Button>
+        </button>
         {/* The last result survives the form closing, so a mentor who submits
             and collapses it still sees that it worked. */}
         <SaveState state={save} className="px-4 has-[span]:pb-2 sm:px-5" />
@@ -106,23 +112,44 @@ export function SetStudentTaskForm({
           required
           autoFocus
           maxLength={MAX_TASK_TITLE}
-          placeholder="e.g. Rewrite paragraph two"
+          placeholder="Rewrite the second paragraph of the personal statement"
         />
       </Field>
 
-      <div className="flex flex-wrap items-end gap-3">
-        <Labelled label="Due" required className="w-full sm:w-48">
-          <DateField name="dueOn" label="Due" required min={today} />
-        </Labelled>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {/* A div, not a `Field`: the date field's trigger is a button, and a
+            label around it would toggle the calendar on every click. */}
+        <div className="min-w-0 space-y-1.5">
+          <span className="block text-sm font-medium text-ink">
+            Deadline<RequiredMark />
+          </span>
+          <DateField name="dueOn" label="Deadline" required min={today} />
+        </div>
         {programs.length > 1 && (
-          <Labelled label="Program" required className="w-full sm:w-80">
-            <Select name="programId" ariaLabel="Program" options={programs} />
-          </Labelled>
+          // Not a `Field`: `Select` is a combobox built from buttons, and a
+          // <label> wrapping one has nothing to label.
+          <div className="min-w-0">
+            <span className="block text-sm font-medium text-ink">
+              Program<RequiredMark />
+            </span>
+            <div className="mt-1.5">
+              <Select
+                name="programId"
+                ariaLabel="Program"
+                options={programs}
+                placeholder="Which program is this for?"
+              />
+            </div>
+          </div>
         )}
       </div>
 
       <Field label="Notes">
-        <GrowingField name="note" maxLength={MAX_TASK_NOTE} />
+        <GrowingField
+          name="note"
+          maxLength={MAX_TASK_NOTE}
+          placeholder="Keep it under 300 words, and lead with the moment rather than the lesson."
+        />
       </Field>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -147,12 +174,12 @@ export function SetStudentTaskForm({
  */
 export function ProgramTaskForm({
   programId,
+  programName,
   students,
   closeHref,
 }: {
   programId: string;
-  /** Unused since the line naming it went; kept so callers need not change. */
-  programName?: string;
+  programName: string;
   /** Approved students, which is who the action sets it for. */
   students: number;
   /** The roster without the form open. */
@@ -173,15 +200,25 @@ export function ProgramTaskForm({
 
   if (!open) return <SaveState state={save} className="px-1" />;
   if (students === 0) {
-    return <p className="px-1 text-sm text-muted-fg">No approved students yet.</p>;
+    return (
+      <p className="px-1 text-sm text-muted-fg">
+        Nobody in {programName} is approved yet, so there is nobody to set a task for.
+      </p>
+    );
   }
 
   return (
     <form action={action} className="rise-in space-y-3 rounded-xl bg-surface p-4 shadow-sm sm:p-5">
       <input type="hidden" name="programId" value={programId} />
-      <h2 className="text-title font-semibold tracking-[-0.01em] text-ink">
-        A task for {everyone}
-      </h2>
+      <div>
+        <h2 className="text-title font-semibold tracking-[-0.01em] text-ink">
+          A task for {everyone}
+        </h2>
+        <p className="mt-1 text-sm text-muted-fg">
+          Everyone in {programName} gets their own copy, including students here
+          on exchange, and is told about it.
+        </p>
+      </div>
 
       <Field label="Task" required>
         <GrowingField
@@ -189,25 +226,36 @@ export function ProgramTaskForm({
           required
           autoFocus
           maxLength={MAX_TASK_TITLE}
-          placeholder="e.g. Activities list"
+          placeholder="Submit your activities list"
         />
       </Field>
 
-      <Labelled label="Due" required>
-        <DateField name="dueOn" label="Due" required min={today} />
-      </Labelled>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {/* A div, not a `Field`: the date field's trigger is a button, and a
+            label around it would toggle the calendar on every click. */}
+        <div className="min-w-0 space-y-1.5">
+          <span className="block text-sm font-medium text-ink">
+            Deadline<RequiredMark />
+          </span>
+          <DateField name="dueOn" label="Deadline" required min={today} />
+        </div>
+      </div>
 
       <Field label="Notes">
-        <GrowingField name="note" maxLength={MAX_TASK_NOTE} />
+        <GrowingField
+          name="note"
+          maxLength={MAX_TASK_NOTE}
+          placeholder="Optional — what to hand in, and where."
+        />
       </Field>
 
       <div className="flex flex-wrap items-center gap-2">
         <SubmitButton pendingText="Setting…">
           Set for {everyone}
         </SubmitButton>
-        <LinkButton href={closeHref} variant="ghost" size="md">
+        <Link href={closeHref} className={buttonClasses("ghost", "md")}>
           Cancel
-        </LinkButton>
+        </Link>
       </div>
       <SaveState state={save} />
     </form>
@@ -261,17 +309,23 @@ function TaskPanel({ task, canDelete }: { task: TaskFields; canDelete: boolean }
             />
           </Field>
 
-          <Labelled label="Due">
+          <div className="min-w-0 space-y-1.5">
+            <span className="block text-sm font-medium text-ink">Deadline</span>
             <DateField
               name="dueOn"
-              label="Due"
+              label="Deadline"
               required
               defaultValue={toDateInputValue(task.dueOn)}
             />
-          </Labelled>
+          </div>
 
           <Field label="Notes">
-            <GrowingField name="note" maxLength={MAX_TASK_NOTE} defaultValue={task.note ?? ""} />
+            <GrowingField
+              name="note"
+              maxLength={MAX_TASK_NOTE}
+              placeholder="What good looks like, or where to start"
+              defaultValue={task.note ?? ""}
+            />
           </Field>
 
           <SubmitButton size="sm" pendingText="Saving…">
@@ -288,8 +342,11 @@ function TaskPanel({ task, canDelete }: { task: TaskFields; canDelete: boolean }
             action={delAction}
             values={{ taskId: task.id }}
             pending={delSave.kind === "saving"}
-            label="Withdraw task"
-            question="Withdraw this task?"
+            label="Withdraw this task"
+            // Nothing is at stake — no hours were budgeted against it and no
+            // session was logged into it. What the reader needs to know is that
+            // the student finds out, rather than watching a row disappear.
+            question="It leaves their list, and they are told it has."
             confirmLabel="Yes, withdraw"
             pendingLabel="Withdrawing…"
           />
@@ -340,7 +397,7 @@ export function TaskProgressControl({
           disabled={pending}
           className="inline-flex min-h-11 items-center rounded-lg px-2 text-xs font-medium text-brand transition-colors hover:bg-brand-soft disabled:opacity-50"
         >
-          Reopen
+          Not finished after all
         </button>
         <SaveState state={save} />
       </form>
@@ -397,7 +454,7 @@ export function TaskProgressControl({
           disabled={pending}
           className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-3 text-xs font-semibold text-brand transition-colors hover:bg-fill-strong disabled:opacity-50"
         >
-          Done
+          <span aria-hidden="true">✓</span> Done
         </button>
       </div>
       <SaveState state={save} />

@@ -13,9 +13,9 @@ const LABEL = "block text-body font-medium text-ink";
  * help text above the field and three below; two labelled the input properly
  * and two left it to a placeholder.
  *
- * There is no description slot. A row is its label and its control; a setting
- * that needs a sentence to be understood needs a better label (DESIGN.md C2 —
- * October 2026, when nine rows carried one).
+ * The description sits UNDER the label rather than under the control, because a
+ * sentence explaining what a field does is worth least once the field is
+ * already filled in and read.
  *
  * `state` is the row's own `SaveState`. Every row saves independently (§5.8),
  * so the indicator belongs to the row and never to the page.
@@ -23,6 +23,7 @@ const LABEL = "block text-body font-medium text-ink";
 export function SettingsRow({
   label,
   htmlFor,
+  description,
   control,
   state,
   trailing = false,
@@ -35,6 +36,7 @@ export function SettingsRow({
    * those label their own fields instead.
    */
   htmlFor?: string;
+  description?: React.ReactNode;
   control: React.ReactNode;
   /** The row's `SaveState`, rendered under the control. */
   state?: React.ReactNode;
@@ -76,6 +78,9 @@ export function SettingsRow({
           </label>
         ) : (
           <div className={LABEL}>{label}</div>
+        )}
+        {description && (
+          <p className="mt-0.5 text-xs text-muted-fg">{description}</p>
         )}
       </div>
       <div

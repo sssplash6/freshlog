@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 
-import { Labelled } from "@/components/forms/labelled";
 import { CrownIcon } from "@/components/icons";
 import { Select } from "@/components/select";
 import { Input } from "@/components/ui/field";
+import { cn } from "@/lib/cn";
 import { MAX_TASK_LENGTH, TASK_BANK, TASK_OTHER, TASK_PRESETS } from "@/lib/tasks";
+import { RequiredMark } from "@/components/ui/required-mark";
 
 /** An open agenda item this pairing already has, offered so it can be topped up. */
 export type OpenTask = { purpose: string; hint?: string };
@@ -26,8 +27,10 @@ export function TaskPicker({
   openTasks = [],
   name = "task",
   customName = "taskCustom",
+  compact = false,
   optional = false,
   className,
+  hint,
   bankOption = false,
   onPick,
 }: {
@@ -39,10 +42,13 @@ export function TaskPicker({
   /** Field names, for actions that call this field something else (`purpose`). */
   name?: string;
   customName?: string;
+  /** Tighter labels, for the narrow row-action popovers. */
+  compact?: boolean;
   /** Time may be granted before the work has a name; this drops the asterisk
    *  and lets the picker be cleared back to nothing. */
   optional?: boolean;
   className?: string;
+  hint?: React.ReactNode;
 }) {
   const [picked, setPicked] = useState("");
 
@@ -74,18 +80,32 @@ export function TaskPicker({
   ];
 
   return (
-    <Labelled label="Agenda item" required={!optional} className={className}>
-      <Select
-        name={name}
-        ariaLabel="Agenda item"
-        options={options}
-        placeholder={optional ? "None" : undefined}
-        required={!optional}
-        onChange={(value) => {
-          setPicked(value);
-          onPick?.(value);
-        }}
-      />
+    <div className={cn("min-w-0", className)}>
+      <span
+        className={cn(
+          "block",
+          compact
+            ? "text-xs font-medium text-muted-fg"
+            : "text-xs font-medium text-muted-fg",
+        )}
+      >
+        Agenda{!optional && <RequiredMark />}
+      </span>
+      <div className="mt-1">
+        <Select
+          name={name}
+          ariaLabel="Agenda item this time is for"
+          options={options}
+          placeholder={
+            optional ? "Nothing named yet — decide later" : "What is this time for?"
+          }
+          required={!optional}
+          onChange={(value) => {
+            setPicked(value);
+            onPick?.(value);
+          }}
+        />
+      </div>
       {picked === TASK_OTHER && (
         <Input
           name={customName}
@@ -94,9 +114,15 @@ export function TaskPicker({
           aria-label="Name of the agenda item"
           autoFocus
           maxLength={MAX_TASK_LENGTH}
-          className="rise-in"
+          placeholder="Name the work"
+          className="rise-in mt-2"
         />
       )}
-    </Labelled>
+      {hint && (
+        <p className="mt-1.5 text-xs font-normal normal-case tracking-normal text-muted-fg">
+          {hint}
+        </p>
+      )}
+    </div>
   );
 }

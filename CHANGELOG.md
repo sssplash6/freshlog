@@ -6,18 +6,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ## 2026-10-12
 
-### New
-- **Allocate time without leaving the page.** On a student's page, Allocate time now opens right there, the way Set a task does, and closes back to the page when you're done.
-
 ### Fixed
-- **Less to read.** The explanations under buttons, fields, settings and empty lists are gone across the app. Each screen shows its data and its controls, and nothing that repeats them.
-- **Fields fit what you type.** Text boxes, pickers and search no longer stretch across the page. Short forms sit on one row: Log a session puts Mentor and Student side by side, and Minutes and Date on the next line.
-- **Calmer pages.** Repeated figures, duplicate links and extra columns are gone. For example: the analytics heatmap and sparklines, admin Home's Time used column, the bell's extra counts, and a student's email and Telegram shown twice.
-- **The same words for the same things.** What needs you is called Needs you everywhere; a logged session is a session and a booked one a meeting; program levels are Admin, Leader and Sales.
-- **A simpler sidebar.** It no longer collapses, the Density setting is gone, and there is one search, one Settings and one Report a bug.
-- **Confirm a meeting in one tap.** Students answer "Yes, it happened" without being asked for a rating; rating a mentor stays on the Feedback page.
-- **Log another keeps your place.** After logging a session, Log another clears the form in place and keeps the same student.
-- **Program settings, one line each.** Every setting is its name and one control.
 - **Log a session sits in the corner.** On a program's page and a student's page, Log a session is now always the right-most button, with Allocate time on the left. A program's Set a task sends the task to its students; tasks for mentors are set on the Mentor tasks tab.
 - **Progress leads a Full Support student's page.** Their application and universities now sit in a column beside Progress on a wide screen, instead of above it. On a narrower screen they come after the sessions, tasks and agenda.
 - **Adding a university takes one line.** The university, its supplemental word count, Primary and the round now sit side by side with the Add button, without the notes under each field. After an add, Primary is no longer left ticked on screen while the form has actually cleared it.

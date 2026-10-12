@@ -62,7 +62,8 @@ const LEVEL: Record<string, string> = {
  *
  *   The Mentors list that was byte-identical to the one on the overview. This
  *   one stays, because this is the one with the write controls on it: assigning
- *   and unassigning a mentor happens here, and only here.
+ *   and unassigning a mentor happens here. Assigning is also offered in the
+ *   rail on the roster, where an empty program says it has nobody to teach.
  */
 export default async function ProgramSettingsPage({
   params,
@@ -98,9 +99,9 @@ export default async function ProgramSettingsPage({
 
   const blockedReason =
     students.length > 0
-      ? `Still has ${students.length} student${students.length === 1 ? "" : "s"}`
+      ? `${program.name} still has ${students.length} student${students.length === 1 ? "" : "s"}. Archive it instead, or move them first.`
       : grants.length > 0
-        ? "Still has admins"
+        ? "Someone still administers this program. Remove their access on Platform settings first."
         : undefined;
 
   return (
@@ -110,7 +111,10 @@ export default async function ProgramSettingsPage({
         count={pairings.length > 0 ? pairings.length : undefined}
       >
         {pairings.length === 0 ? (
-          <EmptyState framed={false} title="No mentors yet" />
+          <EmptyState framed={false} title="No mentors assigned">
+            Assign one below, or allocate a student time from any mentor and
+            they join this program automatically.
+          </EmptyState>
         ) : (
           // Plain list rows, not settings rows: a person and the one thing you
           // can do to their pairing, on one line. As settings rows the name sat
@@ -145,14 +149,17 @@ export default async function ProgramSettingsPage({
               mentors={eligibleMentors}
               levels={levelOptions}
               cohorts={cohortOptions}
-              defaultOpen={pairings.length === 0}
             />
           </div>
         )}
       </Section>
 
       {levels.length > 0 ? (
-        <Section title="Levels" count={levels.length}>
+        <Section
+          title="Levels"
+          caption="Each level has its own standard grant, and its cohorts sit under it"
+          count={levels.length}
+        >
           <ul className="divide-y divide-line">
             {levels.map((l) => {
               const empty =
@@ -162,22 +169,33 @@ export default async function ProgramSettingsPage({
               return (
                 <li key={l.id} className="px-4 py-3 sm:px-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-body font-medium text-ink">{l.name}</div>
+                    <div>
+                      <div className="text-body font-medium text-ink">
+                        {l.name}
+                      </div>
+                      <div className="text-xs text-muted-fg">
+                        {l._count.enrollments} student
+                        {l._count.enrollments === 1 ? "" : "s"} ·{" "}
+                        {l._count.mentorAssignments} mentor
+                        {l._count.mentorAssignments === 1 ? "" : "s"} ·{" "}
+                        {l.cohorts.length} cohort{l.cohorts.length === 1 ? "" : "s"}
+                      </div>
+                    </div>
                     {empty ? (
                       <DeleteLevelButton levelId={l.id} levelName={l.name} />
                     ) : (
-                      <span className="text-xs text-muted-fg">Not empty</span>
+                      <span className="text-xs text-muted-fg">
+                        Not empty — move its people and cohorts first
+                      </span>
                     )}
                   </div>
                   <div className="mt-2">
                     <LevelStandardHoursForm
                       levelId={l.id}
+                      levelName={l.name}
                       standardMinutes={l.standardMinutes}
                       standardDays={l.standardDays}
-                      inherited={{
-                        minutes: program.standardMinutes,
-                        days: program.standardDays,
-                      }}
+                      hourBank={program.hourBank}
                     />
                   </div>
                   {l.cohorts.length > 0 && (
@@ -203,7 +221,9 @@ export default async function ProgramSettingsPage({
                               </div>
                             </div>
                             {inUse ? (
-                              <span className="text-xs text-muted-fg">Not empty</span>
+                              <span className="text-xs text-muted-fg">
+                                Not empty — move its people first
+                              </span>
                             ) : (
                               <DeleteCohortButton
                                 cohortId={c.id}
@@ -216,7 +236,11 @@ export default async function ProgramSettingsPage({
                     </ul>
                   )}
                   <div className="mt-1">
-                    <CreateCohortForm programId={program.id} levelId={l.id} />
+                    <CreateCohortForm
+                      programId={program.id}
+                      levelId={l.id}
+                      levelName={l.name}
+                    />
                   </div>
                 </li>
               );
@@ -251,7 +275,9 @@ export default async function ProgramSettingsPage({
                       </div>
                     </div>
                     {inUse ? (
-                      <span className="text-xs text-muted-fg">Not empty</span>
+                      <span className="text-xs text-muted-fg">
+                        Not empty — move its people first
+                      </span>
                     ) : (
                       <DeleteCohortButton cohortId={c.id} cohortName={c.name} />
                     )}
@@ -278,20 +304,24 @@ export default async function ProgramSettingsPage({
       {/* Read-only, deliberately: `/settings/platform` is the ONE place a grant
           is made, changed or removed (§8.4), so this says who holds one and
           sends the reader there rather than growing a second write surface.
-          Only a platform admin can open that page, so only they get the link. */}
+          Only a platform admin can open that page, so only they get the link;
+          everybody else is told where it happens and who to ask. */}
       <Section
         title="Admins"
         count={grants.length > 0 ? grants.length : undefined}
+        caption="Granted on Platform settings"
         action={
           viewer.platformAdmin ? (
             <ArrowLink href="/settings/platform" className="text-xs">
-              Manage access
+              Manage on Platform settings
             </ArrowLink>
           ) : undefined
         }
       >
         {grants.length === 0 ? (
-          <EmptyState framed={false} title="No admins yet" />
+          <EmptyState framed={false} title="No program admins yet">
+            Only platform admins can see this program until you grant it to someone.
+          </EmptyState>
         ) : (
           <ul className="divide-y divide-line">
             {grants.map((g) => (
@@ -342,9 +372,15 @@ export default async function ProgramSettingsPage({
             programId={program.id}
             standardMinutes={program.standardMinutes}
             standardDays={program.standardDays}
+            hourBank={program.hourBank}
           />
           <SettingsRow
-            label={archived ? "Archived" : "Archive"}
+            label={archived ? "Archived" : "Archive this program"}
+            description={
+              archived
+                ? "It is out of the pickers and the lists. Its sessions and allocations are untouched."
+                : "For a program that has finished. It leaves the pickers and the lists; every ledger page stays reachable."
+            }
             control={
               <ArchiveProgramButton
                 programId={program.id}
@@ -356,9 +392,13 @@ export default async function ProgramSettingsPage({
         </div>
       </Section>
 
-      {/* No eyebrows and no captions on this page. "People", "Structure",
-          "Access", "Identity" and "Permanent" each restated the title under it. */}
-      <Section title="Delete this program">
+      {/* No eyebrows on this page. "People", "Structure", "Access",
+          "Identity" and "Permanent" each restated the title under it; the
+          caption here says the one thing about deleting that is not obvious. */}
+      <Section
+        title="Delete this program"
+        caption="Permanent, and only once nothing is left in it"
+      >
         <div className="px-4 py-2 sm:px-5">
           <DeleteProgramButton
             programId={program.id}

@@ -94,7 +94,7 @@ export type FilterSelect = {
   /** What choosing nothing means: "All programs". */
   all: string;
   options: readonly FilterOption[];
-  /** Force the list's own search box on or off; defaults to on past six. */
+  /** Force the list's own search box on or off; defaults to on past eight. */
   searchable?: boolean;
   /** Float this control's last few picks to the top, under "Recent". */
   recentKey?: string;
@@ -119,7 +119,7 @@ export function FilterBar({
   /**
    * Which surface's search box, or none. The surface — not a placeholder —
    * because the fields it looks in are a decision `lib/filters.ts` makes once
-   * (docs/archive/REDESIGN.md 5.5) and the box's own words are generated from that list. A
+   * (REDESIGN.md 5.5) and the box's own words are generated from that list. A
    * box that named fields it did not search was the defect being removed.
    */
   q?: SearchSurface;
@@ -208,6 +208,7 @@ export function FilterBar({
             key={Object.entries(preset.params).map(([k, v]) => `${k}=${v}`).join("&")}
             href={presetHref(basePath, params, preset)}
             label={preset.label}
+            hint={preset.hint}
             active={presetIsActive(params, preset)}
           />
         ))}
@@ -248,7 +249,7 @@ export function FilterBar({
             (presets.length > 0 && folded.length === 0)) && (
             <div className="flex flex-wrap items-center gap-2">
               {q && (
-                <div className="flex w-full items-center gap-2 sm:w-80">
+                <div className="flex min-w-56 flex-1 items-center gap-2">
                   <SearchField
                     basePath={basePath}
                     label={SEARCH_LABEL[q]}
@@ -397,6 +398,7 @@ export function FilterBar({
               key={Object.entries(preset.params).map(([k, v]) => `${k}=${v}`).join("&")}
               href={presetHref(basePath, params, preset)}
               label={preset.label}
+              hint={preset.hint}
               active={presetIsActive(params, preset)}
             />
           ))}
@@ -440,10 +442,12 @@ export function FilterBar({
 function Chip({
   href,
   label,
+  hint,
   active,
 }: {
   href: string;
   label: string;
+  hint?: string;
   active: boolean;
 }) {
   return (
@@ -452,10 +456,12 @@ function Chip({
       // Filtering is not going somewhere: the reader stays where they were
       // looking. See the same note on `TabLinks`.
       scroll={false}
+      title={hint}
       aria-current={active ? "true" : undefined}
       className={cn(
-        // A pill on the grey fill, iOS's filter chip (DESIGN.md: chips are
-        // rounded-full).
+        // rounded-lg, not rounded-full. A pill reads as a status, and these are
+        // controls: they sit beside a select and a button that are both 8px,
+        // and a full radius next to those looks like a different design system.
         //
         // 32px, and the same 32px `TabLinks` uses, which is the app's other
         // filter. It was 44px — the rule for a form field, where a mis-tap
@@ -464,6 +470,9 @@ function Chip({
         // height. `segmented.tsx` already states the distinction: a wrong tap
         // here shows the wrong list and you tap again, so the target does not
         // have to be bought with height.
+        // A pill on the grey fill, iOS's filter chip. (The note above was
+        // written against bordered 8px controls; the fields are fills now,
+        // and a fill chip beside a fill field is one family.)
         //
         // A REAL 44px on a phone (October 2026). The extra height used to be
         // a pseudo-element reaching past a 32px chip — but the strip scrolls

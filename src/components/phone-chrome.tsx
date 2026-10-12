@@ -73,7 +73,7 @@ export function PhoneChrome({ brand }: { brand: React.ReactNode }) {
         let label = backEl.textContent?.trim() || "";
         // "Back" names nothing. iOS's chevron reads the screen it returns to —
         // the nav's own label for that route is already in the document (the
-        // top bar's links stay mounted, just hidden, below `lg`). Longest
+        // top bar's links stay mounted, just hidden, below `md`). Longest
         // prefix wins, so `/students/abc` reads "Students".
         if (!label || label === "Back") {
           let bestHref = 0;

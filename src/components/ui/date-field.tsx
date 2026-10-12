@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 
 import { CalendarIcon, ChevronDownIcon } from "@/components/icons";
 import { Popover } from "@/components/ui/popover";
-import { fieldClasses, type Measure } from "@/components/ui/field";
+import { inputClasses } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
 import {
   DAY,
@@ -56,7 +56,6 @@ export function DateField({
   id,
   className,
   label = "Date",
-  measure = "sm",
 }: {
   name: string;
   /** `YYYY-MM-DD`. */
@@ -76,8 +75,6 @@ export function DateField({
   className?: string;
   /** What the trigger announces as, when "Date" is not specific enough. */
   label?: string;
-  /** How wide the trigger may grow (DESIGN.md W1). A date is `sm`. */
-  measure?: Measure;
 }) {
   const [value, setValue] = useState(defaultValue ?? "");
 
@@ -115,7 +112,7 @@ export function DateField({
         origin="start"
         width="lg"
         triggerClassName={cn(
-          fieldClasses(measure),
+          inputClasses,
           "flex items-center justify-between gap-2 text-left",
           !value && "text-muted-fg",
           invalid && "border-danger-line bg-danger-soft/40",

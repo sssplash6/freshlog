@@ -3,10 +3,12 @@ import { redirect } from "next/navigation";
 import { ExpandableText } from "@/components/expandable-text";
 import { PersonCell, PersonChip } from "@/components/person-chip";
 import { Rating } from "@/components/rating";
+import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
 import { PageTitle, Section } from "@/components/ui/section";
+import { StatusChip } from "@/components/ui/status-chip";
 import { FILL_CELL, Table, Td, Tr, type Column } from "@/components/ui/table";
 import {
   adminScope,
@@ -68,11 +70,30 @@ export const metadata: Metadata = { title: "Feedback" };
  * below is that sentence.
  */
 
+/** A mentor whose average sits under this is why anybody opens the page. */
+const LOW_AVERAGE = 3.5;
+
+/** One rating this low inside the window says the same thing on its own. */
+const LOW_RATING = 2;
+
+/** What "recent" means, in the column and in the chip. */
+const RECENT_DAYS = 30;
+
+/** Mentors open before the tail folds away — the tail is the settled subset. */
+const WORST_SHOWN = 8;
+
 /**
- * How a mentor who is being scored badly is found: one threshold, as a chip.
- * Four ("1 star" to "4 stars or fewer") was a select nobody tuned.
+ * "Rating at most N" — how a mentor who is being scored badly is found.
+ *
+ * Only 1 to 4: "5 or fewer" is every rating there is, so it would be a control
+ * that reads as a filter and does nothing.
  */
-const LOW_RATINGS = { label: "3 stars or fewer", params: { rating: "3" } };
+const RATING_OPTIONS = [
+  { value: "1", label: "1 star" },
+  { value: "2", label: "2 stars or fewer" },
+  { value: "3", label: "3 stars or fewer" },
+  { value: "4", label: "4 stars or fewer" },
+];
 
 /** Everything a `PersonChip` or `PersonCell` needs, and nothing else. */
 const PERSON = {
@@ -81,6 +102,11 @@ const PERSON = {
   email: true,
   avatarUpdatedAt: true,
 } as const;
+
+/** "1 rating" / "12 ratings", so no call site concatenates its own plural. */
+function count(n: number, one: string): string {
+  return `${n} ${one}${n === 1 ? "" : "s"}`;
+}
 
 /**
  * The programs whose ratings this person may read.
@@ -141,6 +167,10 @@ export default async function FeedbackPage({
 
 /* ------------------------------------------------- the mentor's own shape --- */
 
+/** The promise the rating form made the student, repeated where it is kept. */
+const ANONYMOUS =
+  "Anonymous — you never see which student wrote a rating.";
+
 /**
  * A mentor reading their own: an average, a count, and the comments.
  *
@@ -179,20 +209,21 @@ async function OwnRatings({
     <div className="space-y-4">
       <PageTitle
         title="Feedback"
-        // The average alone: the count is the section's.
+        // The average alone: the count is the section's, and "anonymous" is
+        // said once, as the section's caption. It was all three, three times.
         subtitle={avg === null ? undefined : `${avg.toFixed(1)} average`}
       />
 
       {stats._count === 0 ? (
-        <EmptyState title="No ratings yet" />
+        <EmptyState title="No ratings yet">
+          Students rate a mentor when they choose to; many never do.
+        </EmptyState>
       ) : (
         <>
-          {/* Said once, on the page, not only in a tooltip: the promise the
-              rating form made the student is the thing a mentor most needs to
-              trust here, and a `title` is invisible on a phone. */}
-          {/* design-allow: privacy promise */}
-          <p className="text-xs text-muted-fg">You never see who rated you.</p>
-          <Section title="Ratings" count={stats._count}>
+          {/* Said on the page, not only in a tooltip: the promise the rating
+              form made the student is the thing a mentor most needs to trust
+              here, and a `title` is invisible on a phone. */}
+          <Section title="Ratings" count={stats._count} caption={ANONYMOUS}>
             <ul className="divide-y divide-line">
               {rows.map((f) => (
                 <li key={f.id} className="px-4 py-3 sm:px-5">
@@ -267,9 +298,13 @@ async function AllRatings({
   // would collapse to the one mentor already chosen and offer no way back.
   const inReach = feedbackWhere({}, scope, now);
 
+  const since = new Date(now.getTime() - RECENT_DAYS * 24 * 60 * 60 * 1000);
+  const recentWhere = { AND: [where, { createdAt: { gte: since } }] };
+
   const [
     stats,
     byMentor,
+    lately,
     rows,
     rated,
     programs,
@@ -287,7 +322,13 @@ async function AllRatings({
       where,
       _avg: { rating: true },
       _count: { _all: true },
+      _max: { createdAt: true },
       orderBy: [{ _avg: { rating: "asc" } }, { _count: { mentorId: "desc" } }],
+    }),
+    prisma.mentorFeedback.groupBy({
+      by: ["mentorId"],
+      where: recentWhere,
+      _min: { rating: true },
     }),
     prisma.mentorFeedback.findMany({
       where,
@@ -331,10 +372,22 @@ async function AllRatings({
   ]);
 
   const person = new Map(rated.map((m) => [m.id, m]));
+  const lowestRecent = new Map(lately.map((r) => [r.mentorId, r._min.rating]));
   const mentors = byMentor.flatMap((row) => {
     const who = person.get(row.mentorId);
     if (!who) return [];
-    return [{ who, average: row._avg.rating ?? 0, total: row._count._all }];
+    const average = row._avg.rating ?? 0;
+    const recent = lowestRecent.get(row.mentorId) ?? null;
+    return [
+      {
+        who,
+        average,
+        total: row._count._all,
+        lastRated: row._max.createdAt,
+        recent,
+        low: average < LOW_AVERAGE || (recent !== null && recent <= LOW_RATING),
+      },
+    ];
   });
 
   /**
@@ -360,18 +413,38 @@ async function AllRatings({
     student: namesFor(f.student.enrollments) ? f.student.user : null,
   }));
 
+  const avg = stats._avg.rating;
+  const lowCount = mentors.filter((m) => m.low).length;
   const filtered = activeFilterCount(params) > 0;
+
+  // "4.3 · 48 ratings · 12 mentors, 2 low". The comma, not a fourth dot-
+  // separated clause: "· 2 low" beside "· 48 ratings" reads as two low
+  // RATINGS, and the number it is actually counting is mentors.
+  const standing =
+    avg === null
+      ? undefined
+      : [
+          avg.toFixed(1),
+          count(stats._count, "rating"),
+          lowCount > 0
+            ? `${count(mentors.length, "mentor")}, ${lowCount} low`
+            : count(mentors.length, "mentor"),
+        ].join(" · ");
 
   const columns: Column[] = [
     { label: "Mentor" },
     { label: "Average", align: "right", emphasis: "key" },
     { label: "Ratings", align: "right" },
+    { label: "Lowest recent", align: "right" },
+    { label: "Last rated", align: "right" },
   ];
+
+  const worst = mentors.slice(0, WORST_SHOWN);
+  const rest = mentors.slice(WORST_SHOWN);
 
   return (
     <div className="space-y-4">
-      {/* No subtitle: the two sections below carry their own counts. */}
-      <PageTitle title="Feedback" />
+      <PageTitle title="Feedback" subtitle={standing} />
 
       <FilterBar
         basePath="/feedback"
@@ -394,11 +467,18 @@ async function AllRatings({
             all: "All programs",
             options: programs.map((p) => ({ value: p.id, label: p.name })),
           },
+          {
+            name: "rating",
+            label: "Rating",
+            all: "Any rating",
+            options: RATING_OPTIONS,
+          },
         ]}
-        presets={[LOW_RATINGS]}
         dateRange={readDateWindow(params, now)}
-        // Only once a filter is on: it says the one thing the section counts
-        // cannot — that the number is a subset, and here is the way back out.
+        // Only once a filter is on. Unfiltered, the sentence would repeat the
+        // subtitle a few pixels above it; filtered, it says the one thing the
+        // subtitle cannot — that the number is a subset, and here is the way
+        // back out.
         summary={
           filtered
             ? filterSummary(
@@ -410,14 +490,32 @@ async function AllRatings({
         }
       />
 
-      {/* Every mentor, worst average first — the order is the finding. */}
       {mentors.length > 0 && (
-        <Section title="Mentors" count={mentors.length}>
+        <Section
+          title="Mentors"
+          count={mentors.length}
+          caption={`Recent is the last ${RECENT_DAYS} days.`}
+        >
           <Table columns={columns} framed={false}>
-            {mentors.map((m) => (
+            {worst.map((m) => (
               <MentorRow key={m.who.id} mentor={m} />
             ))}
           </Table>
+          <Disclosure
+            label="Mentors rated higher"
+            count={rest.length}
+            className="border-t border-line px-4 sm:px-5"
+          >
+            <Table
+              columns={columns}
+              framed={false}
+              className="-mx-4 border-t border-line sm:-mx-5"
+            >
+              {rest.map((m) => (
+                <MentorRow key={m.who.id} mentor={m} />
+              ))}
+            </Table>
+          </Disclosure>
         </Section>
       )}
 
@@ -427,9 +525,13 @@ async function AllRatings({
       >
         {list.length === 0 ? (
           filtered ? (
-            <EmptyState framed={false} variant="no-results" title="No ratings match" />
+            <EmptyState framed={false} variant="no-results">
+              Widen the window, or reset to read every rating.
+            </EmptyState>
           ) : (
-            <EmptyState framed={false} title="No ratings yet" />
+            <EmptyState framed={false} title="No ratings">
+              A student rates a mentor from their own feedback page.
+            </EmptyState>
           )
         ) : (
           <ul className="divide-y divide-line">
@@ -437,9 +539,8 @@ async function AllRatings({
               <li key={f.id} className="px-4 py-3 sm:px-5">
                 {/* Who it is about and the score on one line; what was said
                     as the body, in ink, because the words are the point of
-                    the row; who said it — open to the writer's admins only,
-                    and nothing where it is not — and when, as the quiet line
-                    under it. */}
+                    the row; who said it — open to the writer's admins only —
+                    and when, as the quiet line under it. */}
                 <div className="flex items-center justify-between gap-3">
                   <PersonChip
                     person={f.mentor}
@@ -458,7 +559,8 @@ async function AllRatings({
                   </div>
                 )}
                 <p className="mt-0.5 text-xs text-muted-fg">
-                  {f.student && `${f.student.name ?? f.student.email} · `}
+                  {f.student ? (f.student.name ?? f.student.email) : "Anonymous"}
+                  {" · "}
                   {formatDate(f.createdAt)}
                 </p>
               </li>
@@ -485,22 +587,60 @@ type MentorStanding = {
   who: { id: string; name: string | null; email: string; avatarUpdatedAt: Date | null };
   average: number;
   total: number;
+  lastRated: Date | null;
+  recent: number | null;
+  low: boolean;
 };
 
 function MentorRow({ mentor }: { mentor: MentorStanding }) {
   return (
     <Tr>
       <Td label="Mentor" className={FILL_CELL}>
-        <PersonCell person={mentor.who} href={`/mentors/${mentor.who.id}`} />
+        <PersonCell person={mentor.who} href={`/mentors/${mentor.who.id}`}>
+          {mentor.low && <StatusChip severity="attention">Low</StatusChip>}
+        </PersonCell>
       </Td>
       <Td label="Average" align="right" tone="key">
         <span className="tabular-nums text-ink">
           {mentor.average.toFixed(1)}
         </span>
+        <AverageStars value={mentor.average} />
       </Td>
       <Td label="Ratings" align="right" tone="muted" className="tabular-nums">
         {mentor.total}
       </Td>
+      <Td label="Lowest recent" align="right">
+        {mentor.recent === null ? (
+          <span className="text-muted-fg">—</span>
+        ) : (
+          <span className="tabular-nums text-ink">{mentor.recent}</span>
+        )}
+      </Td>
+      <Td label="Last rated" align="right" tone="muted">
+        {mentor.lastRated ? formatDate(mentor.lastRated) : "—"}
+      </Td>
     </Tr>
+  );
+}
+
+/**
+ * The average's shape, beside the average's value.
+ *
+ * Ink, not the accent orange `Rating` uses: orange means HOURS everywhere in
+ * this product, and a column of it running down a mentors table reads as a
+ * quantity of time rather than as a score. `aria-hidden` because the number
+ * immediately before it is the same fact — a screen reader that read both would
+ * say "four point three, four out of five stars".
+ */
+function AverageStars({ value }: { value: number }) {
+  const filled = Math.round(value);
+  return (
+    <span
+      aria-hidden="true"
+      className="ml-1.5 align-middle text-caption tracking-tight text-ink"
+    >
+      {"★".repeat(filled)}
+      <span className="text-muted-fg">{"☆".repeat(5 - filled)}</span>
+    </span>
   );
 }

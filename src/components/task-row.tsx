@@ -496,7 +496,9 @@ export function TaskTable({
   if (tasks.length === 0) {
     return (
       empty ?? (
-        <EmptyState framed={framed} title="No agenda" />
+        <EmptyState framed={framed} title="No agenda">
+          It arrives with the time an admin allocates for each piece of work.
+        </EmptyState>
       )
     );
   }
@@ -609,9 +611,14 @@ export function toTaskEntries(
 }
 
 /**
- * The plan for one student, under a heading: what `AssignmentsPanel` was. It
- * warns when the plan budgets more work than the student holds — the mistake
- * the bare table cannot show.
+ * The plan for one student, under a heading: what `AssignmentsPanel` was.
+ *
+ * The footer is the reason this is a component rather than a bare table. Three
+ * figures — logged, budgeted, allotted — only mean something beside each other,
+ * and the one comparison that catches a real mistake is the third against the
+ * second: a plan that promises more work than the student has paid for. Two of
+ * the four surfaces that render tasks were showing the first two and not the
+ * third, so the mistake was invisible on both.
  */
 export function TasksPanel({
   tasks,
@@ -633,6 +640,7 @@ export function TasksPanel({
   children?: React.ReactNode;
 }) {
   const planned = tasks.reduce((sum, t) => sum + (t.minuteLimit ?? 0), 0);
+  const logged = tasks.reduce((sum, t) => sum + t.loggedMinutes, 0);
   const done = tasks.filter(
     (t) => t.progress === ASSIGNMENT_PROGRESS.DONE
   ).length;
@@ -640,15 +648,20 @@ export function TasksPanel({
 
   return (
     <Section
+      eyebrow="What the time is for"
       title="Agenda"
       caption={
         tasks.length === 0
-          ? undefined
+          ? "Nothing planned yet"
           : `${done}/${tasks.length} done · ${formatDuration(planned)}`
       }
     >
       {tasks.length === 0 ? (
-        (empty ?? <EmptyState framed={false} title="No agenda yet" />)
+        (empty ?? (
+          <EmptyState framed={false} title="No agenda yet">
+            An admin sets out the work planned for this student.
+          </EmptyState>
+        ))
       ) : (
         <>
           <TaskTable
@@ -659,13 +672,28 @@ export function TasksPanel({
             framed={false}
           />
 
-          {/* The one comparison that catches a real mistake: a plan that
-              promises more work than the student holds. */}
-          {overPlanned && (
-            <p className="border-t border-line px-4 py-2 text-xs font-medium text-warn-ink sm:px-5">
-              Budget over their hours by {formatDuration(planned - minutesAllotted)}
-            </p>
-          )}
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-line px-4 py-2 text-xs sm:px-5">
+            <span className="text-muted-fg">
+              <span className="font-semibold tabular-nums text-ink">
+                {formatDuration(logged)}
+              </span>{" "}
+              logged against{" "}
+              <span className="font-semibold tabular-nums text-ink">
+                {formatDuration(planned)}
+              </span>{" "}
+              budgeted, of{" "}
+              <span className="font-semibold tabular-nums text-ink">
+                {formatDuration(minutesAllotted)}
+              </span>{" "}
+              allotted
+            </span>
+            {overPlanned && (
+              <span className="font-medium text-warn-ink">
+                Budgeted work exceeds the hours this student holds by{" "}
+                {formatDuration(planned - minutesAllotted)}.
+              </span>
+            )}
+          </div>
         </>
       )}
 

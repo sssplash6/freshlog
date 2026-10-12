@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 
+import { Avatar } from "@/components/avatar";
 import { BookInterviewForm } from "@/components/forms/interview-forms";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
@@ -93,13 +94,21 @@ export default async function ClassmatePage({
       <PageTitle
         backHref="/student/interviews"
         backLabel="Interviews"
+        leading={
+          <Avatar
+            person={{ ...classmate.user, email: "" }}
+            className="h-12 w-12 text-sm"
+          />
+        }
         title={name}
         subtitle={shared.join(" · ")}
       />
 
-      <Section title="Times open" count={slots.length || undefined}>
+      <Section title="Available interview times" count={slots.length || undefined}>
         {slots.length === 0 ? (
-          <EmptyState framed={false} title="No times open" />
+          <EmptyState framed={false} title="No times offered">
+            {`${first} hasn’t offered any times yet.`}
+          </EmptyState>
         ) : (
           <BookInterviewForm
             slots={slots}

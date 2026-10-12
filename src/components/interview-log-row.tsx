@@ -4,16 +4,16 @@ import { PersonChip } from "@/components/person-chip";
 import { DateLeaf } from "@/components/session-row";
 import { StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatMinutes } from "@/lib/format";
 import { templateName } from "@/lib/interview-templates";
 import { PHASE_STATUS, type InterviewPhase } from "@/lib/peer-interviews";
 import { status, type ViewerContext } from "@/lib/status";
 
 /**
  * A practice interview in a student's meetings log, in the timeline row's
- * shape so the two read as one history. No minutes: none were drawn from any
- * allocation, and a figure in a ledger column is read as time spent. Only an
- * interview that still needs marking wears a chip, as on the Interviews list.
+ * shape so the two read as one history. Its minutes are muted and never
+ * bold — they were not drawn from any allocation — and the row says so,
+ * because a figure in a ledger column is otherwise read as time spent.
  */
 export function InterviewLogRow({
   interview,
@@ -31,10 +31,7 @@ export function InterviewLogRow({
   viewer: ViewerContext;
   index?: number;
 }) {
-  const chip =
-    interview.phase === "to-mark" || interview.phase === "absent"
-      ? status(PHASE_STATUS[interview.phase], viewer)
-      : null;
+  const chip = status(PHASE_STATUS[interview.phase], viewer);
   const stagger =
     index == null ? undefined : { animationDelay: `${Math.min(index, 14) * 24}ms` };
 
@@ -57,17 +54,20 @@ export function InterviewLogRow({
             <Link
               href={`/student/interviews/${interview.id}`}
               transitionTypes={["nav-forward"]}
+              title={templateName(interview.template)}
               className="min-w-0 flex-1 truncate font-medium text-ink hover:text-brand max-sm:basis-full"
             >
-              {templateName(interview.template)}
+              Practice interview · {templateName(interview.template)}
             </Link>
           </div>
+          <span className="w-16 shrink-0 text-right text-xs tabular-nums text-muted-fg">
+            {formatMinutes(interview.minutes)}
+          </span>
         </div>
-        {chip && (
-          <div className="mt-1">
-            <StatusChip status={chip} />
-          </div>
-        )}
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-fg">
+          {chip && <StatusChip status={chip} />}
+          <span>Not counted toward your hours</span>
+        </div>
       </div>
     </li>
   );

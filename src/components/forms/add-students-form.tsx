@@ -4,9 +4,7 @@ import { useState } from "react";
 
 import { PlusIcon, XIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { Labelled } from "@/components/forms/labelled";
-import { Select } from "@/components/select";
-import { EmailInput, Input } from "@/components/ui/field";
+import { EmailInput, Input, inputClasses } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { createStudents } from "@/lib/actions/students";
 import {
@@ -151,10 +149,10 @@ function StudentRows({
     started.length === 0
       ? null
       : classHours
-        ? "Needs a group name"
+        ? "Every row needs a group name."
         : started.some((r) => !EMAIL_RE.test(normalizeEmail(r.email)))
-        ? "Needs a valid email"
-        : "Needs a first and last name";
+        ? "Every row needs a valid email address."
+        : "Every row needs a first and last name.";
 
   const update = (
     id: number,
@@ -183,15 +181,24 @@ function StudentRows({
     <>
       {rows.length > 0 && (
         <div className="space-y-2 rounded-xl bg-surface p-4 shadow-sm sm:p-5">
-          <h2 className="mb-1 text-title font-semibold tracking-[-0.01em] text-ink">
-            {classHours ? "Add groups" : "Add students"} to {program.name}
-          </h2>
+          <div className="mb-1 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.01em] text-ink">
+                {classHours ? "Add groups" : "Add students"} to {program.name}
+              </h2>
+              {!classHours && (
+                <p className="mt-0.5 text-xs text-muted-fg">
+                  Each confirms their name on first sign-in.
+                </p>
+              )}
+            </div>
+          </div>
           {/* The column names, once, from `sm` up: placeholders alone are not
               labels, and they vanish the moment somebody starts typing. On a
               phone each field carries its own label instead (below). */}
           <div
             aria-hidden="true"
-            className={cn("hidden gap-2 text-xs font-medium text-muted-fg sm:grid", ROW_GRID)}
+            className="hidden gap-2 text-xs font-medium text-muted-fg sm:grid sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem]"
           >
             {classHours ? (
               <span className="col-span-3">Group name</span>
@@ -202,14 +209,18 @@ function StudentRows({
                 <span>Last name</span>
               </>
             )}
-            <span>Folder link</span>
           </div>
           {rows.map((r, i) => (
-            /* One line per row from `sm`, each track as wide as what goes in
-               it: the email widest, the names short, the folder link last.
-               Below `sm` every field is full width and the remove button sits
-               in the row's top-right corner instead of reserving a column. */
-            <div key={r.id} className={cn("relative grid gap-2", ROW_GRID)}>
+            /* One grid per row, not four equal tracks: the email is the longest
+               value and the one that matters, so it gets the widest track and
+               the names share the rest. The folder link takes a line of its
+               own from `sm` up. Below `sm` every field is full width and the
+               remove button sits in the row's top-right corner, over the
+               email's own padding, instead of reserving a column. */
+            <div
+              key={r.id}
+              className="relative grid gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem]"
+            >
               {classHours ? (
                 // A group is a name and nothing else: it takes the three
                 // tracks the email and the two names share, so the folder link
@@ -271,15 +282,15 @@ function StudentRows({
               )}
               {/* Not type="url": native validation would reject a pasted
                     `drive.google.com/…`, which the action accepts and https-fixes. */}
-              <label className="block min-w-0">
-                <span className={PHONE_LABEL}>Folder link</span>
+              <label className="block min-w-0 sm:col-span-4">
+                <span className={PHONE_LABEL}>Folder link (optional)</span>
                 <Input
                   name="folderUrl"
                   type="text"
                   inputMode="url"
-                  measure="full"
                   value={r.folderUrl}
                   onChange={(e) => update(r.id, "folderUrl", e.target.value)}
+                  placeholder="Folder link (optional)"
                   aria-label={`${classHours ? "Group" : "Student"} ${i + 1} folder link`}
                 />
               </label>
@@ -287,7 +298,7 @@ function StudentRows({
                 type="button"
                 onClick={() => setRows((rs) => rs.filter((x) => x.id !== r.id))}
                 aria-label={`Remove ${classHours ? "group" : "student"} ${i + 1}`}
-                className="absolute -right-2 -top-2 flex h-11 w-11 items-center justify-center rounded-lg text-muted-fg transition-colors hover:bg-canvas hover:text-danger-ink sm:static sm:w-9"
+                className="absolute -right-2 -top-2 flex h-11 w-11 items-center justify-center rounded-lg text-muted-fg transition-colors hover:bg-canvas hover:text-danger-ink sm:static sm:col-start-4 sm:row-start-1 sm:w-9"
               >
                 <XIcon className="h-4 w-4" />
               </button>
@@ -312,32 +323,50 @@ function StudentRows({
                 blocking
               )}
             </p>
-            <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               {program.levels.length > 0 && (
-                <Labelled label="Level" className="w-full sm:w-48">
-                  <Select
+                <label className="flex items-center gap-2 text-sm text-muted-fg">
+                  Level
+                  <select
                     name="levelId"
-                    ariaLabel="Level"
-                    options={program.levels.map((l) => ({ value: l.id, label: l.name }))}
-                    defaultValue={levelId}
-                    onChange={setLevelId}
-                    measure="sm"
-                  />
-                </Labelled>
+                    required
+                    value={levelId}
+                    onChange={(e) => setLevelId(e.target.value)}
+                    className={cn(inputClasses, "w-auto")}
+                  >
+                    <option value="" disabled>
+                      Select…
+                    </option>
+                    {program.levels.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               )}
               {cohorts.length > 0 && (
-                <Labelled label="Cohort" className="w-full sm:w-48">
+                <label className="flex items-center gap-2 text-sm text-muted-fg">
+                  Cohort
                   {/* `key` remounts it on a level change, so a cohort picked
                       under Emerging cannot be submitted under Advanced. */}
-                  <Select
+                  <select
                     key={levelId}
                     name="cohortId"
-                    ariaLabel="Cohort"
-                    options={cohorts.map((c) => ({ value: c.id, label: c.name }))}
+                    required
                     defaultValue={cohorts.length === 1 ? cohorts[0].id : ""}
-                    measure="sm"
-                  />
-                </Labelled>
+                    className={cn(inputClasses, "w-auto")}
+                  >
+                    <option value="" disabled>
+                      Select…
+                    </option>
+                    {cohorts.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               )}
               <Button type="button" variant="ghost" onClick={() => setRows([])}>
                 Cancel
@@ -369,13 +398,6 @@ function StudentRows({
     </>
   );
 }
-
-/**
- * The row's tracks from `sm`: email, first name, last name, folder link, and
- * the remove button. A group's name takes the first three.
- */
-const ROW_GRID =
-  "sm:grid-cols-[minmax(0,16rem)_minmax(0,9rem)_minmax(0,9rem)_minmax(0,16rem)_2.25rem]";
 
 /** A field's name above it on a phone; from `sm` the column headings say it. */
 const PHONE_LABEL = "mb-1 block text-xs font-medium text-muted-fg sm:sr-only";

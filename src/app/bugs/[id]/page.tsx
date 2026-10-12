@@ -44,13 +44,10 @@ export default async function BugPage({
             {report.reporterName && ` by ${report.reporterName}`}
           </>
         }
-        // An admin reads the status in the triage form below; once is enough.
         actions={
-          user.platformAdmin ? undefined : (
-            <StatusChip severity={BUG_STATUS_SEVERITY[report.status]}>
-              {BUG_STATUS_LABELS[report.status]}
-            </StatusChip>
-          )
+          <StatusChip severity={BUG_STATUS_SEVERITY[report.status]}>
+            {BUG_STATUS_LABELS[report.status]}
+          </StatusChip>
         }
       />
 

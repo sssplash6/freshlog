@@ -141,7 +141,10 @@ export function StudentsTable({
   if (students.length === 0) {
     return (
       empty ?? (
-<EmptyState framed={framed} title="No students yet" />
+        <EmptyState framed={framed} title="No students yet">
+          Students arrive when an admin adds them, or when they sign themselves
+          up and are approved.
+        </EmptyState>
       )
     );
   }

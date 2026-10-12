@@ -186,12 +186,17 @@ export default async function StudentsPage({
     <div className="space-y-4">
       <PageTitle
         title="Students"
-        // The roster's size, in the same place `/mentors` says its own.
-        // Filtered, the bar below says how many matched instead.
         subtitle={
-          activeFilterCount(params) === 0
-            ? `${shown} ${shown === 1 ? "student" : "students"}`
-            : undefined
+          administers
+            ? // The roster's size, in the same place `/mentors` says its own.
+              // Filtered, the bar below says how many matched instead.
+              activeFilterCount(params) === 0
+              ? `${shown} ${shown === 1 ? "student" : "students"}`
+              : undefined
+            : // Reach, said plainly: this list is everyone a mentor may log a
+              // meeting with, which is wider than the students whose time
+              // they hold — those are the caseload on their home page.
+              "Everyone in your programs, whoever holds their time."
         }
         // Adding students was only offered by the EMPTY roster, so it vanished
         // the moment the first one arrived. It happens on a program (where the
@@ -249,10 +254,27 @@ export default async function StudentsPage({
         // Titled the way `/mentors` titles its own, so the two empty searches
         // read as one pattern rather than an icon and a stray sentence.
         activeFilterCount(params) > 0 ? (
-          <EmptyState variant="no-results" title="No students match" />
+          <EmptyState variant="no-results" title="No students match">
+            Check the spelling, or reset to see everyone.
+          </EmptyState>
         ) : (
-          // No action: "Add students" is already in the title.
-          <EmptyState title="No students yet" />
+          <EmptyState
+            title="No students yet"
+            action={
+              administers && programs.length > 0 ? (
+                <CreateLink
+                  href={
+                    programs.length === 1 ? `/programs/${programs[0].id}?add=1` : "/programs?for=students"
+                  }
+                  label="Add students"
+                />
+              ) : undefined
+            }
+          >
+            {administers
+              ? "Add them on a program; each confirms their name on first sign-in."
+              : "You hold time with nobody yet, and nobody's work is on your list."}
+          </EmptyState>
         )
       ) : (
         <>

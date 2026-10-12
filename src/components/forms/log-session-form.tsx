@@ -8,11 +8,10 @@ import type { ActionState } from "@/lib/actions/shared";
 import { AttendancePicker } from "@/components/forms/attendance-picker";
 import { DictateButton } from "@/components/forms/dictate-button";
 import { TimeKindPicker } from "@/components/forms/time-kind-picker";
-import { AlertIcon, PlusIcon } from "@/components/icons";
+import { AlertIcon } from "@/components/icons";
 import { Select } from "@/components/select";
-import { Button } from "@/components/ui/button";
 import { DateField } from "@/components/ui/date-field";
-import { GrowingField, Input, MEASURE } from "@/components/ui/field";
+import { GrowingField, inputClasses } from "@/components/ui/field";
 import { Receipt } from "@/components/ui/receipt";
 import { SaveState, saveStateFrom } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -23,11 +22,23 @@ import { programToday } from "@/lib/when";
 import { RequiredMark } from "@/components/ui/required-mark";
 
 /**
- * Label above control, and the ONE gap between them — `Field`'s look, so this
- * form's labels read like every other form's. The gap belongs to the label,
- * which every field has, rather than to a wrapper somebody has to remember.
+ * `min-h-11` for the same reason `Select` has it: 44px, and the two are
+ * side by side. The select declares that height and an input derived its own
+ * from padding and an inherited line-height, so the pair agreed only by
+ * arithmetic that nobody was checking.
  */
-const labelClass = "mb-1.5 block text-sm font-medium text-ink";
+const inputClass = inputClasses;
+/**
+ * Label above control, and the ONE gap between them.
+ *
+ * It used to be a `mt-0.5` wrapper around each control, which meant every
+ * control that was not wrapped — the two plain `<input>`s, Minutes and Date —
+ * started two pixels above the `Select` beside it. Two pixels is invisible on
+ * its own and unmissable on a row where one field sits next to another. The
+ * gap belongs to the label, which every field has, rather than to a wrapper
+ * somebody has to remember.
+ */
+const labelClass = "mb-0.5 block text-muted-fg";
 const badInputClass = "border-danger-line bg-danger-soft/40";
 
 export type LogSessionStudent = {
@@ -106,17 +117,6 @@ export type LogSessionDraft = {
  * everything a browser sends.
  */
 const DRAFT_KEY = "freshlog:log-session-draft";
-/** Every field the draft keeps, in the URL and in a failed submit's echo. */
-const DRAFT_FIELDS = [
-  "studentProfileId",
-  "programId",
-  "assignmentId",
-  "minutes",
-  "date",
-  "note",
-  "attendance",
-  "timeKind",
-] as const;
 const URL_SAFE = 8192;
 /** Longer than any real interruption, short enough that last week's draft is gone. */
 const DRAFT_TTL_MS = 48 * 60 * 60 * 1000;
@@ -150,7 +150,29 @@ function readNoteMirror(): string {
  * the form on success — on a phone that is the difference between a form you
  * can fill with one thumb and one you cannot.
  */
-type LogSessionFormProps = {
+export function LogSessionForm({
+  students,
+  mentors = [],
+  mentorId = "",
+  studentPlaceholder,
+  mode = "inline",
+  draft,
+    /**
+   * The ledger "Edit it" opens, with `?edit=<id>#session-<id>` added so the
+   * row's edit panel is open on arrival — it went to the ledger only, and
+   * "edit" that lands on a list reads as being sent away. A base rather than
+   * a `(id) => href` function because a function cannot cross the server-to-
+   * client boundary. Passing one type-checks, builds, and throws at render
+   * with "Functions cannot be passed directly to Client Components".
+   */
+  correctBase,
+  /** The same form, empty — a link, so the back button still works. */
+  againHref,
+  from,
+  pageProgram,
+  /** Whether this deployment has the keys for a spoken note. */
+  canDictate = false,
+}: {
   students: LogSessionStudent[];
   /**
    * Whose session this is, for an admin logging one on a mentor's behalf.
@@ -159,19 +181,12 @@ type LogSessionFormProps = {
    */
   mentors?: { value: string; label: string; hint?: string }[];
   mentorId?: string;
-  /** Said in place of "Choose…" when there is nobody to pick yet. */
+  /** Said in place of "Select…" when there is nobody to pick yet. */
   studentPlaceholder?: string;
   mode?: "inline" | "page";
   draft?: LogSessionDraft;
-  /**
-   * The ledger "Edit it" opens, with `?edit=<id>#session-<id>` added so the
-   * row's edit panel is open on arrival — it went to the ledger only, and
-   * "edit" that lands on a list reads as being sent away. A base rather than
-   * a `(id) => href` function because a function cannot cross the server-to-
-   * client boundary. Passing one type-checks, builds, and throws at render
-   * with "Functions cannot be passed directly to Client Components".
-   */
-  correctBase?: string;
+    correctBase?: string;
+  againHref?: string;
   /** The program the reader came through, kept on the link back to the student. */
   from?: string;
   /**
@@ -182,41 +197,9 @@ type LogSessionFormProps = {
    * the student's own last answer is not.
    */
   pageProgram?: string;
-  /** Whether this deployment has the keys for a spoken note. */
   canDictate?: boolean;
-};
-
-/**
- * "Log another" starts a fresh round in place, with the same student. It was a
- * full page reload, which cost a mentor logging a week of sessions a second
- * per session and an admin the mentor they had picked.
- */
-export function LogSessionForm(props: LogSessionFormProps) {
-  const [round, setRound] = useState<{ n: number; draft?: LogSessionDraft }>({ n: 0 });
-  return (
-    <LogSessionRound
-      key={round.n}
-      {...props}
-      draft={round.n === 0 ? props.draft : round.draft}
-      onAgain={(draft) => setRound((r) => ({ n: r.n + 1, draft }))}
-    />
-  );
-}
-
-function LogSessionRound({
-  students,
-  mentors = [],
-  mentorId = "",
-  studentPlaceholder,
-  mode = "inline",
-  draft,
-  correctBase,
-  from,
-  pageProgram,
-  canDictate = false,
-  onAgain,
-}: LogSessionFormProps & { onAgain: (draft: LogSessionDraft) => void }) {
-  // The attempt counter is what lets the two SegmentedRadio pickers survive a
+}) {
+    // The attempt counter is what lets the two SegmentedRadio pickers survive a
   // failed submit. They hold their choice in `useState`, and React 19 resets
   // the form's DOM once the action settles — so the radio goes back to
   // unchecked while the component still believes it is on "Late", and the
@@ -266,7 +249,8 @@ function LogSessionRound({
         return {
           state: {
             ok: false as const,
-            error: "Not logged. Check your connection.",
+            error:
+              "That did not reach the server, so nothing was logged. Check your connection and try again.",
             values,
           } as ActionState,
           attempt: prev.attempt + 1,
@@ -310,15 +294,9 @@ function LogSessionRound({
   const formRef = useRef<HTMLFormElement>(null);
   // The minutes are React's so a preset can write them.
   const [minutes, setMinutes] = useState(opening.minutes ?? "");
-  // Whose hours the session is on, mirrored from the radio so the overdraw
-  // warning below can step aside for Extra — which charges nothing — and so
-  // its "Log as Extra" can set the radio. `kindKey` remounts the picker for
-  // that, since it holds its own choice.
+  // Whose hours the meeting is on, mirrored from the radio so the overdraw
+  // confirmation below can step aside for Extra — which charges nothing.
   const [kind, setKind] = useState(opening.timeKind ?? "PLAN");
-  const [kindKey, setKindKey] = useState(0);
-  // The agenda item waits behind "Add agenda item" unless the draft already
-  // names one — a preselected item is never hidden.
-  const [agendaOpen, setAgendaOpen] = useState(Boolean(opening.assignmentId));
   const today = programToday();
   // The note is the one field React owns, because dictation writes into it.
   const [note, setNote] = useState(opening.note ?? "");
@@ -342,6 +320,7 @@ function LogSessionRound({
   const goals = chosen?.goals ?? student?.goals ?? [];
   const balance = chosen?.balance ?? student?.balance;
   const logState = chosen?.state ?? student?.state;
+  const noGoals = Boolean(student) && Boolean(chosen) && goals.length === 0;
   // A student whose time is already spent, one way or the other.
   const warn = logState === "overdrawn" || logState === "expired";
   const minutesId = useId();
@@ -364,7 +343,16 @@ function LogSessionRound({
     // Attendance and kind are one tap each, but "cheap to redo" is not the
     // same as "restored", and two draft mechanisms that disagree is worse
     // than either.
-    for (const name of DRAFT_FIELDS) {
+    for (const name of [
+      "studentProfileId",
+      "programId",
+      "assignmentId",
+      "minutes",
+      "date",
+      "note",
+      "attendance",
+      "timeKind",
+    ]) {
       // `override` is for a value React has just set but the DOM has not
       // rendered yet — reading the form then would save the previous one.
       const value = override?.[name] ?? String(new FormData(form).get(name) ?? "");
@@ -437,43 +425,32 @@ function LogSessionRound({
 
   /**
    * Optional, and the only field that is about the WORK rather than about the
-   * meeting — which is why it sits over the note. Most sessions name none, so
-   * it waits behind "Add agenda item", and only once there is something to
-   * pick. "None" is its empty answer.
+   * meeting. "None" is its empty answer: the old placeholder, "Optional —
+   * choose one…", was also the first row of the list, so the list opened with
+   * a ticked instruction.
    */
-  const agendaField =
-    goals.length === 0 ? null : agendaOpen ? (
-      <div className="min-w-0">
-        <span className={labelClass}>Agenda item</span>
-        <Select
-          // Remount per student so the previous student's goal is never
-          // left selected behind the new student's list.
-          key={`${studentId}:${chosen?.value ?? ""}`}
-          name="assignmentId"
-          ariaLabel="Agenda item"
-          defaultValue={opening.assignmentId}
-          options={goals}
-          required={false}
-          placeholder="None"
-        />
-        <FieldError message={fieldErrors.assignmentId} />
-      </div>
-    ) : (
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="-ml-3 max-sm:h-11"
-        onClick={() => setAgendaOpen(true)}
-      >
-        <PlusIcon className="h-3.5 w-3.5" />
-        Add agenda item
-      </Button>
-    );
+  const agendaField = (
+    <div className="block min-w-0 text-sm">
+      <span className={labelClass}>Agenda item worked on</span>
+      <Select
+        // Remount per student so the previous student's goal is never
+        // left selected behind the new student's list.
+        key={`${studentId}:${chosen?.value ?? ""}`}
+        name="assignmentId"
+        ariaLabel="Agenda item worked on"
+        defaultValue={opening.assignmentId}
+        options={goals}
+        required={false}
+        placeholder={
+          !student ? "Pick a student first" : noGoals ? "Nothing planned yet" : "None"
+        }
+      />
+      <FieldError message={fieldErrors.assignmentId} />
+    </div>
+  );
 
-  // Minutes and Date share a row: two short answers never stack.
   const minutesField = (
-    <div className={cn("w-full min-w-0", MEASURE.xs)}>
+    <div className="block min-w-0 text-sm">
       <label htmlFor={minutesId} className={labelClass}>
         Minutes
         <RequiredMark />
@@ -482,13 +459,12 @@ function LogSessionRound({
         {/* Text with a numeric keypad, not `type="number"`: the number input
             drew spinner arrows on focus and took a scroll-wheel nudge as an
             edit. The unit sits in the box, so "90" can only mean minutes. */}
-        <Input
+        <input
           id={minutesId}
           name="minutes"
           type="text"
           inputMode="numeric"
           autoComplete="off"
-          measure="xs"
           // No placeholder. A grey "90" in the box read as a value already
           // given, and the mentor submitted a form that was then refused.
           value={minutes}
@@ -502,7 +478,7 @@ function LogSessionRound({
             if (!/^\d+$/.test(pasted)) event.preventDefault();
           }}
           aria-invalid={Boolean(fieldErrors.minutes) || undefined}
-          className={cn("pr-12", fieldErrors.minutes && badInputClass)}
+          className={cn(inputClass, "pr-12", fieldErrors.minutes && badInputClass)}
         />
         <span
           aria-hidden
@@ -511,35 +487,32 @@ function LogSessionRound({
           min
         </span>
       </div>
-    </div>
-  );
-
-  // The lengths a mentor actually logs, one tap each, beside the box. Most
-  // sessions are one of these four, and typing them on a phone keypad every
-  // week is the slowest part of the form.
-  const minutePresets = (
-    <div role="group" aria-label="Common lengths" className="flex h-11 items-center gap-1.5">
-      {MINUTE_PRESETS.map((m) => {
-        const on = minutes === String(m);
-        return (
-          <button
-            key={m}
-            type="button"
-            aria-pressed={on}
-            aria-label={`${m} min`}
-            onClick={() => {
-              setMinutes(String(m));
-              touched({ minutes: String(m) });
-            }}
-            className={cn(
-              "inline-flex min-h-8 min-w-10 items-center justify-center rounded-full px-2.5 text-xs font-medium tabular-nums transition-colors max-sm:min-h-11",
-              on ? "bg-brand-soft text-brand" : "bg-fill text-muted-fg hover:text-ink"
-            )}
-          >
-            {m}
-          </button>
-        );
-      })}
+      {/* The lengths a mentor actually logs, one tap each. Most sessions are
+          one of these four, and typing them on a phone keypad every week is
+          the slowest part of the form. */}
+      <div role="group" aria-label="Common lengths" className="mt-1.5 flex flex-wrap gap-1.5">
+        {MINUTE_PRESETS.map((m) => {
+          const on = minutes === String(m);
+          return (
+            <button
+              key={m}
+              type="button"
+              aria-pressed={on}
+              onClick={() => {
+                setMinutes(String(m));
+                touched({ minutes: String(m) });
+              }}
+              className={cn(
+                "inline-flex min-h-8 items-center rounded-full px-3 text-xs font-medium tabular-nums transition-colors max-sm:min-h-11",
+                on ? "bg-brand-soft text-brand" : "bg-fill text-muted-fg hover:text-ink"
+              )}
+            >
+              {m} min
+            </button>
+          );
+        })}
+      </div>
+      <FieldError message={fieldErrors.minutes} />
     </div>
   );
 
@@ -547,7 +520,7 @@ function LogSessionRound({
   // picker's trigger would toggle the panel on every click of the word "Date"
   // — and twice on a click of the trigger itself. `DateField` names itself.
   const dateField = (
-    <div className={cn("w-full min-w-0", MEASURE.sm)}>
+    <div className="block min-w-0 text-sm">
       <span className={labelClass}>
         Date
         <RequiredMark />
@@ -563,113 +536,149 @@ function LogSessionRound({
         invalid={Boolean(fieldErrors.date)}
         onChange={(date) => touched({ date })}
       />
+      <FieldError message={fieldErrors.date} />
     </div>
   );
 
-  // Asked first: every answer under it is a fact about that mentor.
   const mentorField = mentors.length > 0 && (
-    <div className="min-w-0">
+    // Its own row, half its width: every answer under it is a fact about that
+    // mentor, so it is asked first and on its own.
+    <div className="block min-w-0 text-sm sm:col-span-2 sm:max-w-[calc(50%-0.5rem)]">
       <span className={labelClass}>
         Mentor
         <RequiredMark />
       </span>
-      <Select
-        name="mentorId"
-        ariaLabel="Mentor"
-        measure="full"
-        invalid={Boolean(fieldErrors.mentorId)}
-        defaultValue={mentorId}
-        // Always, rather than past the six-option threshold: a school with
-        // five mentors today has nine next term, and this is the one list an
-        // admin arrives at knowing the name they want.
-        searchable
-        recentKey="log-session-mentor"
-        options={mentors}
-        onChange={(value) => {
-          // A trip to the server, because the caseload is theirs and not
-          // something this form can derive. The draft is already in the URL,
-          // so everything typed survives, and so does the STUDENT — dropped
-          // only if the mentor picked cannot reach them. The agenda item
-          // cannot survive: tasks belong to a mentor.
-          const url = new URL(window.location.href);
-          url.searchParams.set("mentor", value);
-          url.searchParams.delete("assignmentId");
-          router.replace(`${url.pathname}${url.search}`);
-        }}
-      />
+      <div>
+        <Select
+          name="mentorId"
+          ariaLabel="Mentor"
+          invalid={Boolean(fieldErrors.mentorId)}
+          defaultValue={mentorId}
+          placeholder="Whose session was this?"
+          // Always, rather than past the six-option threshold: a school with
+          // five mentors today has nine next term, and this is the one list an
+          // admin arrives at knowing the name they want.
+          searchable
+          recentKey="log-session-mentor"
+          options={mentors}
+          onChange={(value) => {
+            // A trip to the server, because the caseload is theirs and not
+            // something this form can derive. The draft is already in the URL,
+            // so everything typed survives, and so does the STUDENT — dropped
+            // only if the mentor picked cannot reach them. The agenda item
+            // cannot survive: tasks belong to a mentor.
+            const url = new URL(window.location.href);
+            url.searchParams.set("mentor", value);
+            url.searchParams.delete("assignmentId");
+            router.replace(`${url.pathname}${url.search}`);
+          }}
+        />
+      </div>
       <FieldError message={fieldErrors.mentorId} />
     </div>
   );
 
-  // The balance is the picker's own hint on each option, so it is not
-  // printed again under the closed select.
   const studentField = (
-    <div className="min-w-0">
+    <div className="block min-w-0 text-sm">
       <span className={labelClass}>
         Student
         <RequiredMark />
       </span>
-      <Select
-        name="studentProfileId"
-        ariaLabel="Student"
-        // Half the row beside the mentor picker; its own measure when alone.
-        measure={mentorField ? "full" : "md"}
-        invalid={Boolean(fieldErrors.studentProfileId)}
-        defaultValue={studentId}
-        placeholder={studentPlaceholder}
-        onChange={(value) => {
-          setStudentId(value);
-          setProgramId(
-            startingProgram(students.find((s) => s.profileId === value)?.programs ?? [])
-          );
-          touched();
-        }}
-        // A mentor logs for the same few students week after week, and a
-        // full caseload is far too long to scan: last picks lead, and the
-        // rest is filtered by name, balance or program.
-        recentKey="log-session-student"
-        options={students.map((s) => ({
-          value: s.profileId,
-          label: s.label,
-          hint: s.hint,
-          group: GROUP_OF[s.state],
-          tone: TONE_OF[s.state],
-        }))}
-      />
+      <div>
+        <Select
+          name="studentProfileId"
+          ariaLabel="Student"
+          invalid={Boolean(fieldErrors.studentProfileId)}
+          defaultValue={studentId}
+          placeholder={studentPlaceholder ?? "Choose a student"}
+          onChange={(value) => {
+            setStudentId(value);
+            setProgramId(
+              startingProgram(students.find((s) => s.profileId === value)?.programs ?? [])
+            );
+            touched();
+          }}
+          // A mentor logs for the same few students week after week, and a
+          // full caseload is far too long to scan: last picks lead, and the
+          // rest is filtered by name, balance or program.
+          recentKey="log-session-student"
+          options={students.map((s) => ({
+            value: s.profileId,
+            label: s.label,
+            hint: s.hint,
+            group: GROUP_OF[s.state],
+            tone: TONE_OF[s.state],
+          }))}
+        />
+      </div>
+      {balance && !warn && <p className="mt-1 text-xs text-muted-fg">{balance}</p>}
       <FieldError message={fieldErrors.studentProfileId} />
     </div>
   );
 
   /**
-   * Said once a student whose time is spent is chosen, while the log would
-   * charge that time: one line naming the state, and the one alternative —
-   * Extra, which charges nothing. It does not forbid the log; a meeting that
-   * happened is still logged, and pressing Log a session is the "yes".
+   * Said once a student whose time is spent is chosen, across the whole form
+   * rather than under the Student field — where it pushed only the left column
+   * down and left a 120px hole beside it.
+   *
+   * Two different situations, said as two: hours that EXPIRED were never
+   * overdrawn, and telling a mentor a session "adds to the overdraw" of a
+   * student who has simply run out of calendar was the wrong problem and the
+   * wrong fix. It does not forbid the log — a meeting that happened is still
+   * logged — it names the cost, the honest alternative, and asks once.
    */
-  const warning = warn && balance && kind !== "EXTRA" && (
-    <p
+  const warning = warn && balance && (
+    <div
       role="status"
-      className="flex flex-wrap items-center gap-x-2.5 rounded-lg bg-warn-soft px-3.5 py-1 text-xs text-warn-ink"
+      className="flex items-start gap-2.5 rounded-lg bg-warn-soft px-3.5 py-2.5 text-xs text-warn-ink sm:col-span-2"
     >
-      <AlertIcon className="h-4 w-4 shrink-0" />
-      <span className="font-semibold">{balance.split(" — ")[0]}.</span>
-      <button
-        type="button"
-        onClick={() => {
-          setKind("EXTRA");
-          setKindKey((k) => k + 1);
-          touched({ timeKind: "EXTRA" });
-        }}
-        className="min-h-11 font-semibold text-brand hover:underline sm:min-h-8"
-      >
-        Log as Extra
-      </button>
-    </p>
+      <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p>
+          <span className="font-semibold">{balance.split(" — ")[0]}.</span>{" "}
+          {logState === "expired" ? (
+            <>
+              Log it as <span className="font-semibold">Extra</span> and nothing is
+              charged, or ask an admin to extend their time.
+            </>
+          ) : (
+            <>
+              Counting it toward their time adds to the overdraw. As{" "}
+              <span className="font-semibold">Extra</span>, nothing is charged.
+            </>
+          )}
+        </p>
+        {kind !== "EXTRA" && (
+          // A confirmation, not a block, asked only while the log WOULD
+          // charge spent time, and keyed to the student so one person's "yes"
+          // is never carried to the next. `needsAck` tells the check above
+          // that the question was on screen.
+          <>
+            <input type="hidden" name="needsAck" value="1" />
+            <label className="mt-1 flex min-h-11 cursor-pointer items-center gap-3 font-semibold">
+              <input
+                key={`${studentId}:${programId}`}
+                type="checkbox"
+                name="acknowledgeOverdraw"
+                aria-invalid={Boolean(fieldErrors.acknowledgeOverdraw) || undefined}
+                className="h-5 w-5 shrink-0 accent-[var(--color-brand)]"
+              />
+              <span>
+                {logState === "expired"
+                  ? "Count it toward their expired time anyway"
+                  : "Log it anyway — it adds to the overdraw"}
+              </span>
+            </label>
+            <FieldError message={fieldErrors.acknowledgeOverdraw} />
+          </>
+        )}
+      </div>
+    </div>
   );
 
   const programField =
     programs.length > 1 ? (
-      <div className="min-w-0">
+      <div className="block min-w-0 text-sm">
         <span className={labelClass}>
           Program
           <RequiredMark />
@@ -696,12 +705,11 @@ function LogSessionRound({
     ) : null;
 
   // A div, not a label: the dictate button sits on this row, and a button
-  // inside a label steals the click into the textarea. One line to start,
-  // growing as it is typed into.
+  // inside a label steals the click into the textarea.
   const notesField = (
-    <div className="min-w-0">
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-ink">Notes</span>
+    <div className="flex min-w-0 flex-col text-sm sm:col-span-2">
+      <div className="mb-0.5 flex items-center justify-between gap-2">
+        <span className="text-muted-fg">Notes</span>
         {canDictate && (
           <DictateButton
             studentProfileId={studentId || undefined}
@@ -715,17 +723,28 @@ function LogSessionRound({
           />
         )}
       </div>
+      {/* Three lines to start and growing from there. It was stretched to
+          match a column of four fields beside it — a 290px empty box, the
+          tallest thing on the form, for the one answer that is optional. */}
       <GrowingField
         name="note"
         aria-label="Notes"
+        placeholder="Optional — what you covered, and what's next"
         value={note}
         onChange={(event) => setNote(event.target.value)}
+        className="min-h-24 px-2.5 py-2"
       />
     </div>
   );
 
   if (page && state?.ok && state.receipt) {
-    const subject = state.receipt.subject?.id;
+    // The student goes in as the DRAFT's field, not as `?student=`: that one
+    // means "opened from this student's page", and the page takes its Back
+    // from it. `againHref` already carries it when that is where they came from.
+    const nextSessionHref = againHref
+      ? `${againHref}${againHref.includes("?") ? "&" : "?"}studentProfileId=${encodeURIComponent(state.receipt.subject?.id ?? "")}`
+      : undefined;
+
     return (
       <Receipt
         receipt={state.receipt}
@@ -734,19 +753,7 @@ function LogSessionRound({
             ? `${correctBase}?edit=${state.receipt.id}#session-${state.receipt.id}`
             : undefined
         }
-        onAgain={() => {
-          // The spent draft leaves the URL, so a reload is the fresh form and
-          // not this session again. Where the form came from — `?student=`,
-          // `?back=`, `?program=`, an admin's `?mentor=` — stays. The student
-          // goes in as the DRAFT's field, not as `?student=`: that one means
-          // "opened from this student's page", and the page takes its Back
-          // from it.
-          const url = new URL(window.location.href);
-          for (const name of DRAFT_FIELDS) url.searchParams.delete(name);
-          if (subject) url.searchParams.set("studentProfileId", subject);
-          window.history.replaceState(null, "", url);
-          onAgain({ studentProfileId: subject, programId: chosen?.value });
-        }}
+        onAgainHref={nextSessionHref}
         from={from}
       />
     );
@@ -769,18 +776,21 @@ function LogSessionRound({
       className={cn("rounded-xl bg-surface p-4 shadow-sm", page && "sm:p-5")}
     >
       {!page && (
-        <h2 className="text-base font-semibold text-ink">Log a session</h2>
+        <h2 className="text-base font-semibold text-ink">Log a completed session</h2>
       )}
-      {/* One column, one reading order at every width: who, how long and
-          when, how it went and whose hours, then what the time went toward
-          and the note. min-w-0 on every cell: the longest option label could
-          otherwise widen the form past the screen on a phone. */}
-      <div className={cn("space-y-4", !page && "mt-3")}>
-        {/* Who, on one row (DESIGN.md W2): each picker takes half the form. */}
-        <div className={cn("grid gap-3", mentorField && "sm:grid-cols-2")}>
-          {mentorField}
-          {studentField}
-        </div>
+      {/* One reading order at every width: who, how long, when, then what the
+          time went toward, how it went, whose hours, and last the one long
+          answer. The phone used to put an optional Notes box above the two
+          required fields, and the desktop left Student alone on its row.
+          min-w-0 on every cell: a grid item's automatic minimum size is its
+          content, so the longest option label could widen the column past the
+          screen on a phone. */}
+      <div className={cn("grid gap-4 sm:grid-cols-2", !page && "mt-3")}>
+        {mentorField}
+        {studentField}
+        {minutesField}
+        {warning}
+        {dateField}
         {/* Only when it is a real question. One program is posted, not
             asked: a select with a single option is a control that cannot be
             wrong and still costs a row of the screen to read. */}
@@ -788,21 +798,9 @@ function LogSessionRound({
           <input type="hidden" name="programId" value={programs[0].value} />
         )}
         {programField}
-        {warning}
-        <div>
-          <div className="flex flex-wrap items-end gap-3">
-            {minutesField}
-            {minutePresets}
-            {dateField}
-          </div>
-          <FieldError message={fieldErrors.minutes} />
-          <FieldError message={fieldErrors.date} />
-        </div>
-        <div className="flex flex-wrap gap-x-6 gap-y-4">
-          <AttendancePicker key={`attendance-${attempt}`} defaultValue={opening.attendance} />
-          <TimeKindPicker key={`kind-${attempt}-${kindKey}`} defaultValue={kind} />
-        </div>
         {agendaField}
+        <AttendancePicker key={`attendance-${attempt}`} defaultValue={opening.attendance} />
+        <TimeKindPicker key={`kind-${attempt}`} defaultValue={opening.timeKind} />
         {notesField}
       </div>
 
@@ -829,12 +827,20 @@ function LogSessionRound({
             "max-sm:sticky max-sm:bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] max-sm:z-10 max-sm:-mx-4 max-sm:-mb-4 max-sm:bg-surface/95 max-sm:px-4 max-sm:py-3 max-sm:backdrop-blur"
         )}
       >
+        {/* A button greyed out with no reason read as broken. With nobody to
+            choose from yet it says what is missing — the same words the empty
+            Student field carries. */}
+        {students.length === 0 && studentPlaceholder && (
+          <p className="mr-3 hidden self-center text-xs text-muted-fg sm:block">
+            {studentPlaceholder.replace(/…$/, ".")}
+          </p>
+        )}
         <SubmitButton
           pendingText="Logging…"
           className="w-full sm:w-auto sm:min-w-40"
           disabled={students.length === 0}
         >
-          Log a session
+          Log session
         </SubmitButton>
       </div>
     </form>
@@ -853,8 +859,9 @@ function FieldError({ message }: { message?: string }) {
 
 type FieldErrors = Partial<Record<string, string>>;
 
-/** The lengths offered as one-tap answers beside Minutes. */
+/** The lengths offered as one-tap answers under Minutes. */
 const MINUTE_PRESETS = [30, 45, 60, 90] as const;
+
 
 /**
  * Every required answer, checked at once, in the words a field shows under
@@ -865,16 +872,19 @@ function checkFields(data: FormData): FieldErrors {
   const errors: FieldErrors = {};
   const text = (name: string) => String(data.get(name) ?? "").trim();
   if (data.has("mentorId") && !text("mentorId")) {
-    errors.mentorId = "Choose a mentor.";
+    errors.mentorId = "Choose whose session this was.";
   }
   if (!text("studentProfileId")) errors.studentProfileId = "Choose a student.";
   const minutes = text("minutes");
-  if (!minutes) errors.minutes = "Enter the minutes.";
+  if (!minutes) errors.minutes = "Enter how long it took.";
   else if (!/^\d+$/.test(minutes) || Number(minutes) < 1) {
-    errors.minutes = "Whole minutes, 1 or more.";
+    errors.minutes = "Enter a whole number of minutes, 1 or more.";
   } else if (Number(minutes) > MAX_SESSION_MINUTES) {
-    errors.minutes = `At most ${MAX_SESSION_MINUTES} minutes.`;
+    errors.minutes = `A session is at most ${MAX_SESSION_MINUTES} minutes (24 hours).`;
   }
-  if (!text("date")) errors.date = "Choose a date.";
+  if (!text("date")) errors.date = "Choose the date it happened.";
+  if (text("needsAck") && !data.get("acknowledgeOverdraw")) {
+    errors.acknowledgeOverdraw = "Tick this to log it, or choose Extra below.";
+  }
   return errors;
 }

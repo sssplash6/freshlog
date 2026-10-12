@@ -11,9 +11,7 @@ import {
   BUG_STATUS_SEVERITY,
   isBugStatus,
 } from "@/lib/bugs";
-import { sanitizePagePath } from "@/lib/bugs";
 import { requireUser } from "@/lib/dal";
-import { readParam, type SearchParams } from "@/lib/filters";
 import { formatDate } from "@/lib/format";
 import type { Metadata } from "next";
 
@@ -26,27 +24,19 @@ export const metadata: Metadata = { title: "Bug reports" };
  * is the fix line only — the reporter's wording can name a student, so it is not
  * on this page and the query behind it does not select it.
  */
-export default async function BugsPage({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>;
-}) {
+export default async function BugsPage() {
   const user = await requireUser();
-  // The page the shell's bug link was pressed on, passed through to the form.
-  const from = sanitizePagePath(readParam(await searchParams, "from"));
   const [mine, fixed] = await Promise.all([myBugReports(user.id), fixedBugs()]);
 
   return (
     <div className="space-y-4">
       <PageTitle
         title="Bug reports"
+        subtitle="What you have reported, and what we have fixed."
         actions={
           <div className="flex items-center gap-3">
             {user.platformAdmin && <ArrowLink href="/bugs/triage">Triage</ArrowLink>}
-            <Link
-              href={from ? `/bugs/new?from=${encodeURIComponent(from)}` : "/bugs/new"}
-              className={buttonClasses()}
-            >
+            <Link href="/bugs/new" className={buttonClasses()}>
               Report a bug
             </Link>
           </div>
@@ -55,7 +45,9 @@ export default async function BugsPage({
 
       <Section title="Your reports" count={mine.length}>
         {mine.length === 0 ? (
-          <EmptyState framed={false} title="No reports yet" />
+          <EmptyState framed={false} title="No reports yet">
+            Use Report a bug when something looks wrong.
+          </EmptyState>
         ) : (
           <ul className="divide-y divide-line">
             {mine.map((r) => (
@@ -79,7 +71,9 @@ export default async function BugsPage({
 
       <Section title="Fixed" count={fixed.length}>
         {fixed.length === 0 ? (
-          <EmptyState framed={false} title="Nothing fixed yet" />
+          <EmptyState framed={false} title="Nothing fixed yet">
+            Fixes are posted as they ship.
+          </EmptyState>
         ) : (
           <ul className="divide-y divide-line">
             {fixed.map((f, i) => (

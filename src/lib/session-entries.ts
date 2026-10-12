@@ -109,7 +109,7 @@ export function sessionsCaption(sessions: readonly SessionEntry[]): string {
   const extra = active
     .filter((s) => !s.withinPlan)
     .reduce((sum, s) => sum + s.minutes, 0);
-  return `${active.length} session${active.length === 1 ? "" : "s"} · ${formatDuration(logged)}${
+  return `${active.length} meeting${active.length === 1 ? "" : "s"} · ${formatDuration(logged)}${
     extra > 0 ? ` · ${formatDuration(extra)} extra` : ""
   }`;
 }

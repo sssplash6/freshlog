@@ -6,8 +6,8 @@ import { ChevronDownIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 
 /**
- * A list that shows its first few rows and folds the rest behind one "Show
- * all" row — iOS's, in place of a scroll box.
+ * A list that shows its first few rows and folds the rest behind one row that
+ * says how many there are — iOS's "Show all", in place of a scroll box.
  *
  * The student board used to give each of its three lists a fixed-height pane
  * with its own scrollbar. That kept the board a screen tall, but it put a
@@ -23,18 +23,22 @@ import { cn } from "@/lib/cn";
 export function ShowMoreList({
   rows,
   limit = 5,
+  noun,
+  total,
   className,
 }: {
   rows: React.ReactNode[];
   /**
-   * Ignored: the section's own count says how many exist. Callers still cap
-   * what they pass — every row is serialised into the page, folded or not.
+   * How many exist when the caller sent only the newest few. Every row is
+   * serialised into the page whether or not it is folded, so a student with 381
+   * sessions made a 777KB page (October 2026 audit); callers cap what they pass
+   * and say how many there really are.
    */
   total?: number;
   /** How many show before the fold. */
   limit?: number;
-  /** Ignored; the toggle says "Show all". */
-  noun?: string;
+  /** Plural, for the toggle: "Show all 14 meetings". */
+  noun: string;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -55,20 +59,23 @@ export function ShowMoreList({
     <>
       <ul className={cn("divide-y divide-line", className)}>{shown}</ul>
       {folds && (
-        <div className="border-t border-line px-4 sm:px-5">
-          <button
-            type="button"
-            onClick={() => setOpen((o) => !o)}
-            aria-expanded={open}
-            className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg text-body font-medium text-brand transition-colors hover:text-brand-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-          >
-            <ChevronDownIcon
-              aria-hidden="true"
-              className={cn("h-4 w-4 shrink-0 transition-transform", !open && "-rotate-90")}
-            />
-            {open ? "Show fewer" : "Show all"}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="flex min-h-11 w-full items-center gap-1.5 border-t border-line px-4 py-3 text-left text-body font-medium text-brand transition-colors hover:bg-fill focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand sm:px-5"
+        >
+          <ChevronDownIcon
+            aria-hidden="true"
+            className={cn("h-4 w-4 shrink-0 transition-transform", !open && "-rotate-90")}
+          />
+          {open ? "Show fewer" : `Show all ${rows.length} ${noun}`}
+        </button>
+      )}
+      {total !== undefined && total > rows.length && (open || !folds) && (
+        <p className="border-t border-line px-4 py-3 text-xs text-muted-fg sm:px-5">
+          Showing the latest {rows.length} of {total} {noun}.
+        </p>
       )}
     </>
   );

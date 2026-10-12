@@ -11,6 +11,7 @@ import { adminScope, scopeProgramFilter } from "@/lib/authz";
 import {
   ATTENDANCE_OPTIONS,
   KIND_OPTIONS,
+  SESSION_STATUS_OPTIONS,
   DATE_PRESETS,
   MINE_PRESET,
   activeFilterCount,
@@ -104,18 +105,24 @@ export default async function SessionsPage({
       params={params}
       q="sessions"
       dateRange={readDateWindow(params, now)}
-      // No Status select: a voided row is struck through where it sits, and
-      // nobody went looking for one.
-      selects={[
-        ...programSelect,
-        {
-          name: "attendance",
-          label: "Attendance",
-          all: "Any attendance",
-          options: ATTENDANCE_OPTIONS,
-        },
-        { name: "kind", label: "Whose hours", all: "Anyone's", options: KIND_OPTIONS },
-      ]}
+      selects={
+        [
+              ...programSelect,
+              {
+                name: "attendance",
+                label: "Attendance",
+                all: "Any attendance",
+                options: ATTENDANCE_OPTIONS,
+              },
+              { name: "kind", label: "Kind", all: "Any kind", options: KIND_OPTIONS },
+              {
+                name: "status",
+                label: "Status",
+                all: "Any status",
+                options: SESSION_STATUS_OPTIONS,
+              },
+            ]
+      }
       presets={[
         // Offered only to a reader who has more than their own rows to see.
         ...(administers && isMentor ? [MINE_PRESET] : []),
@@ -204,19 +211,29 @@ export default async function SessionsPage({
   const logged = sums
     .filter((r) => r.withinPlan)
     .reduce((sum, r) => sum + (r._sum.minutes ?? 0), 0);
+  const missed = sums
+    .filter((r) => !r.attended && r.withinPlan)
+    .reduce((sum, r) => sum + (r._sum.minutes ?? 0), 0);
+  const extra = sums
+    .filter((r) => !r.withinPlan)
+    .reduce((sum, r) => sum + (r._sum.minutes ?? 0), 0);
 
   return (
     <div className="space-y-4">
       <Header logHref={logHref} />
       {filters}
 
-      {/* One figure — what was logged — and the count beside it. Missed and
-          extra time are a filter away (Attendance, Whose hours) rather than
-          two more sums on every visit. Reads the whole filtered set, never
-          the page, and is not drawn over an empty result. */}
+      {/* One figure leads — what was logged — and the rest is its caption.
+          It was four figures at one size (Logged, Missed, Extra, Sessions),
+          the strip DESIGN.md retired: four equal numbers are four questions
+          and no answer, and on a phone the 2 × 2 grid took 250px before the
+          first row. Reads the whole filtered set, never the page — and is not
+          drawn over an empty result, where it was four zeroes above "No
+          sessions match". */}
       {total > 0 && (
         <div className="px-1" aria-live="polite">
-          <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <p className="text-xs text-muted-fg">Logged</p>
+          <p className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span className="text-figure-md font-semibold leading-tight tabular-nums text-ink">
               {formatDuration(logged)}
             </span>
@@ -227,6 +244,8 @@ export default async function SessionsPage({
               {activeFilterCount(params) > 0
                 ? filterSummary(total, { one: "session", many: "sessions" }, params)
                 : `${total} ${total === 1 ? "session" : "sessions"}`}
+              {missed > 0 && ` · ${formatDuration(missed)} missed`}
+              {extra > 0 && ` · ${formatDuration(extra)} extra`}
             </span>
           </p>
         </div>
@@ -235,28 +254,44 @@ export default async function SessionsPage({
       {total === 0 ? (
         activeFilterCount(params) > 0 ? (
           // Says what came back empty — the words typed, or the filters —
-          // and the one way back: a search alone is cleared, anything more
-          // is reset.
+          // and offers the ways forward, not only the one that undoes
+          // everything: drop the search and keep the filters, drop the
+          // filters, or log the session that is not here yet.
           <EmptyState
             variant="no-results"
             title={filterSummary(0, { one: "session", many: "sessions" }, params)}
             action={
-              readParam(params, "q") && activeFilterCount(params) === 1 ? (
-                <ArrowLink
-                  href={filterHref("/sessions", params, { q: undefined })}
-                  className="text-xs"
-                >
-                  Clear the search
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+                {readParam(params, "q") && (
+                  <ArrowLink
+                    href={filterHref("/sessions", params, { q: undefined })}
+                    className="text-xs"
+                  >
+                    {activeFilterCount(params) > 0 ? "Clear the search" : "Show every session"}
+                  </ArrowLink>
+                )}
+                {(activeFilterCount(params) > 1 || !readParam(params, "q")) && (
+                  <ArrowLink
+                    href={resetHref("/sessions", params)}
+                    className="text-xs"
+                  >
+                    Reset all filters
+                  </ArrowLink>
+                )}
+                <ArrowLink href={logHref} className="text-xs">
+                  Log a session
                 </ArrowLink>
-              ) : (
-                <ArrowLink href={resetHref("/sessions", params)} className="text-xs">
-                  Reset filters
-                </ArrowLink>
-              )
+              </div>
             }
-          />
+          >
+            {readParam(params, "q")
+              ? "Check the spelling, search a student or mentor by name, or widen the filters."
+              : "Widen the dates or attendance, or reset to see every session."}
+          </EmptyState>
         ) : (
-          <EmptyState title="No sessions yet" />
+          <EmptyState title="Nothing logged yet">
+            A mentor logs each meeting once it has happened.
+          </EmptyState>
         )
       ) : (
         <>

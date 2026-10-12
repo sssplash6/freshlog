@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { FolderIcon, SendIcon } from "@/components/icons";
 import { ApplicationSection } from "@/components/application-section";
 import {
   AllocationsTable,
@@ -7,8 +8,6 @@ import {
   toAllocationEntries,
 } from "@/components/allocation-row";
 import { ApproveStudentButtons } from "@/components/forms/approve-student-buttons";
-import { AssignTaskForm } from "@/components/forms/assign-task-form";
-import { CreateButton, CreatePanel, CreateSlot } from "@/components/page-create";
 import { AllocationRowActions, TaskRowActions } from "@/components/forms/hours-forms";
 import {
   RemoveStudentButton,
@@ -77,7 +76,7 @@ import {
   toDateInputValue,
 } from "@/lib/format";
 import { readParam, type SearchParams } from "@/lib/filters";
-import { allocationSummary, pastHours } from "@/lib/hours";
+import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { profileOf } from "@/lib/profile";
 import { interviewsOfStudent } from "@/lib/student-interviews";
@@ -115,8 +114,7 @@ export default async function StudentWorkspacePage({
 }) {
   const me = await requireUser();
   const { id } = await params;
-  const query = await searchParams;
-  const from = readParam(query, "from");
+  const from = readParam(await searchParams, "from");
 
   const profile = await prisma.studentProfile.findUnique({
     where: { id },
@@ -317,7 +315,7 @@ export default async function StudentWorkspacePage({
   const active = profile.user.status === USER_STATUS.ACTIVE;
   const canLog = reaches && active;
   const logReason = !active
-    ? "Not approved yet"
+    ? "This student is not approved yet."
     : // "You" is the reader as a MENTOR. An admin who is not this student's
       // mentor holds no time with anybody and logs on someone else's behalf, so
       // being told "you hold no time with them" was a sentence about nothing
@@ -325,12 +323,12 @@ export default async function StudentWorkspacePage({
       !reaches
       ? undefined
       : !mine && !pool
-      ? "You hold no time with them."
+      ? "You hold no time with them — a session you log here counts as extra time or an overdraw."
       : mine && (mine.expired || mine.remaining < 0)
         ? mine.expired
           ? // Expired is not overdrawn, and the sentence used to call it one.
-            `Expired${mine.deadline ? ` ${formatDate(mine.deadline)}` : ""}. Log as extra.`
-          : "Overdrawn. Log as extra."
+            `Their time with you expired${mine.deadline ? ` on ${formatDate(mine.deadline)}` : ""}. Log the session as extra, or ask an admin to extend it.`
+          : "Their time with you is already overdrawn — a session that counts toward it adds to the overdraw. Log it as extra to charge nothing."
         : undefined;
 
   /**
@@ -447,52 +445,6 @@ export default async function StudentWorkspacePage({
       )
     ).filter((v): v is string => v !== null)
   );
-  // What the grant form needs, read only for a reader who may grant. It asks
-  // the WRITE scope throughout — the same reads `/students/[id]/allocate` made —
-  // so an enrollment the admin can read but not write is never a grant target.
-  const grant = writes
-    ? await (async () => {
-        const writable = enrollments.filter((e) => scopeCovers(scope, e.programId));
-        const writableIds = writable.map((e) => e.programId);
-        const writeFilter = scopeProgramFilter(scope);
-        const bankPrograms = writable
-          .map((e) => e.programId)
-          .filter((id) => bankAdmin.has(id));
-        const [grantMentors, banks] = await Promise.all([
-          prisma.user.findMany({
-            where: {
-              OR: [{ role: "MENTOR" }, { isMentor: true }],
-              ...(writeFilter
-                ? { mentorAssignments: { some: { programId: { in: [...writeFilter] } } } }
-                : {}),
-            },
-            orderBy: [{ name: "asc" }],
-            select: { id: true, name: true, email: true },
-          }),
-          prisma.hourAllocation.findMany({
-            where: { studentId: profile.id, isBank: true, programId: { in: writableIds } },
-            select: { programId: true },
-          }),
-        ]);
-        const bankedPrograms = banks.map((b) => b.programId);
-        const pastByProgram = Object.fromEntries(
-          await Promise.all(
-            bankPrograms
-              .filter((id) => !bankedPrograms.includes(id))
-              .map(async (id) => [id, await pastHours(prisma, profile.id, id)] as const)
-          )
-        );
-        return {
-          programs: writable.map((e) => ({ value: e.programId, label: enrollmentLabel(e) })),
-          mentors: grantMentors.map((m) => ({ value: m.id, label: m.name ?? m.email })),
-          paymentPrograms: writableIds.filter((id) => paymentPrograms.has(id)),
-          bankPrograms,
-          bankedPrograms,
-          pastByProgram,
-        };
-      })()
-    : null;
-
   // Back to where the reader came from. A program's roster names itself in the
   // link (`?from=`), and only then is the program the way back. Otherwise it is
   // the reader's own list: Students for an admin, Home for a mentor — whose
@@ -507,6 +459,9 @@ export default async function StudentWorkspacePage({
     : mentorLens
       ? { href: "/mentor", label: "Home" }
       : { href: "/students", label: "Students" };
+  // Two primary actions at most, in either lens — the admin's power lives in
+  // the ⋮ menus on the rows it belongs to.
+  const primaryIsLog = lens === "mentor";
 
   /**
    * The line the page is opened for, first under the name: how much is left
@@ -566,15 +521,22 @@ export default async function StudentWorkspacePage({
       {...(canLog ? {} : { "aria-disabled": true, title: logReason })}
     >
       {enrollments.length > 0 && enrollments.every((e) => e.program.classHours)
-        ? "Log an hour"
+        ? "Log an hour for this group"
         : "Log a session"}
     </LinkButton>
   ) : null;
-  // Granting time opens under the title, as every other "add" does (DESIGN.md
-  // K3); it was a page of its own, one form under two headings.
   const allocateButton =
     writes && mentorOptions.length > 0 ? (
-      <CreateButton key="allocate" label="Allocate time" />
+      // The admin lens's one primary action, as logging is the mentor's: a
+      // masthead of two grey buttons had no answer to "what is this page for".
+      <LinkButton
+        key="allocate"
+        href={`/students/${profile.id}/allocate${from ? `?from=${from}` : ""}`}
+        variant={primaryIsLog ? "secondary" : "primary"}
+        size="md"
+      >
+        Allocate time
+      </LinkButton>
     ) : null;
   // Log a session is always LAST, in the right-hand corner, in either lens and
   // on the program page too (12 October 2026, asked for in that order: "Log a
@@ -584,8 +546,6 @@ export default async function StudentWorkspacePage({
   const headerButtons = [allocateButton, logButton];
 
   return (
-    // `?allocate=1` lands with the grant open: the old address of the form.
-    <CreateSlot defaultOpen={grant != null && readParam(query, "allocate") === "1"}>
     <div className="space-y-4">
       <PageTitle
         backHref={back.href}
@@ -642,27 +602,33 @@ export default async function StudentWorkspacePage({
                 {headline.rest && <> · {headline.rest}</>}
               </span>
             )}
-            {/* The contacts live in Details, for whoever reads Details; a
-                mentor has no Details, so theirs are here. */}
-            {!manages && (
+            {profile.user.email}
+            {handle && (
               <>
-                {profile.user.email}
-                {handle && (
-                  <>
-                    {" · "}
-                    <ExternalLink variant="inline" href={`https://t.me/${handle}`}>
-                      @{handle}
-                    </ExternalLink>
-                  </>
-                )}
-                {profile.folderUrl && (
-                  <>
-                    {" · "}
-                    <ExternalLink variant="inline" href={profile.folderUrl}>
-                      Folder
-                    </ExternalLink>
-                  </>
-                )}
+                {" · "}
+                <ExternalLink
+                  variant="inline"
+                  href={`https://t.me/${handle}`}
+                  icon={<SendIcon className="h-3.5 w-3.5" />}
+                  title={`Message @${handle} on Telegram`}
+                  className="align-middle"
+                >
+                  @{handle}
+                </ExternalLink>
+              </>
+            )}
+            {profile.folderUrl && (
+              <>
+                {" · "}
+                <ExternalLink
+                  variant="inline"
+                  href={profile.folderUrl}
+                  icon={<FolderIcon className="h-3.5 w-3.5" />}
+                  title={`Open the student's folder (${profile.folderUrl})`}
+                  className="align-middle"
+                >
+                  Folder
+                </ExternalLink>
               </>
             )}
           </>
@@ -677,24 +643,7 @@ export default async function StudentWorkspacePage({
         }
       />
 
-      {grant && (
-        <CreatePanel title="Allocate time">
-          <AssignTaskForm
-            studentProfileId={profile.id}
-            programs={grant.programs}
-            mentors={grant.mentors}
-            openTasksByMentor={openTasksByMentor}
-            paymentPrograms={grant.paymentPrograms}
-            bankPrograms={grant.bankPrograms}
-            bankedPrograms={grant.bankedPrograms}
-            pastByProgram={grant.pastByProgram}
-          />
-        </CreatePanel>
-      )}
-
-      {/* "Not approved yet" is the title's chip; it rides the disabled button's
-          title rather than a line of its own. */}
-      {reaches && active && logReason && (
+      {reaches && logReason && (
         // When the log would add to an overdraw it is a warning, and it reads
         // as one: a callout with its glyph. A bare amber sentence under the
         // title was the easiest thing on the page to scroll past, and colour
@@ -924,7 +873,9 @@ export default async function StudentWorkspacePage({
         }
       >
         {timeByMentor.length === 0 ? (
-          <EmptyState framed={false} title="No time yet" />
+          <EmptyState framed={false} title="No time yet">
+            An admin grants it, with or without a mentor named.
+          </EmptyState>
         ) : (
           <AllocationsTable
             entries={timeByMentor}
@@ -1044,13 +995,7 @@ export default async function StudentWorkspacePage({
                 },
                 {
                   label: "Folder",
-                  value: profile.folderUrl ? (
-                    <ExternalLink variant="inline" href={profile.folderUrl}>
-                      {profile.folderUrl}
-                    </ExternalLink>
-                  ) : (
-                    "Not set"
-                  ),
+                  value: profile.folderUrl ?? "Not set",
                   change: writes ? (
                     <StudentFolderChange
                       studentProfileId={profile.id}
@@ -1060,19 +1005,20 @@ export default async function StudentWorkspacePage({
                 },
                 {
                   label: "Telegram",
-                  value: handle ? (
-                    <ExternalLink variant="inline" href={`https://t.me/${handle}`}>
-                      @{handle}
-                    </ExternalLink>
-                  ) : (
-                    "Not set"
-                  ),
+                  value: handle
+                    ? `@${handle}`
+                    : "Not set — they add it on first sign-in",
                   change: writes ? (
                     <StudentTelegramChange
                       studentProfileId={profile.id}
                       currentHandle={handle}
                     />
                   ) : undefined,
+                },
+                { label: "Registered", value: formatDate(profile.createdAt) },
+                {
+                  label: "Approval",
+                  value: isPending ? "Waiting for approval" : "Approved",
                 },
               ]}
             />
@@ -1091,6 +1037,5 @@ export default async function StudentWorkspacePage({
         </Section>
       )}
     </div>
-    </CreateSlot>
   );
 }

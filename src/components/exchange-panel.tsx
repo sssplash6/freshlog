@@ -45,7 +45,8 @@ export function ExchangeList({
     <ul className="divide-y divide-line">
       {exchanges.map((e) => {
         const open = e.status === EXCHANGE_STATUS.OPEN;
-        const { cap, unallocated, remaining } = e.figures;
+        const { cap, allocated, unallocated, used, missed, remaining, forfeited, extra } =
+          e.figures;
         const sessions = toSessionEntries(e.sessions, { mentorBase: "/mentors" });
 
         return (
@@ -91,28 +92,38 @@ export function ExchangeList({
                   <StatusChip severity="problem">Ran out</StatusChip>
                 )}
               </span>
-              {/* What is left and until when — the rest of the ledger is the
-                  "Time by mentor" table on the same page. */}
               <span className="shrink-0 text-body font-medium tabular-nums text-ink">
-                {open
-                  ? `${formatDuration(remaining)} remaining`
-                  : formatDuration(cap)}{" "}
-                · use by {formatDate(e.deadline)}
+                {formatDuration(cap)} · use by {formatDate(e.deadline)}
               </span>
             </div>
 
-            {(e.note || (!open && e.returnedBy)) && (
-              <p className="mt-0.5 text-xs text-muted-fg">
-                {[
-                  e.note ? `“${e.note}”` : null,
-                  !open && e.returnedBy
-                    ? `called off by ${e.returnedBy.name ?? e.returnedBy.email}${
-                        e.returnNote ? ` · “${e.returnNote}”` : ""
-                      }`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
+            <p className="mt-0.5 text-xs text-muted-fg">
+              Sent by {e.sentBy.name ?? e.sentBy.email}
+              {e.note ? ` · “${e.note}”` : ""}
+              {!open && e.returnedBy
+                ? ` · called off by ${e.returnedBy.name ?? e.returnedBy.email}${
+                    e.returnNote ? ` · “${e.returnNote}”` : ""
+                  }`
+                : ""}
+            </p>
+
+            {open && (
+              <p className="mt-0.5 text-xs tabular-nums text-muted-fg">
+                {allocated > 0
+                  ? `${formatDuration(allocated)} on ${e.mentors
+                      .map((m) => m.mentor?.name ?? m.mentor?.email ?? "nobody yet")
+                      .join(", ")}`
+                  : "Nobody here holds it yet"}
+                {/* Completed excludes no-shows — the ledger's own definition,
+                    now that the line names the missed subset beside it. */}
+                {` · ${formatDuration(used - missed)} completed`}
+                {missed > 0 && ` · ${formatDuration(missed)} missed`}
+                {` · ${formatDuration(remaining)} remaining`}
+                {/* Forfeited minutes are named, in the ledger's own words — a
+                    "Ran out" placement that still claimed a spendable balance
+                    was the lie this line used to tell. */}
+                {forfeited > 0 && ` · ${formatDuration(forfeited)} expired unused`}
+                {extra > 0 && ` · ${formatDuration(extra)} extra`}
               </p>
             )}
 

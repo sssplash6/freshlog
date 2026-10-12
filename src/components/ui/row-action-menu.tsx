@@ -1,6 +1,6 @@
 "use client";
 
-import { PencilIcon } from "@/components/icons";
+import { ChevronRightIcon, MoreVerticalIcon, PencilIcon } from "@/components/icons";
 import { Eyebrow } from "@/components/ui/section";
 import { Popover, type PopoverContents } from "@/components/ui/popover";
 import { cn } from "@/lib/cn";
@@ -16,9 +16,9 @@ import { cn } from "@/lib/cn";
  * lines. Everything below that line was the row's own business; everything
  * above it was one component that had not been written yet.
  *
- * Copying it four times cost the usual things. Two of the four rendered a ⋮
- * and two a widening pencil, a coin toss for every new row — so there is one
- * trigger now, the pencil (DESIGN.md). All four sized the
+ * Copying it four times cost the usual things. Two of the four render a ⋮ and
+ * two a widening pencil, which is a defensible distinction that nothing
+ * recorded, so it was a coin toss which a new row got. All four sized the
  * trigger at 32px, under the 44px a thumb needs, on pages students and mentors
  * open on a phone. And none of the four had a keyboard contract at all: no
  * `aria-haspopup`, no `aria-controls`, focus neither contained nor returned.
@@ -37,14 +37,19 @@ import { cn } from "@/lib/cn";
  * fields. The four copies depended on this without saying so.
  */
 export function RowActionMenu({
+  trigger,
   label,
   children,
   contents = "fields",
-  width = "md",
+  width = "lg",
   openOnArrival,
 }: {
-  /** Ignored: every row menu opens from the pencil. Kept so callers compile. */
-  trigger?: "dots" | "pencil";
+  /**
+   * `"dots"` for a menu of several things, `"pencil"` for a row whose menu is
+   * essentially one edit. Two shapes, chosen deliberately, so a column of
+   * pencils reads as "these are editable" and a column of ⋮ does not.
+   */
+  trigger: "dots" | "pencil";
   /** The trigger's accessible name, and the panel's: "Edit this session". */
   label: string;
   children: React.ReactNode | ((api: { close: () => void }) => React.ReactNode);
@@ -64,6 +69,7 @@ export function RowActionMenu({
         origin="end"
         width={width}
         openOnArrival={openOnArrival}
+        // One box for both triggers, and the glyph is the only difference.
         // The pencil used to widen on hover to reveal the word "Edit" — a
         // control that changes size under the cursor, in a column of rows that
         // reflow when it does, and the widened chip ran into whatever was to
@@ -88,7 +94,13 @@ export function RowActionMenu({
           "hover:bg-fill hover:text-ink",
           "data-[open]:bg-fill data-[open]:text-ink",
         )}
-        trigger={<PencilIcon className="h-4 w-4" />}
+        trigger={
+          trigger === "dots" ? (
+            <MoreVerticalIcon className="h-4 w-4" />
+          ) : (
+            <PencilIcon className="h-4 w-4" />
+          )
+        }
       >
         {children}
       </Popover>
@@ -108,12 +120,18 @@ export function RowActionMenu({
  */
 export function RowActionGroup({
   label,
+  fold = false,
   children,
   className,
 }: {
   /** Names the band when it is not obvious from its control: "Progress". */
   label?: React.ReactNode;
-  /** Ignored: a band is always shown. Kept so callers compile. */
+  /**
+   * Closed until asked for. A row's menu held three forms and four inputs at
+   * once — correct, move, remove — when nearly every opening wants one of them
+   * (October 2026 audit). The band's label becomes the control that opens it;
+   * the main edit stays open and the rare ones are one tap away. Needs a `label`.
+   */
   fold?: boolean;
   children: React.ReactNode;
   className?: string;
@@ -122,6 +140,17 @@ export function RowActionGroup({
     "mt-3 border-t border-line pt-3 first:mt-0 first:border-t-0 first:pt-0",
     className,
   );
+  if (fold && label) {
+    return (
+      <details className={cn(band, "group/fold")}>
+        <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-md text-xs font-medium text-muted-fg transition-colors hover:text-ink sm:min-h-7 [&::-webkit-details-marker]:hidden">
+          <ChevronRightIcon className="h-3.5 w-3.5 shrink-0 transition-transform group-open/fold:rotate-90" />
+          {label}
+        </summary>
+        <div className="mt-2">{children}</div>
+      </details>
+    );
+  }
   return (
     <div className={band}>
       {label && <Eyebrow className="mb-1.5">{label}</Eyebrow>}

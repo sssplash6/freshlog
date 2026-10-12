@@ -107,6 +107,7 @@ export function ApplicationSection({
             editable={editable}
             studentProfileId={studentProfileId}
             target="essay"
+            showSteps
           />
         </div>
       </Section>
@@ -123,9 +124,6 @@ export function ApplicationSection({
                     <div className="min-w-0">
                       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body font-medium text-ink">
                         <span className="min-w-0 break-words">{row.university.name}</span>
-                        <span className="text-xs font-normal tabular-nums text-muted-fg">
-                          {words > 0 ? wordsLabel(words) : "No supplemental"}
-                        </span>
                         {row.isPrimary && (
                           <StatusChip severity="neutral">
                             {round ? (
@@ -137,6 +135,9 @@ export function ApplicationSection({
                             )}
                           </StatusChip>
                         )}
+                      </p>
+                      <p className="text-xs text-muted-fg">
+                        Supplemental: {wordsLabel(words).toLowerCase()}
                       </p>
                     </div>
                     {editable && (

@@ -13,9 +13,7 @@ import {
   unenrollStudent,
 } from "@/lib/actions/students";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
-import { Labelled } from "@/components/forms/labelled";
-import { Select } from "@/components/select";
-import { EmailInput, Field, Input, NameInput } from "@/components/ui/field";
+import { EmailInput, Field, Input, inputClasses, NameInput } from "@/components/ui/field";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -31,6 +29,8 @@ import type { ProgramOption } from "@/lib/queries";
  * `FactList` gives them one, and each control is a menu so an accidental tap
  * cannot edit an email address.
  */
+
+const selectClass = inputClasses;
 
 /**
  * The name everyone reads them by, correctable by the two people who ever
@@ -56,7 +56,7 @@ export function StudentNameChange({
       <RowActionGroup label="Full name">
         <form action={action} className="space-y-2">
           <input type="hidden" name="studentProfileId" value={studentProfileId} />
-          <Field label="Name">
+          <Field label="Name" hint="First and last name.">
             <NameInput name="name" required defaultValue={currentName ?? ""} />
           </Field>
           <SubmitButton size="sm">Save name</SubmitButton>
@@ -88,7 +88,7 @@ export function StudentTelegramChange({
       <RowActionGroup label="Telegram">
         <form action={action} className="space-y-2">
           <input type="hidden" name="studentProfileId" value={studentProfileId} />
-          <Field label="Username">
+          <Field label="Username" hint="With or without the @.">
             <Input
               name="telegramUsername"
               type="text"
@@ -187,17 +187,14 @@ export function StudentPrograms({
           ))}
         </div>
       </RowActionGroup>
-      {/* Only while there is somewhere left to add them. */}
-      {programs.some((p) => !enrollments.some((e) => e.programId === p.id)) && (
-        <RowActionGroup label="Add a program">
-          <EnrollInProgram
-            studentProfileId={studentProfileId}
-            programs={programs.filter(
-              (p) => !enrollments.some((e) => e.programId === p.id)
-            )}
-          />
-        </RowActionGroup>
-      )}
+      <RowActionGroup label="Add a program">
+        <EnrollInProgram
+          studentProfileId={studentProfileId}
+          programs={programs.filter(
+            (p) => !enrollments.some((e) => e.programId === p.id)
+          )}
+        />
+      </RowActionGroup>
     </RowActionMenu>
   );
 }
@@ -237,111 +234,83 @@ function MoveEnrollment({
       <form action={action} className="space-y-2">
         <input type="hidden" name="studentProfileId" value={studentProfileId} />
         <input type="hidden" name="enrollmentId" value={enrollment.id} />
-        <PlacementFields
-          label={enrollment.label}
-          programs={programs}
-          program={program}
-          programId={programId}
-          levelId={levelId}
-          cohorts={cohorts}
-          onProgram={(id) => {
-            setProgramId(id);
-            setLevelId("");
-          }}
-          onLevel={setLevelId}
-          cohortDefault={
-            programId === enrollment.programId && levelId === enrollment.levelId
-              ? (enrollment.cohortId ?? "")
-              : ""
-          }
-        />
+        <Field label={enrollment.label}>
+          <select
+            name="programId"
+            value={programId}
+            onChange={(e) => {
+              setProgramId(e.target.value);
+              setLevelId("");
+            }}
+            className={selectClass}
+          >
+            {programs.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {(program?.levels.length ?? 0) > 0 && (
+          <Field label="Level">
+            <select
+              name="levelId"
+              required
+              value={levelId}
+              onChange={(e) => setLevelId(e.target.value)}
+              className={selectClass}
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {program?.levels.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        {cohorts.length > 0 && (
+          <Field label="Cohort">
+            {/* `key` remounts on a program or level change, so a cohort picked
+                under one cannot be submitted under another. */}
+            <select
+              key={`${programId}:${levelId}`}
+              name="cohortId"
+              required
+              defaultValue={
+                programId === enrollment.programId &&
+                levelId === enrollment.levelId
+                  ? (enrollment.cohortId ?? "")
+                  : ""
+              }
+              className={selectClass}
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {cohorts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
         <SubmitButton size="sm">Move</SubmitButton>
         <SaveState state={save} />
       </form>
       {removable && (
-        <ConfirmInline
-          variant="quiet"
-          label="Remove from program"
-          question={`Take them off ${enrollment.label}?`}
-          confirmLabel="Yes, remove"
-          action={remove}
-          values={{ enrollmentId: enrollment.id }}
-          pending={removeSave.kind === "saving"}
-        />
+        <form action={remove}>
+          <input type="hidden" name="enrollmentId" value={enrollment.id} />
+          <SubmitButton size="sm" variant="ghost">
+            Take off {enrollment.label}
+          </SubmitButton>
+          <SaveState state={removeSave} />
+        </form>
       )}
-      <SaveState state={removeSave} />
     </div>
-  );
-}
-
-/**
- * Program, then its level and cohort where it has them — the same three
- * questions for a move and for an enrollment. Each picker remounts when the
- * one above it changes, so a choice made under one program cannot be
- * submitted under another.
- */
-function PlacementFields({
-  label,
-  programs,
-  program,
-  programId,
-  levelId,
-  cohorts,
-  onProgram,
-  onLevel,
-  cohortDefault = "",
-}: {
-  label: string;
-  programs: ProgramOption[];
-  program: ProgramOption | null;
-  programId: string;
-  levelId: string;
-  cohorts: { id: string; name: string }[];
-  onProgram: (id: string) => void;
-  onLevel: (id: string) => void;
-  cohortDefault?: string;
-}) {
-  return (
-    <>
-      <Labelled label={label}>
-        <Select
-          name="programId"
-          ariaLabel="Program"
-          options={programs.map((p) => ({ value: p.id, label: p.name }))}
-          defaultValue={programId}
-          onChange={onProgram}
-        />
-      </Labelled>
-      {((program?.levels.length ?? 0) > 0 || cohorts.length > 0) && (
-        <div className="grid grid-cols-2 gap-2">
-          {(program?.levels.length ?? 0) > 0 && (
-            <Labelled label="Level">
-              <Select
-                key={programId}
-                name="levelId"
-                ariaLabel="Level"
-                options={(program?.levels ?? []).map((l) => ({ value: l.id, label: l.name }))}
-                defaultValue={levelId}
-                onChange={onLevel}
-                measure="sm"
-              />
-            </Labelled>
-          )}
-          {cohorts.length > 0 && (
-            <Labelled label="Cohort">
-              <Select
-                key={`${programId}:${levelId}`}
-                name="cohortId"
-                ariaLabel="Cohort"
-                options={cohorts.map((c) => ({ value: c.id, label: c.name }))}
-                defaultValue={cohortDefault}
-                measure="sm"
-              />
-            </Labelled>
-          )}
-        </div>
-      )}
-    </>
   );
 }
 
@@ -364,22 +333,74 @@ function EnrollInProgram({
       : program.cohorts
     : [];
 
+  if (programs.length === 0) {
+    return (
+      <p className="text-xs text-muted-fg">
+        They are already in every program you administer.
+      </p>
+    );
+  }
+
   return (
     <form action={action} className="space-y-2">
       <input type="hidden" name="studentProfileId" value={studentProfileId} />
-      <PlacementFields
-        label="Program"
-        programs={programs}
-        program={program}
-        programId={programId}
-        levelId={levelId}
-        cohorts={cohorts}
-        onProgram={(id) => {
-          setProgramId(id);
-          setLevelId("");
-        }}
-        onLevel={setLevelId}
-      />
+      <Field label="Program">
+        <select
+          name="programId"
+          value={programId}
+          onChange={(e) => {
+            setProgramId(e.target.value);
+            setLevelId("");
+          }}
+          className={selectClass}
+        >
+          {programs.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {(program?.levels.length ?? 0) > 0 && (
+        <Field label="Level">
+          <select
+            name="levelId"
+            required
+            value={levelId}
+            onChange={(e) => setLevelId(e.target.value)}
+            className={selectClass}
+          >
+            <option value="" disabled>
+              Select…
+            </option>
+            {program?.levels.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      {cohorts.length > 0 && (
+        <Field label="Cohort">
+          <select
+            key={`${programId}:${levelId}`}
+            name="cohortId"
+            required
+            defaultValue=""
+            className={selectClass}
+          >
+            <option value="" disabled>
+              Select…
+            </option>
+            {cohorts.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
       <SubmitButton size="sm">Enroll</SubmitButton>
       <SaveState state={save} />
     </form>
@@ -400,11 +421,10 @@ export function StudentFolderChange({
       <RowActionGroup label="Folder">
         <form action={action} className="space-y-2">
           <input type="hidden" name="studentProfileId" value={studentProfileId} />
-          <Field label="Link">
+          <Field label="Link" hint="Leave empty to remove it.">
             <Input
               name="folderUrl"
               type="url"
-              measure="lg"
               placeholder="https://drive.google.com/…"
               defaultValue={currentFolderUrl ?? ""}
             />
@@ -440,14 +460,14 @@ export function RemoveStudentButton({
         // read as a live destructive action beside its "can't" reason.
         tone={hasSessions ? "primary" : "danger"}
         label="Remove student"
-        question={`Remove ${name}?`}
+        question={`${name}'s record goes, with their agenda, their tasks and any time granted to them.`}
         confirmLabel="Yes, remove them"
         action={action}
         values={{ studentProfileId }}
         pending={save.kind === "saving"}
         disabledReason={
           hasSessions
-            ? "Has sessions. Void them first."
+            ? "Can't be removed while sessions count for them. Void those first."
             : undefined
         }
       />

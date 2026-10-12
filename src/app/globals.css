@@ -1,10 +1,9 @@
 @import "tailwindcss";
 
-/* The palette. Four meanings: brand blue acts, accent orange means hours, warn
-   amber asks for attention, danger red means a problem. Grey carries
-   everything that is merely a fact. The other hues each have one place and no
-   meaning beyond it: essay-stage fills (the stage bar), three person tones (an
-   avatar) and eight program hues (a dot beside the program's name).
+/* The palette. Five chromatic families and nothing else: brand blue acts,
+   accent orange means hours, warn amber asks for attention, danger red means a
+   problem, and three muted tones identify people. Grey carries everything that
+   is merely a fact.
    Hex is duplicated in src/lib/brand.ts for the two consumers that never see
    this stylesheet (email, PDF guides) — edit the two together. */
 @theme {
@@ -19,6 +18,7 @@
      the hairlines between rows, so the frame reads as the edge of a thing and
      the rows inside it as divisions of it. */
   --color-head: #f4f5f8;
+  --color-stripe: rgb(118 118 128 / 0.045);
   --color-line-strong: #d6d7de;
 
   --color-brand: #124b84; /* deep blue — structural chrome + primary action */
@@ -270,7 +270,7 @@
   --ease-spring: linear(0, 0.063 2.1%, 0.25 5.1%, 0.5 9.4%, 0.73 14.6%, 0.87 20.2%, 0.95 27%, 0.985 36%, 0.997 48%, 1);
   --ease-spring-soft: linear(0, 0.05 2%, 0.2 5%, 0.45 9.5%, 0.72 15%, 0.9 21%, 1.005 28%, 1.02 35%, 1.012 44%, 1.002 58%, 1);
   /* THE TYPE SCALE. Nine steps, each a size AND its line-height, and there is
-     no tenth:
+     no tenth (rem, so x0.94 on a laptop at Standard density):
 
        caption     12/16  counts in a badge, a keyboard hint, initials. Never
                           a sentence.
@@ -414,6 +414,7 @@
   --color-surface: #1d2127;
   --color-line: #2c3038;
   --color-head: #23272e;
+  --color-stripe: rgb(255 255 255 / 0.025);
   --color-line-strong: #3a3f49;
   --color-fill: rgb(255 255 255 / 0.06);
   --color-fill-strong: rgb(255 255 255 / 0.1);
@@ -517,12 +518,57 @@
   --elev-rail: 1px 0 0 rgb(0 0 0 / 0.25), 8px 0 28px -12px rgb(0 0 0 / 0.55);
 }
 
+/* DensityToggle's labels, keyed off the same attribute the boot script sets.
+   No attribute means comfortable, the default. */
+:root:not([data-density="compact"]) .density-compact-only,
+:root:not([data-density="standard"]) .density-standard-only,
+:root[data-density] .density-comfortable-only {
+  display: none;
+}
+
 /* The one pair of classes that reads the theme directly, so `ThemeToggle` can
    say which theme it is in without holding a copy of the answer in React. See
    the note in that file. */
 :root[data-theme="dark"] .theme-light-only,
 :root:not([data-theme="dark"]) .theme-dark-only {
   display: none;
+}
+
+/*
+ * THE WHOLE UI'S SIZE is one number, the root font size, because everything
+ * else is relative to it: 100% unless the person picked a denser setting.
+ *
+ * Every size in this app is a rem — Tailwind's spacing, type and radii, and
+ * the arbitrary values that used to be written in px (`text-[13px]` and its
+ * family, all converted). So the root font size IS the app's zoom, and this
+ * is the only place it is set.
+ *
+ * FROM `sm` UP ONLY. 44px is the smallest reliable touch target and the
+ * denser settings shrink it; the people who read this product on a phone are the students and
+ * the mentors, and their rows, chips and buttons keep their full size. The
+ * density is for the admin's laptop, where a roster, a rail and a masthead
+ * have to share one screen.
+ *
+ * Media queries are immune to this — a rem in a query is always 16px — so the
+ * breakpoints themselves still fall at the real 640/1024px.
+ */
+@media (min-width: 40rem) {
+  :root {
+    font-size: 100%;
+  }
+  /* DENSITY. A person's own choice (the account menu), stored beside the theme
+     and applied before first paint by the same script. It moves the one number
+     above, so every row, chip and gap follows — compact for the admin working
+     a roster all day, comfortable for somebody who would rather read than
+     scan. Comfortable is what nobody has chosen yet (October 2026: it was
+     94%, now "Standard"). Still `sm` and up: a phone's 44px targets are not
+     a preference. */
+  :root[data-density="compact"] {
+    font-size: 87.5%;
+  }
+  :root[data-density="standard"] {
+    font-size: 94%;
+  }
 }
 
 /* Where sticky things inside the page stop: under the top bar (56px plus the
@@ -556,6 +602,17 @@
 [data-scrolls] {
   overflow-x: auto;
   overscroll-behavior-x: contain;
+}
+
+/* Table rows follow the density choice too, past the root size alone: the
+   row height is where compact and comfortable are actually felt. */
+@media (min-width: 40rem) {
+  :root[data-density="compact"] .data-table td {
+    padding-block: 0.5rem;
+  }
+  :root[data-density="standard"] .data-table td {
+    padding-block: 0.875rem;
+  }
 }
 
 html {
@@ -896,6 +953,29 @@ body {
 }
 
 /*
+ * THE RAIL, OPEN OR SHUT.
+ *
+ * The state is an attribute on <html>, set before the first paint by the same
+ * kind of inline script the theme uses — no React state, for the same three
+ * reasons stated on `ThemeToggle`: the server cannot know which way a browser
+ * left it, correcting a guess in an effect is a cascading render, and the rail
+ * would visibly jump on every page load.
+ *
+ * It costs nothing below `lg`, where there is no rail at all — a phone gets the
+ * tab bar, and collapsing something that is not on screen is not a feature.
+ *
+ * `rail-collapsed:` is the variant every piece of the rail styles itself with,
+ * so a component never has to know how the state is stored.
+ */
+@custom-variant rail-collapsed {
+  @media (width >= 64rem) {
+    :where(html[data-rail="collapsed"]) & {
+      @slot;
+    }
+  }
+}
+
+/*
  * A thread of brand orange running round a control's edge — twice, then still.
  *
  * One conic gradient, spun by animating its own angle. `@property` is what
@@ -964,6 +1044,18 @@ body {
 }
 @utility lift-in {
   animation: lift-in 500ms var(--ease-out-strong) both;
+}
+
+/* A progress ring drawing itself once, on load. The from-state is the full
+   circumference (an empty ring) and the element's own stroke-dashoffset is the
+   target, so the arc sweeps to its value. Pure CSS: no JS, works server-rendered. */
+@keyframes ring-draw {
+  from {
+    stroke-dashoffset: var(--ring-circumference);
+  }
+}
+@utility ring-draw {
+  animation: ring-draw 600ms var(--ease-out-strong) both;
 }
 
 /* Bars that grow from their left edge. Same idea as the ring, for goal cards. */

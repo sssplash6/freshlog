@@ -22,7 +22,11 @@ import {
 } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
 import { studentLedger } from "@/lib/queries";
-import { meetingLog, toSessionEntries } from "@/lib/session-entries";
+import {
+  meetingLog,
+  notHeldNote,
+  toSessionEntries,
+} from "@/lib/session-entries";
 import {
   sessionStatuses,
   status,
@@ -42,11 +46,11 @@ const MEETINGS_PER_PAGE = 6;
  *
  * Two different things share the name, and the page keeps them honest about
  * it. "Coming up" is booked practice interviews — the only thing in the app a
- * student can schedule ahead — and only when there are any. (Mentors do not
- * book meetings here; a session exists once it has been logged, so nothing a
- * mentor plans can appear on this page before it happens.) "Meetings" is the
- * ledger they already met on home, all of it now, paged — with their practice
- * interviews among the sessions.
+ * student can schedule ahead. (Mentors do not book meetings here; a session
+ * exists once it has been logged, so nothing a mentor plans can appear on
+ * this page before it happens.) "Past meetings" is the ledger they already
+ * met on the home disclosure, all of it now, paged — with their practice
+ * interviews among the sessions, marked as costing no hours.
  *
  * The page's one job is §6.5's: every session waits for the student's answer,
  * and a row inside the confirm window carries the "Did this happen?" form on
@@ -137,20 +141,34 @@ export default async function StudentMeetingsPage({
     (page - 1) * MEETINGS_PER_PAGE,
     page * MEETINGS_PER_PAGE
   );
+  const rawById = new Map(held.map((s) => [s.id, s]));
   const oneMentor = new Set(held.map((h) => h.mentor.id)).size <= 1;
 
   return (
     <div className="space-y-4">
       <PageTitle backHref="/student" backLabel="Home" title="Meetings" />
 
-      {interviews.length > 0 && (
-        <Section
-          title="Coming up"
-          count={interviews.length}
-          action={
-            <ArrowLink href="/student/interviews">Practice interviews</ArrowLink>
-          }
-        >
+      <Section
+        title="Coming up"
+        count={interviews.length || undefined}
+        action={
+          <ArrowLink
+            href="/student/interviews"
+            className="text-body font-medium"
+          >
+            Interviews
+          </ArrowLink>
+        }
+      >
+        {interviews.length === 0 ? (
+          // Says where a booked MENTOR meeting is too. Booking happens on the
+          // mentor's own calendar, outside this app, so a student who had
+          // just booked one came here, found "Nothing booked", and assumed
+          // it had not gone through.
+          <p className="px-4 py-3 text-xs text-muted-fg sm:px-5">
+            No practice interviews booked.
+          </p>
+        ) : (
           <ul className="divide-y divide-line">
             {interviews.map((i) => {
               const side = sideOf(i, profile.id);
@@ -175,10 +193,10 @@ export default async function StudentMeetingsPage({
               );
             })}
           </ul>
-        </Section>
-      )}
+        )}
+      </Section>
 
-      <Section title="Meetings" count={log.length || undefined}>
+      <Section title="Past meetings" count={log.length || undefined}>
         {log.length === 0 ? (
           <EmptyState framed={false} title="No meetings yet" />
         ) : (
@@ -196,6 +214,9 @@ export default async function StudentMeetingsPage({
                   );
                 }
                 const session = item.session;
+                const raw = rawById.get(session.id);
+                const mentorName =
+                  raw?.mentor.name ?? raw?.mentor.email ?? "your mentor";
                 return (
                   <SessionRow
                     key={session.id}
@@ -206,15 +227,20 @@ export default async function StudentMeetingsPage({
                     hideMentor={oneMentor}
                     footer={
                       needsAnswer.has(session.id) ? (
-                        <SessionAnswerForm sessionId={session.id} />
+                        <SessionAnswerForm
+                          sessionId={session.id}
+                          mentorName={mentorName}
+                        />
                       ) : undefined
                     }
                   />
                 );
               })}
             </ul>
-            {/* Only when there is a second page to reach. No "1 rescheduled"
-                note: the rows already say so. */}
+            {/* Only when there is a second page to reach. On one page its
+                "5 sessions · 1 rescheduled" was a second count, in a second
+                vocabulary, of the list the heading had just counted as
+                "4 meetings". */}
             {log.length > MEETINGS_PER_PAGE && (
               <Pagination
                 basePath="/student/meetings"
@@ -223,6 +249,7 @@ export default async function StudentMeetingsPage({
                 pageSize={MEETINGS_PER_PAGE}
                 total={log.length}
                 unit="meetings"
+                note={notHeldNote(entries)}
                 className="border-t border-line px-4 py-2 sm:px-5"
               />
             )}

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ReportBugLink } from "@/components/report-bug-link";
 import { Suspense } from "react";
 
 import pkg from "../../package.json";
@@ -14,6 +13,7 @@ import {
   ChevronDownIcon,
   CrownIcon,
   GearIcon,
+  InboxIcon,
   LogOutIcon,
   SparklesIcon,
   UserIcon,
@@ -30,7 +30,9 @@ import {
 } from "@/components/profile-switch";
 import { PublicShell } from "@/components/public-shell";
 import { ProgramDot } from "@/components/program-chip";
+import { ReportBugLink } from "@/components/report-bug-link";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { DensityToggle } from "@/components/density-toggle";
 import { Sidebar } from "@/components/sidebar";
 import { TabBar } from "@/components/tab-bar";
 import { PageTransition } from "@/components/page-transition";
@@ -113,6 +115,40 @@ function NotificationBell({ unread }: { unread: UnreadSummary }) {
   );
 }
 
+/**
+ * "What's new", as an icon in the corner beside the bell.
+ *
+ * It lived only in the account menu, one open-and-scan away, so a change that
+ * shipped was found by whoever happened to look. The corner is where the page's
+ * two "something for you" signals already sit; this is the quieter of the two —
+ * a blue dot, never a count, because an update is not a task. An icon and not a
+ * labelled pill: the word took a row's worth of width for a link that is read
+ * once and then recognised by its glyph, and the bell beside it is already
+ * understood without one.
+ *
+ * The same `/changelog` row stays in the account menu, which is the only place
+ * the phone chrome reaches it from.
+ */
+function WhatsNewLink({ unseen }: { unseen: boolean }) {
+  return (
+    <Link
+      href="/changelog"
+      transitionTypes={["nav-forward"]}
+      aria-label={unseen ? "What's new (unread updates)" : "What's new"}
+      title="What's new"
+      className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-fg transition hover:bg-fill hover:text-ink"
+    >
+      <SparklesIcon className="h-[1.125rem] w-[1.125rem]" />
+      {unseen && (
+        <span
+          aria-hidden="true"
+          className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand ring-2 ring-canvas"
+        />
+      )}
+    </Link>
+  );
+}
+
 /** One row of the account menu, and the icon column every row shares. */
 const MENU_ROW =
   "flex min-h-11 items-center gap-2.5 rounded-lg px-3 text-body text-ink transition-colors hover:bg-fill";
@@ -155,6 +191,9 @@ function AccountMenu({
   whatsNew: boolean;
 }) {
   const label = user.name ?? user.email;
+  // A student's menu is about them, not about running the product: no bug
+  // queue (a staff tool), and no second "What's new" mark on the avatar
+  // beside the bell's count — one notification mark in a top bar, not two.
   const student = user.role === ROLES.STUDENT && lens !== "mentor";
 
   return (
@@ -174,13 +213,15 @@ function AccountMenu({
                 and every session row said "AT" in green: two faces for one
                 person, on the same screen. */}
             <Avatar person={user} className="h-8 w-8 shrink-0 text-xs" />
-            {/* The one unread mark for the changelog. Blue, not red: red is
-                spent on hours that are gone, and this is only something to
-                read. */}
-            {whatsNew && (
+            {/* Blue, not red: red is spent on hours that are gone. The bell
+                owns the corner's count; this is only "something to read".
+                Staff below `lg` only — from `lg` the corner pill carries the
+                same dot beside its own words, and a student's bar already has
+                the bell's badge one icon over. */}
+            {whatsNew && !student && (
               <span
                 aria-hidden="true"
-                className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-brand ring-2 ring-surface"
+                className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-brand ring-2 ring-surface lg:hidden"
               />
             )}
           </span>
@@ -223,20 +264,27 @@ function AccountMenu({
           left edge. Only Sign out had one, which made it the row that looked
           different rather than the row that IS different — the rule above it
           does that job. */}
-      {/* Staff below `lg` only: from `lg` the rail's own Settings row is the
-          way in, and one Settings per screen is enough. */}
-      <Link
-        href="/settings"
-        transitionTypes={["nav-forward"]}
-        className={cn(MENU_ROW, "mt-1", !student && "lg:hidden")}
-      >
+      <Link href="/settings" transitionTypes={["nav-forward"]} className={cn(MENU_ROW, "mt-1")}>
         <GearIcon className={MENU_ICON} />
         Settings
       </Link>
 
-      <Link href="/changelog" transitionTypes={["nav-forward"]} className={MENU_ROW}>
+      {/* Staff below `lg` only: from `lg` the corner pill beside the bell is
+          the way in. A student has no corner pill, so it stays for them. */}
+      <Link
+        href="/changelog"
+        transitionTypes={["nav-forward"]}
+        className={cn(MENU_ROW, !student && "lg:hidden")}
+      >
         <SparklesIcon className={MENU_ICON} />
-        {"What's new"}
+        <span className="flex-1">{"What's new"}</span>
+        {whatsNew && (
+          <span
+            role="img"
+            aria-label="Unread updates"
+            className="h-2 w-2 rounded-full bg-brand"
+          />
+        )}
       </Link>
 
       {/* What the public page says about a mentor — not their settings,
@@ -255,16 +303,23 @@ function AccountMenu({
         </Link>
       )}
 
-      {/* One bug link: /bugs lists your reports and has the Report button. */}
-      <ReportBugLink to="/bugs" className={MENU_ROW}>
+      <ReportBugLink className={MENU_ROW}>
         <AlertIcon className={MENU_ICON} />
         Report a bug
       </ReportBugLink>
+
+      {!student && (
+        <Link href="/bugs" transitionTypes={["nav-forward"]} className={MENU_ROW}>
+          <InboxIcon className={MENU_ICON} />
+          Bug reports
+        </Link>
+      )}
 
       {/* Under the destinations and above Sign out: it is the one row here
           that changes nothing about where you are. */}
       <div className="mt-1 border-t border-line pt-1">
         <ThemeToggle />
+        <DensityToggle />
       </div>
 
       <form action={signOutAction} className="mt-1 border-t border-line pt-1">
@@ -454,7 +509,7 @@ function StaffShell({
   );
 
   return (
-    <div className="flex min-h-full flex-1 flex-col lg:pl-[13.75rem]">
+    <div className="flex min-h-full flex-1 flex-col lg:pl-[13.75rem] rail-collapsed:lg:pl-16">
       <SkipLink />
 
       {/* Once for the whole shell: ⌘K opens it from anywhere, and the rail's
@@ -512,18 +567,19 @@ function StaffShell({
         tabIndex={-1}
         className="relative mx-auto w-full max-w-6xl focus:outline-none flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:pb-10 lg:pt-4 lg:[--corner-lane:5.5rem]"
       >
-        {/* THE TOP RIGHT CORNER — the bell, at `lg` (below it, it lives in
-            the top bar).
+        {/* THE TOP RIGHT CORNER — "What's new" and the bell, at `lg` (below
+            it they live in the top bar).
 
             On the page's own heading row, not on a row above it: a line of
-            its own put an icon over every page's title and pushed the whole
-            page down for it. They sit at the heading's height
+            their own put two small icons over every page's title and pushed
+            the whole page down for them. They sit at the heading's height
             instead, in a lane `PageTitle` leaves free (`--corner-lane`), so
             the title and its buttons ("Log a session") stop short of them
             rather than running under. Absolute in the flow of `main`, so it
             scrolls away with the page and nothing passes beneath it; the
             bell's menu is portaled, so it still opens over the page. */}
         <div className="absolute right-4 top-4 z-10 hidden items-center gap-0.5 lg:flex">
+          <WhatsNewLink unseen={whatsNew} />
           {/* The page must not wait on a count: the bell renders at once
               with no issues row and fills in when the queue has been read
               (see IssueBell). */}
@@ -578,7 +634,7 @@ function StudentShell({
         links={
           <nav
             aria-label="Primary"
-            className="hidden flex-1 items-center gap-1 lg:flex"
+            className="hidden flex-1 items-center gap-1 md:flex"
           >
             <NavLinks items={items} />
           </nav>
@@ -597,12 +653,12 @@ function StudentShell({
       <main
         id="main"
         tabIndex={-1}
-        className="mx-auto w-full max-w-2xl focus:outline-none flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:pb-10"
+        className="mx-auto w-full max-w-2xl focus:outline-none flex-1 px-4 pb-24 pt-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:pb-10"
       >
         <PageTransition>{children}</PageTransition>
       </main>
 
-      <TabBar items={items} className="lg:hidden" />
+      <TabBar items={items} className="md:hidden" />
       <NativeGestures />
     </div>
   );

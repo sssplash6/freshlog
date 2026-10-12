@@ -2,15 +2,10 @@
 
 import { useState } from "react";
 
-import {
-  removeProgramGrant,
-  setPlatformAdmin,
-  setProgramAccess,
-  setProgramGrant,
-} from "@/lib/actions/grants";
-import type { ActionState } from "@/lib/actions/shared";
-import { Labelled } from "@/components/forms/labelled";
-import { Select } from "@/components/select";
+import { setPlatformAdmin, setProgramAccess } from "@/lib/actions/grants";
+import { removeProgramGrant, setProgramGrant } from "@/lib/actions/grants";
+import { Button } from "@/components/ui/button";
+import { fieldChrome } from "@/components/ui/field";
 import { PersonChip } from "@/components/person-chip";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
@@ -23,20 +18,24 @@ import { SubmitButton } from "@/components/ui/submit-button";
  * One person, every program, one save. Per-program saves would let a
  * half-finished edit stand — and "which programs is this person on?" is one
  * question, which the reader should be able to answer and change in one place.
- * The platform flag rides the same Save.
  *
- * The levels are named and nothing more: a hint that says what a level
- * "reads only" is a guarantee, and the level select once shipped one the
- * server did not keep (audit C3).
+ * The levels are the two old scoped roles plus Admin. The copy describes each
+ * by the pages it puts in the person's menu, and deliberately promises nothing
+ * about what they cannot change: a hint that says "reads only" is a guarantee,
+ * and the level select once shipped one the server did not keep (audit C3).
+ * Say what the menu shows; give a level only to somebody trusted with the
+ * program.
  */
 
-/** One name per level, everywhere it is shown (DESIGN.md C7). */
 const LEVELS = [
-  { value: "ADMIN", label: "Admin" },
-  { value: "LEADER", label: "Leader" },
-  { value: "SALES", label: "Sales" },
-];
-const levelLabel = (role: string) => LEVELS.find((l) => l.value === role)?.label ?? role;
+  {
+    value: "ADMIN",
+    label: "Admin",
+    hint: "Manages this program's students, mentors, sessions and time.",
+  },
+  { value: "LEADER", label: "Leader", hint: "Menu shows Students, Feedback and the program." },
+  { value: "SALES", label: "Sales", hint: "Menu shows Students and the program." },
+] as const;
 
 /** Most access first — the order of LEVELS, and the order `widest` in nav.ts ranks. */
 const RANK: readonly string[] = LEVELS.map((l) => l.value);
@@ -68,19 +67,6 @@ type ProgramGrant = {
   user: { id: string; name: string | null; email: string };
 };
 
-/**
- * Programs first, then the platform flag — two actions behind one Save. The
- * flag is written only when it changed, so saving programs never trips the
- * "somebody has to run the platform" guard.
- */
-async function saveAccess(prev: ActionState, formData: FormData): Promise<ActionState> {
-  const programs = await setProgramAccess(prev, formData);
-  if (!programs?.ok) return programs;
-  const was = formData.get("wasPlatformAdmin") === "1";
-  const now = formData.get("platformAdmin") === "on";
-  return was === now ? programs : setPlatformAdmin(prev, formData);
-}
-
 export function GrantsEditor({
   row,
   programs,
@@ -88,16 +74,21 @@ export function GrantsEditor({
   row: GrantRow;
   programs: { id: string; name: string }[];
 }) {
-  const [, action, save] = useSaveState(saveAccess);
+  const [, action, save] = useSaveState(setProgramAccess);
   const [checked, setChecked] = useState<Record<string, boolean>>(
     Object.fromEntries(programs.map((p) => [p.id, p.id in row.grants]))
   );
   const fallback = startingLevel(row.grants);
 
   return (
-    <RowActionMenu trigger="pencil" label={`Access for ${row.name ?? row.email}`} width="lg">
-      <form action={action}>
-        <RowActionGroup label="Programs">
+    <RowActionMenu trigger="pencil" label={`Change ${row.name ?? row.email}'s access`} width="lg">
+      <RowActionGroup label="Program-specific access">
+        <form action={action} className="space-y-2">
+          <input type="hidden" name="userId" value={row.userId} />
+          <p className="mb-2 text-xs text-muted-fg">
+            Tick the programs this person works in, and pick the level for
+            each. None of this gives platform-wide access.
+          </p>
           {programs.map((p) => (
             <div key={p.id} className="flex flex-wrap items-center gap-2">
               <label className="flex min-h-11 flex-1 items-center gap-2 text-body text-ink">
@@ -113,43 +104,48 @@ export function GrantsEditor({
                 />
                 {p.name}
               </label>
-              {/* The level only means anything for a ticked program, and the
-                  action reads it only from the boxes that came back. */}
-              {checked[p.id] && (
-                <div className="w-32">
-                  <Select
-                    name={`level:${p.id}`}
-                    ariaLabel={`Level in ${p.name}`}
-                    options={LEVELS}
-                    defaultValue={row.grants[p.id] ?? fallback}
-                    measure="sm"
-                  />
-                </div>
-              )}
+              {/* The level only means anything for a program that is ticked,
+                  and it is submitted either way — the action reads it per
+                  program from the boxes that came back. */}
+              <select
+                name={`level:${p.id}`}
+                defaultValue={row.grants[p.id] ?? fallback}
+                disabled={!checked[p.id]}
+                // The app's field chrome — a grey fill — rather than the one
+                // bordered white box left in the panel.
+                className={`${fieldChrome} min-h-11 px-2.5 text-base disabled:opacity-50 sm:text-body`}
+              >
+                {LEVELS.map((l) => (
+                  <option key={l.value} value={l.value}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
             </div>
           ))}
-        </RowActionGroup>
-
-        <RowActionGroup label="Platform">
-          <label className="flex min-h-11 items-center gap-2 text-sm text-ink">
-            <input
-              type="checkbox"
-              name="platformAdmin"
-              defaultChecked={row.platformAdmin}
-              className="h-4 w-4 shrink-0 accent-brand"
-            />
-            Platform admin
-          </label>
-        </RowActionGroup>
-
-        {/* After the groups, so the first band is still `:first-child`. */}
-        <input type="hidden" name="userId" value={row.userId} />
-        <input type="hidden" name="wasPlatformAdmin" value={row.platformAdmin ? "1" : "0"} />
-        <div className="mt-3">
-          <SubmitButton size="sm">Save</SubmitButton>
+          <p className="text-xs text-muted-fg">
+            Unticking a program removes that access.
+          </p>
+          <dl className="space-y-1 text-xs text-muted-fg">
+            {LEVELS.map((l) => (
+              <div key={l.value} className="flex gap-1">
+                <dt className="font-medium text-ink">{l.label}:</dt>
+                <dd>{l.hint}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="text-xs text-muted-fg">
+            Leader and Sales decide which pages a person is shown. Give any
+            level only to somebody you trust with the program.
+          </p>
+          <SubmitButton size="sm">Save access</SubmitButton>
           <SaveState state={save} />
-        </div>
-      </form>
+        </form>
+      </RowActionGroup>
+
+      <RowActionGroup label="Platform-wide access">
+        <PlatformToggle row={row} />
+      </RowActionGroup>
     </RowActionMenu>
   );
 }
@@ -208,16 +204,15 @@ function ProgramGrantRow({
           <form action={saveAction} className="flex items-center gap-2">
             <input type="hidden" name="programId" value={programId} />
             <input type="hidden" name="userId" value={grant.user.id} />
-            <div className="w-32">
-              <Select
-                name="role"
-                ariaLabel="Level"
-                options={LEVELS}
-                defaultValue={grant.role}
-                measure="sm"
-              />
-            </div>
-            {/* Secondary: one per row, and a column of blue Saves is no primary. */}
+            <select
+              name="role"
+              defaultValue={grant.role}
+              className="min-h-9 rounded-lg border border-line bg-surface px-2.5 text-xs text-ink"
+            >
+              <option value="ADMIN">Super admin</option>
+              <option value="LEADER">Leader</option>
+              <option value="SALES">Sales</option>
+            </select>
             <SubmitButton size="sm" variant="secondary">Save</SubmitButton>
           </form>
           <ConfirmInline
@@ -226,7 +221,7 @@ function ProgramGrantRow({
             values={{ programId, userId: grant.user.id }}
             pending={removeSave.kind === "saving"}
             label="Remove"
-            question="Remove their access?"
+            question="Remove this person's access to the program?"
             confirmLabel="Yes, remove"
             pendingLabel="Removing…"
           />
@@ -235,7 +230,7 @@ function ProgramGrantRow({
         </div>
       ) : (
         <span className="text-xs text-muted-fg">
-          {levelLabel(grant.role)}
+          {grant.role === "ADMIN" ? "Super admin" : grant.role}
         </span>
       )}
     </li>
@@ -252,24 +247,64 @@ function ProgramGrantAddForm({
   const [, action, save] = useSaveState(setProgramGrant);
   return (
     <div className="border-t border-line pt-2.5">
-      <form action={action} className="flex flex-wrap items-end gap-3">
+      <form action={action} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="programId" value={programId} />
-        <Labelled label="Person" className="w-full sm:w-80">
-          <Select
-            name="userId"
-            ariaLabel="Person"
-            options={people.map((person) => ({
-              value: person.id,
-              label: person.name ?? person.email,
-            }))}
-          />
-        </Labelled>
-        <Labelled label="Level" className="w-full sm:w-48">
-          <Select name="role" ariaLabel="Level" options={LEVELS} defaultValue="ADMIN" measure="sm" />
-        </Labelled>
+        <select
+          name="userId"
+          required
+          defaultValue=""
+          className="min-h-11 min-w-56 rounded-lg border border-line bg-surface px-2.5 text-sm text-ink"
+        >
+          <option value="" disabled>Add a person…</option>
+          {people.map((person) => (
+            <option key={person.id} value={person.id}>
+              {person.name ?? person.email}
+            </option>
+          ))}
+        </select>
+        <select
+          name="role"
+          defaultValue="ADMIN"
+          className="min-h-11 rounded-lg border border-line bg-surface px-2.5 text-sm text-ink"
+        >
+          <option value="ADMIN">Super admin</option>
+          <option value="LEADER">Leader</option>
+          <option value="SALES">Sales</option>
+        </select>
         <SubmitButton size="sm">Add access</SubmitButton>
         <SaveState state={save} />
       </form>
     </div>
+  );
+}
+
+/**
+ * The flag that sees every program without a grant, and is the only thing that
+ * may write these rows. Guarded server-side against emptying the set: a
+ * platform with no platform admin has no way to make one.
+ */
+function PlatformToggle({ row }: { row: GrantRow }) {
+  const [, action, save] = useSaveState(setPlatformAdmin);
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="userId" value={row.userId} />
+      <label className="flex min-h-11 items-center gap-2 text-sm text-ink">
+        <input
+          type="checkbox"
+          name="platformAdmin"
+          defaultChecked={row.platformAdmin}
+          className="h-4 w-4 shrink-0 accent-brand"
+        />
+          Runs the platform (all programs)
+      </label>
+      <p className="text-xs text-muted-fg">
+        Sees every program, present and future, and is the only person who can
+        grant access.
+      </p>
+      <Button type="submit" variant="secondary" size="sm">
+        Save
+      </Button>
+      <SaveState state={save} />
+    </form>
   );
 }

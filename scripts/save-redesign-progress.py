@@ -148,7 +148,7 @@ def main() -> int:
 
     # The plan itself is committed to the repo, so it only needs a mirror here
     # for the case where the repo copy is rewritten by a later phase.
-    plan = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs/archive/REDESIGN.md")
+    plan = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "REDESIGN.md")
     if os.path.exists(plan) and newer(plan, os.path.join(DEST, "REDESIGN.md")):
         shutil.copy2(plan, os.path.join(DEST, "REDESIGN.md"))
         tally.append("REDESIGN.md")

@@ -86,7 +86,6 @@ export function DictateButton({
         if (!result.ok) setError(result.error);
         else onText(result.text);
       } catch {
-        // design-allow: error message
         setError("That did not get through. Try again.");
       } finally {
         setPhase("idle");
@@ -102,7 +101,7 @@ export function DictateButton({
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
-      setError("The microphone is blocked.");
+      setError("The microphone is blocked for this site.");
       return;
     }
 

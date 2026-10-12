@@ -1,12 +1,16 @@
+import Link from "next/link";
 import { Suspense } from "react";
 
-import { StatusRow } from "@/components/attention-list";
+import { CheckIcon, ChevronRightIcon, LayersIcon, UsersIcon } from "@/components/icons";
 import { CreateButton, CreatePanel, CreateSlot } from "@/components/page-create";
 import { Figure } from "@/components/ui/figure";
+import { HoursBar } from "@/components/ui/hours-left";
 import { ArrowLink } from "@/components/ui/link";
 import { CreateProgramForm } from "@/components/forms/program-forms";
 import { ProgramChip } from "@/components/program-chip";
+import { TabLinks } from "@/components/ui/segmented";
 import { StatStrip } from "@/components/ui/stat-strip";
+import { StatusChip } from "@/components/ui/status-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
@@ -23,7 +27,8 @@ import { programTotals, totalsByLevel, type ProgramTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { studentsWithHours } from "@/lib/queries";
 import { spaceOf, type Space } from "@/lib/space";
-import { status, type ViewerContext } from "@/lib/status";
+import { status, type Status, type ViewerContext } from "@/lib/status";
+import { formatProgramStamp, programStampISO } from "@/lib/when";
 import type { User } from "@/generated/prisma/client";
 import type { Metadata } from "next";
 
@@ -52,8 +57,8 @@ export const metadata: Metadata = { title: "Home" };
  * It was a count and a link — "6 items need your attention · Review in
  * notifications" — which made the one thing on this page anybody acts on the
  * only thing it would not show. The three worst rows now sit here, already
- * sorted problems-first by `staffAttention`, in the bell page's own
- * `StatusRow`, so the reader can tell from Home
+ * sorted problems-first by `staffAttention`, in the shape the bell's page
+ * gives them (state, who, what to do), so the reader can tell from Home
  * whether to stop and look. The rest stay behind the bell, which is still
  * the one full list. Streamed, so the program table never waits on the
  * mentors, tasks and ratings these rows also read — the roster it already has
@@ -67,25 +72,85 @@ async function NeedsYou({ user, preload }: { user: User; preload: StaffPreload }
   // says 6 over a list of 8 reads as a bug.
   const total = statuses.length + spilled;
 
-  // Nothing waiting is no section at all, as on the mentor's Home: an empty
-  // "Needs you" on every visit is one a reader learns to scroll past.
-  if (total === 0) return null;
+  if (total === 0) {
+    return (
+      <p className="flex items-center gap-2 rounded-xl bg-surface px-4 py-3 text-body text-muted-fg shadow-sm sm:px-5">
+        <CheckIcon className="h-4 w-4 shrink-0 text-ink/60" />
+        Nothing needs your attention right now.
+      </p>
+    );
+  }
   return (
     <Section
       title="Needs you"
       count={total}
       action={
         <ArrowLink href="/notifications" className="text-xs">
-          See all
+          {total > HOME_ISSUES ? `All ${total}` : "Notifications"}
         </ArrowLink>
       }
     >
       <ul className="divide-y divide-line">
         {statuses.slice(0, HOME_ISSUES).map((s, i) => (
-          <StatusRow key={`${s.type}-${s.subject?.id ?? ""}-${i}`} status={s} />
+          <IssueRow key={`${s.type}-${s.subject?.id ?? ""}-${i}`} status={s} />
         ))}
       </ul>
     </Section>
+  );
+}
+
+/** One issue: the state and who it is about on one line, what to do under it. */
+function IssueRow({ status }: { status: Status }) {
+  const body = (
+    <>
+      <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+        <StatusChip status={{ ...status, explanation: undefined }} />
+        {status.subject && (
+          <span className="min-w-0 truncate text-body font-semibold text-ink">
+            {status.subject.name}
+          </span>
+        )}
+        {status.program && (
+          <span className="min-w-0 truncate text-xs text-muted-fg">{status.program.name}</span>
+        )}
+      </span>
+      {status.explanation && (
+        <span className="mt-0.5 block text-xs text-muted-fg">{status.explanation}</span>
+      )}
+    </>
+  );
+  if (!status.href) {
+    return <li className="px-4 py-3 sm:px-5">{body}</li>;
+  }
+  return (
+    <li className="relative">
+      <Link
+        href={status.href}
+        transitionTypes={["nav-forward"]}
+        className="group block min-h-11 py-3 pl-4 pr-10 transition-colors hover:bg-fill/60 sm:pl-5 sm:pr-11"
+      >
+        {body}
+        <ChevronRightIcon className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg transition-colors group-hover:text-brand sm:right-5" />
+      </Link>
+    </li>
+  );
+}
+
+/**
+ * "Updated October 5, 15:10 Tashkent (UTC+5)". §5.8 lets exactly this page
+ * claim freshness: its figures are a snapshot of a ledger other people are
+ * writing to, and a table that was right at nine is worth knowing is from nine
+ * — and from which day. The exact instant is the tooltip.
+ */
+function UpdatedAt({ now }: { now: Date }) {
+  return (
+    <time
+      dateTime={now.toISOString()}
+      title={programStampISO(now)}
+      className="text-xs text-muted-fg"
+    >
+      Updated {formatProgramStamp(now)}
+    </time>
   );
 }
 
@@ -95,11 +160,12 @@ const PROGRAM_SORTS = ["program", "students", "mentors", "remaining"] as const;
 export default async function AdminHomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; dir?: string }>;
+  searchParams: Promise<{ sort?: string; dir?: string; show?: string }>;
 }) {
   const user = await requireStaff();
   const query = await searchParams;
   const asked = readSort(query, PROGRAM_SORTS);
+  const overOnly = query.show === "over";
 
   // The reader's grants are applied ONCE here and every read below carries
   // them. `undefined` is a platform admin and means no filter at all — not
@@ -124,7 +190,10 @@ export default async function AdminHomePage({
     return (
       <div className="space-y-4">
         <PageTitle title="Home" />
-        <EmptyState variant="blocked" title={unscoped?.label ?? "No programs granted"} />
+        <EmptyState variant="blocked" title={unscoped?.label ?? "No programs granted"}>
+          {unscoped?.explanation ??
+            "A platform admin grants you a program to work in."}
+        </EmptyState>
       </div>
     );
   }
@@ -174,6 +243,7 @@ export default async function AdminHomePage({
     return (
       <InstituteHome
         space={space}
+        now={now}
         overall={programTotals(enrolled)}
         split={totalsByLevel(enrolled)}
         levels={levels}
@@ -202,12 +272,16 @@ export default async function AdminHomePage({
         pairings.filter((a) => a.programId === p.id).map((a) => a.mentorId)
       ).size,
       remaining: totals.remaining,
+      used: totals.completed + totals.missed,
+      forfeited: totals.forfeited,
+      allotted: totals.allotted,
     };
   });
 
   // Ordered by the heading the reader clicked. Remaining opens lowest-first —
   // the program furthest over is the one a reader sorts a table to find.
-  const rows = applySort(unsorted, asked, {
+  const overCount = unsorted.filter((r) => r.remaining < 0).length;
+  const rows = applySort(overOnly ? unsorted.filter((r) => r.remaining < 0) : unsorted, asked, {
     program: (r) => r.name,
     students: (r) => r.students,
     mentors: (r) => r.mentors,
@@ -218,31 +292,43 @@ export default async function AdminHomePage({
     { label: "Program", sort: "program" },
     { label: "Students", align: "right", sort: "students", sortDir: "desc" },
     { label: "Mentors", align: "right", sort: "mentors", sortDir: "desc" },
+    // The same bar the Programs list carries: where the granted time went.
+    { label: "Time used", className: "w-44 max-lg:hidden" },
     { label: "Remaining", align: "right", sort: "remaining", sortDir: "asc", emphasis: "key" },
   ];
 
   return (
     <CreateSlot>
     <div className="space-y-4">
+      {/* The freshness stamp is the subtitle, not an action: the actions slot
+          is where every page keeps its one "new" button. */}
       <PageTitle
         title="Home"
+        subtitle={<UpdatedAt now={now} />}
         actions={user.platformAdmin ? <CreateButton label="New program" /> : undefined}
       />
 
       {user.platformAdmin && (
-        <CreatePanel title="New program">
+        <CreatePanel
+          title="New program"
+          hint="It starts with no students or mentors. Grant its admins access afterwards."
+        >
           <CreateProgramForm />
         </CreatePanel>
       )}
 
-      {/* The one figure anybody acts on; the counts are the table's. */}
+      {/* The school in three figures. Remaining leads, in the hours orange,
+          because it is the one of the three anybody acts on. */}
       <StatStrip
         lead={{
           label: "Remaining",
           value: formatRough(overall.remaining),
           tone: overall.remaining < 0 ? "danger" : "hours",
         }}
-        items={[]}
+        items={[
+          { label: "Programs", value: String(programs.length), icon: <LayersIcon className="h-4 w-4" /> },
+          { label: "Students", value: String(overall.students), icon: <UsersIcon className="h-4 w-4" /> },
+        ]}
       />
 
       <Suspense fallback={null}>
@@ -256,6 +342,23 @@ export default async function AdminHomePage({
           title="Programs"
           action={<ArrowLink href="/programs" className="text-xs">All programs</ArrowLink>}
         >
+          {/* The outliers, one click away. Only offered when there are some:
+              a filter that can only ever show the same table is furniture. */}
+          {overCount > 0 && (
+            // Its own band, on the table's own side padding (`px-4`, `sm:px-6`
+            // — see `Td`), so the tabs line up with the first column's name
+            // and have air above and below instead of hugging the card edge
+            // and the heading row.
+            <div className="px-4 pb-4 pt-4 sm:px-6">
+              <TabLinks
+                label="Programs shown"
+                items={[
+                  { href: "/admin", label: "All" },
+                  { href: "/admin?show=over", label: "Over capacity", count: overCount },
+                ]}
+              />
+            </div>
+          )}
           <Table columns={columns} framed={false}>
             {rows.map((p) => (
               <Tr key={p.id}>
@@ -267,11 +370,16 @@ export default async function AdminHomePage({
                       stacked version repeated "Program / Students / Mentors /
                       Remaining" labels down five 170px cards. */}
                   <span className="flex items-center justify-between gap-3">
-                    <ProgramChip
-                      program={p}
-                      href={`/programs/${p.id}`}
-                      className="min-h-11 min-w-0 font-semibold sm:min-h-0"
-                    />
+                    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                      <ProgramChip
+                        program={p}
+                        href={`/programs/${p.id}`}
+                        className="min-h-11 font-semibold sm:min-h-0"
+                      />
+                      {p.remaining < 0 && (
+                        <StatusChip severity="problem">Over capacity</StatusChip>
+                      )}
+                    </span>
                     <Figure
                       size="inline"
                       value={formatRough(p.remaining)}
@@ -289,6 +397,18 @@ export default async function AdminHomePage({
                 </Td>
                 <Td align="right" className="tabular-nums max-sm:hidden">
                   {p.mentors}
+                </Td>
+                <Td className="max-lg:hidden max-sm:hidden">
+                  {p.allotted > 0 ? (
+                    <HoursBar
+                      remaining={p.remaining}
+                      used={p.used}
+                      expired={p.forfeited}
+                      className="w-full min-w-24 max-w-40"
+                    />
+                  ) : (
+                    <span className="text-muted-fg">—</span>
+                  )}
                 </Td>
                 <Td align="right" className="max-sm:hidden">
                   <Figure
@@ -328,6 +448,7 @@ function standardLabel(minutes: number | null, days: number | null): string {
  */
 function InstituteHome({
   space,
+  now,
   overall,
   split,
   levels,
@@ -335,6 +456,7 @@ function InstituteHome({
   needsYou,
 }: {
   space: Extract<Space, { kind: "institute" }>;
+  now: Date;
   overall: ProgramTotals;
   split: Map<string | null, ProgramTotals>;
   levels: {
@@ -368,7 +490,7 @@ function InstituteHome({
 
   return (
     <div className="space-y-4">
-      <PageTitle title={space.name} />
+      <PageTitle title={space.name} subtitle={<UpdatedAt now={now} />} />
 
       <StatStrip
         lead={{
@@ -376,7 +498,10 @@ function InstituteHome({
           value: formatRough(overall.remaining),
           tone: overall.remaining < 0 ? "danger" : "hours",
         }}
-        items={[]}
+        items={[
+          { label: "Levels", value: String(levels.length), icon: <LayersIcon className="h-4 w-4" /> },
+          { label: "Students", value: String(overall.students), icon: <UsersIcon className="h-4 w-4" /> },
+        ]}
       />
 
       {needsYou}
@@ -384,7 +509,7 @@ function InstituteHome({
       {levels.length > 0 && (
         <Section
           title="Levels"
-          action={<ArrowLink href={base} className="text-xs">All levels</ArrowLink>}
+          action={<ArrowLink href={base} className="text-xs">Everyone</ArrowLink>}
         >
           <Table columns={columns} framed={false}>
             {levels.map((l) => (

@@ -14,7 +14,7 @@ import { ErrorState } from "@/components/error-state";
  * paint the shell again and throw again. Hoisting it above every layout means
  * the one thing guaranteed to render is the one thing that says what happened.
  *
- * "Home" goes to `/`, which is a server redirect to whoever's home
+ * "Back to safety" goes to `/`, which is a server redirect to whoever's home
  * this reader has — so one boundary needs no per-tree copy of that answer.
  * `global-error.tsx` is the layer below this one: it catches the root layout
  * itself, and replaces it.

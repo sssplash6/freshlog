@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 
-import { StandaloneCard } from "@/components/standalone-card";
 import { Callout } from "@/components/ui/callout";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { signIn } from "@/lib/auth";
@@ -11,9 +10,10 @@ import type { Metadata } from "next";
 export const metadata: Metadata = { title: "Sign in" };
 
 const ERROR_MESSAGES: Record<string, string> = {
-  AccessDenied: "That Google account can't sign in.",
-  Configuration: "Sign-in is misconfigured.",
-  Default: "Sign-in failed. Try again.",
+  AccessDenied:
+    "Something blocked your sign-in. Students can sign up with any Google account; mentors must use their @freshman.academy account.",
+  Configuration: "Sign-in is misconfigured. Please contact the site admin.",
+  Default: "Something went wrong signing you in. Please try again.",
 };
 
 export default async function LoginPage({
@@ -42,15 +42,36 @@ export default async function LoginPage({
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(38rem_28rem_at_50%_42%,color-mix(in_oklab,var(--color-brand)_15%,transparent),transparent_70%),radial-gradient(30rem_22rem_at_78%_88%,color-mix(in_oklab,var(--color-accent)_12%,transparent),transparent_70%)]"
       />
-      {/* "Sign in", not "Welcome back": most people reaching this screen for
-          the first time are students who have never been here. */}
-      <StandaloneCard title="Sign in">
+      <div className="w-full max-w-sm rounded-2xl bg-surface p-8 shadow-lg">
+        {/* The product's name as a mark, at a size that reads as one — the
+            20px nav wordmark was the smallest thing on a screen that has
+            nothing else to show. The school's name is how the product is
+            introduced, not a second brand beside it. And "Sign in", not
+            "Welcome back": most people reaching this screen for the first
+            time are students who have never been here. */}
+        <div className="mb-8 flex flex-col items-center text-center">
+          <div className="text-display font-bold leading-none tracking-[-0.03em] text-brand">
+            freshlog
+          </div>
+          <div className="mt-2 text-xs font-medium text-muted-fg">
+            by Freshman Academy
+          </div>
+          <h1 className="mt-7 text-figure-lg font-bold leading-tight tracking-[-0.02em] text-ink">
+            Sign in
+          </h1>
+          <p className="mt-2 text-body text-muted-fg">
+            See how much time you have with your mentors, book your next
+            session and keep track of your tasks.
+          </p>
+        </div>
+
         {errorMessage && (
-          <Callout tone="danger" title={errorMessage} className="mb-4 text-left" />
+          <Callout tone="danger" className="mb-4">
+            {errorMessage}
+          </Callout>
         )}
 
         <form
-          className="flex justify-center"
           action={async () => {
             "use server";
             await signIn("google", { redirectTo: "/" });
@@ -59,15 +80,20 @@ export default async function LoginPage({
           <SubmitButton
             variant="ghost"
             pendingText="Opening Google…"
-            className="w-full gap-3 bg-surface text-ink shadow-sm ring-1 ring-line hover:bg-canvas sm:w-auto"
+            className="w-full gap-3 bg-surface text-ink shadow-sm ring-1 ring-line hover:bg-canvas"
           >
             <GoogleIcon />
             Continue with Google
           </SubmitButton>
         </form>
 
-        <p className="mt-4 text-xs text-muted-fg">
-          Mentors: use your @freshman.academy account.
+        {/* Students first: they are most of the people who sign in, and the
+            one rule that trips them up is which Google account to use. */}
+        <p className="mt-4 text-center text-xs text-muted-fg">
+          Use the Google account your school has on file for you.
+          <span className="mt-1 block">
+            Mentors: sign in with your @freshman.academy account.
+          </span>
         </p>
 
         {/* Only when the server was started with DEV_LOGIN=1 (`npm run
@@ -77,12 +103,12 @@ export default async function LoginPage({
         {process.env.DEV_LOGIN === "1" && (
           <a
             href="/api/dev-login"
-            className="mt-4 block text-xs font-medium text-brand hover:underline"
+            className="mt-4 block text-center text-xs font-medium text-brand hover:underline"
           >
             Local sign-in (dev only)
           </a>
         )}
-      </StandaloneCard>
+      </div>
     </main>
   );
 }

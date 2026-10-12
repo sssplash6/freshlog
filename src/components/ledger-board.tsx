@@ -246,7 +246,8 @@ export function LedgerBoard({
                     {formatDuration(p.completed)} completed ·{" "}
                     {p.remaining < 0
                       ? `${formatDuration(-p.remaining)} over`
-                      : `${formatDuration(p.remaining)} remaining`}
+                      : `${formatDuration(p.remaining)} remaining`}{" "}
+                    · {formatDuration(p.allotted)} total
                   </span>
                 </li>
               ))}

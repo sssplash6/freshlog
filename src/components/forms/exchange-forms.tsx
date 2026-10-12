@@ -25,14 +25,14 @@ import { returnExchange, sendOnExchange } from "@/lib/actions/exchanges";
  */
 export function SendOnExchangeForm({
   studentProfileId,
+  studentName,
   /** The student's OWN programs, one of which does the lending. */
   fromPrograms,
   /** Everywhere they could go: active programs they are not already in. */
   toPrograms,
 }: {
   studentProfileId: string;
-  /** Unused since the form says nothing when there is nowhere to send them. */
-  studentName?: string;
+  studentName: string;
   fromPrograms: SelectOption[];
   toPrograms: SelectOption[];
 }) {
@@ -49,8 +49,13 @@ export function SendOnExchangeForm({
     if (state?.ok) setOpen(false);
   }
 
-  // Nowhere left to send them: no button, and no sentence in its place.
-  if (toPrograms.length === 0) return null;
+  if (toPrograms.length === 0) {
+    return (
+      <p className="text-sm text-muted-fg">
+        {studentName} is already in every program you can send them to.
+      </p>
+    );
+  }
 
   if (!open) {
     return (
@@ -70,45 +75,47 @@ export function SendOnExchangeForm({
   return (
     <form action={action} className="rise-in">
       <input type="hidden" name="studentProfileId" value={studentProfileId} />
-      <div className="space-y-3">
-        {/* Where from and where to on one row, how much and by when on the
-            next, each field as wide as what it holds. */}
-        <div className="flex flex-wrap items-end gap-3">
-          {/* Asked only when there is a question. A student who studies in one
-              program is not asked which of their one programs is lending them. */}
-          {fromPrograms.length > 1 && (
-            <Field label="From" className="w-full sm:w-80">
-              <Select name="fromProgramId" options={fromPrograms} ariaLabel="Program sending them" />
-            </Field>
-          )}
-          <Field label="To" className="w-full sm:w-80">
-            <Select name="toProgramId" options={toPrograms} ariaLabel="Program to send them to" />
-          </Field>
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <Field label="Minutes">
-            <Input
-              name="minutes"
-              type="number"
-              inputMode="numeric"
-              min="1"
-              step="1"
-              required
-              measure="xs"
-              placeholder="e.g. 420"
+      <div className="grid gap-3 sm:grid-cols-2">
+        {/* Asked only when there is a question. A student who studies in one
+            program is not asked which of their one programs is lending them. */}
+        {fromPrograms.length > 1 && (
+          <Field label="From">
+            <Select
+              name="fromProgramId"
+              options={fromPrograms}
+              ariaLabel="Program sending them"
+              placeholder="Which of their programs"
             />
           </Field>
-          <Field label="Use by">
-            <DateField name="deadline" label="Use by" required />
+        )}
+        <Field label="To">
+          <Select
+            name="toProgramId"
+            options={toPrograms}
+            ariaLabel="Program to send them to"
+            placeholder="Which program"
+          />
+        </Field>
+        <Field label="Minutes">
+          <Input name="minutes" type="number" inputMode="numeric" min="1" step="1" required placeholder="e.g. 420" />
+        </Field>
+        <Field label="Use by">
+          <DateField name="deadline" label="Use by" required />
+        </Field>
+        <div className="sm:col-span-2">
+          <Field label="What they need">
+            <Input
+              name="note"
+              type="text"
+              maxLength={500}
+              placeholder="Optional — what you are sending them for"
+            />
           </Field>
         </div>
-        <Field label="Note">
-          <Input name="note" type="text" maxLength={500} measure="lg" />
-        </Field>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <SubmitButton pendingText="Sending…">Send</SubmitButton>
+        <SubmitButton pendingText="Sending…">Send them</SubmitButton>
         <Button variant="ghost" onClick={() => setOpen(false)}>
           Cancel
         </Button>
@@ -122,9 +129,10 @@ export function SendOnExchangeForm({
  * Call a placement off — the host declining it, or the sender withdrawing it.
  *
  * The question names the consequence rather than the row, because the
- * consequence is in a different program from the person reading. A placement
- * anything has been logged against is refused by the action, which is the one
- * case this cannot know from here.
+ * consequence is in a different program from the person reading: the hours the
+ * host had already put on its mentors go with it. A placement anything has been
+ * logged against is refused by the action, which is the one case this cannot
+ * know from here.
  */
 export function ReturnExchangeButton({
   exchangeId,
@@ -142,12 +150,17 @@ export function ReturnExchangeButton({
     <div>
       <ConfirmInline
         variant="quiet"
+        size="sm"
         action={action}
         values={{ exchangeId }}
         pending={save.kind === "saving"}
         label="Call it off"
-        disabledReason={canReturn ? undefined : `Time logged in ${hostProgram}`}
-        question={`Removes the time ${hostProgram} granted.`}
+        disabledReason={
+          canReturn
+            ? undefined
+            : `Time has been logged in ${hostProgram}, so this is history now.`
+        }
+        question={`The hours ${hostProgram} put on its mentors go with it. Both programs are told.`}
         confirmLabel="Yes, call it off"
         pendingLabel="Calling off…"
       />

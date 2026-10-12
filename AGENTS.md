@@ -142,27 +142,3 @@ tooling — add nothing.
 - One short paragraph or bullet per change, written for the student, mentor or
   admin who will read it: what they can now do, or what no longer goes wrong.
   No file names, no function names, no commit-message prose.
-
-## Every screen follows DESIGN.md
-
-The owner and the people who use this every day called the interface noisy:
-a grey sentence under every feature, fields that ran the width of the page,
-the same thing done three ways. The October 2026 audit counted 783 such
-problems (`docs/design/audit-2026-10.md`); `DESIGN.md` is the rulebook that
-came out of it, and it is short on purpose. Read it before you touch anything
-a user sees.
-
-1. **Never explain a feature in a sentence.** If it needs one to be
-   understood, the label or the layout is wrong — fix that instead. The only
-   lines allowed are a validation error, a consequence that cannot be undone
-   and a privacy promise, each marked `design-allow` (DESIGN.md C1).
-2. **Fields are as wide as their content.** Pass `measure`; never a width
-   class, never `inputClasses` in a page (W1). Short forms are one row (W2).
-3. **Use the primitive for the job** (DESIGN.md §3). A new kind of control
-   needs a new rule in DESIGN.md first.
-
-`npm run lint` runs `scripts/check-design.mjs`, which reads the JSX and fails
-on helper prose, long labels, instructional placeholders, the removed prose
-props and unmeasured fields. Do not split a sentence or hide it in a variable
-to get past it; a `design-allow` you cannot name a C1 reason for is a
-violation with extra steps.

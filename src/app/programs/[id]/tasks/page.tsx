@@ -8,7 +8,6 @@ import { MentorTaskDue } from "@/components/mentor-task-due";
 import { PersonChip } from "@/components/person-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Section } from "@/components/ui/section";
-import { StatusChip } from "@/components/ui/status-chip";
 import { canManageProgram } from "@/lib/authz";
 import { requireProgramScope } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
@@ -76,7 +75,11 @@ export default async function ProgramMentorTasksPage({
           </div>
         )}
         {open.length === 0 ? (
-          <EmptyState framed={false} variant="healthy" title="No open tasks" />
+          <EmptyState framed={false} variant="healthy" title="Nothing waiting on the team">
+            {canWrite
+              ? "Set a task for one mentor, a few, or everyone in the program."
+              : "The program's admins have not set its mentors anything open."}
+          </EmptyState>
         ) : (
           <TaskList tasks={open} programId={id} now={now} canWrite={canWrite} />
         )}
@@ -120,6 +123,8 @@ function TaskList({
                   <span className="tabular-nums">
                     {done}/{t.assignees.length} done
                   </span>
+                  {" · set by "}
+                  {t.createdBy.name ?? t.createdBy.email}
                 </p>
               </div>
               {canWrite && <WithdrawMentorTask taskId={t.id} />}
@@ -127,19 +132,24 @@ function TaskList({
 
             {t.note && <p className="whitespace-pre-line text-sm text-ink">{t.note}</p>}
 
-            {/* Each mentor with their own answer beside them, so a tick cannot
-                be read as belonging to the next name along. The same ○ / ✓
-                chip a task wears on the agenda. */}
-            <ul className="flex flex-wrap gap-x-4 gap-y-2" aria-label="Mentors">
+            {/* Each mentor with their own answer beside them, in one pill, so
+                a tick cannot be read as belonging to the next name along. */}
+            <ul className="flex flex-wrap gap-2" aria-label="Mentors">
               {t.assignees.map((a) => (
-                <li key={a.id} className="flex items-center gap-1.5">
+                <li
+                  key={a.id}
+                  className="flex items-center gap-1.5 rounded-full bg-fill py-0.5 pl-0.5 pr-2.5"
+                >
                   <PersonChip person={a.mentor} size="sm" />
-                  <StatusChip
-                    severity={a.completedAt ? "ok" : "neutral"}
-                    glyph={a.completedAt ? "✓" : "○"}
+                  <span
+                    className={
+                      a.completedAt
+                        ? "text-xs font-semibold text-brand"
+                        : "text-xs text-muted-fg"
+                    }
                   >
-                    {a.completedAt ? "Done" : "Not started"}
-                  </StatusChip>
+                    {a.completedAt ? "✓ Done" : "Not yet"}
+                  </span>
                 </li>
               ))}
             </ul>

@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { InterviewGuide } from "@/components/forms/interview-guide";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageTitle } from "@/components/ui/section";
+import { PageTitle, Section } from "@/components/ui/section";
 import { ROLES, USER_STATUS } from "@/lib/constants";
 import { requireRole } from "@/lib/dal";
 import { dictationConfigured } from "@/lib/dictation";
@@ -71,7 +71,11 @@ export default async function InterviewGuidePage({
     return (
       <div className="space-y-4">
         <PageTitle backHref={`/student/interviews/${interview.id}`} backLabel="Interview" title={title} />
-        <EmptyState title={`Opens ${formatSlotWhen(interview.slot.startsAt)}`} />
+        <Section title="Not started yet">
+          <EmptyState framed={false} title={`Opens ${formatSlotWhen(interview.slot.startsAt)}`}>
+            Come back at the start time to begin with {partner}.
+          </EmptyState>
+        </Section>
       </div>
     );
   }

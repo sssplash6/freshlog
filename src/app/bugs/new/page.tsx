@@ -22,6 +22,7 @@ export default async function NewBugPage({
         backHref="/bugs"
         backLabel="Bug reports"
         title="Report a bug"
+        subtitle="Only you and the people fixing it can read your report."
       />
       <ReportBugForm from={from} />
     </div>

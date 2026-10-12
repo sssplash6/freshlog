@@ -19,7 +19,7 @@ export function ReportMentorButton() {
     <Link
       href="/student/feedback"
       transitionTypes={["nav-forward"]}
-      className="press flex h-10 w-full items-center justify-center gap-2 sm:w-56 rounded-lg bg-danger text-sm font-semibold text-on-danger shadow-sm transition hover:brightness-90"
+      className="press flex h-10 w-full items-center justify-center gap-2 sm:w-56 rounded-lg bg-danger text-sm font-semibold text-white shadow-sm transition hover:brightness-90"
     >
       <FlagIcon className="h-4 w-4" />
       Report a mentor

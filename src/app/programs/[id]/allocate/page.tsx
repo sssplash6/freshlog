@@ -127,17 +127,23 @@ export default async function AllocateInProgramPage({
   }
 
   return (
-    // No title of its own and no caption: the program's own header is
-    // directly above this. The section carries the verb.
-    <Section title="Allocate time">
+    // No title of its own: the program's own header is directly above this,
+    // and a second one under it would name the same program twice before
+    // saying anything. The section carries the verb.
+    <Section title="Allocate time" caption={`In ${program.name}`}>
       <div className="px-4 py-2 sm:px-5">
-        <ParamSelect
-          param="student"
-          value={chosen?.id ?? ""}
-          label="Student"
-          recentKey="allocate-student"
-          options={pickerRows.map((r) => r.option)}
-        />
+        {/* The same grid the form below uses, so the name sits in the column
+            the mentor beneath it does rather than across the whole card. */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ParamSelect
+            param="student"
+            value={chosen?.id ?? ""}
+            label="Who is this for?"
+            placeholder="Search the roster…"
+            recentKey="allocate-student"
+            options={pickerRows.map((r) => r.option)}
+          />
+        </div>
 
         {chosen && (chosenRow?.overdrawn || chosenRow?.expired) && (
           // Kept on screen under the picker, where the form is filled in: the
@@ -147,11 +153,14 @@ export default async function AllocateInProgramPage({
             className="mt-3 flex items-start gap-2 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn-ink"
           >
             <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
-            <span className="font-semibold">
-              {chosen.user.name ?? chosen.user.email}{" "}
-              {chosenRow.overdrawn
-                ? `is already ${formatBalance(chosen.remainingMinutes)}.`
-                : `has ${formatDuration(chosen.forfeitedMinutes)} expired unused.`}
+            <span>
+              <span className="font-semibold">
+                {chosen.user.name ?? chosen.user.email}{" "}
+                {chosenRow.overdrawn
+                  ? `is already ${formatBalance(chosen.remainingMinutes)} in ${program.name}.`
+                  : `has ${formatDuration(chosen.forfeitedMinutes)} that expired unused in ${program.name}.`}
+              </span>{" "}
+              Time granted now is added to that balance.
             </span>
           </p>
         )}

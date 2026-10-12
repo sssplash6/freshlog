@@ -27,10 +27,10 @@ import { RequiredMark } from "@/components/ui/required-mark";
 
 /** The shared shell, so the two shapes cannot drift apart again. */
 const TRACK =
-  "flex w-fit max-w-full flex-wrap gap-0.5 rounded-lg bg-fill p-0.5";
+  "flex w-full flex-wrap gap-0.5 rounded-xl bg-fill p-0.5 sm:w-fit";
 /** 44px: students and mentors use this on a phone. */
 const SEGMENT =
-  "inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md px-3.5 text-sm transition-colors";
+  "inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 text-sm transition-colors sm:flex-none";
 /**
  * Narrower, for the correction popover, where four options and a form have to
  * fit a 320px panel.
@@ -41,7 +41,7 @@ const SEGMENT =
  * the target stays 44px.
  */
 const SEGMENT_DENSE =
-  "inline-flex min-h-11 cursor-pointer items-center justify-center gap-1.5 rounded-md px-2 text-xs transition-colors";
+  "inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2 text-xs transition-colors";
 /**
  * The tab track, and it is deliberately smaller than the form one.
  *
@@ -52,8 +52,8 @@ const SEGMENT_DENSE =
  * shows you the wrong list and you tap again. Nothing is written, nothing is
  * lost, so the target does not have to be paid for in height.
  *
- * Both tracks hug their content at every width: two words and a count are
- * not a full-width control.
+ * It also hugs its content at every width instead of stretching to the full
+ * row on a phone. Two words and a count are not a full-width control.
  */
 /*
  * ONE ROW, ALWAYS. On a phone the track scrolls sideways rather than wrapping
@@ -161,8 +161,10 @@ export function SegmentedRadio({
   return (
     <fieldset className={cn("min-w-0", className)}>
       <legend
-        // The same label as `Field`'s, so a form reads as one family.
-        className={cn("font-medium text-ink", dense ? "text-xs" : "text-sm")}
+        className={cn(
+          "text-muted-fg",
+          dense ? "text-xs font-medium" : "text-sm"
+        )}
       >
         {legend}
         {required && <RequiredMark />}
@@ -176,13 +178,13 @@ export function SegmentedRadio({
         className={cn(
           TRACK,
           "relative mt-1",
-          columns === 2 && "grid grid-cols-2 gap-2 p-2",
+          columns === 2 && "grid grid-cols-2 gap-2 p-2 sm:w-full",
         )}
       >
         {pill && (
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute left-0 top-0 rounded-md bg-thumb shadow-control transition-[transform,width,height] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]"
+            className="pointer-events-none absolute left-0 top-0 rounded-lg bg-thumb shadow-control transition-[transform,width,height] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]"
             style={{
               transform: `translate(${pill.left}px, ${pill.top}px)`,
               width: pill.width,

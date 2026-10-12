@@ -12,7 +12,7 @@ import {
 import { createPortal } from "react-dom";
 
 import { CheckIcon, ChevronDownIcon, SearchIcon } from "@/components/icons";
-import { fieldChrome, MEASURE, type Measure } from "@/components/ui/field";
+import { fieldChrome } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
 import { useAnchoredPosition } from "@/lib/use-anchored-position";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -126,7 +126,7 @@ function matches(option: SelectOption, query: string) {
 export function Select({
   name,
   options,
-  placeholder = "Choose…",
+  placeholder = "Select…",
   defaultValue = "",
   ariaLabel,
   required = true,
@@ -135,7 +135,7 @@ export function Select({
   onChange,
   invalid: invalidProp = false,
   requiredMessage,
-  measure = "md",
+  title,
 }: {
   name: string;
   options: SelectOption[];
@@ -161,10 +161,8 @@ export function Select({
   invalid?: boolean;
   /** What the empty-submit message says, when "{label} is required." is robotic. */
   requiredMessage?: string;
-  /** Ignored: the phone sheet has no heading. Kept so callers compile. */
+  /** The phone sheet's heading. Defaults to `ariaLabel`. */
   title?: string;
-  /** How wide the trigger may grow (DESIGN.md W1). */
-  measure?: Measure;
 }) {
   const [value, setValue] = useState(defaultValue);
   const [open, setOpen] = useState(false);
@@ -472,6 +470,30 @@ export function Select({
 
   return (
     <div className="relative">
+      {/*
+        The value carrier. It is a real, validatable input rather than
+        type="hidden" so a required select is caught in the browser instead of
+        as a generic server error a second later: hidden inputs are barred from
+        constraint validation. It is one pixel of transparency pinned to the
+        trigger, focusable enough for the browser to report on, and its own
+        invalid event is claimed so we can render the message ourselves and put
+        focus where the user can act — on the trigger.
+      */}
+      <input
+        type="text"
+        name={name}
+        value={value}
+        required={required}
+        onChange={() => {}}
+        onInvalid={(e) => {
+          e.preventDefault();
+          setInvalid(true);
+          triggerRef.current?.focus();
+        }}
+        tabIndex={-1}
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 left-3 h-px w-px opacity-0"
+      />
       <button
         ref={triggerRef}
         type="button"
@@ -492,8 +514,7 @@ export function Select({
           // the one that appears most often — the log form and every filter
           // row carry one — so four pixels here is four pixels everywhere.
           fieldChrome,
-          "flex min-h-11 w-full items-center justify-between gap-2 pl-3.5 pr-2.5 text-base sm:text-body",
-          MEASURE[measure],
+          "flex min-h-11 w-full items-center justify-between gap-2 pl-3.5 pr-2.5 text-body",
           invalid
             ? "border-danger bg-danger-soft/40"
             : open && "border-brand bg-surface",
@@ -517,35 +538,6 @@ export function Select({
           )}
         />
       </button>
-      {/*
-        The value carrier. It is a real, validatable input rather than
-        type="hidden" so a required select is caught in the browser instead of
-        as a generic server error a second later: hidden inputs are barred from
-        constraint validation. It is one pixel of transparency pinned to the
-        trigger, focusable enough for the browser to report on, and its own
-        invalid event is claimed so we can render the message ourselves and put
-        focus where the user can act — on the trigger.
-
-        AFTER the trigger, not before it: a <label> wrapping a Select
-        activates its first labelable descendant, and that has to be the
-        trigger — when this came first, clicking a field's label focused a
-        1px invisible input instead of opening the list.
-      */}
-      <input
-        type="text"
-        name={name}
-        value={value}
-        required={required}
-        onChange={() => {}}
-        onInvalid={(e) => {
-          e.preventDefault();
-          setInvalid(true);
-          triggerRef.current?.focus();
-        }}
-        tabIndex={-1}
-        aria-hidden="true"
-        className="pointer-events-none absolute bottom-0 left-3 h-px w-px opacity-0"
-      />
 
       {caught && (
         <p id={errorId} role="alert" className="mt-1 text-xs text-danger-ink">
@@ -591,10 +583,17 @@ export function Select({
               )}
             >
               {sheet && (
-                <div
-                  aria-hidden="true"
-                  className="mx-auto mb-1 mt-1.5 h-1 w-9 shrink-0 rounded-full bg-line"
-                />
+                <>
+                  <div
+                    aria-hidden="true"
+                    className="mx-auto mb-1 mt-1.5 h-1 w-9 shrink-0 rounded-full bg-line"
+                  />
+                  {/* A sheet covers the form, so it says which field it is
+                      answering — the trigger's label is behind the scrim. */}
+                  <p className="px-4 pb-2 pt-1 text-title font-semibold text-ink">
+                    {title ?? ariaLabel}
+                  </p>
+                </>
               )}
               {withSearch && (
                 <div className="flex items-center gap-2 border-b border-line px-3">
@@ -613,10 +612,10 @@ export function Select({
                     aria-activedescendant={
                       pickable(active) ? optionId(active) : undefined
                     }
-                    placeholder="Search"
+                    placeholder="Type to filter…"
                     // text-base below sm: a focused field under 16px makes iOS
                     // zoom the page, and it stays zoomed after you leave.
-                    className="min-h-11 min-w-0 flex-1 bg-transparent text-base text-ink placeholder:text-muted-fg focus:outline-none sm:text-body"
+                    className="min-h-11 min-w-0 flex-1 bg-transparent text-base text-ink placeholder:text-muted-fg focus:outline-none sm:text-sm"
                   />
                 </div>
               )}
@@ -628,7 +627,9 @@ export function Select({
               className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1"
             >
               {rows.length === 0 && (
-                <li className="px-2.5 py-2 text-sm text-muted-fg">No matches</li>
+                <li className="px-2.5 py-2 text-sm text-muted-fg">
+                  Nothing matches “{query.trim()}”.
+                </li>
               )}
                 {rows.map((row, i) =>
                   row.kind === "header" ? (
@@ -697,9 +698,11 @@ function SelectItem({
           ? active
             ? "bg-canvas text-muted-fg"
             : "text-muted-fg"
-          : active
-            ? "bg-canvas text-ink"
-            : "text-ink",
+          : selected
+            ? "bg-brand-soft font-medium text-brand"
+            : active
+              ? "bg-canvas text-ink"
+              : "text-ink",
       )}
     >
       <span className="min-w-0">
@@ -711,7 +714,9 @@ function SelectItem({
           <span
             className={cn(
               "block truncate text-xs",
-              option.tone === "danger"
+              selected
+                ? "text-brand/80"
+                : option.tone === "danger"
                   ? "font-medium text-danger-ink"
                   : option.tone === "warn"
                     ? "font-medium text-warn-ink"
@@ -722,8 +727,7 @@ function SelectItem({
           </span>
         )}
       </span>
-      {/* The tick is the one mark of the current value. */}
-      {selected && !none && <CheckIcon className="h-4 w-4 shrink-0 text-brand" />}
+      {selected && !none && <CheckIcon className="h-4 w-4 shrink-0" />}
     </li>
   );
 }

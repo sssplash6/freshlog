@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { BellIcon } from "@/components/icons";
+import { BellIcon, ChevronRightIcon } from "@/components/icons";
 import { NavCount } from "@/components/nav-links";
 import { Popover } from "@/components/ui/popover";
 import { NOTIFICATION_META } from "@/lib/constants";
@@ -44,16 +44,17 @@ export function NotificationBell({
   /** One instant for every "3h ago" in the panel. */
   now: Date;
   /**
-   * How many rows `/notifications` lists under Needs you for this reader —
-   * the rows that ask something of them, as opposed to news.
+   * How many active issues `/notifications` lists for this reader — the rows
+   * that ask something of them, as opposed to news.
    *
-   * The button's label says them, so a reader told "none unread" still hears
-   * that something needs them; the list itself is one tap away on the page.
+   * The panel showed only the feed, so a reader whose Home said "6 items need
+   * your attention" opened the bell and was told "none unread". The issues are
+   * the panel's first row now, and the button's label says them too.
    */
   issues?: number;
 }) {
   const label = issues > 0
-    ? `${unreadLabel(unread)}; ${issues} ${issues === 1 ? "needs" : "need"} you`
+    ? `${unreadLabel(unread)}; ${issues} active ${issues === 1 ? "issue" : "issues"}`
     : unreadLabel(unread);
   return (
     <Popover
@@ -74,10 +75,54 @@ export function NotificationBell({
         </>
       }
     >
-      <p className="px-3 pb-2 text-body font-semibold text-ink">Notifications</p>
+      <div className="flex items-baseline justify-between gap-3 px-3 pb-2">
+        <span className="text-body font-semibold text-ink">Notifications</span>
+        {unread.total > 0 && (
+          <span className="text-xs tabular-nums text-muted-fg">
+            {unread.total} unread
+          </span>
+        )}
+      </div>
+
+      {issues > 0 && (
+        <Link
+          href="/notifications"
+          transitionTypes={["nav-forward"]}
+          className="mx-1 mb-2 flex min-h-11 items-center justify-between gap-3 rounded-lg bg-warn-soft px-3 text-xs font-semibold text-warn-ink transition-opacity hover:opacity-90"
+        >
+          <span>
+            <span aria-hidden="true">! </span>
+            {issues} to act on
+          </span>
+          <ChevronRightIcon aria-hidden="true" className="h-4 w-4 shrink-0" />
+        </Link>
+      )}
+
+      {/* What the number is made of, deadlines first: 157 unread is mostly
+          session logs, and the three that have a clock on them should not have
+          to be found among them. Each chip opens that category's feed. */}
+      {unread.parts.length > 1 && (
+        <ul className="flex flex-wrap gap-1.5 px-3 pb-2">
+          {unread.parts.map((p) => (
+            <li key={p.category}>
+              <Link
+                href={`/notifications?category=${p.category}`}
+                transitionTypes={["nav-forward"]}
+                className={`inline-flex min-h-7 items-center gap-1 rounded-full px-2.5 text-xs tabular-nums transition-colors hover:bg-fill-strong ${
+                  p.category === "DEADLINES"
+                    ? "bg-warn-soft font-semibold text-warn-ink"
+                    : "bg-fill text-muted-fg"
+                }`}
+              >
+                <span className="font-semibold">{p.count}</span> {p.label.toLowerCase()}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {recent.length === 0 ? (
-        <p className="px-3 pb-2 text-sm text-muted-fg">No notifications</p>
+        <p className="px-3 pb-2 text-sm text-muted-fg">No notices for you.</p>
       ) : (
         <ul className="-mx-1 divide-y divide-line border-y border-line">
           {recent.map((n) => (

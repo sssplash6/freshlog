@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { CheckIcon } from "@/components/icons";
 import { setProfile } from "@/lib/actions/profile";
@@ -19,9 +19,33 @@ function itemsFor(adminLabel: string): readonly { value: Profile; label: string 
 }
 
 /**
- * The keyboard half of the switch: Alt+M / ⌥M anywhere in the app — "M for
- * mode", free in every major browser on both platforms (⌘L/Ctrl+L is the
- * address bar and reserved). Unadvertised on screen. Renders nothing, and the shell mounts exactly one of it — both switches are in the
+ * Alt+M, and ⌥M on a Mac — "M for mode". Chosen because it is free in every
+ * major browser on both platforms: ⌘L/Ctrl+L, the obvious pick, is the address
+ * bar and is reserved, so a page cannot have it.
+ *
+ * Rendered as a tooltip rather than visible text: the header already carries a
+ * brand, a switch, a bell and a menu at 320px.
+ */
+function useShortcutLabel(): string {
+  // The platform is an external, never-changing fact, and the server can't see
+  // it — so the server renders the plain form and the client swaps in ⌥ during
+  // hydration. useSyncExternalStore is what gives those two different answers
+  // without it counting as a hydration mismatch.
+  return useSyncExternalStore(
+    subscribeToNothing,
+    () => (/Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌥M" : "Alt+M"),
+    () => "Alt+M"
+  );
+}
+
+/** A store that never emits: the keyboard's labels don't change mid-session. */
+function subscribeToNothing(): () => void {
+  return () => {};
+}
+
+/**
+ * The keyboard half of the switch: Alt+M / ⌥M anywhere in the app. Renders
+ * nothing, and the shell mounts exactly one of it — both switches are in the
  * DOM at once (one hidden by a breakpoint), so hanging the listener off either
  * would fire it twice.
  *
@@ -89,6 +113,7 @@ export function ProfileSwitch({
 }) {
   const items = itemsFor(adminLabel);
   const pathname = usePathname();
+  const shortcut = useShortcutLabel();
   return (
     <form
       action={setProfile}
@@ -96,7 +121,11 @@ export function ProfileSwitch({
       role="group"
       aria-label="Switch profile"
       aria-keyshortcuts="Alt+M"
-      className="flex w-fit items-center gap-0.5 self-start rounded-lg bg-fill p-0.5"
+      // Full width with two equal segments, the way iOS lays a segmented
+      // control across a sidebar. The w-fit version left a stretch child
+      // filling the rail as an empty trough; equal flex-1 halves fill it with
+      // the control itself instead.
+      className="flex w-full items-center gap-0.5 rounded-lg bg-fill p-0.5"
     >
       <input type="hidden" name="path" value={pathname} />
       {items.map((it) =>
@@ -104,7 +133,7 @@ export function ProfileSwitch({
           <span
             key={it.value}
             aria-current="true"
-            className="flex min-h-8 items-center justify-center rounded-md bg-surface px-2.5 text-xs font-semibold text-ink shadow-sm"
+            className="flex min-h-8 flex-1 items-center justify-center rounded-md bg-surface px-2.5 text-xs font-semibold text-ink shadow-sm"
           >
             {/* Said in full to a screen reader: "Admin" beside a "Mentor"
                 button left the destination — and which one you are in —
@@ -118,8 +147,9 @@ export function ProfileSwitch({
             type="submit"
             name="profile"
             value={it.value}
+            title={`Switch to ${it.label} (${shortcut})`}
             aria-label={`Switch to ${it.label}`}
-            className="flex min-h-8 cursor-pointer items-center justify-center rounded-md px-2.5 text-xs font-medium text-muted-fg transition-colors hover:text-ink"
+            className="flex min-h-8 flex-1 cursor-pointer items-center justify-center rounded-md px-2.5 text-xs font-medium text-muted-fg transition-colors hover:text-ink"
           >
             {it.label}
           </button>
@@ -144,6 +174,7 @@ export function ProfileSwitchMenu({
 }) {
   const items = itemsFor(adminLabel);
   const pathname = usePathname();
+  const shortcut = useShortcutLabel();
   return (
     <form
       action={setProfile}
@@ -154,6 +185,12 @@ export function ProfileSwitchMenu({
       aria-keyshortcuts="Alt+M"
     >
       <input type="hidden" name="path" value={pathname} />
+      <p className="flex items-baseline justify-between gap-2 px-3 pb-0.5 pt-1 text-xs text-muted-fg">
+        Viewing as
+        <span className="font-medium">
+          {shortcut}
+        </span>
+      </p>
       {items.map((it) =>
         it.value === active ? (
           <span
@@ -174,7 +211,6 @@ export function ProfileSwitchMenu({
             name="profile"
             value={it.value}
             aria-label={`Switch to ${it.label}`}
-            // design-allow: list row
             className="flex min-h-11 w-full cursor-pointer items-center rounded-lg px-3 text-left text-body text-ink transition-colors hover:bg-fill"
           >
             {it.label}

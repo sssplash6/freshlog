@@ -28,7 +28,7 @@ import type { User } from "@/generated/prisma/client";
  *
  * Exactly one program, and it is an institute. Somebody who also works in a
  * second program is in the school — the institute is one of the places they
- * work, not the place — and docs/archive/REDESIGN.md §4.3 holds for them unchanged.
+ * work, not the place — and REDESIGN.md §4.3 holds for them unchanged.
  */
 export type Space =
   | { kind: "school" }

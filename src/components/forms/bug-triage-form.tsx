@@ -2,10 +2,9 @@
 
 import { useState, useTransition } from "react";
 
-import { Select } from "@/components/select";
-import { DateField } from "@/components/ui/date-field";
-import { Field, Textarea } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
+import { Field, Textarea, inputClasses } from "@/components/ui/field";
 import { setBugStatus } from "@/lib/actions/bugs";
 import type { ActionState } from "@/lib/actions/shared";
 import {
@@ -20,7 +19,7 @@ import {
 /**
  * Move a report along. Fixed and Closed ask for words — the fix line is read by
  * every user, the closing note by the person who reported it — and Fixed also
- * takes the changelog day it shipped in.
+ * takes the changelog day it shipped in, which defaults to today.
  *
  * It submits from a handler and not through `<form action>`, on purpose. React
  * resets a form action's fields when the action settles; the status select is
@@ -55,44 +54,35 @@ export function BugTriageForm({
     });
   }
 
-  // A Button, not SubmitButton: this form submits from a handler (above), and
-  // SubmitButton's pending state only sees form actions.
-  const saveButton = (
-    <Button type="submit" disabled={saving}>
-      {saving ? "Saving…" : "Save"}
-    </Button>
-  );
-
   return (
     <form onSubmit={save} className="space-y-4 p-4 sm:p-5">
       <input type="hidden" name="id" value={id} />
 
-      <div className="flex flex-wrap items-end gap-3">
-        <Field label="Status" className="w-full sm:w-48">
-          <Select
-            name="status"
-            ariaLabel="Status"
-            measure="sm"
-            defaultValue={status}
-            options={BUG_STATUSES.map((s) => ({ value: s, label: BUG_STATUS_LABELS[s] }))}
-            onChange={(value) => setNext(value as BugStatus)}
-          />
-        </Field>
-        {next === BUG_STATUS.FIXED && (
-          <Field label="Shipped on" error={fieldError("changelogDate")} className="w-full sm:w-48">
-            <DateField name="changelogDate" label="Shipped on" defaultValue={changelogDate ?? ""} />
-          </Field>
-        )}
-        {!closing && saveButton}
-      </div>
+      <Field label="Status">
+        <select
+          name="status"
+          value={next}
+          onChange={(event) => setNext(event.target.value as BugStatus)}
+          className={inputClasses}
+        >
+          {BUG_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {BUG_STATUS_LABELS[s]}
+            </option>
+          ))}
+        </select>
+      </Field>
 
       {closing && (
-        // "Public" in the label because the fix line is read by every user;
-        // the closing note only by the reporter.
         <Field
-          label={next === BUG_STATUS.FIXED ? "Public fix line" : "Note to reporter"}
+          label={next === BUG_STATUS.FIXED ? "Fix line" : "Note to the reporter"}
           required
           error={fieldError("resolution")}
+          hint={
+            next === BUG_STATUS.FIXED
+              ? "Everybody reads this. Write it like a changelog line, with no names."
+              : "Only the reporter reads this."
+          }
         >
           {/* Keyed on the status, so switching between Fixed and Closed opens
               an empty box instead of carrying the other kind's words across. */}
@@ -106,6 +96,12 @@ export function BugTriageForm({
         </Field>
       )}
 
+      {next === BUG_STATUS.FIXED && (
+        <Field label="Shipped in the changelog on" error={fieldError("changelogDate")} hint="Defaults to today.">
+          <DateField name="changelogDate" label="Shipped on" defaultValue={changelogDate ?? ""} />
+        </Field>
+      )}
+
       {failed && !failed.field && (
         <p role="alert" className="text-sm text-danger-ink">
           {failed.error}
@@ -113,7 +109,9 @@ export function BugTriageForm({
       )}
       {state?.ok && <p className="text-sm text-muted-fg">{state.message}</p>}
 
-      {closing && saveButton}
+      <Button type="submit" disabled={saving}>
+        {saving ? "Saving…" : "Save"}
+      </Button>
     </form>
   );
 }

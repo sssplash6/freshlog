@@ -46,7 +46,6 @@ export function HoursBreakdown({
   missed,
   expired = 0,
   remaining,
-  showTotal = true,
   className,
 }: {
   allotted: number;
@@ -67,8 +66,6 @@ export function HoursBreakdown({
    * bar says what it is.
    */
   remaining: number;
-  /** Off where the page's title already carries the balance. */
-  showTotal?: boolean;
   className?: string;
 }) {
   const over = remaining < 0 ? -remaining : 0;
@@ -198,14 +195,14 @@ export function HoursBreakdown({
             </dd>
           </div>
         )}
-        {showTotal && (
-          <div>
-            <dt className="text-xs text-muted-fg">Total</dt>
-            <dd className="mt-0.5 text-title font-semibold tabular-nums text-ink">
-              {formatDuration(allotted)}
-            </dd>
-          </div>
-        )}
+        <div>
+          <dt className="text-xs text-muted-fg">
+            Total
+          </dt>
+          <dd className="mt-0.5 text-title font-semibold tabular-nums text-ink">
+            {formatDuration(allotted)}
+          </dd>
+        </div>
       </dl>
     </div>
   );

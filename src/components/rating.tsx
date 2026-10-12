@@ -1,23 +1,14 @@
-import { StarIcon } from "@/components/icons";
-
-/**
- * Read-only star rating out of 5, in the picker's own star — filled in ink,
- * empty in the picker's muted grey. Orange is hours, never a rating.
- * Sized in `em`, so it follows the line it sits in.
- */
+/** Read-only star rating: filled stars in ink out of 5 — orange is hours. */
 export function Rating({ value }: { value: number }) {
   return (
     <span
-      role="img"
-      className="inline-flex shrink-0 items-center gap-px leading-none"
+      className="whitespace-nowrap text-body leading-none tabular-nums text-ink"
       aria-label={`${value} out of 5 stars`}
     >
-      {[1, 2, 3, 4, 5].map((n) => (
-        <StarIcon
-          key={n}
-          className={n <= value ? "h-[1em] w-[1em] text-ink" : "h-[1em] w-[1em] text-muted-fg/70"}
-        />
-      ))}
+      {"★".repeat(value)}
+      {/* Hollow, not a faint filled star: the empty ones were 1.8:1 and told
+          the reader nothing the shape could not (October 2026 audit). */}
+      <span className="text-muted-fg">{"☆".repeat(5 - value)}</span>
     </span>
   );
 }

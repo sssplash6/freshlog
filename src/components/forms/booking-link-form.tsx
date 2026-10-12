@@ -26,8 +26,13 @@ function BookingLinkRow({
     <SettingsRow
       label={assignment.label}
       htmlFor={id}
+      description={
+        assignment.calendlyUrl
+          ? undefined
+          : "Students in this program can't book you until this is set."
+      }
       control={
-        <form action={action} className="flex items-end gap-2">
+        <form action={action} className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="assignmentId" value={assignment.id} />
           <Input
             id={id}
@@ -37,8 +42,7 @@ function BookingLinkRow({
             value={url}
             onChange={(event) => setUrl(event.target.value)}
             placeholder="https://calendly.com/…"
-            measure="lg"
-            className="min-w-0"
+            className="min-w-56 flex-1"
           />
           <SubmitButton pendingText="Saving…">Save</SubmitButton>
         </form>
@@ -50,10 +54,8 @@ function BookingLinkRow({
 
 /**
  * The mentor's booking links, one per program/cohort assignment. Students
- * only see a "Book" button once the link for their program is set. One fold,
- * open on arrival while a link is missing: the missing-link warning sends the
- * mentor here, and a closed fold would be a second click. An empty field is
- * what says which one.
+ * only see a "Book" button once the link for their program is set. Collapsed
+ * behind one button; the missing-link count stays visible on it.
  */
 export function BookingLinksForm({
   assignments,
@@ -66,7 +68,8 @@ export function BookingLinksForm({
    */
   bare?: boolean;
 }) {
-  const [open, setOpen] = useState(() => assignments.some((a) => !a.calendlyUrl));
+  const [open, setOpen] = useState(false);
+  const missing = assignments.filter((a) => !a.calendlyUrl).length;
 
   return (
     <section className={bare ? undefined : "rounded-xl bg-surface px-4 py-3 shadow-sm sm:px-5"}>
@@ -74,20 +77,37 @@ export function BookingLinksForm({
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex min-h-11 w-fit cursor-pointer items-center gap-2 text-left text-title font-semibold text-ink"
+        className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 text-left"
       >
-        Your booking links
-        {/* A chevron that turns, the same fold every Disclosure draws. */}
-        <ChevronDownIcon
-          aria-hidden="true"
-          className={cn("h-4 w-4 text-brand transition-transform", open && "rotate-180")}
-        />
+        <span className="flex items-center gap-2 text-title font-semibold text-ink">
+          Your booking links
+          {missing > 0 && (
+            <span className="rounded-full bg-warn-soft px-2.5 py-[0.1875rem] text-xs font-medium text-warn-ink">
+              {missing} missing
+            </span>
+          )}
+        </span>
+        {/* A chevron that turns, not "Show ▾" / "Hide ▴" typed as text —
+            the same fold every Disclosure in the app draws. */}
+        <span className="flex items-center gap-1 text-body font-medium text-brand">
+          {open ? "Hide" : "Show"}
+          <ChevronDownIcon
+            aria-hidden="true"
+            className={cn("h-4 w-4 transition-transform", open && "rotate-180")}
+          />
+        </span>
       </button>
       {open && (
-        <div className="rise-in mt-1">
-          {assignments.map((a) => (
-            <BookingLinkRow key={a.id} assignment={a} />
-          ))}
+        <div className="rise-in">
+          <p className="mt-1 text-xs text-muted-fg">
+            Students book sessions through these links (e.g. your Calendly),
+            one per program you&apos;re assigned to.
+          </p>
+          <div className="mt-1">
+            {assignments.map((a) => (
+              <BookingLinkRow key={a.id} assignment={a} />
+            ))}
+          </div>
         </div>
       )}
     </section>

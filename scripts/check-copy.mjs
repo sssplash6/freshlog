@@ -31,7 +31,7 @@ const BANNED = [
   { re: /\bHrs\b/, why: "a figure carries its own unit — use formatDuration" },
   { re: /still to deliver/i, why: "vocabulary drift — one word per quantity" },
   // The ledger's three headline words are Total, Completed and Remaining, and
-  // they are the same for every reader (docs/archive/REDESIGN.md §5.7.3). Each spelling
+  // they are the same for every reader (REDESIGN.md §5.7.3). Each spelling
   // below was in the app at once, so a student's "Left" and an admin's
   // "Remaining" were the same number under two names. Only LABEL positions are
   // matched — a `label=`/`title=` prop, a `{ label: "…" }` column, a `<dt>` —

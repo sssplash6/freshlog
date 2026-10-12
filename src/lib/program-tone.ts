@@ -4,7 +4,7 @@ import type { PersonTone } from "@/lib/person-tone";
  * A stable hue per program, so Master's is the same colour in every table, on
  * every page, for every reader.
  *
- * `docs/archive/REDESIGN.md` §5.6.5 said programs have no hue — "a program is a place, not a
+ * `REDESIGN.md` §5.6.5 said programs have no hue — "a program is a place, not a
  * person" — and that rule was right about the thing it was actually banning:
  * the monogram cards and gradient washes the redesign deleted. It was wrong
  * about the need. A student is now enrolled in several programs at once, so a

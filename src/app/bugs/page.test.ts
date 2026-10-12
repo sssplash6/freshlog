@@ -32,14 +32,14 @@ beforeEach(() => {
 
 describe("/bugs", () => {
   it("gates before it reads anything", async () => {
-    await BugsPage({ searchParams: Promise.resolve({}) });
+    await BugsPage();
     expect(calls[0]).toBe("gate");
     expect(calls.slice(1).sort()).toEqual(["fixed", "mine"]);
   });
 
   it("reads nothing for a signed-out request", async () => {
     session.signedIn = false;
-    await expect(BugsPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("redirect:/login");
+    await expect(BugsPage()).rejects.toThrow("redirect:/login");
     expect(calls).toEqual(["gate"]);
   });
 });
