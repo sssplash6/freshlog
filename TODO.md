@@ -3,8 +3,8 @@
 Agreed next batches, in priority order. Nothing here is started.
 
 Everything that used to be in Batch 1 and Batch 2 was done by the reorganisation
-(`REDESIGN.md`) and is listed at the bottom, so nobody re-opens a solved
-problem. `REDESIGN.md` §11 is the other half of this file: things deliberately
+(`docs/archive/REDESIGN.md`) and is listed at the bottom, so nobody re-opens a solved
+problem. `docs/archive/REDESIGN.md` §11 is the other half of this file: things deliberately
 kept out of that work, each with the reason.
 
 ## Reported issues — 11 October 2026
@@ -208,7 +208,7 @@ building it.
 
 ## Done by the reorganisation
 
-Do not re-open these; they are in `git log` and in `REDESIGN.md`'s phase list.
+Do not re-open these; they are in `git log` and in `docs/archive/REDESIGN.md`'s phase list.
 
 - Name/email search on the students list — it is `FilterBar` + `studentsWhere`,
   and every narrowing is a Prisma `where` rather than a pass over the school.
