@@ -8,6 +8,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ### Fixed
 - **Log a session sits in the corner.** On a program's page and a student's page, Log a session is now always the right-most button, with Allocate time on the left. A program's Set a task sends the task to its students; tasks for mentors are set on the Mentor tasks tab.
+- **Progress leads a Full Support student's page.** Their application and universities now sit in a column beside Progress on a wide screen, instead of above it. On a narrower screen they come after the sessions, tasks and agenda.
 
 ## 2026-10-11
 

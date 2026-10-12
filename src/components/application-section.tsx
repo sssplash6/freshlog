@@ -25,9 +25,9 @@ export type ApplicationView = {
 };
 
 /**
- * Where a student's application stands, at the top of their page for the
- * programs that track applications: the snapshot, the motivational essay, and
- * the universities with a supplemental each — the primary first.
+ * Where a student's application stands, in the side column of their page for
+ * the programs that track applications: the snapshot, the motivational essay,
+ * and the universities with a supplemental each — the primary first.
  *
  * Read-only for a reader who may only read (a LEADER or SALES grant); every
  * control is the affordance for `applicationAccess`, which the actions ask
@@ -77,22 +77,27 @@ export function ApplicationSection({
           ) : undefined
         }
       >
-        <dl className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4">
-          {facts.map((fact) => (
-            <div key={fact.label} className="min-w-0 bg-surface px-4 py-3 sm:px-5">
-              <dt className="text-xs text-muted-fg">{fact.label}</dt>
-              <dd
-                className={
-                  fact.value
-                    ? "mt-0.5 break-words text-title font-semibold tabular-nums text-ink"
-                    : "mt-0.5 text-title text-disabled"
-                }
-              >
-                {fact.value ?? "—"}
-              </dd>
-            </div>
-          ))}
-        </dl>
+        {/* Four across when there is room for four, two by two in the page's
+            side column: the card's own width decides, not the screen's, since
+            at xl the screen is widest exactly when this card is narrowest. */}
+        <div className="@container">
+          <dl className="grid grid-cols-2 gap-px bg-line @lg:grid-cols-4">
+            {facts.map((fact) => (
+              <div key={fact.label} className="min-w-0 bg-surface px-4 py-3 sm:px-5">
+                <dt className="text-xs text-muted-fg">{fact.label}</dt>
+                <dd
+                  className={
+                    fact.value
+                      ? "mt-0.5 break-words text-title font-semibold tabular-nums text-ink"
+                      : "mt-0.5 text-title text-disabled"
+                  }
+                >
+                  {fact.value ?? "—"}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
         <div className="border-t border-line px-4 py-3 sm:px-5">
           <p className="mb-1 text-sm font-medium text-ink">Motivational essay</p>
           <EssayStageBar
