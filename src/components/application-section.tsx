@@ -8,6 +8,7 @@ import {
 import { Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { ieltsLabel, isRound, ROUND_LABEL, wordsLabel } from "@/lib/applications";
+import { cn } from "@/lib/cn";
 
 export type ApplicationView = {
   sat: number | null;
@@ -112,11 +113,6 @@ export function ApplicationSection({
       </Section>
 
       <Section title="Universities" count={list.length}>
-        {list.length === 0 && (
-          <p className="px-4 py-3 text-body text-muted-fg sm:px-5">
-            No universities on their list yet.
-          </p>
-        )}
         {list.length > 0 && (
           <ul className="divide-y divide-line">
             {list.map((row) => {
@@ -172,7 +168,7 @@ export function ApplicationSection({
           // Open, not folded: adding a university is what this list is for
           // while it is being built, and a fold keyed on "the list is empty"
           // closed under the reader on their first add, hiding its receipt.
-          <div className="border-t border-line px-4 py-3 sm:px-5">
+          <div className={cn("px-4 py-3 sm:px-5", list.length > 0 && "border-t border-line")}>
             <AddUniversityForm
               studentProfileId={studentProfileId}
               universities={universities}

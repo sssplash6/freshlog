@@ -61,7 +61,7 @@ export function SnapshotEditor({
           <Field label="School" error={errorFor("school")}>
             <Input name="school" defaultValue={current.school ?? ""} />
           </Field>
-          <Field label="GPA" hint="As the school writes it, e.g. 3.8/4.0 or 92%." error={errorFor("gpa")}>
+          <Field label="GPA" error={errorFor("gpa")}>
             <Input name="gpa" defaultValue={current.gpa ?? ""} />
           </Field>
           <SubmitButton size="sm" pendingText="Saving…">Save snapshot</SubmitButton>
@@ -92,7 +92,7 @@ export function AddUniversityForm({
   universities: UniversityChoice[];
   /** University ids already on this student's list, offered as taken. */
   onList: string[];
-  /** The current primary, so making this one primary says what it replaces. */
+  /** The current primary; with none yet, the first one added is ticked as primary. */
   primaryName: string | null;
 }) {
   const [result, action, save] = useSaveState(addStudentUniversity);
@@ -103,13 +103,17 @@ export function AddUniversityForm({
   const [primary, setPrimary] = useState(primaryName === null);
   // React resets an uncontrolled form after a successful action; these are
   // controlled, so they are reset by hand when a result lands.
+  // The checkbox is remounted too: the form's own reset puts it back to the
+  // `checked` it rendered with first, whatever `primary` now says.
   const [seen, setSeen] = useState(result);
+  const [resets, setResets] = useState(0);
   if (seen !== result) {
     setSeen(result);
     if (result?.ok) {
       setQuery("");
       setPicked(null);
       setPrimary(false);
+      setResets((n) => n + 1);
     }
   }
 
@@ -145,31 +149,18 @@ export function AddUniversityForm({
 
   const showList = open && matches.length > 0 && !(chosen && matches.length === 1);
   const isNew = query.trim().length > 1 && !chosen;
-  const errorFor = (field: string) =>
-    result && !result.ok && result.field === field ? result.error : undefined;
 
   return (
-    <form action={action} className="space-y-3">
+    <form action={action} className="space-y-2">
       <input type="hidden" name="studentProfileId" value={studentProfileId} />
       <input type="hidden" name="universityId" value={chosen ? chosen.id : "new"} />
       <input type="hidden" name="newName" value={chosen ? "" : query} />
 
-      <div className="relative">
-        <Field
-          label="University"
-          error={errorFor("newName")}
-          hint={
-            chosen
-              ? taken.has(chosen.id)
-                ? "Already on their list."
-                : `Supplemental essays: ${wordsLabel(chosen.supplementalWords).toLowerCase()}.`
-              : isNew
-                ? "Not in the list yet. Enter its supplemental word count once, and it is saved for everyone."
-                : undefined
-          }
-        >
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="relative min-w-40 flex-1 basis-48 sm:max-w-xs">
           <Input
             role="combobox"
+            aria-label="University"
             aria-expanded={showList}
             aria-controls={listId}
             aria-autocomplete="list"
@@ -202,78 +193,88 @@ export function AddUniversityForm({
               }
             }}
           />
-        </Field>
-        {showList && (
-          <ul
-            id={listId}
-            role="listbox"
-            aria-label="Universities"
-            className="absolute inset-x-0 z-20 mt-1 max-h-64 overflow-auto rounded-xl bg-surface py-1 shadow-lg ring-1 ring-line"
-          >
-            {matches.map((u, i) => {
-              const isTaken = taken.has(u.id);
-              return (
-                <li
-                  key={u.id}
-                  id={`${baseId}-opt-${i}`}
-                  role="option"
-                  aria-selected={i === active}
-                  aria-disabled={isTaken}
-                  // mousedown, not click: the input's blur closes the list
-                  // before a click would land.
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    choose(u);
-                  }}
-                  onMouseEnter={() => setActive(i)}
-                  className={cn(
-                    "flex cursor-pointer items-baseline justify-between gap-3 px-3.5 py-2 text-body",
-                    i === active && "bg-fill",
-                    isTaken && "cursor-default text-muted-fg"
-                  )}
-                >
-                  <span className="min-w-0 truncate">{u.name}</span>
-                  <span className="shrink-0 text-xs text-muted-fg">
-                    {isTaken ? "On their list" : wordsLabel(u.supplementalWords)}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+          {showList && (
+            <ul
+              id={listId}
+              role="listbox"
+              aria-label="Universities"
+              className="absolute inset-x-0 z-20 mt-1 max-h-64 overflow-auto rounded-xl bg-surface py-1 shadow-lg ring-1 ring-line"
+            >
+              {matches.map((u, i) => {
+                const isTaken = taken.has(u.id);
+                return (
+                  <li
+                    key={u.id}
+                    id={`${baseId}-opt-${i}`}
+                    role="option"
+                    aria-selected={i === active}
+                    aria-disabled={isTaken}
+                    // mousedown, not click: the input's blur closes the list
+                    // before a click would land.
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      choose(u);
+                    }}
+                    onMouseEnter={() => setActive(i)}
+                    className={cn(
+                      "flex cursor-pointer items-baseline justify-between gap-3 px-3.5 py-2 text-body",
+                      i === active && "bg-fill",
+                      isTaken && "cursor-default text-muted-fg"
+                    )}
+                  >
+                    <span className="min-w-0 truncate">{u.name}</span>
+                    <span className="shrink-0 text-xs text-muted-fg">
+                      {isTaken ? "On their list" : wordsLabel(u.supplementalWords)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {isNew && (
+          <div className="w-44">
+            <Input
+              name="words"
+              aria-label="Supplemental word count"
+              inputMode="numeric"
+              placeholder="Supplemental words"
+              required
+            />
+          </div>
         )}
+
+        <label className="flex min-h-11 items-center gap-2 text-body text-ink">
+          <input
+            key={resets}
+            type="checkbox"
+            name="primary"
+            checked={primary}
+            onChange={(event) => setPrimary(event.target.checked)}
+            className="h-4 w-4 accent-brand"
+          />
+          Primary
+        </label>
+        {primary && (
+          <SegmentedRadio
+            name="round"
+            legend={<span className="sr-only">Round</span>}
+            options={ROUND_OPTIONS}
+            defaultValue=""
+          />
+        )}
+
+        <SubmitButton
+          size="sm"
+          variant="secondary"
+          pendingText="Adding…"
+          className="min-h-11"
+          disabled={query.trim().length < 2 || Boolean(chosen && taken.has(chosen.id))}
+        >
+          Add
+        </SubmitButton>
       </div>
-
-      {isNew && (
-        <Field label="Supplemental word count" hint="The total across its supplemental essays. 0 if it asks none." error={errorFor("words")} required>
-          <Input name="words" inputMode="numeric" placeholder="1,000" className="max-w-40" />
-        </Field>
-      )}
-
-      <label className="flex items-center gap-2 text-body text-ink">
-        <input
-          type="checkbox"
-          name="primary"
-          checked={primary}
-          onChange={(event) => setPrimary(event.target.checked)}
-          className="h-4 w-4 accent-brand"
-        />
-        Primary choice
-        {primaryName && primary && (
-          <span className="text-xs text-muted-fg">— replaces {primaryName}</span>
-        )}
-      </label>
-      {primary && (
-        <SegmentedRadio name="round" legend="Round (optional)" options={ROUND_OPTIONS} defaultValue="" />
-      )}
-
-      <SubmitButton
-        size="sm"
-        variant="secondary"
-        pendingText="Adding…"
-        disabled={query.trim().length < 2 || Boolean(chosen && taken.has(chosen.id))}
-      >
-        Add university
-      </SubmitButton>
       <SaveState state={save} />
     </form>
   );
@@ -327,7 +328,6 @@ export function UniversityRowActions({
             <input type="hidden" name="universityId" value={row.university.id} />
             <Field
               label="Supplemental word count"
-              hint="Changes it for every student who lists this university."
               error={wordsResult && !wordsResult.ok ? wordsResult.error : undefined}
             >
               <Input
