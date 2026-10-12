@@ -16,7 +16,7 @@
 export type InterviewTemplate = {
   id: string;
   name: string;
-  /** One line under the name in the picker: who asks these, and why. */
+  /** Who asks these, and why. Not shown: the picker names a template only. */
   summary: string;
   questions: readonly string[];
 };

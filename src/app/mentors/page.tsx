@@ -6,7 +6,6 @@ import { FilterBar } from "@/components/ui/filter-bar";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
 import { PageTitle } from "@/components/ui/section";
 import { adminScope, scopeProgramFilter } from "@/lib/authz";
-import { ROLES } from "@/lib/constants";
 import { requireAdminAccess } from "@/lib/dal";
 import {
   MENTOR_PRESETS,
@@ -88,7 +87,6 @@ export default async function MentorsPage({
         name: true,
         email: true,
         status: true,
-        role: true,
         avatarUpdatedAt: true,
       },
     }),
@@ -168,7 +166,6 @@ export default async function MentorsPage({
       email: m.email,
       avatarUpdatedAt: m.avatarUpdatedAt,
       accountStatus: m.status,
-      isAdmin: m.role === ROLES.ADMIN,
       programs: theirs.map((p) => ({
         program: p.program,
         label: p.cohort
@@ -199,10 +196,7 @@ export default async function MentorsPage({
         actions={<CreateButton label="Register a mentor" />}
       />
 
-      <CreatePanel
-        title="Register a mentor"
-        hint="They sign in with this email. Pick the programs they work in."
-      >
+      <CreatePanel title="Register a mentor">
         <RegisterMentorForm programs={toProgramOptions(programs)} />
       </CreatePanel>
 
@@ -238,11 +232,7 @@ export default async function MentorsPage({
         viewer={viewer}
         empty={
           activeFilterCount(params) > 0 ? (
-            // The bar above has already said in words that nothing matched, so
-            // this adds the way out and not the count again.
-            <EmptyState variant="no-results" title="No mentor matches">
-              Check the spelling, or reset to see everyone.
-            </EmptyState>
+            <EmptyState variant="no-results" title="No mentor matches" />
           ) : undefined
         }
       />

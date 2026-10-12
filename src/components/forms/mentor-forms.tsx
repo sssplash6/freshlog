@@ -3,7 +3,6 @@
 import { useState } from "react";
 
 import { ProgramTargetsPicker } from "@/components/forms/program-targets-picker";
-import { useAutosave } from "@/components/forms/use-autosave";
 import { EmailInput, Field, Input, NameInput } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -23,7 +22,7 @@ import type { ProgramOption } from "@/lib/queries";
  * was also the only place to edit. Editing a mentor is a thing you do to ONE
  * mentor, so it happens on that mentor's own page.
  *
- * REDESIGN.md §5.2 files both of these under `forms/people-forms.tsx`, together
+ * docs/archive/REDESIGN.md §5.2 files both of these under `forms/people-forms.tsx`, together
  * with the student halves. That merge cannot land here: its rule is that a file
  * merge only lands in the commit that rewrites its call sites, and the student
  * forms' call sites belong to commits 40 and 41.
@@ -73,15 +72,14 @@ export function RegisterMentorForm({ programs }: { programs: ProgramOption[] }) 
           });
         }
       }}
-      className="rounded-xl bg-surface shadow-sm p-4"
     >
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field
-          label="Email"
-          required
-          hint="The mentor signs in with this address."
-          error={errors.email}
-        >
+      {/* One row from `sm`: the address and the two names are three short
+          fields. Two boxes for the name, not one: a box labelled "Full name"
+          is a box people put one word in. `createMentor` joins them, the same
+          as the students form. `items-start`, so an error under one field
+          does not lift the others. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+        <Field label="Email" required error={errors.email} className="min-w-0 sm:flex-[3_1_0%]">
           <EmailInput
             name="email"
             required
@@ -90,44 +88,42 @@ export function RegisterMentorForm({ programs }: { programs: ProgramOption[] }) 
             className={errors.email ? invalidClass : undefined}
           />
         </Field>
-      </div>
-      {/* Two boxes, not one: a box labelled "Full name" is a box people put one
-          word in. `createMentor` joins them, the same as the students form. */}
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <Field label="First name" required error={errors.firstName}>
+        <Field label="First name" required error={errors.firstName} className="min-w-0 sm:flex-[2_1_0%]">
           <Input
             name="firstName"
             type="text"
             required
             autoComplete="off"
             maxLength={NAME_MAX}
+            measure="sm"
             aria-invalid={Boolean(errors.firstName) || undefined}
             className={errors.firstName ? invalidClass : undefined}
           />
         </Field>
-        <Field label="Last name" required error={errors.lastName}>
+        <Field label="Last name" required error={errors.lastName} className="min-w-0 sm:flex-[2_1_0%]">
           <Input
             name="lastName"
             type="text"
             required
             autoComplete="off"
             maxLength={NAME_MAX}
+            measure="sm"
             aria-invalid={Boolean(errors.lastName) || undefined}
             className={errors.lastName ? invalidClass : undefined}
           />
         </Field>
       </div>
       <ProgramTargetsPicker programs={programs} legend="Programs" />
+      {/* The count above the button, each message under its own field (DESIGN §8). */}
+      {errorCount > 0 && (
+        <p role="alert" className="mt-3 text-xs font-medium text-danger-ink">
+          {errorCount === 1 ? "Fix 1 field" : `Fix ${errorCount} fields`}
+        </p>
+      )}
       <div className="mt-3 flex justify-end">
         <SubmitButton pendingText="Registering…">Register mentor</SubmitButton>
       </div>
-      {errorCount > 0 ? (
-        <p role="alert" className="mt-2 text-xs font-medium text-danger-ink">
-          {errorCount === 1 ? "Fix the field marked above." : `Fix the ${errorCount} fields marked above.`}
-        </p>
-      ) : (
-        <SaveState state={save} />
-      )}
+      {errorCount === 0 && <SaveState state={save} />}
     </form>
   );
 }
@@ -146,17 +142,21 @@ function checkRegister(data: FormData): RegisterErrors {
   const errors: RegisterErrors = {};
   const text = (name: string) => String(data.get(name) ?? "").trim();
   const email = text("email");
-  if (!email) errors.email = "Enter the address they sign in with.";
+  if (!email) errors.email = "Required";
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errors.email = "That doesn't look like an email address.";
+    errors.email = "Not an email address";
   }
-  if (!text("firstName")) errors.firstName = "Enter their first name.";
-  if (!text("lastName")) errors.lastName = "Enter their last name.";
+  if (!text("firstName")) errors.firstName = "Required";
+  if (!text("lastName")) errors.lastName = "Required";
   return errors;
 }
 
 /**
  * Edit one mentor: their name, their sign-in email, and their pairings.
+ *
+ * Saved with a button, the way Register is: one save model for the two forms
+ * an admin opens from the same place. A button also keeps an unticked program
+ * from removing a pairing on the click that unticked it.
  *
  * `canEditIdentity` mirrors `updateMentor`'s own rule rather than inventing a
  * second one: a name and a sign-in email are platform-admin writes, because
@@ -185,23 +185,26 @@ export function EditMentorForm({
   programs: ProgramOption[];
   canEditIdentity: boolean;
 }) {
-  const { formProps, save } = useAutosave(updateMentor);
+  const [dirty, setDirty] = useState(false);
+  const [state, action, save] = useSaveState(updateMentor, dirty);
+  // Clean again once the edit is saved, adjusted during render.
+  const [seen, setSeen] = useState(state);
+  if (state !== seen) {
+    setSeen(state);
+    if (state?.ok) setDirty(false);
+  }
 
   return (
     <form
-      {...formProps}
-      className="rise-in mt-2 rounded-xl bg-surface shadow-sm p-4"
+      action={action}
+      onChange={() => setDirty(true)}
       // Remount when the pairings change, so the checkboxes show what was
       // actually saved rather than what was typed.
       key={targets.join("|")}
     >
       <input type="hidden" name="mentorId" value={mentorId} />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field
-          label="Full name"
-          required
-          hint={canEditIdentity ? undefined : "A platform admin changes this."}
-        >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+        <Field label="Full name" required className="min-w-0 sm:flex-1">
           <NameInput
             name="name"
             required
@@ -210,11 +213,7 @@ export function EditMentorForm({
             className={canEditIdentity ? undefined : "text-muted-fg"}
           />
         </Field>
-        <Field
-          label="Email"
-          required
-          hint={canEditIdentity ? undefined : "A platform admin changes this."}
-        >
+        <Field label="Email" required className="min-w-0 sm:flex-1">
           <EmailInput
             name="email"
             required
@@ -233,6 +232,11 @@ export function EditMentorForm({
         // yet joined another is recorded.
         required={false}
       />
+      <div className="mt-3 flex justify-end">
+        <SubmitButton pendingText="Saving…" disabled={!dirty}>
+          Save
+        </SubmitButton>
+      </div>
       <SaveState state={save} />
     </form>
   );

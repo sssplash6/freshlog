@@ -22,19 +22,17 @@ import { createCohort, createProgram } from "@/lib/actions/programs";
  * Open a new program. Platform admins only, gated in the action (§8.3).
  *
  * The bare form: the page puts it in its `CreatePanel`, under the title, with
- * the button that opens it in the title's actions (`page-create.tsx`). Its
- * hint — what happens next — is the panel's, so it lines up with the title
- * rather than sitting indented past a plus sign.
+ * the button that opens it in the title's actions (`page-create.tsx`).
  */
 export function CreateProgramForm() {
   const [, action, save] = useSaveState(createProgram);
 
   return (
     <>
-      <form action={action} className="flex flex-wrap items-end gap-2">
+      <form action={action} className="flex flex-wrap items-end gap-3">
         {/* A visible label, not the placeholder alone: a placeholder is not a
             name, and it is gone the moment somebody starts typing. */}
-        <Field label="Program name" required className="w-full max-w-sm flex-1 sm:min-w-72">
+        <Field label="Program name" required className="w-full sm:w-80">
           <Input
             name="name"
             type="text"
@@ -62,27 +60,18 @@ export function CreateProgramForm() {
 export function CreateCohortForm({
   programId,
   levelId,
-  levelName,
 }: {
   programId: string;
   levelId?: string;
-  levelName?: string;
 }) {
   const [, action, save] = useSaveState(createCohort);
 
   return (
-    <Disclosure
-      label="Add a cohort" variant="create"
-      hint={
-        levelName
-          ? `It joins ${levelName}, and students enrolling at that level pick it.`
-          : "The first one switches NEW enrollments to cohorts; people already here stay put."
-      }
-    >
-      <form action={action} className="flex flex-wrap items-end gap-2">
+    <Disclosure label="Add a cohort" variant="create">
+      <form action={action} className="flex flex-wrap items-end gap-3">
         <input type="hidden" name="programId" value={programId} />
         {levelId && <input type="hidden" name="levelId" value={levelId} />}
-        <Field label="Cohort name" required className="w-56">
+        <Field label="Cohort name" required className="w-full sm:w-80">
           <Input name="name" type="text" required placeholder="e.g. Fall 2026" />
         </Field>
         <SubmitButton pendingText="Adding…">Add cohort</SubmitButton>

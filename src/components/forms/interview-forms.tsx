@@ -5,7 +5,7 @@ import { useState } from "react";
 import { DictateButton } from "@/components/forms/dictate-button";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { DateField } from "@/components/ui/date-field";
-import { GrowingField, Input } from "@/components/ui/field";
+import { Field, GrowingField, Input } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SegmentedRadio } from "@/components/ui/segmented";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -19,8 +19,7 @@ import {
   removeInterviewSlot,
   saveInterviewNotes,
 } from "@/lib/actions/interviews";
-import { cn } from "@/lib/cn";
-import { FEEDBACK_PROMPTS, type InterviewTemplate } from "@/lib/interview-templates";
+import type { InterviewTemplate } from "@/lib/interview-templates";
 import { MEETING_URL_MAX, NOTES_MAX, SLOT_LENGTHS } from "@/lib/peer-interviews";
 
 /**
@@ -42,21 +41,16 @@ export function OfferSlotForm({
 
   return (
     <form action={action} className="space-y-4 px-4 py-3 sm:px-5">
-      {/* Top-aligned, with each label a block line the legend's height and
-          the control the legend's `mt-1` under it. Bottom-aligned, the
-          segmented track — a few pixels taller than an input — lifted its
-          legend and itself off the line Day and Starts at sat on. */}
-      <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start">
-        <div className="text-sm">
-          <span className="block text-muted-fg">Day</span>
-          <div className="mt-1">
-            <DateField name="date" defaultValue={tomorrow} min={today} max={lastDay} required />
-          </div>
-        </div>
-        <label className="block text-sm">
-          <span className="block text-muted-fg">Starts at (Tashkent)</span>
-          <Input name="time" type="time" required defaultValue="15:00" className="mt-1" />
-        </label>
+      {/* Top-aligned: the segmented track is a few pixels taller than an
+          input, and bottom-aligned it lifted its legend off the line Day and
+          Starts at sat on. */}
+      <div className="flex flex-wrap items-start gap-3">
+        <Field label="Day" className="w-full sm:w-48">
+          <DateField name="date" defaultValue={tomorrow} min={today} max={lastDay} required />
+        </Field>
+        <Field label="Starts (Tashkent)" className="w-full sm:w-36">
+          <Input name="time" type="time" required defaultValue="15:00" measure="xs" />
+        </Field>
         <SegmentedRadio
           name="minutes"
           legend="Length"
@@ -67,19 +61,18 @@ export function OfferSlotForm({
           // too and wear none.
         />
       </div>
-      <label className="block text-sm">
-        <span className="text-muted-fg">Meeting link (optional)</span>
+      <Field label="Meeting link">
         <Input
           name="meetingUrl"
           type="url"
           inputMode="url"
           placeholder="https://meet.google.com/…"
           maxLength={MEETING_URL_MAX}
-          className="mt-0.5"
+          measure="lg"
         />
-      </label>
+      </Field>
       <div className="flex flex-wrap items-center gap-3">
-        <SubmitButton pendingText="Adding…">Add this time</SubmitButton>
+        <SubmitButton pendingText="Adding…">Add time</SubmitButton>
         <SaveState state={save} />
       </div>
     </form>
@@ -109,7 +102,7 @@ export type OpenSlot = {
 };
 
 /**
- * Pick one of a classmate's times, pick what to practise, confirm.
+ * Pick one of a classmate's times, pick a topic, confirm.
  *
  * Both choices are radios rather than selects: there are a handful of each,
  * and seeing every option at once is the point — a student is choosing
@@ -126,14 +119,15 @@ export function BookInterviewForm({
 }) {
   const [, action, save] = useSaveState(bookInterview);
   const [slotId, setSlotId] = useState("");
-  const [templateId, setTemplateId] = useState("");
+  // The first topic is chosen already: one fewer tap on every booking.
+  const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
 
   const days = [...new Set(slots.map((s) => s.day))];
 
   return (
     <form action={action} className="space-y-4 px-4 py-3 sm:px-5">
       <fieldset>
-        <legend className="text-sm text-muted-fg">1. Pick a time</legend>
+        <legend className="text-sm text-muted-fg">Time</legend>
         <div className="mt-2 space-y-3">
           {days.map((day) => (
             <div key={day}>
@@ -168,7 +162,7 @@ export function BookInterviewForm({
       </fieldset>
 
       <fieldset>
-        <legend className="text-sm text-muted-fg">2. Pick what to practise</legend>
+        <legend className="text-sm text-muted-fg">Topic</legend>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {templates.map((t) => (
             <label key={t.id} className="flex">
@@ -181,12 +175,8 @@ export function BookInterviewForm({
                 onChange={() => setTemplateId(t.id)}
                 className="peer sr-only"
               />
-              <span className="flex w-full cursor-pointer flex-col rounded-lg bg-fill px-3.5 py-2.5 transition-colors hover:bg-fill-strong peer-checked:bg-brand-soft peer-checked:ring-2 peer-checked:ring-brand peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand">
-                <span className="text-body font-semibold text-ink">{t.name}</span>
-                <span className="mt-0.5 text-xs text-muted-fg">{t.summary}</span>
-                <span className="mt-1 text-xs text-muted-fg">
-                  {t.questions.length} questions
-                </span>
+              <span className="flex min-h-11 w-full cursor-pointer items-center rounded-lg bg-fill px-3.5 py-2 text-body font-semibold text-ink transition-colors hover:bg-fill-strong peer-checked:bg-brand-soft peer-checked:ring-2 peer-checked:ring-brand peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand">
+                {t.name}
               </span>
             </label>
           ))}
@@ -208,7 +198,7 @@ export function CancelInterviewButton({ interviewId }: { interviewId: string }) 
     <div className="flex flex-wrap items-center gap-3">
       <ConfirmInline
         label="Cancel interview"
-        question="Your classmate is told, any answers and feedback are deleted, and the time opens for others to book."
+        question="Cancel? Answers and feedback are deleted."
         confirmLabel="Yes, cancel it"
         cancelLabel="Keep it"
         pendingLabel="Cancelling…"
@@ -232,7 +222,7 @@ export function MarkDoneButton({ interviewId }: { interviewId: string }) {
       <ConfirmInline
         tone="primary"
         label="Mark as done"
-        question="Mark it done? This can't be undone — the notes step opens."
+        question="Mark it done?"
         confirmLabel="Yes, it happened"
         action={action}
         values={{ interviewId }}
@@ -257,8 +247,8 @@ export function MarkAbsentButton({
     <div className="flex flex-wrap items-center gap-3">
       <ConfirmInline
         label="Mark absent"
-        question={`Mark ${partner} absent? The interview closes without notes, and ${partner} is told.`}
-        confirmLabel="Yes, they didn't join"
+        question={`Mark ${partner} absent?`}
+        confirmLabel="Yes, absent"
         cancelLabel="Keep it open"
         pendingLabel="Saving…"
         pending={save.kind === "saving"}
@@ -290,27 +280,24 @@ export function InterviewNotesForm({
   return (
     <form action={action} className="space-y-3 px-4 py-3 sm:px-5">
       <input type="hidden" name="interviewId" value={interviewId} />
-      {/* A div, not a label: a button inside a label steals the click. */}
-      <div className="flex items-center justify-between gap-2 text-sm">
-        <span className="text-muted-fg">Your notes</span>
+      {/* No label of its own: the section around it is titled "Notes". */}
+      <GrowingField
+        name="notes"
+        aria-label="Notes"
+        value={notes}
+        maxLength={NOTES_MAX}
+        onChange={(event) => setNotes(event.target.value)}
+        className="min-h-32 px-2.5 py-2"
+      />
+      {/* design-allow: privacy promise */}
+      <p className="text-xs text-muted-fg">Only you and your mentors see these.</p>
+      <div className="flex flex-wrap items-center gap-3">
         {canDictate && (
           <DictateButton
             interviewId={interviewId}
             onText={(text) => setNotes((was) => (was.trim() ? `${was.trim()} ${text}` : text))}
           />
         )}
-      </div>
-      <GrowingField
-        name="notes"
-        aria-label="Your notes"
-        placeholder="How it went: answers that landed, what to work on next time"
-        value={notes}
-        maxLength={NOTES_MAX}
-        onChange={(event) => setNotes(event.target.value)}
-        className={cn("min-h-32 px-2.5 py-2")}
-      />
-      <p className="text-xs text-muted-fg">Only you and your mentors can read these.</p>
-      <div className="flex flex-wrap items-center gap-3">
         <SubmitButton pendingText="Saving…">Save notes</SubmitButton>
         <SaveState state={save} />
       </div>
@@ -322,17 +309,15 @@ type SentFeedback = { summary: string; wentWell: string; toImprove: string };
 
 /**
  * Correct feedback already sent, while its edit window is open. The page stops
- * rendering this once the window closes, and the action refuses after it too.
+ * rendering this once the window closes, and the action refuses after it too;
+ * the section's caption says when.
  */
 export function EditFeedbackForm({
   interviewId,
   saved,
-  until,
 }: {
   interviewId: string;
   saved: SentFeedback;
-  /** "15:30 Tashkent (UTC+5)" — when the window closes. */
-  until: string;
 }) {
   const [feedback, setFeedback] = useState(saved);
   const unsaved = (Object.keys(saved) as (keyof SentFeedback)[]).some(
@@ -349,19 +334,15 @@ export function EditFeedbackForm({
     <form action={action} className="space-y-3 px-4 py-3 sm:px-5">
       <input type="hidden" name="interviewId" value={interviewId} />
       {boxes.map(({ key, label }) => (
-        <div key={key} className="space-y-1">
-          <p className="text-sm font-semibold text-ink">{label}</p>
-          <p className="text-xs text-muted-fg">{FEEDBACK_PROMPTS[key]}</p>
+        <Field key={key} label={label}>
           <GrowingField
             name={key}
-            aria-label={label}
             value={feedback[key]}
             maxLength={NOTES_MAX}
             onChange={(event) => setFeedback((was) => ({ ...was, [key]: event.target.value }))}
           />
-        </div>
+        </Field>
       ))}
-      <p className="text-xs text-muted-fg">You can change this until {until}.</p>
       <div className="flex flex-wrap items-center gap-3">
         <SubmitButton pendingText="Saving…">Save changes</SubmitButton>
         <SaveState state={save} />

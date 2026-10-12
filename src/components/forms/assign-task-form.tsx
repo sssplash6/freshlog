@@ -4,7 +4,8 @@ import { useState } from "react";
 
 import { TaskPicker, type OpenTask } from "@/components/forms/task-picker";
 import { Select, type SelectOption } from "@/components/select";
-import { Input, Textarea } from "@/components/ui/field";
+import { Labelled } from "@/components/forms/labelled";
+import { Field, GrowingField, Input } from "@/components/ui/field";
 import { DateField } from "@/components/ui/date-field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -12,9 +13,6 @@ import { setMentorAllocation } from "@/lib/actions/students";
 import { formatDuration } from "@/lib/format";
 import { TASK_BANK } from "@/lib/tasks";
 import { RequiredMark } from "@/components/ui/required-mark";
-
-const labelClass =
-  "block text-xs font-medium text-muted-fg";
 
 /**
  * The one way hours reach a student: a grant, with the mentor and task
@@ -88,10 +86,7 @@ export function AssignTaskForm({
   const openTasks = openTasksByMentor[`${programId}:${mentorId}`] ?? [];
 
   return (
-    // No standfirst and no heading of its own: the section this sits in is
-    // already titled "Allocate time", and the paragraph under it explained
-    // three optional fields that say "decide later" in their own placeholders.
-    <form action={action}>
+    <form action={action} className="space-y-3">
       <input type="hidden" name="studentProfileId" value={studentProfileId} />
       <input type="hidden" name="mode" value="add" />
       {programs.length === 1 && (
@@ -99,142 +94,89 @@ export function AssignTaskForm({
       )}
       {banked && <input type="hidden" name="bank" value="1" />}
 
-      {/* Hidden when empty — a banked student in one program has no program,
-          mentor or agenda to pick — so its margin goes with it. */}
-      <div className="mb-3 grid gap-3 empty:hidden sm:grid-cols-2 lg:grid-cols-3">
+      {/* Hidden when empty — a banked student in one program has no program
+          or mentor to pick. */}
+      <div className="grid gap-3 empty:hidden sm:grid-cols-2">
         {programs.length > 1 && (
-          <div className="min-w-0">
-            <span className={labelClass}>
-              Program<RequiredMark />
-            </span>
-            <div className="mt-1">
-              <Select
-                name="programId"
-                ariaLabel="Program"
-                options={programs}
-                placeholder="Which program is this for?"
-                onChange={setProgramId}
-              />
-            </div>
-          </div>
+          <Labelled label="Program" required>
+            <Select
+              name="programId"
+              ariaLabel="Program"
+              options={programs}
+              onChange={setProgramId}
+            />
+          </Labelled>
         )}
         {!isBank && (
-          <div className="min-w-0">
-            <span className={labelClass}>Mentor</span>
-            <div className="mt-1">
-              <Select
-                name="mentorId"
-                ariaLabel="Mentor"
-                options={mentors}
-                placeholder="No one yet — decide later"
-                required={false}
-                onChange={setMentorId}
-              />
-            </div>
-          </div>
+          <Labelled label="Mentor">
+            <Select
+              name="mentorId"
+              ariaLabel="Mentor"
+              options={mentors}
+              placeholder="None"
+              required={false}
+              onChange={setMentorId}
+            />
+          </Labelled>
         )}
-
-        {/* Remounted per mentor: their open tasks lead the list, and a task
-            picked for one mentor must never be left selected under another's.
-            The "" key is the unassigned pool's own open tasks. */}
-        {!banked && (
-          <TaskPicker
-            key={`${programId}:${mentorId}`}
-            className="lg:col-span-2"
-            optional
-            openTasks={openTasks}
-            bankOption={bankPrograms.includes(programId)}
-            onPick={setAgenda}
-          />
-        )}
-
       </div>
 
-      {/* NOTE BESIDE THE FIGURES, which is the owner's own sketch: one tall box
-          for what the hours are for, and the three values that decide them
-          stacked down a narrow column to its right. They were six cells in one
-          three-column grid, so the note — the only field anybody types a
-          sentence into — was a single-line input spanning the full width while
-          the numbers wrapped around it.
+      {/* Remounted per mentor: their open tasks lead the list, and a task
+          picked for one mentor must never be left selected under another's.
+          The "" key is the unassigned pool's own open tasks. */}
+      {!banked && (
+        <TaskPicker
+          key={`${programId}:${mentorId}`}
+          optional
+          openTasks={openTasks}
+          bankOption={bankPrograms.includes(programId)}
+          onPick={setAgenda}
+        />
+      )}
 
-          The third slot in that column is PAID where the program bills per
-          student, and the submit button where it does not: a program with no
-          money field had an empty cell under its deadline and its own action
-          orphaned below the form. */}
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_16rem]">
-        {isBank ? (
-          <BankChoice
-            created={!bankedPrograms.includes(programId)}
-            past={pastByProgram[programId]}
+      {isBank ? (
+        <BankChoice
+          created={!bankedPrograms.includes(programId)}
+          past={pastByProgram[programId]}
+        />
+      ) : (
+        <Field label="Note">
+          <GrowingField name="taskNote" maxLength={500} />
+        </Field>
+      )}
+
+      {/* The figures that decide the grant on one row, with the submit at its
+          end, where Log a session keeps its own. */}
+      <div className="flex flex-wrap items-end gap-3">
+        <Field label="Minutes" required className="w-full sm:w-28">
+          <Input
+            name="minutes"
+            type="number"
+            inputMode="numeric"
+            min="1"
+            step="1"
+            required
+            measure="xs"
+            // "e.g.", or a bare 180 reads as a value already filled in.
+            placeholder="e.g. 180"
           />
-        ) : (
-          <label className="flex min-w-0 flex-col">
-            <span className={labelClass}>Note</span>
-            <Textarea
-              name="taskNote"
-              maxLength={500}
-              placeholder="Optional — e.g. review the intro of each essay"
-              className="mt-1 min-h-32 flex-1"
-            />
-          </label>
-        )}
-
-        <div className="grid content-start gap-3">
-          <label className="min-w-0">
-            <span className={labelClass}>
-              Minutes<RequiredMark />
-            </span>
+        </Field>
+        <Labelled label="Use by" required className="w-full sm:w-48">
+          <DateField name="deadline" label="Use by" required />
+        </Labelled>
+        {showAmountPaid && (
+          <Field label="Paid ($)" required className="w-full sm:w-28">
             <Input
-              name="minutes"
+              name="amountPaid"
               type="number"
-              inputMode="numeric"
-              min="1"
-              step="1"
+              min="0"
+              step="0.01"
               required
-              // "e.g.", or a bare 180 reads as a value already filled in.
-              placeholder="e.g. 180"
-              className="mt-1"
+              measure="xs"
+              placeholder="e.g. 1200"
             />
-          </label>
-
-          {/* A div, not a label: `DateField`'s trigger is a button that opens
-              our own calendar, the same one Log a session uses — the native
-              dd/mm/yyyy box was the only date in the app that looked like
-              this. */}
-          <div className="min-w-0">
-            <span className={labelClass}>
-              Use by<RequiredMark />
-            </span>
-            <div className="mt-1">
-              <DateField name="deadline" label="Use by" required />
-            </div>
-          </div>
-
-          {showAmountPaid && (
-            <label className="min-w-0">
-              <span className={labelClass}>
-                Paid for these hours ($)<RequiredMark />
-              </span>
-              <Input
-                name="amountPaid"
-                type="number"
-                min="0"
-                step="0.01"
-                required
-                placeholder="e.g. 1200"
-                className="mt-1"
-              />
-            </label>
-          )}
-        </div>
-      </div>
-
-      {/* ONE place for the submit, whatever the program asks: under the
-          fields, at the right, where Log a session keeps its own. It was a
-          full-width button in the grid's last cell — or, when Paid took that
-          cell, an auto-width one under it — so the same form moved its button
-          between programs. */}
-      <div className="mt-3 flex justify-end">
+          </Field>
+        )}
         <SubmitButton pendingText="Loading…">Allocate time</SubmitButton>
       </div>
       <SaveState state={save} />
@@ -255,60 +197,36 @@ function BankChoice({
   past?: { allocated: number; logged: number };
 }) {
   if (!created || !past || (past.allocated === 0 && past.logged === 0)) {
-    return (
-      <p className="self-center text-sm text-muted-fg">
-        These minutes are added to their hour bank. Every meeting draws from it,
-        whichever mentor holds it, so no mentor is named here.
-      </p>
-    );
+    // Why there is no mentor to name: every meeting draws the bank.
+    return <p className="text-sm text-muted-fg">Added to their hour bank.</p>;
   }
   return (
-    <fieldset className="min-w-0">
-      <legend className={labelClass}>
-        Do we include past hours in this hour bank?
+    <fieldset className="min-w-0 space-y-1.5">
+      <legend className="text-sm font-medium text-ink">
+        Include past hours?
         <RequiredMark />
       </legend>
-      <p className="mt-1 text-xs text-muted-fg">
-        Allocated to mentors {formatDuration(past.allocated)} · logged so far{" "}
-        {formatDuration(past.logged)}
+      <p className="text-xs tabular-nums text-muted-fg">
+        {formatDuration(past.allocated)} allocated · {formatDuration(past.logged)} logged
       </p>
-      <div className="mt-2 space-y-2">
-        <BankRadio
-          value="yes"
-          title="Yes, include them"
-          detail="Meetings already logged draw the bank from now on, and unused time held with mentors folds into it."
-        />
-        <BankRadio
-          value="no"
-          title="No, keep them separate"
-          detail="Past meetings stay on the time they were logged against."
-        />
+      <div className="flex flex-wrap gap-2 pt-1">
+        <BankRadio value="yes" title="Yes, include them" />
+        <BankRadio value="no" title="No, keep them separate" />
       </div>
     </fieldset>
   );
 }
-function BankRadio({
-  value,
-  title,
-  detail,
-}: {
-  value: "yes" | "no";
-  title: string;
-  detail: string;
-}) {
+function BankRadio({ value, title }: { value: "yes" | "no"; title: string }) {
   return (
-    <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-line bg-surface px-3 py-2.5 has-[:checked]:border-brand has-[:checked]:bg-brand-soft">
+    <label className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink has-[:checked]:border-brand has-[:checked]:bg-brand-soft">
       <input
         type="radio"
         name="includePrevious"
         value={value}
         required
-        className="mt-1 accent-brand"
+        className="accent-brand"
       />
-      <span className="min-w-0">
-        <span className="block text-sm font-medium text-ink">{title}</span>
-        <span className="block text-xs text-muted-fg">{detail}</span>
-      </span>
+      {title}
     </label>
   );
 }

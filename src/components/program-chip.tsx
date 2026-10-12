@@ -14,7 +14,7 @@ export type ProgramRef = { id: string; name: string; colorIndex: number };
  * read. A dot is found without reading.
  *
  * A DOT and the name, deliberately — not the tinted pill a person wears.
- * `REDESIGN.md` §5.6.5's instinct is right that a program is a place rather
+ * `docs/archive/REDESIGN.md` §5.6.5's instinct is right that a program is a place rather
  * than a face, and a place does not get a badge with initials in it; it gets a
  * mark on the map. The dot also lets the label sit inside a dense table cell
  * without a second tinted rectangle appearing next to the person's.

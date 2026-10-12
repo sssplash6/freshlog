@@ -25,10 +25,6 @@ import {
   setProgramSpace,
   setProgramTracksPayment,
 } from "@/lib/actions/programs";
-import { formatDuration } from "@/lib/format";
-
-const labelClass =
-  "block text-xs text-muted-fg";
 
 /** Rename the program — one settings row, saved on its own. */
 export function RenameProgramForm({
@@ -60,11 +56,10 @@ export function RenameProgramForm({
             maxLength={80}
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="min-w-56 flex-1"
           />
           {/* Secondary: a settings page has no one action it exists for, and
               the masthead above already carries the program's primary. */}
-          <SubmitButton variant="secondary" pendingText="Saving…">Save name</SubmitButton>
+          <SubmitButton variant="secondary" pendingText="Saving…">Save</SubmitButton>
         </form>
       }
       state={<SaveState state={save} />}
@@ -76,12 +71,16 @@ export function RenameProgramForm({
  * Assign a mentor to this program — the same pairing the mentors page edits,
  * reached from the program's side. Program-wide unless something narrower is
  * named: a level, or a cohort inside it.
+ *
+ * A fold, like Add a cohort and Add a level beside it: one way to add a thing
+ * to a program. Open by default only while the program has nobody to teach.
  */
 export function AssignMentorForm({
   programId,
   mentors,
   levels,
   cohorts,
+  defaultOpen = false,
 }: {
   programId: string;
   mentors: SelectOption[];
@@ -89,6 +88,7 @@ export function AssignMentorForm({
   levels?: { id: string; name: string; cohorts: SelectOption[] }[];
   /** Its FLAT cohorts — empty whenever it has levels. */
   cohorts: SelectOption[];
+  defaultOpen?: boolean;
 }) {
   const [, action, save] = useSaveState(assignMentorToProgram);
   const [levelId, setLevelId] = useState("");
@@ -97,67 +97,50 @@ export function AssignMentorForm({
   const cohortOptions = leveled ? (level?.cohorts ?? []) : cohorts;
 
   return (
-    <form action={action}>
-      <input type="hidden" name="programId" value={programId} />
-      {/* The heading takes its own line and the controls one row under it:
-          select, then the button at its end. They shared one wrapping line,
-          and in the program's narrow side card the 224px select pushed
-          "Assign" down onto a row of its own, a button floating under a field
-          it belongs beside (October 2026). The selects grow and the button
-          keeps its size; under `sm` they stack, full width. */}
-      <h3 className="text-body font-medium text-ink">Assign a mentor</h3>
-      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
-        <div className="min-w-0 sm:min-w-48 sm:flex-1">
-          {(leveled || cohortOptions.length > 0) && (
-            <span className={labelClass}>Mentor</span>
-          )}
-          <div className={leveled || cohortOptions.length > 0 ? "mt-1" : undefined}>
-            <Select
-              name="mentorId"
-              ariaLabel="Mentor"
-              options={mentors}
-              placeholder="Choose a mentor"
-            />
-          </div>
-        </div>
-        {leveled && (
-          <div className="min-w-0 sm:min-w-40 sm:flex-1">
-            <span className={labelClass}>Level</span>
-            <div className="mt-1">
+    <Disclosure label="Assign a mentor" variant="create" defaultOpen={defaultOpen}>
+      <form action={action}>
+        <input type="hidden" name="programId" value={programId} />
+        {/* Mentor, then level and cohort where the program has them, and the
+            button at the row's end; each field as wide as its measure. */}
+        <div className="flex flex-wrap items-end gap-3">
+          <Field label="Mentor" className="w-full sm:w-80">
+            <Select name="mentorId" ariaLabel="Mentor" options={mentors} />
+          </Field>
+          {leveled && (
+            <Field label="Level" className="w-full sm:w-48">
               <Select
                 name="levelId"
                 ariaLabel="Level"
+                measure="sm"
                 options={levels!.map((l) => ({ value: l.id, label: l.name }))}
                 placeholder="Program-wide"
                 required={false}
                 onChange={(value) => setLevelId(value)}
               />
-            </div>
-          </div>
-        )}
-        {cohortOptions.length > 0 && (
-          <div className="min-w-0 sm:min-w-40 sm:flex-1">
-            <span className={labelClass}>Cohort</span>
-            <div className="mt-1">
+            </Field>
+          )}
+          {cohortOptions.length > 0 && (
+            <Field label="Cohort" className="w-full sm:w-48">
               {/* `key` remounts when the level changes, so a cohort picked
                   under one level is never submitted under another. */}
               <Select
                 key={levelId}
                 name="cohortId"
                 ariaLabel="Cohort"
+                measure="sm"
                 options={cohortOptions}
                 placeholder={leveled ? "Whole level" : "Program-wide"}
                 required={false}
               />
-            </div>
-          </div>
-        )}
-        <SubmitButton variant="secondary" pendingText="Assigning…" className="shrink-0 max-sm:w-full">
-          Assign
-        </SubmitButton>
-      </div>
-      <SaveState state={save} />
-    </form>
+            </Field>
+          )}
+          <SubmitButton variant="secondary" pendingText="Assigning…">
+            Assign
+          </SubmitButton>
+        </div>
+        <SaveState state={save} />
+      </form>
+    </Disclosure>
   );
 }
 
@@ -189,7 +172,7 @@ export function RemoveMentorButton({
         values={{ assignmentId }}
         pending={save.kind === "saving"}
         label="Remove"
-        question="They leave this program. Hours already allocated to students stay."
+        question="Remove from this program?"
         confirmLabel="Yes, remove"
         pendingLabel="Removing…"
       />
@@ -203,13 +186,10 @@ export function CreateLevelForm({ programId }: { programId: string }) {
   const [, action, save] = useSaveState(createLevel);
 
   return (
-    <Disclosure
-      label="Add a level" variant="create"
-      hint="The first one makes this a leveled program: new enrollments pick a level, and its cohorts sit under one."
-    >
-      <form action={action} className="flex flex-wrap items-end gap-2">
+    <Disclosure label="Add a level" variant="create">
+      <form action={action} className="flex flex-wrap items-end gap-3">
         <input type="hidden" name="programId" value={programId} />
-        <Field label="Level name" required className="w-56">
+        <Field label="Level name" required className="w-full sm:w-80">
           <Input name="name" type="text" required placeholder="e.g. Emerging" />
         </Field>
         <SubmitButton pendingText="Adding…">Add level</SubmitButton>
@@ -237,7 +217,7 @@ export function DeleteLevelButton({
         values={{ levelId }}
         pending={save.kind === "saving"}
         label={`Delete ${levelName}`}
-        question="Nothing is in it, so nothing moves."
+        question="Delete this level?"
         confirmLabel="Yes, delete"
         pendingLabel="Deleting…"
       />
@@ -266,7 +246,7 @@ export function DeleteCohortButton({
         // Named, because the row it sits in is one of several and a bare
         // "Delete" announces nothing about which.
         label={`Delete ${cohortName}`}
-        question="Nobody is in it, so nothing moves."
+        question="Delete this cohort?"
         confirmLabel="Yes, delete"
         pendingLabel="Deleting…"
       />
@@ -276,33 +256,13 @@ export function DeleteCohortButton({
 }
 
 /**
- * Whether a setting is on, as a word beside the button that flips it. The
- * button names the change ("Ask for amounts"), and which way it is going says
- * nothing about where it is now — that was a sentence in the description,
- * three lines up. Both are kept; this is the one the eye finds first (October
- * 2026 audit). Text, not colour alone.
- */
-function OnOff({ on }: { on: boolean }) {
-  return (
-    <span
-      className={
-        on
-          ? "inline-flex h-6 items-center rounded-full bg-brand-soft px-2.5 text-xs font-semibold text-brand"
-          : "inline-flex h-6 items-center rounded-full bg-fill px-2.5 text-xs font-medium text-muted-fg"
-      }
-    >
-      {on ? "On" : "Off"}
-    </span>
-  );
-}
-
-/**
  * Does allocating time here also ask what the student paid?
  *
  * A button that names the change rather than a switch that needs a legend
  * beside it: the row already says what the setting is, so the control only has
- * to say which way it is about to move. One 44px target, one write, and the
- * state it is in now is a sentence rather than a position.
+ * to say which way it is about to move. One 44px target, one write. The label
+ * is the whole statement of state — no pill and no sentence beside it (October
+ * 2026: the state was said three times per row).
  */
 export function TrackPaymentToggle({
   programId,
@@ -315,15 +275,9 @@ export function TrackPaymentToggle({
 
   return (
     <SettingsRow
-      label="Track amount paid per allocation"
-      description={
-        tracksPayment
-          ? "Allocating time asks for the amount, and the program's total carries it."
-          : undefined
-      }
+      label="Amount paid"
       control={
-        <form action={action} className="flex flex-wrap items-center gap-3">
-          <OnOff on={tracksPayment} />
+        <form action={action}>
           <input type="hidden" name="programId" value={programId} />
           <input
             type="hidden"
@@ -331,7 +285,7 @@ export function TrackPaymentToggle({
             value={tracksPayment ? "off" : "on"}
           />
           <SubmitButton variant="secondary" pendingText="Saving…">
-            {tracksPayment ? "Stop asking for amounts" : "Ask for amounts"}
+            {tracksPayment ? "Stop asking" : "Ask for amounts"}
           </SubmitButton>
         </form>
       }
@@ -362,16 +316,13 @@ export function InstituteSpaceForm({
 
   return (
     <SettingsRow
-      label="Its own institute"
+      label="Institute"
       htmlFor={id}
-      description={
-        institute
-          ? "The people who work only here see it as its own place, with its levels in the sidebar."
-          : "Show it as its own place to the people who work only here. Access does not change."
-      }
       control={
         <div className="flex flex-wrap items-end gap-3">
-          <form action={action} className="flex min-w-56 flex-1 flex-wrap items-end gap-3">
+          {/* `contents`: the name, its button and "Show as program" share one
+              row, though they are two forms. */}
+          <form action={action} className="contents">
             <input type="hidden" name="programId" value={programId} />
             <input type="hidden" name="space" value="INSTITUTE" />
             <Input
@@ -382,10 +333,9 @@ export function InstituteSpaceForm({
               placeholder={programName}
               value={name}
               onChange={(event) => setName(event.target.value)}
-              className="min-w-56 flex-1"
             />
             <SubmitButton variant="secondary" pendingText="Saving…">
-              {institute ? "Save name" : "Show as an institute"}
+              {institute ? "Save" : "Show as institute"}
             </SubmitButton>
           </form>
           {/* No name field: turning it off keeps the name for next time. */}
@@ -394,7 +344,7 @@ export function InstituteSpaceForm({
               <input type="hidden" name="programId" value={programId} />
               <input type="hidden" name="space" value="PROGRAM" />
               <SubmitButton variant="secondary" pendingText="Saving…">
-                Show as a program
+                Show as program
               </SubmitButton>
             </form>
           )}
@@ -418,14 +368,8 @@ export function HourBankToggle({
   return (
     <SettingsRow
       label="Hour banks"
-      description={
-        hourBank
-          ? "Each student's hours are one bank that every mentor draws from."
-          : "Hours are held per mentor. Turn this on to hold each student's hours as one bank."
-      }
       control={
-        <form action={action} className="flex flex-wrap items-center gap-3">
-          <OnOff on={hourBank} />
+        <form action={action}>
           <input type="hidden" name="programId" value={programId} />
           <input type="hidden" name="hourBank" value={hourBank ? "off" : "on"} />
           <SubmitButton variant="secondary" pendingText="Saving…">
@@ -450,18 +394,13 @@ export function ClassHoursToggle({
 
   return (
     <SettingsRow
-      label="Logs hours as classes"
-      description={
-        classHours
-          ? "The roster is groups, added by name. Logging an hour is logging it for a group's class."
-          : "The roster is students, and an hour is logged for a student."
-      }
+      label="Class hours"
       control={
         <form action={action}>
           <input type="hidden" name="programId" value={programId} />
           <input type="hidden" name="classHours" value={classHours ? "off" : "on"} />
           <SubmitButton variant="secondary" pendingText="Saving…">
-            {classHours ? "Log hours per student" : "Log hours as classes"}
+            {classHours ? "Log per student" : "Log as classes"}
           </SubmitButton>
         </form>
       }
@@ -483,14 +422,8 @@ export function TracksAdmissionsToggle({
   return (
     <SettingsRow
       label="University applications"
-      description={
-        tracksAdmissions
-          ? "Each student's page shows their scores, essays and university list, for their mentors and this program's admins."
-          : "Turn this on to follow each student's scores, essays and university list on their page."
-      }
       control={
-        <form action={action} className="flex flex-wrap items-center gap-3">
-          <OnOff on={tracksAdmissions} />
+        <form action={action}>
           <input type="hidden" name="programId" value={programId} />
           <input type="hidden" name="tracksAdmissions" value={tracksAdmissions ? "off" : "on"} />
           <SubmitButton variant="secondary" pendingText="Saving…">
@@ -504,25 +437,75 @@ export function TracksAdmissionsToggle({
 }
 
 /**
+ * The two boxes a standard grant is: minutes, and the days to use them in.
+ * Shared by the program's row and each level's.
+ */
+function GrantBoxes({
+  minutesId,
+  minutes,
+  days,
+  setMinutes,
+  setDays,
+  placeholders,
+}: {
+  minutesId: string;
+  minutes: string;
+  days: string;
+  setMinutes: (value: string) => void;
+  setDays: (value: string) => void;
+  /** What an empty box means — "Off", or the grant a level inherits. */
+  placeholders: { minutes: string; days: string };
+}) {
+  return (
+    <>
+      <Field label="Minutes">
+        <Input
+          id={minutesId}
+          name="minutes"
+          type="number"
+          inputMode="numeric"
+          min="1"
+          step="1"
+          measure="xs"
+          placeholder={placeholders.minutes}
+          value={minutes}
+          onChange={(event) => setMinutes(event.target.value)}
+        />
+      </Field>
+      <Field label="Use within (days)">
+        <Input
+          name="days"
+          type="number"
+          inputMode="numeric"
+          min="1"
+          max="1095"
+          step="1"
+          measure="xs"
+          placeholder={placeholders.days}
+          value={days}
+          onChange={(event) => setDays(event.target.value)}
+        />
+      </Field>
+    </>
+  );
+}
+
+/**
  * The grant every student who joins this program receives: minutes into their
- * unassigned pool, to use within a number of days of joining. Both boxes
- * empty is off. The description says what is in force now, and that a change
- * reaches only the students who join after it.
+ * hour bank or unassigned pool, to use within a number of days of joining. Both
+ * boxes empty is off, and the empty boxes say so. A change reaches only the
+ * students who join after it.
  */
 export function StandardHoursForm({
   programId,
   standardMinutes,
   standardDays,
-  hourBank,
 }: {
   programId: string;
   standardMinutes: number | null;
   standardDays: number | null;
-  /** Where the time lands: the student's hour bank, or their unassigned pool. */
-  hourBank: boolean;
 }) {
   const minutesId = useId();
-  const daysId = useId();
   const [minutes, setMinutes] = useState(standardMinutes?.toString() ?? "");
   const [days, setDays] = useState(standardDays?.toString() ?? "");
   const dirty =
@@ -534,49 +517,17 @@ export function StandardHoursForm({
     <SettingsRow
       label="Standard hours"
       htmlFor={minutesId}
-      description={
-        standardMinutes !== null && standardDays !== null
-          ? `Every student who joins gets ${formatDuration(standardMinutes)} ${hourBank ? "in their hour bank" : "unassigned"}, to use within ${standardDays} day${standardDays === 1 ? "" : "s"}. A change reaches only later joiners.`
-          : "Off. Set both boxes to give every student who joins the same time."
-      }
       control={
         <form action={action} className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="programId" value={programId} />
-          <div>
-            <label htmlFor={minutesId} className={labelClass}>
-              Minutes
-            </label>
-            <Input
-              id={minutesId}
-              name="minutes"
-              type="number"
-              inputMode="numeric"
-              min="1"
-              step="1"
-              placeholder="e.g. 600"
-              value={minutes}
-              onChange={(event) => setMinutes(event.target.value)}
-              className="w-28"
-            />
-          </div>
-          <div>
-            <label htmlFor={daysId} className={labelClass}>
-              Use within (days)
-            </label>
-            <Input
-              id={daysId}
-              name="days"
-              type="number"
-              inputMode="numeric"
-              min="1"
-              max="1095"
-              step="1"
-              placeholder="e.g. 90"
-              value={days}
-              onChange={(event) => setDays(event.target.value)}
-              className="w-28"
-            />
-          </div>
+          <GrantBoxes
+            minutesId={minutesId}
+            minutes={minutes}
+            days={days}
+            setMinutes={setMinutes}
+            setDays={setDays}
+            placeholders={{ minutes: "Off", days: "Off" }}
+          />
           <SubmitButton variant="secondary" pendingText="Saving…">Save</SubmitButton>
         </form>
       }
@@ -589,23 +540,21 @@ export function StandardHoursForm({
  * The grant every student joining at THIS level receives — the pair the
  * program's own `StandardHoursForm` holds, one row down, where Emerging's two
  * hours and Advanced's fifteen actually differ. Both boxes empty means the
- * level inherits the program's.
+ * level inherits the program's, which the empty boxes show.
  */
 export function LevelStandardHoursForm({
   levelId,
-  levelName,
   standardMinutes,
   standardDays,
-  hourBank,
+  inherited,
 }: {
   levelId: string;
-  levelName: string;
   standardMinutes: number | null;
   standardDays: number | null;
-  hourBank: boolean;
+  /** The program's own grant, shown in the empty boxes. */
+  inherited: { minutes: number | null; days: number | null };
 }) {
   const minutesId = useId();
-  const daysId = useId();
   const [minutes, setMinutes] = useState(standardMinutes?.toString() ?? "");
   const [days, setDays] = useState(standardDays?.toString() ?? "");
   const dirty =
@@ -617,49 +566,20 @@ export function LevelStandardHoursForm({
     <SettingsRow
       label="Standard hours"
       htmlFor={minutesId}
-      description={
-        standardMinutes !== null && standardDays !== null
-          ? `Every student who joins ${levelName} gets ${formatDuration(standardMinutes)} ${hourBank ? "in their hour bank" : "unassigned"}, to use within ${standardDays} day${standardDays === 1 ? "" : "s"}. A change reaches only later joiners.`
-          : `Inherits the program's. Set both to give ${levelName} its own, instead of allocating by hand.`
-      }
       control={
         <form action={action} className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="levelId" value={levelId} />
-          <div>
-            <label htmlFor={minutesId} className={labelClass}>
-              Minutes
-            </label>
-            <Input
-              id={minutesId}
-              name="minutes"
-              type="number"
-              inputMode="numeric"
-              min="1"
-              step="1"
-              placeholder="e.g. 600"
-              value={minutes}
-              onChange={(event) => setMinutes(event.target.value)}
-              className="w-28"
-            />
-          </div>
-          <div>
-            <label htmlFor={daysId} className={labelClass}>
-              Use within (days)
-            </label>
-            <Input
-              id={daysId}
-              name="days"
-              type="number"
-              inputMode="numeric"
-              min="1"
-              max="1095"
-              step="1"
-              placeholder="e.g. 90"
-              value={days}
-              onChange={(event) => setDays(event.target.value)}
-              className="w-28"
-            />
-          </div>
+          <GrantBoxes
+            minutesId={minutesId}
+            minutes={minutes}
+            days={days}
+            setMinutes={setMinutes}
+            setDays={setDays}
+            placeholders={{
+              minutes: inherited.minutes?.toString() ?? "Off",
+              days: inherited.days?.toString() ?? "Off",
+            }}
+          />
           <SubmitButton variant="secondary" pendingText="Saving…">Save</SubmitButton>
         </form>
       }
@@ -696,12 +616,8 @@ export function ArchiveProgramButton({
         action={action}
         values={{ programId, restore: archived ? "true" : "false" }}
         pending={save.kind === "saving"}
-        label={archived ? `Reopen ${programName}` : `Archive ${programName}`}
-        question={
-          archived
-            ? "It comes back to the pickers and the lists it left."
-            : "It leaves the pickers and the lists. Every session and allocation stays where it is."
-        }
+        label={archived ? "Reopen program" : "Archive program"}
+        question={archived ? `Reopen ${programName}?` : `Archive ${programName}?`}
         confirmLabel={archived ? "Yes, reopen it" : "Yes, archive it"}
         pendingLabel={archived ? "Reopening…" : "Archiving…"}
       />
@@ -734,8 +650,8 @@ export function DeleteProgramButton({
         action={action}
         values={{ programId }}
         pending={save.kind === "saving"}
-        label={`Delete ${programName}`}
-        question="This removes the program and its empty cohorts."
+        label="Delete program"
+        question={`Delete ${programName} for good?`}
         confirmLabel="Yes, delete it"
         pendingLabel="Deleting…"
         disabledReason={blockedReason}

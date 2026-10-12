@@ -10,12 +10,13 @@ import { Button } from "@/components/ui/button";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { DateField } from "@/components/ui/date-field";
 import { Select } from "@/components/select";
-import { Field, GrowingField, Input } from "@/components/ui/field";
+import { Field, GrowingField, Input, MEASURE } from "@/components/ui/field";
+import { cn } from "@/lib/cn";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { attendanceOf, timeKindOf } from "@/lib/constants";
-import { formatDate, formatMinutes, toDateInputValue } from "@/lib/format";
+import { formatDate, toDateInputValue } from "@/lib/format";
 import { programToday } from "@/lib/when";
 import { deleteSession, restoreSession, voidSession } from "@/lib/actions/sessions";
 import type { SessionUpdate } from "@/lib/actions/shared";
@@ -61,10 +62,9 @@ export function SessionRowActions({
   /** Admins only: remove the row outright rather than voiding it. */
   canDelete?: boolean;
   /**
-   * Who this row is about, for the panel's heading and the trigger's name. A
-   * log of forty rows has forty identical pencils, and an edit panel that does
-   * not say whose session it holds is one wrong tap from correcting — or
-   * deleting — somebody else's.
+   * Who this row is about, for the trigger's accessible name. A log of forty
+   * rows has forty identical pencils; the panel opens beside its own row, so
+   * the row itself says whose session it holds.
    */
   student?: string | null;
   mentor?: string | null;
@@ -151,9 +151,6 @@ export function SessionRowActions({
     .filter(Boolean)
     .join(" ");
   const when = formatDate(new Date(`${currentDate}T00:00:00Z`));
-  const heading = [who, when, formatMinutes(currentMinutes)]
-    .filter(Boolean)
-    .join(" · ");
 
   return (
     <RowActionMenu
@@ -172,21 +169,15 @@ export function SessionRowActions({
     >
       {() => (
         <>
-      <p className="mb-3 text-sm font-semibold text-ink">{heading}</p>
-
       {!canEdit && (
-        <RowActionGroup label="This session is voided">
-          <p className="text-xs text-muted-fg">
-            Its hours went back to the balance. Restoring charges them again;
-            correcting it is only possible once it counts.
-          </p>
+        <RowActionGroup label="Voided">
           {/* Void's inverse, which did not exist: a voided row could not be
               corrected and could not be un-voided, so the fix for one mis-tap
               was to delete the record and log it again from memory. */}
-          <form action={restoreAction} className="mt-2">
+          <form action={restoreAction}>
             <input type="hidden" name="sessionId" value={session.id} />
             <SubmitButton size="sm" variant="secondary">
-              Restore it
+              Restore
             </SubmitButton>
             <SaveState state={restoreSave} />
           </form>
@@ -194,7 +185,7 @@ export function SessionRowActions({
       )}
 
       {canEdit && (
-        <RowActionGroup label="Edit this session">
+        <RowActionGroup>
           <form
             ref={editFormRef}
             onSubmit={(event) => event.preventDefault()}
@@ -225,16 +216,19 @@ export function SessionRowActions({
               </div>
             )}
 
-            <div className="flex gap-2">
-              <Field label="Minutes" className="w-28 shrink-0">
+            <div className="flex flex-wrap items-end gap-3">
+              {/* Text with a numeric keypad, as on Log a session: no spinner,
+                  and no scroll-wheel nudge taken as an edit. */}
+              <Field label="Minutes" className={cn("w-full min-w-0", MEASURE.xs)}>
                 <Input
                   name="minutes"
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  min="1"
-                  step="1"
+                  pattern="[0-9]*"
+                  autoComplete="off"
+                  measure="xs"
                   required
-                   defaultValue={currentMinutes}
+                  defaultValue={currentMinutes}
                 />
               </Field>
               {/* A div, not a `Field` (a <label>): the date field's trigger is
@@ -242,7 +236,7 @@ export function SessionRowActions({
                   every click of the word. Its value is a hidden input, which
                   raises no `change` for the form's autosave, so it says so
                   itself. */}
-              <div className="min-w-0 flex-1 space-y-1.5">
+              <div className={cn("w-full min-w-0 space-y-1.5", MEASURE.sm)}>
                 <span className="block text-sm font-medium text-ink">Date</span>
                 <DateField
                   name="date"
@@ -256,11 +250,7 @@ export function SessionRowActions({
             </div>
 
             <Field label="Notes">
-              <GrowingField
-                name="note"
-                 defaultValue={currentNote ?? ""}
-                placeholder="What you covered"
-              />
+              <GrowingField name="note" defaultValue={currentNote ?? ""} />
             </Field>
 
             <AttendancePicker
@@ -271,21 +261,23 @@ export function SessionRowActions({
             <TimeKindPicker defaultValue={currentTimeKind} compact />
 
           </form>
-          {editStatus === "failed" && (
-            <p role="alert" className="mt-2 text-sm text-danger-ink">
-              This edit could not be saved. Try changing the field again.
-            </p>
-          )}
           {/* There is no Save and no Done: every change saves a moment after
-              it is made, and the menu closes the way any menu does. */}
-          <p aria-live="polite" className="mt-3 text-xs text-muted-fg">
-            {editStatus === "saving" ? "Saving…" : "Changes save as you make them."}
+              it is made, and the menu closes the way any menu does. Only the
+              save in flight, or the one that failed, is said. */}
+          <p aria-live="polite" className="mt-2 min-h-4 text-xs">
+            {editStatus === "failed" ? (
+              <span role="alert" className="text-danger-ink">
+                Not saved. Try again.
+              </span>
+            ) : editStatus === "saving" ? (
+              <span className="text-muted-fg">Saving…</span>
+            ) : null}
           </p>
         </RowActionGroup>
       )}
 
       {canEdit && (
-        <RowActionGroup label="If it should not count">
+        <RowActionGroup>
           {/* One tap, then Undo. Voiding has an exact inverse —
               `restoreSession` charges the same row again — so it no longer
               asks first; it does it, says so, and offers to take it back.
@@ -296,7 +288,6 @@ export function SessionRowActions({
             size="sm"
             disabled={voiding}
             aria-busy={voiding || undefined}
-            className="h-auto min-h-8 w-full justify-start py-1.5 text-left"
             onClick={() => {
               const formData = new FormData();
               formData.set("sessionId", session.id);
@@ -322,14 +313,7 @@ export function SessionRowActions({
               });
             }}
           >
-            {/* `whitespace-normal` on the BUTTON does nothing: cn() joins
-                rather than merges, so Button's `whitespace-nowrap` is emitted
-                after it in the sheet and wins — the label clipped mid-word
-                instead of taking the second line this padding is built for.
-                `white-space` inherits, so the fix lives on the text itself. */}
-            <span className="whitespace-normal">
-              {voiding ? "Voiding…" : "Void session — keeps the row, returns the hours"}
-            </span>
+            {voiding ? "Voiding…" : "Void"}
           </Button>
         </RowActionGroup>
       )}
@@ -341,8 +325,8 @@ export function SessionRowActions({
             action={delAction}
             values={{ sessionId: session.id }}
             pending={delSave.kind === "saving"}
-            label="Delete this session"
-            question="Removes the row entirely. Void it instead if the meeting really happened."
+            label="Delete"
+            question="Delete this session?"
             confirmLabel="Yes, delete it"
             pendingLabel="Deleting…"
           />

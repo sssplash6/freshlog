@@ -12,14 +12,14 @@ import { CheckIcon, ChevronRightIcon } from "@/components/icons";
 import { PageTitle, Section } from "@/components/ui/section";
 import { StatStrip } from "@/components/ui/stat-strip";
 import { TabLinks } from "@/components/ui/segmented";
-import { DeadlineText } from "@/components/ui/status-chip";
+import { DeadlineText, StatusChip } from "@/components/ui/status-chip";
 import { LinkRow } from "@/components/ui/link-row";
 import { FILL_CELL, Table, Td, type Column } from "@/components/ui/table";
 import { attentionFor } from "@/lib/attention";
 import { cn } from "@/lib/cn";
 import { SESSION_STATUS, USER_STATUS } from "@/lib/constants";
 import { requireMentor } from "@/lib/dal";
-import { formatBalance, formatDate, formatDaysAgo, formatDuration } from "@/lib/format";
+import { formatBalance, formatDate, formatDuration } from "@/lib/format";
 import { mentorOwnTasks } from "@/lib/mentor-tasks";
 import { prisma } from "@/lib/prisma";
 import { profileOf } from "@/lib/profile";
@@ -132,7 +132,7 @@ function studentColumns(showProgram: boolean, showLevel: boolean): Column[] {
       ? [{ label: "Level", sort: "level", className: "w-36" } as Column]
       : []),
     {
-      label: "Remaining with you",
+      label: "Remaining",
       align: "right",
       sort: "remaining",
       emphasis: "key",
@@ -144,7 +144,6 @@ function studentColumns(showProgram: boolean, showLevel: boolean): Column[] {
     // 860 — the last session and the chevron were cut off the edge. A name is
     // what the row is for.
     { label: "Last session", sort: "seen", className: "w-36 max-xl:sm:hidden" },
-    { label: "", className: "w-14" },
   ];
 }
 
@@ -314,18 +313,7 @@ export default async function MentorHomePage({
   return (
     <div className="space-y-4">
       <PageTitle
-        eyebrow="Mentor"
         title="Home"
-        subtitle={
-          // The programs, and only when there is no figure strip below to say
-          // more than they do. A mentor holding no time at all is the one
-          // reader for whom "0 min completed · 0 min remaining" is a true
-          // sentence that says nothing except that the page could not think of
-          // anything to tell them.
-          hasFigures ? undefined : programs.size > 0 ? (
-            [...programs.values()].join(" · ")
-          ) : undefined
-        }
         actions={
           // Not above "No programs yet": with no program there is nobody to
           // log a meeting with, and the form would say so one page later.
@@ -373,7 +361,7 @@ export default async function MentorHomePage({
           mentor ticked off in the last fortnight, so a mistaken tick can be
           taken back from the same place it was made. */}
       {adminTasks.length > 0 && (
-        <Section title="From your program admins" count={openAdminTasks || undefined}>
+        <Section title="Tasks" count={openAdminTasks || undefined}>
           <ul className="divide-y divide-line">
             {adminTasks.map((a) => {
               const done = Boolean(a.completedAt);
@@ -399,10 +387,8 @@ export default async function MentorHomePage({
                         done={done}
                         className="text-xs"
                       />
-                      {" · "}
-                      {a.task.program.name}
-                      {" · from "}
-                      {a.task.createdBy.name ?? a.task.createdBy.email}
+                      {/* The program only when there is more than one to tell apart. */}
+                      {programs.size > 1 && ` · ${a.task.program.name}`}
                     </p>
                     {a.task.note && (
                       <p className="mt-1.5 whitespace-pre-line text-sm text-ink">{a.task.note}</p>
@@ -497,16 +483,13 @@ export default async function MentorHomePage({
                 ? "No programs yet"
                 : "Nobody holds time with you"
             }
-          >
-            {assignments.length === 0
-              ? "An admin has to add you to a program."
-              : "An admin allocates it. You can still log a meeting with anyone in your programs."}
-          </EmptyState>
+          />
         ) : (
           <>
-            {/* A phone row is two lines: who, then the one sentence about
-                their time. The table's stacked rows repeated four labels under
-                every name, so a student took 172px and one fitted on screen. */}
+            {/* A phone row is two lines: who, then their time and its use-by
+                date, in the table's words. The table's stacked rows repeated
+                four labels under every name, so a student took 172px and one
+                fitted on screen. */}
             <ul className="divide-y divide-line sm:hidden">
               {caseloadRows.map((s) => {
                 const balance = balanceOf(s);
@@ -530,37 +513,28 @@ export default async function MentorHomePage({
                           <span className="min-w-0 truncate text-body font-semibold text-ink">
                             {nameOf(s)}
                           </span>
-                          {/* Beside the name, not at the end of the line under
-                              it: behind a long use-by date it was cut to "Advanc…". */}
-                          {showLevel && levelOf(s) && (
-                            <span className="shrink-0 text-xs text-muted-fg">
-                              {levelOf(s)?.name}
-                            </span>
-                          )}
                           {s.profile.user.status !== USER_STATUS.ACTIVE && (
-                            <span className="shrink-0 text-xs text-muted-fg">
-                              not approved
-                            </span>
+                            <StatusChip severity="attention" className="shrink-0">
+                              Pending approval
+                            </StatusChip>
                           )}
                         </span>
                         <span className="mt-0.5 block min-w-0 truncate text-xs text-muted-fg">
                           <span className={cn("tabular-nums", TONE[balance.tone])}>
                             {balance.text}
-                            {balance.rank === 1 && " left"}
                           </span>
-                          {s.deadline && balance.rank < 2 && (
+                          {/* Only beside time still held: an expired balance
+                              already says "expired". */}
+                          {s.deadline && balance.rank === 1 && (
                             <>
-                              {" · "}
-                              {balance.rank === 1 ? "use by " : ""}
+                              {" · use by "}
                               <DeadlineText
                                 deadline={s.deadline}
                                 now={viewer.now}
                                 within={EXPIRY_WINDOW_DAYS.mentor}
-                                className={balance.rank === 0 ? "font-normal text-muted-fg" : undefined}
                               />
                             </>
                           )}
-                          {showProgram && ` · ${s.program.name}`}
                         </span>
                       </span>
                       <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg" />
@@ -576,8 +550,7 @@ export default async function MentorHomePage({
                 const seen = lastSeen.get(s.profile.id);
                 return (
                   // The whole row opens, so the row that tints on hover is the
-                  // row that opens. It tinted everywhere and opened only from
-                  // the name and a 32px chevron.
+                  // row that opens.
                   <LinkRow
                     key={`${s.profile.id}:${s.program.id}`}
                     href={`/students/${s.profile.id}`}
@@ -594,9 +567,9 @@ export default async function MentorHomePage({
                         secondary={false}
                       >
                         {s.profile.user.status !== USER_STATUS.ACTIVE && (
-                          <span className="shrink-0 text-xs font-normal text-muted-fg">
-                            not approved
-                          </span>
+                          <StatusChip severity="attention" className="shrink-0">
+                            Pending approval
+                          </StatusChip>
                         )}
                       </PersonCell>
                     </Td>
@@ -626,25 +599,10 @@ export default async function MentorHomePage({
                     </Td>
                     <Td className="whitespace-nowrap max-xl:sm:hidden">
                       {seen ? (
-                        <span className="flex flex-col">
-                          <span className="text-ink">{formatDate(seen)}</span>
-                          <span className="text-xs text-muted-fg">
-                            {formatDaysAgo(seen, viewer.now)}
-                          </span>
-                        </span>
+                        <span className="text-ink">{formatDate(seen)}</span>
                       ) : (
                         <span className="text-muted-fg">—</span>
                       )}
-                    </Td>
-                    <Td align="right" corner>
-                      <Link
-                        href={`/students/${s.profile.id}`}
-                        transitionTypes={["nav-forward"]}
-                        aria-label={`Open ${nameOf(s)}`}
-                        className="-my-2 inline-flex h-8 w-8 items-center justify-center rounded-lg align-middle text-muted-fg transition-colors hover:text-brand"
-                      >
-                        <ChevronRightIcon className="h-4 w-4" />
-                      </Link>
                     </Td>
                   </LinkRow>
                 );

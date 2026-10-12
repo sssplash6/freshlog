@@ -32,10 +32,33 @@ export const fieldChrome =
 // "e.g. 600" from reading like a typed 600 — but typed text is INK, not grey,
 // so the two were never the same colour, and at 70% the hint measured 2.87:1
 // on the field's fill: a prompt nobody could read is no prompt. October 2026.
-export const inputClasses = `${fieldChrome} min-h-11 w-full px-3.5 py-2.5 text-base placeholder:text-muted-fg sm:text-body`;
+const fieldBox = `${fieldChrome} min-h-11 w-full px-3.5 py-2.5 text-base placeholder:text-muted-fg sm:text-body`;
 
-export function Input({ className, ...props }: ComponentProps<"input">) {
-  return <input className={cn(inputClasses, className)} {...props} />;
+/**
+ * How wide a field may grow (DESIGN.md W1). A field fills its box up to its
+ * measure and no further, and is full width on a phone. Before this every
+ * field was `w-full` and nothing else, so a two-digit minutes box was 420px
+ * and the sessions search 1120px (October 2026 audit). Width is a prop, never
+ * a class: `cn` does not resolve conflicts, so a `w-28` beside `w-full` was a
+ * coin toss.
+ */
+export type Measure = "xs" | "sm" | "md" | "lg" | "full";
+export const MEASURE: Record<Measure, string> = {
+  xs: "sm:max-w-28",
+  sm: "sm:max-w-48",
+  md: "sm:max-w-80",
+  lg: "sm:max-w-xl",
+  full: "",
+};
+
+/** The field box at the default measure, for the primitives that draw their own. */
+export const inputClasses = `${fieldBox} ${MEASURE.md}`;
+export const fieldClasses = (measure: Measure = "md") => cn(fieldBox, MEASURE[measure]);
+
+type Measured = { measure?: Measure };
+
+export function Input({ className, measure = "md", ...props }: ComponentProps<"input"> & Measured) {
+  return <input className={cn(fieldClasses(measure), className)} {...props} />;
 }
 
 /**
@@ -51,7 +74,7 @@ export function Input({ className, ...props }: ComponentProps<"input">) {
  * `title` is what Chrome and Safari print under the field when the pattern
  * fails, so it has to be the sentence, not a label.
  */
-export function NameInput({ className, ...props }: ComponentProps<"input">) {
+export function NameInput({ className, ...props }: ComponentProps<"input"> & Measured) {
   return (
     <Input
       type="text"
@@ -60,7 +83,7 @@ export function NameInput({ className, ...props }: ComponentProps<"input">) {
       // The anchors are implicit in `pattern`; keeping them in the source would
       // make it `^^…$$` and match nothing.
       pattern={FULL_NAME_RE.source.replace(/^\^|\$$/g, "")}
-      title="First and last name, please — not just one word."
+      title="First and last name"
       className={className}
       {...props}
     />
@@ -76,7 +99,7 @@ export function NameInput({ className, ...props }: ComponentProps<"input">) {
  * and without `autoComplete="email"` the password managers that actually fill
  * these forms can't find the field.
  */
-export function EmailInput({ className, ...props }: ComponentProps<"input">) {
+export function EmailInput({ className, ...props }: ComponentProps<"input"> & Measured) {
   return (
     <Input
       type="email"
@@ -91,10 +114,10 @@ export function EmailInput({ className, ...props }: ComponentProps<"input">) {
   );
 }
 
-export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
+export function Textarea({ className, measure = "lg", ...props }: ComponentProps<"textarea"> & Measured) {
   return (
     <textarea
-      className={cn(inputClasses, "resize-y leading-relaxed", className)}
+      className={cn(fieldClasses(measure), "resize-y leading-relaxed", className)}
       {...props}
     />
   );
@@ -126,8 +149,9 @@ export function GrowingField({
   defaultValue,
   value: controlled,
   onChange,
+  measure = "lg",
   ...props
-}: ComponentProps<"textarea">) {
+}: ComponentProps<"textarea"> & Measured) {
   // Uncontrolled by default, which is every caller but one. Pass `value` and
   // the parent owns it instead — dictation needs to push text INTO this box,
   // and a field that only ever reads its own keystrokes cannot be written to.
@@ -141,7 +165,7 @@ export function GrowingField({
     // audit: 200 characters made a 1,846px page). The track is now capped at the
     // container, and both layers break the run instead (`anywhere`, which unlike
     // `break-words` also lowers the min-content size).
-    <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)]">
+    <div className={cn("grid w-full min-w-0 grid-cols-[minmax(0,1fr)]", MEASURE[measure])}>
       <textarea
         {...props}
         rows={1}
@@ -151,7 +175,7 @@ export function GrowingField({
           onChange?.(event);
         }}
         className={cn(
-          inputClasses,
+          fieldBox,
           "col-start-1 row-start-1 min-w-0 resize-none overflow-hidden leading-relaxed [field-sizing:content] [overflow-wrap:anywhere]",
           className
         )}
@@ -159,7 +183,7 @@ export function GrowingField({
       <span
         aria-hidden="true"
         className={cn(
-          inputClasses,
+          fieldBox,
           "invisible col-start-1 row-start-1 min-w-0 whitespace-pre-wrap leading-relaxed [overflow-wrap:anywhere]",
           className
         )}

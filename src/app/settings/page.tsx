@@ -1,4 +1,4 @@
-import { DensityChoice, ThemeChoice } from "@/components/display-choices";
+import { ThemeChoice } from "@/components/display-choices";
 import { BookingLinksForm } from "@/components/forms/booking-link-form";
 import { AvatarForm, OwnNameForm } from "@/components/forms/profile-forms";
 import {
@@ -128,23 +128,10 @@ export default async function SettingsPage() {
 
       {/* Kept in this browser rather than on the account: a laptop at a desk
           and a phone on the bus want different answers, and neither choice is
-          worth a round trip. The account menu carries the same two rows. */}
+          worth a round trip. The account menu carries the same row. */}
       <Section title="Display">
         <div className="px-4 py-2 sm:px-5">
-          {/* Theme drops its hairline on a phone, where Density — the row
-              under it — is hidden and the line would rule off nothing. */}
-          <SettingsRow
-            label="Theme"
-            trailing
-            className="max-sm:border-b-0"
-            control={<ThemeChoice />}
-          />
-          <SettingsRow
-            label="Density"
-            trailing
-            className="max-sm:hidden"
-            control={<DensityChoice />}
-          />
+          <SettingsRow label="Theme" trailing control={<ThemeChoice />} />
         </div>
       </Section>
 

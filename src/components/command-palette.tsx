@@ -13,7 +13,7 @@ import { createPortal } from "react-dom";
 
 import { Avatar } from "@/components/avatar";
 import { SearchIcon } from "@/components/icons";
-import { fieldChrome } from "@/components/ui/field";
+import { Input } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
 import {
   matchNav,
@@ -243,7 +243,7 @@ function Palette({
                 id: `${listId}-a-log-${students[0].id}`,
                 href: logFor(students[0].id),
                 group: "Actions" as const,
-                label: `Log a session with ${students[0].name ?? students[0].email}`,
+                label: `Log a session · ${students[0].name ?? students[0].email}`,
               },
             ]
           : []),
@@ -421,7 +421,7 @@ function Palette({
         <div className="flex items-center gap-2 border-b border-line p-3">
           <div className="relative min-w-0 flex-1">
             <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
-            <input
+            <Input
               ref={inputRef}
               autoFocus
               type="text"
@@ -444,10 +444,8 @@ function Palette({
               // The rail's own words, so the field that opened this and the
               // field inside it promise the same thing.
               placeholder={mentors ? "Find a person…" : "Find a student…"}
-              className={cn(
-                fieldChrome,
-                "min-h-11 w-full py-2.5 pl-9 pr-3.5 text-base placeholder:text-muted-fg sm:text-body"
-              )}
+              measure="full"
+              className="pl-9"
             />
           </div>
           {sheet && (
@@ -521,23 +519,17 @@ function Palette({
             {/* "Nothing" only when nothing at all came back: it said "No one
                 matches" under a list of pages that did. */}
             {failed
-              ? "Search is not answering. Try again in a moment."
+              ? "Search failed."
               : nobody && groups.every((g) => g.group === "Actions")
-                ? `Nothing matches “${q}”.`
+                ? "No matches"
                 : nobody
-                  ? `No people match “${q}”.`
+                  ? "No people found"
                   : pending && groups.length === 0
                     ? "Searching…"
                     : ""}
           </div>
         </div>
 
-        {/* Keys are no use on a phone, where there is no keyboard to press them. */}
-        {!sheet && (
-          <p className="border-t border-line px-4 py-2 text-xs text-muted-fg">
-            ↑↓ to move · ↵ to open{canLog && students.length > 0 ? " · ⌘↵ to log a session with a student" : ""} · esc to close
-          </p>
-        )}
       </div>
     </>
   );

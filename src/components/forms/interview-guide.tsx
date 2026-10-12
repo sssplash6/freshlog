@@ -5,7 +5,7 @@ import { useRef, useState, useTransition } from "react";
 
 import { DictateButton } from "@/components/forms/dictate-button";
 import { Button, buttonClasses } from "@/components/ui/button";
-import { GrowingField } from "@/components/ui/field";
+import { Field, GrowingField } from "@/components/ui/field";
 import { Section } from "@/components/ui/section";
 import {
   saveInterviewAnswer,
@@ -13,21 +13,16 @@ import {
   submitInterviewFeedback,
 } from "@/lib/actions/interviews";
 import type { ActionState } from "@/lib/actions/shared";
-import {
-  FEEDBACK_DISCUSS,
-  FEEDBACK_PROMPTS,
-  INTERVIEW_INTRO,
-  INTERVIEW_RUBRIC,
-  INTERVIEW_TURNS,
-} from "@/lib/interview-templates";
+import { INTERVIEW_RUBRIC } from "@/lib/interview-templates";
 import { NOTES_MAX } from "@/lib/peer-interviews";
 
 type Feedback = { summary: string; wentWell: string; toImprove: string };
 
 /**
- * One screen at a time, in the order the session is run: introductions, the
- * rubric, each question, then feedback. Each student moves at their own pace;
- * the two coordinate by talking.
+ * One screen at a time, in the order the session is run: the rubric, each
+ * question, then feedback. Each student moves at their own pace; the two
+ * coordinate by talking. No captions: the questions and the rubric are the
+ * content, and each appears once.
  *
  * Everything typed is saved as the box loses focus and again on Next, so a
  * closed tab loses at most the box being typed in.
@@ -50,7 +45,7 @@ export function InterviewGuide({
   canDictate: boolean;
 }) {
   const router = useRouter();
-  const steps = ["intro", "rubric", ...questions.map((_, i) => `q${i}`), "feedback"];
+  const steps = ["rubric", ...questions.map((_, i) => `q${i}`), "feedback"];
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>(savedAnswers);
   const [feedback, setFeedback] = useState<Feedback>(savedFeedback);
@@ -119,7 +114,7 @@ export function InterviewGuide({
         delete savedRef.current[key];
         setErrors((was) => ({
           ...was,
-          [stepIndex]: "That didn't save. Check your connection and try again.",
+          [stepIndex]: "Didn't save. Check your connection.",
         }));
       }
     });
@@ -149,7 +144,7 @@ export function InterviewGuide({
           setSubmitError(result?.error ?? "Could not send. Try again.");
         }
       } catch {
-        setSubmitError("That didn't save. Check your connection and try again.");
+        setSubmitError("Didn't save. Check your connection.");
       }
     });
   }
@@ -169,24 +164,15 @@ export function InterviewGuide({
           </a>
         )}
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-line" aria-hidden>
-        <div className="h-full bg-brand transition-all" style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
-      </div>
-
-      {current === "intro" && (
-        <Section title="1. Introductions">
-          <p className="px-4 py-2 text-sm text-ink sm:px-5">{INTERVIEW_INTRO}</p>
-        </Section>
-      )}
 
       {current === "rubric" && (
-        <Section title="2. Review the feedback rubric" caption="Familiarize yourselves with the four evaluation criteria before starting the interview.">
+        <Section title="Rubric">
           <Rubric />
         </Section>
       )}
 
       {qIndex !== null && (
-        <Section title={`3. Interview practice · question ${qIndex + 1} of ${questions.length}`} caption={INTERVIEW_TURNS}>
+        <Section title={`Question ${qIndex + 1}`}>
           <div className="space-y-3 px-4 py-2 sm:px-5">
             <p className="text-base font-semibold text-ink">{questions[qIndex]}</p>
             <div className="flex items-center justify-between gap-2 text-sm">
@@ -209,7 +195,6 @@ export function InterviewGuide({
             </div>
             <GrowingField
               aria-label="Your answer"
-              placeholder="Press Speak and answer out loud, or type"
               value={answers[qIndex] ?? ""}
               maxLength={NOTES_MAX}
               onChange={(e) => setAnswers((was) => ({ ...was, [qIndex]: e.target.value }))}
@@ -220,15 +205,11 @@ export function InterviewGuide({
       )}
 
       {current === "feedback" && (
-        <Section title="4. Partner feedback" caption={FEEDBACK_DISCUSS}>
+        <Section title="Feedback">
           <div className="space-y-4 px-4 py-2 sm:px-5">
-            <details className="text-sm">
-              <summary className="cursor-pointer text-muted-fg">The four criteria</summary>
-              <Rubric />
-            </details>
-            <Box label="Summary" prompt={FEEDBACK_PROMPTS.summary} value={feedback.summary} onChange={setBox("summary")} onBlur={saveCurrent} />
-            <Box label="What went well" prompt={FEEDBACK_PROMPTS.wentWell} value={feedback.wentWell} onChange={setBox("wentWell")} onBlur={saveCurrent} />
-            <Box label="What to improve" prompt={FEEDBACK_PROMPTS.toImprove} value={feedback.toImprove} onChange={setBox("toImprove")} onBlur={saveCurrent} />
+            <Box label="Summary" value={feedback.summary} onChange={setBox("summary")} onBlur={saveCurrent} />
+            <Box label="What went well" value={feedback.wentWell} onChange={setBox("wentWell")} onBlur={saveCurrent} />
+            <Box label="What to improve" value={feedback.toImprove} onChange={setBox("toImprove")} onBlur={saveCurrent} />
           </div>
         </Section>
       )}
@@ -259,7 +240,7 @@ export function InterviewGuide({
               </p>
             )}
             <Button disabled={submitPending} onClick={submit}>
-              {submitPending ? "Sending…" : `Send feedback to ${partner}`}
+              {submitPending ? "Sending…" : "Send feedback"}
             </Button>
           </div>
         ) : (
@@ -289,28 +270,23 @@ function Rubric() {
 
 function Box({
   label,
-  prompt,
   value,
   onChange,
   onBlur,
 }: {
   label: string;
-  prompt: string;
   value: string;
   onChange: (value: string) => void;
   onBlur: () => void;
 }) {
   return (
-    <div className="space-y-1">
-      <p className="text-sm font-semibold text-ink">{label}</p>
-      <p className="text-xs text-muted-fg">{prompt}</p>
+    <Field label={label}>
       <GrowingField
-        aria-label={label}
         value={value}
         maxLength={NOTES_MAX}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
       />
-    </div>
+    </Field>
   );
 }

@@ -44,14 +44,16 @@ export function StudentInterviews({
   viewer: ViewerContext;
 }) {
   return (
-    <Section
-      title="Practice interviews"
-      count={interviews.length}
-      caption="What they rehearsed with a classmate."
-    >
+    <Section title="Practice interviews" count={interviews.length}>
       <ul className="divide-y divide-line">
         {interviews.map((i) => {
-          const chip = status(PHASE_STATUS[interviewPhase(i, viewer.now)], viewer);
+          // Only an interview that still needs marking is flagged, as on the
+          // student's own Interviews list.
+          const phase = interviewPhase(i, viewer.now);
+          const chip =
+            phase === "to-mark" || phase === "absent"
+              ? status(PHASE_STATUS[phase], viewer)
+              : null;
           const template = templateById(i.template);
           const hasDetail =
             i.answers.length > 0 || i.notes.trim() !== "" || i.given || i.received;
@@ -64,7 +66,7 @@ export function StudentInterviews({
                   </p>
                   <p className="text-xs text-muted-fg">
                     {formatSlotWhen(i.slot.startsAt)} · {formatSlotSpan(i.slot)}
-                    {i.completedAt && <> · completed {formatDate(i.completedAt)}</>}
+                    {i.completedAt && <> · Completed {formatDate(i.completedAt)}</>}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -74,7 +76,7 @@ export function StudentInterviews({
               </div>
               {hasDetail ? (
                 <div className="px-4 sm:px-5">
-                  <Disclosure label="Answers, notes and feedback">
+                  <Disclosure label="Details">
                     <div className="-mx-4 space-y-3 sm:-mx-5">
                       {i.answers.length > 0 && (
                         <dl className="divide-y divide-line">

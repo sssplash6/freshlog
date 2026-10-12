@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { CheckIcon, ChevronRightIcon } from "@/components/icons";
+import { ChevronRightIcon } from "@/components/icons";
 import { Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
@@ -27,8 +27,8 @@ import {
  * A viewer had to learn nine layouts to find out what was wrong, and two of
  * the nine could not be dismissed or acted on at all.
  *
- * Every row is the same three things: what state it is in, what it is about,
- * and what to do. The wording comes from `lib/status.ts`, already in this
+ * Every row is the same: what state it is in, who or what it is about, and
+ * which program. The wording comes from `lib/status.ts`, already in this
  * reader's voice — this file chooses no words and no colours.
  *
  * The count in the header is ACTIONABLE rows only. A mentor waiting on a
@@ -37,7 +37,7 @@ import {
  */
 export function AttentionList({
   statuses,
-  title = "Active issues",
+  title = "Needs you",
   /** Rendered when nothing needs the viewer. */
   empty,
   /** A row's own action — Approve, an RSVP — keyed by status type. */
@@ -91,7 +91,7 @@ export function AttentionList({
   const rowsOf = (rows: Status[]) => (
     <ul className="divide-y divide-line">
       {rows.map((s, i) => (
-        <AttentionRow
+        <StatusRow
           key={`${s.type}-${s.subject?.id ?? ""}-${i}`}
           status={s}
           action={renderAction?.(s)}
@@ -101,32 +101,17 @@ export function AttentionList({
     </ul>
   );
 
-  const groupedBody = groups?.map(({ group, rows }) => {
-          // Four rows that each say "Allocate time from a mentor on their page."
-          // say it once: said under the group's own heading, and left off the
-          // rows (October 2026 audit — the notifications page read as the same
-          // sentence down a column).
-          const shared =
-            rows.length >= 3 &&
-            rows[0].explanation &&
-            rows.every((r) => r.explanation === rows[0].explanation)
-              ? rows[0].explanation
-              : null;
-          return (
-            <div key={group}>
-              {/* On the card's edge, like every heading on the page ground —
-                  indented it read as belonging inside the card above. */}
-              <h3 className="flex flex-wrap items-baseline gap-x-1.5 pb-1.5 pt-1 text-xs text-muted-fg">
-                {STATUS_GROUP_LABELS[group]}
-                <span className="tabular-nums">{rows.length}</span>
-                {shared && <span className="font-normal">· {shared}</span>}
-              </h3>
-              <div className="overflow-clip rounded-xl bg-surface shadow-sm">
-                {rowsOf(shared ? rows.map((r) => ({ ...r, explanation: undefined })) : rows)}
-              </div>
-            </div>
-          );
-        });
+  const groupedBody = groups?.map(({ group, rows }) => (
+    <div key={group}>
+      {/* On the card's edge, like every heading on the page ground —
+          indented it read as belonging inside the card above. */}
+      <h3 className="flex flex-wrap items-baseline gap-x-1.5 pb-1.5 pt-1 text-xs text-muted-fg">
+        {STATUS_GROUP_LABELS[group]}
+        <span className="tabular-nums">{rows.length}</span>
+      </h3>
+      <div className="overflow-clip rounded-xl bg-surface shadow-sm">{rowsOf(rows)}</div>
+    </div>
+  ));
 
   // Collapsed, the header is the summary and the body is what was inside the
   // card: the same rows, grouped or not, under the same heading.
@@ -192,10 +177,8 @@ export function AttentionList({
       action={action}
     >
       {statuses.length === 0 ? (
-        <p className="flex items-baseline gap-1.5 px-4 py-3 text-body text-muted-fg sm:px-5">
-          {/* Inbox zero gets the tick — the one moment "nothing" is the news. */}
-          <CheckIcon className="check-draw h-3.5 w-3.5 shrink-0 translate-y-0.5 text-ink/60" />
-          {empty ?? "No active issues."}
+        <p className="px-4 py-3 text-body text-muted-fg sm:px-5">
+          {empty ?? "Nothing needs you"}
         </p>
       ) : (
         rowsOf(statuses)
@@ -205,14 +188,17 @@ export function AttentionList({
 }
 
 /**
- * One row: chip · subject · why · program · what to do.
+ * One status as a row: chip · subject · program, on one line that wraps. The
+ * status's explanation is the chip's hover title and screen-reader text, never
+ * a line on screen (DESIGN.md C6). Shared by the bell's list, the student's
+ * home and the admin's Home, so the same state looks the same everywhere.
  *
  * The whole row is the link when there is nowhere else to click, so a thumb
  * has the full width to hit. When the row carries its own control — Approve,
  * "I'll be there" — the link shrinks to the subject, because a row that both
  * navigates and holds a button is a row where a mis-tap does the wrong thing.
  */
-function AttentionRow({
+export function StatusRow({
   status,
   action,
   dismissible = false,
@@ -221,30 +207,20 @@ function AttentionRow({
   action?: React.ReactNode;
   dismissible?: boolean;
 }) {
-  const { explanation, subject, program, href } = status;
+  const { subject, program, href } = status;
 
-  // Three lines, always in the same order so two rows of the same kind look
-  // alike whatever the length of a name: the state (and where), who it is
-  // about, why. The chip and the subject side by side wrapped or not
-  // depending on the name, and a program on a fourth line of its own made
-  // every row a paragraph.
   const body = (
-    <>
-      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <StatusChip status={{ ...status, explanation: undefined }} />
-        {program && (
-          <span className="min-w-0 truncate text-xs text-muted-fg">{program.name}</span>
-        )}
-      </span>
+    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+      <StatusChip status={status} />
       {subject && (
-        <span className="mt-1 block min-w-0 truncate text-body font-medium text-ink">
+        <span className="min-w-0 max-w-full truncate text-body font-medium text-ink">
           {subject.name}
         </span>
       )}
-      {explanation && (
-        <span className="mt-0.5 block text-xs text-muted-fg">{explanation}</span>
+      {program && (
+        <span className="min-w-0 max-w-full truncate text-xs text-muted-fg">{program.name}</span>
       )}
-    </>
+    </span>
   );
 
   // The chevron belongs to the ROW, not to the link inside it: pinned to the

@@ -640,7 +640,7 @@ export const KIND_OPTIONS: readonly FilterOption[] = [
 /**
  * The notification categories, each as the types it covers.
  *
- * `Notification.category` does not exist yet — REDESIGN.md 5.1 adds it, mapped
+ * `Notification.category` does not exist yet — docs/archive/REDESIGN.md 5.1 adds it, mapped
  * from these same 17 types inside `notify()`. Until it lands the filter groups
  * by `type in (...)`, which is the same question asked of the columns that are
  * actually there; when the column arrives this table becomes a one-line

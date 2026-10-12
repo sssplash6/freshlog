@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const TOAST_MS = 4000;
-/** Long enough to read the sentence AND reach the button. */
+/** Long enough to read the message AND reach the button. */
 const TOAST_WITH_ACTION_MS = 6000;
-const FAILED = "Couldn’t save that change — please try again.";
+const FAILED = "Couldn’t save. Try again.";
 const EVENT = "app-toast";
 
 type ToastInput = {

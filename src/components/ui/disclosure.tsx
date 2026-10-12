@@ -1,5 +1,4 @@
 import { ChevronDownIcon, PlusIcon } from "@/components/icons";
-import { buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
 /**
@@ -38,7 +37,6 @@ import { cn } from "@/lib/cn";
 export function Disclosure({
   label,
   count,
-  hint,
   defaultOpen = false,
   variant = "link",
   aside,
@@ -50,17 +48,12 @@ export function Disclosure({
   /** Shown in the summary when the fold hides countable rows. */
   count?: number;
   /** One line under the summary, ≤ 12 words. */
-  hint?: React.ReactNode;
   defaultOpen?: boolean;
   /**
    * How the trigger reads.
    *
    *   link    a quiet brand line with a chevron. The default, and right for a
    *           fold that sits beside content the reader came for.
-   *   button  a full-width button. For the ONE thing a page exists to let you
-   *           do next to reading it — adding students to a program — where a
-   *           text link above a table is not an action anybody finds.
-   *
    *   create  the link's line with a plus in place of the chevron, for a fold
            that holds a form making something new — "New program", "Add a
            cohort", "Register a mentor". A chevron says "there is more to
@@ -70,7 +63,7 @@ export function Disclosure({
    *
    * It is still a `<details>`: the target grows, the semantics do not change.
    */
-  variant?: "link" | "button" | "create";
+  variant?: "link" | "create";
   /**
    * Rendered on the summary's own line, after the label.
    *
@@ -85,15 +78,11 @@ export function Disclosure({
   // Nothing to open.
   if (count === 0) return null;
 
-  const button = variant === "button";
-
   const fold = (
     <details open={defaultOpen} className={cn("group", !aside && className)}>
       <summary
         className={cn(
-          button
-            ? buttonClasses("secondary", "md", "w-full cursor-pointer list-none")
-            : "flex min-h-11 w-fit cursor-pointer list-none items-center gap-1.5 rounded-md text-body font-medium text-brand hover:text-brand-dark",
+          "flex min-h-11 w-fit cursor-pointer list-none items-center gap-1.5 rounded-md text-body font-medium text-brand hover:text-brand-dark",
           "focus-visible:outline-2 focus-visible:outline-offset-2",
           // Safari still paints its own triangle without this.
           "[&::-webkit-details-marker]:hidden"
@@ -115,17 +104,7 @@ export function Disclosure({
           <span className="tabular-nums text-muted-fg">· {count}</span>
         )}
       </summary>
-      {hint && (
-        <p
-          className={cn(
-            "text-xs text-muted-fg",
-            button ? "mt-2 text-center" : "mb-2 ml-5.5"
-          )}
-        >
-          {hint}
-        </p>
-      )}
-      <div className={button ? "mt-3" : undefined}>{children}</div>
+      <div>{children}</div>
     </details>
   );
 

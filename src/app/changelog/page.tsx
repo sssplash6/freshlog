@@ -1,12 +1,9 @@
-import Link from "next/link";
-
-import { CheckIcon, ChevronRightIcon, SparklesIcon } from "@/components/icons";
+import { ChevronRightIcon } from "@/components/icons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle } from "@/components/ui/section";
 import { cn } from "@/lib/cn";
 import {
   hasUnseenChangelog,
-  isUnseen,
   readChangelog,
   splitItem,
   type ChangelogEntry,
@@ -16,7 +13,7 @@ import { requireUser } from "@/lib/dal";
 import { formatDate } from "@/lib/format";
 import { profileOf } from "@/lib/profile";
 
-import { FreshChip, MarkChangelogSeen } from "./seen";
+import { MarkChangelogSeen } from "./seen";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "What's new" };
@@ -32,34 +29,19 @@ export default async function ChangelogPage() {
   const user = await requireUser();
   const entries = await readChangelog();
   const week = pastWeek(entries);
-  // Bug reports are a staff tool, and a "51 fixed" figure in the hero tells a
-  // student the app was broken rather than that it got better. The entries
-  // themselves are not tagged by who they are for, so the whole log stays;
-  // only the framing around it changes.
+  // A "51 fixed" figure in the hero tells a student the app was broken rather
+  // than that it got better. The entries themselves are not tagged by who they
+  // are for, so the whole log stays; only the hero changes.
   const student = inStudentLens(user, await profileOf(user));
 
   return (
     <div className="space-y-4">
       {hasUnseenChangelog(entries, user) && <MarkChangelogSeen />}
 
-      <PageTitle
-        title="What's new"
-        subtitle={
-          student ? (
-            "What we've added and improved."
-          ) : (
-            <>
-              What we have added and fixed.{" "}
-              <Link href="/bugs" className="text-brand underline underline-offset-2 hover:decoration-2">
-                Bug reports
-              </Link>
-            </>
-          )
-        }
-      />
+      <PageTitle title="What's new" />
 
       {entries.length === 0 ? (
-        <EmptyState title="No updates yet">Changes are posted here as they ship.</EmptyState>
+        <EmptyState title="No updates yet" />
       ) : (
         <>
           {/* The week at a glance, before the detail: a reader who has been
@@ -74,7 +56,7 @@ export default async function ChangelogPage() {
           >
             <p className="text-xs font-medium opacity-80">Past seven days</p>
             <dl className="mt-3 flex flex-wrap items-end gap-x-8 gap-y-4 sm:gap-x-10">
-              <HeroFigure value={week.new} label="added" />
+              <HeroFigure value={week.new} label="new" />
               {!student && <HeroFigure value={week.fixed} label="fixed" />}
               <div className="min-w-0 sm:ml-auto">
                 <dt className="text-xs opacity-80">Last update</dt>
@@ -90,7 +72,20 @@ export default async function ChangelogPage() {
               a ring in the page's own colour. */}
           <ol className="ml-1.5 space-y-4 border-l border-line pl-5 sm:ml-2 sm:pl-8">
             {entries.map((entry, i) => {
-              const fresh = isUnseen(entry, user);
+              const heading = (
+                <>
+                  <h2 className="text-title font-semibold tracking-[-0.01em] text-ink">
+                    {formatDate(new Date(`${entry.date}T00:00:00.000Z`))}
+                  </h2>
+                  <p className="text-xs text-muted-fg tabular-nums">{summary(entry)}</p>
+                </>
+              );
+              const body = (
+                <div className="space-y-4 rounded-xl bg-surface p-3 shadow-sm sm:p-4">
+                  <Items label="New" items={entry.new} />
+                  <Items label="Fixed" items={entry.fixed} />
+                </div>
+              );
               return (
                 <li
                   key={entry.date}
@@ -102,9 +97,7 @@ export default async function ChangelogPage() {
                     aria-hidden
                     className={cn(
                       "absolute top-2 -left-[1.6rem] h-3 w-3 rounded-full ring-4 ring-canvas sm:-left-[2.35rem]",
-                      i === 0
-                        ? "bg-brand ring-4 ring-brand/20"
-                        : "bg-line"
+                      i === 0 ? "bg-brand" : "bg-line"
                     )}
                   />
                   {/* The three newest days are open; older ones fold to their
@@ -113,46 +106,18 @@ export default async function ChangelogPage() {
                       opens "What's new" is reading March. */}
                   {i < OPEN_DAYS ? (
                     <>
-                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-3">
-                    {/* The section-title size every `Section` uses (17px);
-                        at 20px these read as a level of their own. */}
-                    <h2 className="flex items-baseline gap-2 text-title font-semibold tracking-[-0.01em] text-ink">
-                      {formatDate(new Date(`${entry.date}T00:00:00.000Z`))}
-                      <FreshChip fresh={fresh} />
-                    </h2>
-                    <p className="text-xs text-muted-fg tabular-nums">
-                      {summary(entry)}
-                    </p>
-                  </div>
-                  <div
-                    className={cn(
-                      "space-y-4 rounded-xl bg-surface p-3 shadow-sm sm:p-4",
-                      i === 0 && "ring-1 ring-brand/25"
-                    )}
-                  >
-                    <Items kind="new" items={entry.new} />
-                    <Items kind="fixed" items={entry.fixed} />
-                  </div>
+                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-3">
+                        {heading}
+                      </div>
+                      {body}
                     </>
                   ) : (
                     <details className="group/day">
                       <summary className="flex min-h-11 cursor-pointer list-none flex-wrap items-baseline gap-x-3 gap-y-1 pb-3 [&::-webkit-details-marker]:hidden">
-                        <h2 className="flex items-baseline gap-2 text-title font-semibold tracking-[-0.01em] text-ink">
-                          {formatDate(new Date(`${entry.date}T00:00:00.000Z`))}
-                          <FreshChip fresh={fresh} />
-                        </h2>
-                        <p className="text-xs text-muted-fg tabular-nums">{summary(entry)}</p>
+                        {heading}
                         <ChevronRightIcon className="h-4 w-4 shrink-0 self-center text-muted-fg transition-transform group-open/day:rotate-90" />
                       </summary>
-                  <div
-                    className={cn(
-                      "space-y-4 rounded-xl bg-surface p-3 shadow-sm sm:p-4",
-                      i === 0 && "ring-1 ring-brand/25"
-                    )}
-                  >
-                    <Items kind="new" items={entry.new} />
-                    <Items kind="fixed" items={entry.fixed} />
-                  </div>
+                      {body}
                     </details>
                   )}
                 </li>
@@ -190,12 +155,6 @@ function summary(entry: ChangelogEntry): string {
   return parts.join(" · ");
 }
 
-/** New is brand blue and fixed is teal: two hues so a long day scans by kind. */
-const KIND = {
-  new: { chip: "bg-brand-soft text-brand", label: "New", Icon: SparklesIcon },
-  fixed: { chip: "bg-tone-teal-soft text-tone-teal-ink", label: "Fixed", Icon: CheckIcon },
-} as const;
-
 function HeroFigure({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex items-baseline gap-2">
@@ -209,24 +168,18 @@ function HeroFigure({ value, label }: { value: number; label: string }) {
   );
 }
 
-function Items({ kind, items }: { kind: "new" | "fixed"; items: ChangelogEntry["new"] }) {
+/** One kind of change for a day: a plain heading and plain rows. The day's
+ *  counts are beside its date, so the heading does not repeat them. */
+function Items({ label, items }: { label: string; items: ChangelogEntry["new"] }) {
   if (items.length === 0) return null;
-  const { chip, label, Icon } = KIND[kind];
   return (
     <div>
-      <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold text-muted-fg">
-        <span className={cn("grid h-5 w-5 place-items-center rounded-full", chip)}>
-          <Icon className="h-3 w-3" />
-        </span>
-        {label}
-        <span className="font-medium tabular-nums">{items.length}</span>
-        <span aria-hidden className="h-px flex-1 bg-line" />
-      </h3>
-      <ul className="grid gap-2 sm:grid-cols-2">
+      <h3 className="mb-2 text-xs font-semibold text-muted-fg">{label}</h3>
+      <ul className="space-y-2">
         {items.map((item) => {
           const { headline, detail } = splitItem(item);
           return (
-            <li key={item} className="min-w-0 rounded-lg bg-canvas/60 px-3 py-2.5">
+            <li key={item} className="min-w-0">
               {headline && <p className="text-body font-semibold text-ink">{headline}</p>}
               {detail && (
                 <p

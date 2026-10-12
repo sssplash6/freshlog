@@ -1,7 +1,6 @@
 import { ExchangeList } from "@/components/exchange-panel";
 import { CrownIcon } from "@/components/icons";
 import { AddStudentsForm } from "@/components/forms/add-students-form";
-import { AssignMentorForm } from "@/components/forms/program-settings-forms";
 import { ProgramTaskForm } from "@/components/forms/student-task-forms";
 import { PersonChip } from "@/components/person-chip";
 import { SessionsList } from "@/components/session-row";
@@ -14,7 +13,6 @@ import { Section } from "@/components/ui/section";
 import { canManageProgram } from "@/lib/authz";
 import { SESSION_STATUS, USER_STATUS } from "@/lib/constants";
 import { requireProgramScope } from "@/lib/dal";
-import { formatDuration } from "@/lib/format";
 import { programExchanges } from "@/lib/exchanges";
 import {
   activeFilterCount,
@@ -24,14 +22,12 @@ import {
   type SearchParams,
 } from "@/lib/filters";
 import { prisma } from "@/lib/prisma";
-import { programTone } from "@/lib/program-tone";
 import { toSessionEntries } from "@/lib/session-entries";
 import { applySort, readSort } from "@/lib/sort";
 import { studentsWithHours } from "@/lib/queries";
 import { timeStateHolds, type ViewerContext } from "@/lib/status";
 
 import {
-  mentorPool,
   programCohorts,
   programGrants,
   programLevels,
@@ -96,7 +92,7 @@ export default async function ProgramPage({
   // the roster, for an admin who may set it.
   const settingTask =
     readParam(query, "task") === "1" && (await canManageProgram(user, id));
-  const [program, pairings, cohorts, levels, exchanges, grants, pool, recent, approved] =
+  const [program, pairings, cohorts, levels, exchanges, grants, recent, approved] =
     await Promise.all([
       programOf(id),
       programPairings(id),
@@ -104,7 +100,6 @@ export default async function ProgramPage({
       programLevels(id),
       programExchanges(id),
       programGrants(id),
-      mentorPool(),
       prisma.session.findMany({
         where: { programId: id, status: SESSION_STATUS.ACTIVE },
         include: {
@@ -219,13 +214,6 @@ export default async function ProgramPage({
     grants.filter((grant) => grant.role === "ADMIN").map((grant) => grant.user.id),
   );
   const spilled = mentorRows.length - MENTORS_SHOWN;
-  // Adding a mentor is offered where the list of them is, not only a tab away
-  // in Settings. Removing stays in Settings, beside the cohort each pairing
-  // names — a narrow rail has no room to say which pairing a button unmakes.
-  const paired = new Set(pairings.map((p) => p.mentorId));
-  const eligibleMentors = pool
-    .filter((m) => !paired.has(m.id))
-    .map((m) => ({ value: m.id, label: m.name ?? m.email }));
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
@@ -271,36 +259,11 @@ export default async function ProgramPage({
           reset={activeFilterCount(query) > (level ? 1 : 0)}
         />
 
-        {/* What the level buys, said where the level is being read: the
-            standard grant is the one fact that makes Emerging and Advanced
-            different places, and it otherwise lives two tabs away. */}
-        {level && (
-          <p className="px-1 text-xs text-muted-fg">
-            {(() => {
-              const minutes = level.standardMinutes ?? program.standardMinutes;
-              const days = level.standardDays ?? program.standardDays;
-              return minutes !== null && days !== null
-                ? `Students joining ${level.name} get ${formatDuration(minutes)} to use within ${days} day${days === 1 ? "" : "s"}.`
-                : `${level.name} grants no standard time on joining.`;
-            })()}
-          </p>
-        )}
-
         {total === 0 ? (
           activeFilterCount(query) > (level ? 1 : 0) ? (
-            // The bar above has just said in words that nothing matched, so
-            // this adds the way out and not the count again.
-            <EmptyState variant="no-results">
-              Check the spelling, or reset to see everyone.
-            </EmptyState>
-          ) : level ? (
-            <EmptyState title={`Nobody in ${level.name} yet`}>
-              Add them with the button above.
-            </EmptyState>
+            <EmptyState variant="no-results" title="No matches" />
           ) : (
-            <EmptyState title="Nobody enrolled">
-              Add them with the button above.
-            </EmptyState>
+            <EmptyState title={level ? `Nobody in ${level.name} yet` : "Nobody enrolled"} />
           )
         ) : (
           <>
@@ -398,15 +361,9 @@ export default async function ProgramPage({
                   key={mentor.id}
                   className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2.5 text-body sm:px-5"
                 >
-                  {/* "Their mentors can have matching colours." This is the one
-                      page where that is unambiguous: every row belongs to this
-                      program, so the chip can spend its hue on the place. */}
-                  <PersonChip
-                    person={mentor}
-                    size="sm"
-                    href={`/mentors/${mentor.id}`}
-                    tone={programTone(program)}
-                  />
+                  {/* Neutral: a program's hue is the dot beside its name, never
+                      a person's chip (DESIGN.md §5). */}
+                  <PersonChip person={mentor} size="sm" href={`/mentors/${mentor.id}`} />
                   {superAdminIds.has(mentor.id) && (
                     <span title="Admin" className="text-warn-ink">
                       <CrownIcon className="h-4 w-4" />
@@ -420,22 +377,6 @@ export default async function ProgramPage({
                 </li>
               ))}
             </ul>
-          )}
-          {eligibleMentors.length > 0 && (
-            <div className="border-t border-line px-4 py-3 sm:px-5">
-              <AssignMentorForm
-                programId={program.id}
-                mentors={eligibleMentors}
-                levels={levels.map((l) => ({
-                  id: l.id,
-                  name: l.name,
-                  cohorts: l.cohorts.map((c) => ({ value: c.id, label: c.name })),
-                }))}
-                cohorts={cohorts
-                  .filter((c) => c.levelId === null)
-                  .map((c) => ({ value: c.id, label: c.name }))}
-              />
-            </div>
           )}
         </Section>
     </div>

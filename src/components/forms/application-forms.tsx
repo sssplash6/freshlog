@@ -36,33 +36,35 @@ export function SnapshotEditor({
     result && !result.ok && result.field === field ? result.error : undefined;
 
   return (
-    <RowActionMenu trigger="pencil" label="Edit the application snapshot">
+    <RowActionMenu trigger="pencil" label="Edit snapshot">
       <RowActionGroup label="Snapshot">
         <form action={action} className="space-y-3">
           <input type="hidden" name="studentProfileId" value={studentProfileId} />
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="SAT" error={errorFor("sat")}>
+          <div className="flex flex-wrap items-start gap-3">
+            <Field label="SAT" error={errorFor("sat")} className="w-full sm:w-28">
               <Input
                 name="sat"
                 inputMode="numeric"
-                placeholder="1450"
+                measure="xs"
+                placeholder="e.g. 1450"
                 defaultValue={current.sat ?? ""}
               />
             </Field>
-            <Field label="IELTS" error={errorFor("ielts")}>
+            <Field label="IELTS" error={errorFor("ielts")} className="w-full sm:w-28">
               <Input
                 name="ielts"
                 inputMode="decimal"
-                placeholder="7.5"
+                measure="xs"
+                placeholder="e.g. 7.5"
                 defaultValue={current.ielts ?? ""}
               />
+            </Field>
+            <Field label="GPA" error={errorFor("gpa")} className="w-full sm:w-28">
+              <Input name="gpa" measure="xs" defaultValue={current.gpa ?? ""} />
             </Field>
           </div>
           <Field label="School" error={errorFor("school")}>
             <Input name="school" defaultValue={current.school ?? ""} />
-          </Field>
-          <Field label="GPA" error={errorFor("gpa")}>
-            <Input name="gpa" defaultValue={current.gpa ?? ""} />
           </Field>
           <SubmitButton size="sm" pendingText="Saving…">Save snapshot</SubmitButton>
           <SaveState state={save} />
@@ -234,15 +236,14 @@ export function AddUniversityForm({
         </div>
 
         {isNew && (
-          <div className="w-44">
-            <Input
-              name="words"
-              aria-label="Supplemental word count"
-              inputMode="numeric"
-              placeholder="Supplemental words"
-              required
-            />
-          </div>
+          <Input
+            name="words"
+            aria-label="Supplemental word count"
+            inputMode="numeric"
+            measure="xs"
+            placeholder="e.g. 650"
+            required
+          />
         )}
 
         <label className="flex min-h-11 items-center gap-2 text-body text-ink">
@@ -312,7 +313,7 @@ export function UniversityRowActions({
           <input type="hidden" name="id" value={row.id} />
           <SegmentedRadio
             name="round"
-            legend={row.isPrimary ? "Round (optional)" : "Make it their primary choice, round (optional)"}
+            legend="Round"
             options={ROUND_OPTIONS}
             defaultValue={row.round ?? ""}
           />
@@ -334,7 +335,7 @@ export function UniversityRowActions({
                 name="words"
                 inputMode="numeric"
                 defaultValue={row.university.supplementalWords}
-                className="max-w-40"
+                measure="xs"
               />
             </Field>
             <SubmitButton size="sm" variant="secondary" pendingText="Saving…">
@@ -347,8 +348,8 @@ export function UniversityRowActions({
       <RowActionGroup>
         <ConfirmInline
           variant="quiet"
-          label="Remove from their list"
-          question={`${name} and its supplemental's stage come off their list. The university stays in the shared list.`}
+          label="Remove from list"
+          question={`Remove ${name}?`}
           confirmLabel="Yes, remove it"
           action={removeAction}
           values={{ studentProfileId, id: row.id }}

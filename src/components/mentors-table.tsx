@@ -21,10 +21,10 @@ import { mentorStatuses, type ViewerContext } from "@/lib/status";
  * student book them, and are they holding anybody's time — and everything you
  * might DO to a mentor happens on that mentor's page.
  *
- * "Booking links" is a fraction rather than a chip per pairing because the
- * question here is whether this mentor is bookable at all; WHICH program is
- * missing its link is a fact about one mentor, and it is on their page beside
- * the form that fixes it.
+ * "Booking links" is one chip rather than one per pairing because the
+ * question here is whether this mentor is bookable everywhere; WHICH program is
+ * missing its link is a fact about one mentor, and it is on their page, in the
+ * same words.
  */
 export type MentorRow = {
   id: string;
@@ -33,8 +33,6 @@ export type MentorRow = {
   avatarUpdatedAt?: Date | null;
   /** `USER_STATUS`. */
   accountStatus: string;
-  /** A dual-role admin who also mentors. */
-  isAdmin: boolean;
   /** Program (or program / cohort) labels, already narrowed to the reader. */
   /** One per pairing; `label` names the cohort when the pairing has one. */
   programs: { program: ProgramRef; label: string }[];
@@ -71,11 +69,7 @@ export function MentorsTable({
 }) {
   if (rows.length === 0) {
     return (
-      empty ?? (
-        <EmptyState framed={framed} title="No mentors registered">
-          A mentor is registered by an admin, or arrives on their first sign-in.
-        </EmptyState>
-      )
+      empty ?? <EmptyState framed={framed} title="No mentors registered" />
     );
   }
 
@@ -117,14 +111,6 @@ export function MentorsTable({
                   }}
                   href={`${href}/${m.id}`}
                 >
-                  {/* Muted text, never a chip: "also an admin" is a fact about
-                      the account, and a coloured pill beside a status chip
-                      reads as a second state to act on. */}
-                  {m.isAdmin && (
-                    <span className="shrink-0 text-xs font-normal text-muted-fg">
-                      Admin
-                    </span>
-                  )}
                   {top && <StatusChip status={top} />}
                 </PersonCell>
                 {/* On a phone the row folds to its headline — who, and what
@@ -153,11 +139,7 @@ export function MentorsTable({
                 // on the next, and two programs read as three.
                 <span className="flex flex-col items-start gap-y-1">
                   {m.programs.map(({ program, label }) => (
-                    <ProgramChip
-                      key={label}
-                      program={{ ...program, name: label }}
-                      variant="tag"
-                    />
+                    <ProgramChip key={label} program={{ ...program, name: label }} />
                   ))}
                 </span>
               ) : (
@@ -168,19 +150,12 @@ export function MentorsTable({
             <Td label="Booking links" className="sm:whitespace-nowrap" data-fold>
               {m.pairings === 0 ? (
                 <span className="text-muted-fg">—</span>
+              ) : m.pairingsWithLink < m.pairings ? (
+                // A status — somebody cannot be booked — in the mentor page's
+                // words, a tinted chip with its glyph.
+                <StatusChip severity="attention">No booking link</StatusChip>
               ) : (
-                // Missing links are a status — somebody cannot be booked — so
-                // they say it the way every status does, a tinted chip with its
-                // glyph. It was bare amber text, colour alone.
-                m.pairingsWithLink < m.pairings ? (
-                  <StatusChip severity="attention">
-                    {m.pairingsWithLink} of {m.pairings} set
-                  </StatusChip>
-                ) : (
-                  <span className="text-muted-fg">
-                    {m.pairingsWithLink} of {m.pairings} set
-                  </span>
-                )
+                <span className="text-muted-fg">Set</span>
               )}
             </Td>
 

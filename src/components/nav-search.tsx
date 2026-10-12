@@ -4,8 +4,7 @@ import { useSyncExternalStore } from "react";
 
 import { openCommandPalette } from "@/components/command-palette";
 import { SearchIcon } from "@/components/icons";
-import { fieldChrome } from "@/components/ui/field";
-import { cn } from "@/lib/cn";
+import { Input } from "@/components/ui/field";
 
 /** A store that never emits: whether this page has hydrated does not change back. */
 function subscribeToNothing(): () => void {
@@ -35,15 +34,8 @@ function subscribeToNothing(): () => void {
 export function NavSearch({ mentors }: { mentors: boolean }) {
   // `mentors` still decides the wording: somebody who cannot see the mentors
   // list should not be told this box could find one.
-  // Short enough for the 207px rail beside the shortcut hint; the spoken name
-  // below stays the full sentence.
   const placeholder = mentors ? "Find a person…" : "Find a student…";
   const enhanced = useSyncExternalStore(subscribeToNothing, () => true, () => false);
-  const shortcut = useSyncExternalStore(
-    subscribeToNothing,
-    () => (/Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘K" : "Ctrl K"),
-    () => "Ctrl K"
-  );
 
   if (enhanced) {
     return (
@@ -52,13 +44,11 @@ export function NavSearch({ mentors }: { mentors: boolean }) {
         onClick={openCommandPalette}
         aria-keyshortcuts="Meta+K Control+K"
         aria-label={mentors ? "Find a student or mentor" : "Find a student"}
+        // design-allow: sidebar rail row
         className="relative flex min-h-10 w-full cursor-pointer items-center gap-2 rounded-lg bg-fill py-2 pl-2.5 pr-2 text-left text-body text-muted-fg transition-colors hover:bg-fill-strong"
       >
         <SearchIcon className="h-4 w-4 shrink-0" />
         <span className="min-w-0 flex-1 truncate">{placeholder}</span>
-        <kbd className="shrink-0 rounded-md bg-surface/70 px-1.5 py-[0.1875rem] font-sans text-caption font-medium text-muted-fg">
-          {shortcut}
-        </kbd>
       </button>
     );
   }
@@ -70,12 +60,13 @@ export function NavSearch({ mentors }: { mentors: boolean }) {
       </label>
       <div className="relative">
         <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
-        <input
+        <Input
           id="nav-search"
           name="q"
           type="search"
+          measure="full"
           placeholder={placeholder}
-          className={cn(fieldChrome, "min-h-10 w-full py-2 pl-8 pr-2 text-body placeholder:text-muted-fg")}
+          className="pl-8"
         />
       </div>
     </form>

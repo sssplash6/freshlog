@@ -16,9 +16,8 @@ import { dismissStatus, restoreStatus } from "@/lib/actions/dismissals";
  * reversible action earns a toast after, not a question before; confirms are
  * kept for the things that cannot be taken back.
  *
- * Hidden until the row is hovered or something inside it has focus, so a list
- * of things needing attention does not read as a list of dismiss buttons —
- * except on touch, where there is no hover and it stays visible.
+ * Shown at rest as a quiet muted cross: a control that appeared only on hover
+ * was one nobody found.
  */
 export function DismissStatus({
   type,
@@ -90,9 +89,9 @@ export function DismissStatus({
       <input type="hidden" name="subjectId" value={subjectId ?? ""} />
       <button
         type="submit"
-        title={`Stop showing "${label}"`}
-        aria-label={`Stop showing "${label}"`}
-        className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-fg opacity-0 transition-opacity hover:bg-canvas hover:text-ink focus-visible:opacity-100 group-hover/row:opacity-100 [@media(hover:none)]:opacity-100"
+        title="Hide"
+        aria-label={`Hide “${label}”`}
+        className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-fg transition-colors hover:bg-canvas hover:text-ink"
       >
         <XIcon className="h-4 w-4" />
       </button>

@@ -95,9 +95,9 @@ const WIDTHS = {
 /**
  * A ceiling on the cap, not the cap. `useAnchoredPosition` already limits the
  * panel to the room on whichever side of the trigger it opened (less a margin),
- * so this only has to be out of the way: it was 440, and the account menu is
- * 575px of content — Theme, Density and Sign out sat below the fold of a panel
- * that had the whole screen to use. A panel now takes the space the viewport
+ * so this only has to be out of the way: it was 440, and the account menu's
+ * Theme and Sign out sat below the fold of a panel that had the whole screen
+ * to use. A panel now takes the space the viewport
  * gives it and scrolls only when the viewport is genuinely too small, with a
  * fade at its foot to say so.
  */

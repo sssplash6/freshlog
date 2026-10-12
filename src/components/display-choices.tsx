@@ -1,20 +1,19 @@
 "use client";
 
-import { MoonIcon, SunIcon } from "@/components/icons";
 import { applyTheme } from "@/components/theme-toggle";
 import { cn } from "@/lib/cn";
 
 /**
- * Theme and density as choices you can SEE, for the Settings page.
+ * The theme as a choice you can SEE, for the Settings page.
  *
- * The account menu's toggles cycle on every press and show only the current
+ * The account menu's toggle cycles on every press and shows only the current
  * value — right for a menu, where the row is a shortcut, and unclear on a page
  * whose whole job is to show what the settings are: "Light" on a button does
  * not say there is a "Dark", or that pressing will change anything.
  *
  * NO REACT STATE, for the reason `ThemeToggle` gives: the choice already lives
- * in `data-theme` / `data-density` on <html>, set before first paint. Which
- * option is lit is therefore CSS keyed off those attributes (`in-data-*`), so
+ * in `data-theme` on <html>, set before first paint. Which
+ * option is lit is therefore CSS keyed off that attribute (`in-data-*`), so
  * it is right in the first frame on the server and the client alike. A screen
  * reader is told by a "(current)" that CSS reveals on the same condition.
  */
@@ -33,7 +32,6 @@ export function ThemeChoice({ className }: { className?: string }) {
         onClick={() => applyTheme("light")}
         className={cn(BUTTON, "not-in-data-[theme=dark]:bg-surface not-in-data-[theme=dark]:text-ink not-in-data-[theme=dark]:shadow-sm")}
       >
-        <SunIcon className="h-4 w-4" />
         Light
         <Current when="not-in-data-[theme=dark]:block" />
       </button>
@@ -42,54 +40,8 @@ export function ThemeChoice({ className }: { className?: string }) {
         onClick={() => applyTheme("dark")}
         className={cn(BUTTON, "in-data-[theme=dark]:bg-surface in-data-[theme=dark]:text-ink in-data-[theme=dark]:shadow-sm")}
       >
-        <MoonIcon className="h-4 w-4" />
         Dark
         <Current when="in-data-[theme=dark]:block" />
-      </button>
-    </div>
-  );
-}
-
-function setDensity(next: "compact" | "standard" | "comfortable") {
-  const root = document.documentElement;
-  if (next === "comfortable") delete root.dataset.density;
-  else root.dataset.density = next;
-  try {
-    if (next === "comfortable") localStorage.removeItem("density");
-    else localStorage.setItem("density", next);
-  } catch {
-    // Blocked site data: the choice holds for this page and is not kept.
-  }
-}
-
-export function DensityChoice({ className }: { className?: string }) {
-  // Written out in full rather than assembled: Tailwind finds a class by
-  // reading it in the source, and a string built at runtime is never seen.
-  return (
-    <div role="group" aria-label="Density" className={cn(TRACK, className)}>
-      <button
-        type="button"
-        onClick={() => setDensity("compact")}
-        className={cn(BUTTON, "in-data-[density=compact]:bg-surface in-data-[density=compact]:text-ink in-data-[density=compact]:shadow-sm")}
-      >
-        Compact
-        <Current when="in-data-[density=compact]:block" />
-      </button>
-      <button
-        type="button"
-        onClick={() => setDensity("standard")}
-        className={cn(BUTTON, "in-data-[density=standard]:bg-surface in-data-[density=standard]:text-ink in-data-[density=standard]:shadow-sm")}
-      >
-        Standard
-        <Current when="in-data-[density=standard]:block" />
-      </button>
-      <button
-        type="button"
-        onClick={() => setDensity("comfortable")}
-        className={cn(BUTTON, "in-[html:not([data-density])]:bg-surface in-[html:not([data-density])]:text-ink in-[html:not([data-density])]:shadow-sm")}
-      >
-        Comfortable
-        <Current when="in-[html:not([data-density])]:block" />
       </button>
     </div>
   );

@@ -179,13 +179,6 @@ export default async function LogSessionPage({
   // program it was filtered to.
   const fromList = one("back") === "sessions";
   const listHref = `/sessions${asked ? `?program=${encodeURIComponent(asked)}` : ""}`;
-  // "Log another" keeps where this form came from, so its Back is the same.
-  const againQuery = new URLSearchParams();
-  if (cameFrom) againQuery.set("student", cameFrom);
-  if (from) againQuery.set("from", from);
-  if (fromList) againQuery.set("back", "sessions");
-  if (asked) againQuery.set("program", asked);
-  const againHref = `/sessions/new${againQuery.size ? `?${againQuery}` : ""}`;
   // Opened from a program's own page (`?program=`), an admin of it goes back
   // there; it said "Home" and left them on their dashboard.
   const backProgram =
@@ -231,22 +224,17 @@ export default async function LogSessionPage({
     })) === 0;
 
   return (
-    // Wider than the 2xl it was: the note and the three one-tap answers sit
-    // side by side above `lg`, and at 42rem each column was too narrow to hold
-    // "Attended / Came late / Absent / Rescheduled" on one row. Below `lg` the
-    // form is one column and this cap never binds.
-    <div className="max-w-4xl space-y-4">
+    // One column, as narrow as a form may be (DESIGN.md W3): every field is
+    // sized to its answer, so a wider page only meant a wider gap.
+    <div className="max-w-xl space-y-4">
       <PageTitle
         backHref={back}
         backLabel={backLabel}
-        title={forGroup ? "Log an hour for a group" : "Log a session"}
-        subtitle={program ? `In ${program.name}` : undefined}
+        title={forGroup ? "Log a group hour" : "Log a session"}
       />
 
       {students.length === 0 && mentors.length === 0 ? (
-        <EmptyState variant="blocked" title="No students to log for">
-          You are not assigned to a program with students in it yet.
-        </EmptyState>
+        <EmptyState variant="blocked" title="Not in a program yet" />
       ) : (
         <LogSessionForm
           // Remounted when the mentor changes: every answer below the picker
@@ -262,19 +250,10 @@ export default async function LogSessionPage({
             hint: m.id === user.id ? "You" : m.email,
           }))}
           mentorId={mentorId}
-          studentPlaceholder={
-            !mentorId
-              ? "Pick a mentor first…"
-              : students.length === 0
-                ? onBehalf
-                  ? "Nobody they can log for here"
-                  : "Nobody you can log for here"
-                : undefined
-          }
+          studentPlaceholder={mentorId && students.length === 0 ? "No students" : undefined}
           mode="page"
           draft={draft}
-                    correctBase="/sessions"
-          againHref={againHref}
+          correctBase="/sessions"
           // The receipt links the student, and that page's Back needs to know
           // which program it was reached through: the one the reader came
           // from, or — opened from a program's own page — that program.

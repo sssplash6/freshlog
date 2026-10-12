@@ -18,6 +18,15 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Triage bugs" };
 
+/** The C7 words for an account's role, not the stored enum. */
+const ROLE_NAMES: Record<string, string> = {
+  ADMIN: "Admin",
+  DEPT_LEADER: "Leader",
+  SALES: "Sales",
+  MENTOR: "Mentor",
+  STUDENT: "Student",
+};
+
 /**
  * Every report, with who sent it. Platform admins only — the gate is the first
  * line, and `triageList` refuses anybody else too.
@@ -37,7 +46,6 @@ export default async function TriagePage({
         backHref="/bugs"
         backLabel="Bug reports"
         title="Triage"
-        subtitle="Every report, with who sent it."
       />
 
       <Section
@@ -47,7 +55,7 @@ export default async function TriagePage({
           <TabLinks
             label="Status"
             items={[
-              { href: "/bugs/triage", label: "Open" },
+              { href: "/bugs/triage", label: "Needs you" },
               { href: "/bugs/triage?status=PENDING", label: "Pending" },
               { href: "/bugs/triage?status=IN_PROGRESS", label: "In progress" },
               { href: "/bugs/triage?status=FIXED", label: "Fixed" },
@@ -58,9 +66,7 @@ export default async function TriagePage({
         }
       >
         {rows.length === 0 ? (
-          <EmptyState framed={false} title="No reports here">
-            Nothing matches this status.
-          </EmptyState>
+          <EmptyState framed={false} title="No reports here" />
         ) : (
           <ul className="divide-y divide-line">
             {rows.map((r) => (
@@ -70,7 +76,7 @@ export default async function TriagePage({
                     {r.title}
                   </Link>
                   <p className="text-xs text-muted-fg">
-                    {r.reporterName} · {r.reporterRole.toLowerCase()} · {formatDate(r.createdAt)}
+                    {r.reporterName} · {ROLE_NAMES[r.reporterRole] ?? r.reporterRole} · {formatDate(r.createdAt)}
                   </p>
                 </div>
                 {isBugStatus(r.status) && (

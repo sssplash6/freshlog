@@ -115,7 +115,7 @@ export function Table({
                   // names of things stopped and the things began. The band is
                   // the `head` token the palette kept for exactly this, and
                   // it is on the cells because a sticky cell paints its own.
-                  "sticky top-(--sticky-top) z-10 h-10 whitespace-nowrap border-b border-line bg-head px-4 text-caption font-semibold uppercase tracking-wider sm:first:pl-6 sm:last:pr-6",
+                  "sticky top-(--sticky-top) z-10 h-10 whitespace-nowrap border-b border-line bg-head px-4 text-xs font-semibold sm:first:pl-6 sm:last:pr-6",
                   c.emphasis === "key" ? "text-ink" : "text-muted-fg",
                   framed && "first:rounded-tl-xl last:rounded-tr-xl",
                   c.align === "right" && "text-right",

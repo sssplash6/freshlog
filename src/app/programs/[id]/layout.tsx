@@ -30,10 +30,8 @@ import {
  * title, and the four-to-six `StatCard` strip on the overview under it, which
  * printed the same three numbers this one line does (§6.12).
  *
- * The gear is in the tab strip and NOT also in the actions cluster. §6.12 asks
- * for both; they would have sat one row apart, both reading "⚙ Settings" and
- * both going to the same page. The word is with the gear, which is the part the
- * owner asked for.
+ * Settings is in the tab strip and NOT also in the actions cluster. §6.12 asks
+ * for both; they would have sat one row apart, both going to the same page.
  *
  * "Add students" is not up here either — it was a button here AND a fold on the
  * page below, one action drawn twice a header apart. It is the full-width
@@ -104,9 +102,9 @@ export default async function ProgramLayout({
             {/* Allocate time FIRST and Log a session LAST, in the right-hand
                 corner (12 October 2026, asked for in that order: "Log a
                 session should always be in right corner, Allocate time to the
-                left"). Granting time is what a program admin opens this page
-                to do that no other page does for the whole program. */}
-            <LinkButton href={`${base}/allocate`} variant="primary" size="md">
+                left"). Secondary: one primary per screen (DESIGN.md K1), and
+                that is Log a session, last. */}
+            <LinkButton href={`${base}/allocate`} variant="secondary" size="md">
               Allocate time
             </LinkButton>
             {/* One task for every student in the program, set above the
@@ -130,7 +128,7 @@ export default async function ProgramLayout({
               variant="primary"
               size="md"
             >
-              {program.classHours ? "Log an hour for a group" : "Log a session"}
+              {program.classHours ? "Log group hour" : "Log a session"}
             </LinkButton>
           </span>
         }
@@ -193,7 +191,7 @@ export default async function ProgramLayout({
           })),
           // What the program's admins have asked its mentors to do.
           { href: `${base}/tasks`, label: "Mentor tasks" },
-          { href: `${base}/settings`, label: "⚙ Settings" },
+          { href: `${base}/settings`, label: "Settings" },
         ]}
       />
 

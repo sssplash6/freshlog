@@ -7,13 +7,9 @@ import { ArrowLink } from "@/components/ui/link";
 import type { ActionReceipt } from "@/lib/actions/shared";
 
 /**
- * What just happened, replacing the form that did it.
- *
- * The inline version was one line of text under a form that had already
- * cleared itself, which left a mentor on a phone unsure whether the tap
- * registered, scrolling up to check. A receipt takes the form's place: it
- * states the outcome, its consequences, and the three things anyone wants next
- * — fix it, do it again, go look at it.
+ * What just happened, replacing the form that did it: the outcome in one line,
+ * and the three things anyone wants next — fix it, do it again, go look at it.
+ * No card: one line of data sits on the page (DESIGN.md W5).
  *
  * "Edit it" comes first on purpose. The moment a mentor reads "90 min" and
  * meant 60 is the moment they can still fix it in one tap, and burying that
@@ -22,20 +18,20 @@ import type { ActionReceipt } from "@/lib/actions/shared";
 export function Receipt({
   receipt,
   correctHref,
-  onAgainHref,
+  onAgain,
   againLabel = "Log another",
   from,
 }: {
   receipt: ActionReceipt;
   /** Where the just-written row can be edited. */
   correctHref?: string;
-  /** The same form, empty. A link rather than a reset, so back still works. */
-  onAgainHref?: string;
+  /** Start the same form again, in place. */
+  onAgain?: () => void;
   againLabel?: string;
   /** The program the reader came through, so the student's page still goes back to it. */
   from?: string;
 }) {
-  const { headline, notes, subject } = receipt;
+  const { headline, subject } = receipt;
 
   useEffect(() => {
     // A short confirmation tone supplements the visible receipt after submit.
@@ -58,24 +54,22 @@ export function Receipt({
   }, []);
 
   return (
-    <div className="rise-in rounded-xl bg-surface shadow-sm p-5 sm:p-6">
+    <div role="status" className="rise-in px-1">
       <p className="flex items-baseline gap-2 text-title font-semibold text-ink">
         <CheckIcon className="h-4 w-4 shrink-0 translate-y-0.5" />
         {headline}
       </p>
-      {notes.length > 0 && (
-        <ul className="mt-2 space-y-1 text-sm text-muted-fg">
-          {notes.map((note) => (
-            <li key={note}>{note}</li>
-          ))}
-        </ul>
-      )}
-      <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-line pt-3">
+      <div className="mt-1 flex flex-wrap items-center gap-x-6">
         {correctHref && <ArrowLink href={correctHref} className="text-sm">Edit it</ArrowLink>}
-        {onAgainHref && (
-          <ArrowLink href={onAgainHref} reloadDocument className="text-sm">
+        {onAgain && (
+          <button
+            type="button"
+            onClick={onAgain}
+            // ArrowLink's look: it is the same kind of "next" as its neighbours.
+            className="inline-flex min-h-11 items-center text-sm font-medium text-brand hover:underline"
+          >
             {againLabel}
-          </ArrowLink>
+          </button>
         )}
         {subject && (
           <ArrowLink href={`/students/${subject.id}${from ? `?from=${encodeURIComponent(from)}` : ""}`} className="text-sm">

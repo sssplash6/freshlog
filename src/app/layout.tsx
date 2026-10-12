@@ -123,9 +123,7 @@ export const viewport: Viewport = {
  * so a reader who chose dark gets a full white page first. That flash is the
  * whole reason this is a `<script>` in the document and not a component.
  *
- * A stored choice wins; with none, the operating system decides. The table
- * density rides along for the same reason — a roster that paints at one row
- * height and jumps to another is the same flash in a different shape. Wrapped in
+ * A stored choice wins; with none, the operating system decides. Wrapped in
  * try/catch because reading `localStorage` throws outright in a browser set to
  * block site data, and a theme is not worth a blank page.
  *
@@ -137,7 +135,7 @@ export const viewport: Viewport = {
  * place the metas after this script), and again whenever `data-theme` changes —
  * which is how ThemeToggle's switch reaches the bar without knowing about it.
  */
-const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t!=="dark"&&t!=="light"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}var r=document.documentElement;r.dataset.theme=t;if(localStorage.getItem("rail")==="collapsed"){r.dataset.rail="collapsed"}var d=localStorage.getItem("density");if(d==="compact"||d==="standard"){r.dataset.density=d}var c=function(){var m=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<m.length;i++){m[i].setAttribute("content",r.dataset.theme==="dark"?"#121417":"#ffffff")}};c();document.addEventListener("DOMContentLoaded",c);new MutationObserver(c).observe(r,{attributes:true,attributeFilter:["data-theme"]})}catch(e){}})()`;
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t!=="dark"&&t!=="light"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}var r=document.documentElement;r.dataset.theme=t;var c=function(){var m=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<m.length;i++){m[i].setAttribute("content",r.dataset.theme==="dark"?"#121417":"#ffffff")}};c();document.addEventListener("DOMContentLoaded",c);new MutationObserver(c).observe(r,{attributes:true,attributeFilter:["data-theme"]})}catch(e){}})()`;
 
 export default function RootLayout({
   children,

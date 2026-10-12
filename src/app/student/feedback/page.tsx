@@ -128,14 +128,18 @@ function FeedbackRow({ feedback }: { feedback: GivenFeedback }) {
     <li className="px-4 py-2 sm:px-5">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
         <PersonChip person={feedback.mentor} size="sm" />
-        <Rating value={feedback.rating} />
+        <span className="flex items-center gap-3">
+          <span className="text-xs tabular-nums text-muted-fg">
+            {formatDate(feedback.createdAt)}
+          </span>
+          <Rating value={feedback.rating} />
+        </span>
       </div>
       {feedback.comment && (
         <div className="mt-1.5 text-sm">
           <ExpandableText text={feedback.comment} lines={2} className="text-muted-fg" />
         </div>
       )}
-      <p className="mt-1 text-xs text-muted-fg">{formatDate(feedback.createdAt)}</p>
     </li>
   );
 }

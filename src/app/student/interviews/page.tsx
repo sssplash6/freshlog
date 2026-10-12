@@ -7,6 +7,7 @@ import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
+import { cn } from "@/lib/cn";
 import { ROLES, USER_STATUS } from "@/lib/constants";
 import { requireRole } from "@/lib/dal";
 import { studiesIn } from "@/lib/enrollments";
@@ -124,9 +125,9 @@ export default async function StudentInterviewsPage() {
   const row = (i: (typeof interviews)[number]) => {
     const side = sideOf(i, profile.id);
     const other = side === "host" ? i.guest.user : i.host.user;
-    // "Booked" is the ordinary state of a row under "Coming up", and "Done" is
-    // the heading of the list a finished one sits in: only an interview that
-    // needs marking is flagged.
+    // "Booked" is the ordinary state of a row under "Coming up", and
+    // "Completed" is the heading of the list a finished one sits in: only an
+    // interview that needs marking is flagged.
     const phase = interviewPhase(i, now);
     const chip =
       phase === "to-mark" || phase === "absent" ? status(PHASE_STATUS[phase], viewer) : null;
@@ -153,9 +154,7 @@ export default async function StudentInterviewsPage() {
         <EmptyState framed={false} variant="blocked" title="No classmates yet" />
       ) : (
         <>
-          {offering.length === 0 ? (
-            <p className="px-4 py-3 text-xs text-muted-fg sm:px-5">No times offered yet.</p>
-          ) : (
+          {offering.length > 0 && (
             <ul className="divide-y divide-line">
               {offering.map((c) => (
                 <ClassmateRow key={c.id} classmate={c} showProgram={myPrograms.length > 1} />
@@ -163,12 +162,12 @@ export default async function StudentInterviewsPage() {
             </ul>
           )}
           {quiet.length > 0 && (
-            // Uncounted when nobody is offering: the line above has just
-            // said how many classmates there are.
+            // Uncounted when nobody is offering: the heading has just said
+            // how many classmates there are.
             <Disclosure
-              label={offering.length > 0 ? "Classmates with no times offered" : "See your classmates"}
+              label={offering.length > 0 ? "No times open" : "All classmates"}
               count={offering.length > 0 ? quiet.length : undefined}
-              className="border-t border-line px-4 py-2 sm:px-5"
+              className={cn("px-4 py-2 sm:px-5", offering.length > 0 && "border-t border-line")}
             >
               <ul className="-mx-4 divide-y divide-line border-t border-line sm:-mx-5">
                 {quiet.map((c) => (
@@ -239,7 +238,7 @@ export default async function StudentInterviewsPage() {
       </Section>
 
       {completed.length > 0 && (
-        <Section title="Done" count={completed.length}>
+        <Section title="Completed" count={completed.length}>
           <ul className="divide-y divide-line">{completed.map(row)}</ul>
         </Section>
       )}

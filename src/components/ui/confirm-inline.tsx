@@ -66,7 +66,7 @@ export function ConfirmInline({
 }: {
   /** The first step: what the action is, in the imperative. "Remove mentor". */
   label: React.ReactNode;
-  /** What happens if they go on — the consequence, not "Are you sure?". */
+  /** The consequence in six words or fewer, not "Are you sure?": "Deletes 3 sessions". */
   question: React.ReactNode;
   /** The second step. Names the act, so "Yes, delete it", never "OK". */
   confirmLabel: React.ReactNode;
@@ -75,9 +75,8 @@ export function ConfirmInline({
   /** Hidden fields naming what this acts on: `{ sessionId }`. */
   values?: Record<string, string>;
   /**
-   * Why it can't be done. The action stays visible but disabled, so the reader
-   * learns it exists and why this row is the exception: "Can't be removed:
-   * they have logged sessions."
+   * Why it can't be done, in a few words: "Has logged sessions". The action
+   * stays visible but disabled.
    */
   disabledReason?: React.ReactNode;
   /** "Keep it" reads better than "Cancel" against "Yes, cancel it". */

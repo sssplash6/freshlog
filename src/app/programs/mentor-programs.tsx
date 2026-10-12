@@ -120,9 +120,7 @@ export async function MentorPrograms({ mentorId }: { mentorId: string }) {
       <PageTitle title="Programs" />
 
       {shown.length === 0 ? (
-        <EmptyState title="No programs yet">
-          An admin has to add you to a program before you can log anything.
-        </EmptyState>
+        <EmptyState title="No programs yet" />
       ) : (
         <Table columns={columns} label="Programs">
           {shown.map((row) => (

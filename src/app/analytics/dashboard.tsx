@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { ChartIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, XIcon } from "@/components/icons";
-import { Button, buttonClasses } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/field";
 import { PageTitle, Section } from "@/components/ui/section";
@@ -14,7 +14,6 @@ import {
   byMonth,
   change,
   dateOf,
-  hoursByDay,
   hoursByProgram,
   hoursOf,
   monthOf,
@@ -24,7 +23,6 @@ import {
   select,
   shortHours,
   totals,
-  weeksOf,
   yearOf,
   yearsOf,
   type Ranked,
@@ -48,7 +46,6 @@ export type Frame =
 type Words = {
   all: string;
   allChip: string;
-  across: string;
   parts: string;
   top: string;
   topMentor: string;
@@ -61,7 +58,6 @@ function wordsFor(frame: Frame): Words {
     return {
       all: frame.name,
       allChip: "All levels",
-      across: `Hours mentors spent with students, across ${frame.name}.`,
       parts: "Levels",
       top: `Top mentors in ${frame.name}`,
       topMentor: `Mentors in ${frame.name}`,
@@ -72,7 +68,6 @@ function wordsFor(frame: Frame): Words {
   return {
     all: "All programs",
     allChip: "All programs",
-    across: "Hours mentors spent with students, across every program.",
     parts: "Programs",
     top: "Top mentors across the school",
     topMentor: "Mentors across the school",
@@ -90,12 +85,6 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** The colour of a figure that belongs to no one program. */
 const DEFAULT = "var(--color-brand)";
-/**
- * Hours, in the one colour hours wear: a mentor's bar on the leaderboard is
- * an amount of time, and in this app time-as-a-fill is orange. It was brand
- * blue, the colour of things you press.
- */
-const HOURS = "var(--color-accent)";
 /** Extra time is the same hue, lighter — never a second colour. */
 const EXTRA_OPACITY = 0.35;
 
@@ -204,38 +193,28 @@ export function Dashboard({
   // logged each month" — so it spoke about the reader in the third person.
   const self = mentor != null && mentor === selfIndex;
 
-  const crumbs = (programRow || mentorRow) && (
-    <nav className="flex flex-wrap items-center gap-1" aria-label="Where you are">
-      <Crumb current={program == null && mentor == null} onClick={() => go({ program: null, mentor: null })}>
-        {words.all}
-      </Crumb>
-      {/* Each slash is held to the crumb after it, so a long name wraps
-          whole onto the next line instead of leaving a "/" at the end of
-          the one above it. */}
-      {programRow && (
-        <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-          <span className="text-muted-fg/50" aria-hidden>/</span>
-          <Crumb current={mentor == null} onClick={() => go({ mentor: null })}>
-            <Dot color={accent} />
-            <span className="min-w-0 truncate">{programRow.name}</span>
-          </Crumb>
-        </span>
-      )}
-      {mentorRow && (
-        <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-          <span className="text-muted-fg/50" aria-hidden>/</span>
-          <Crumb current onClick={() => undefined}>
-            <span className="min-w-0 truncate">{self ? "You" : mentorRow.name}</span>
-          </Crumb>
-        </span>
-      )}
-    </nav>
+  // One way up, to the level above this one. The trail it replaces ended in
+  // the title it sat under.
+  const up =
+    mentorRow && programRow
+      ? { label: programRow.name, to: { mentor: null } }
+      : programRow || mentorRow
+        ? { label: words.all, to: { program: null, mentor: null } }
+        : null;
+  const upLink = up && (
+    <button
+      type="button"
+      onClick={() => go(up.to)}
+      className="inline-flex min-h-11 max-w-full items-center gap-1 text-sm font-medium text-muted-fg transition-colors hover:text-ink sm:min-h-0"
+    >
+      <ChevronLeftIcon className="h-4 w-4 shrink-0" />
+      <span className="min-w-0 truncate">{up.label}</span>
+    </button>
   );
 
   return (
     <div className={cn(s.root, "space-y-4")}>
       <PageTitle
-        eyebrow={(programRow || mentorRow) && !self ? "Analytics" : undefined}
         leading={mentorRow && !self ? <MentorAvatar mentor={mentorRow} large /> : undefined}
         title={
           self ? (
@@ -249,26 +228,26 @@ export function Dashboard({
             mentorRow?.name ?? "Analytics"
           )
         }
-        subtitle={crumbs}
+        subtitle={upLink}
         actions={
           <>
-            {/* A plain link, not a drill: the other frame is a different read
-                on the server, not a different slice of this one. */}
+            {/* A link, not a drill: the other frame is a different read on
+                the server, not a different slice of this one. */}
             {elsewhere && (
-              <a href={elsewhere.href} className={buttonClasses("secondary", "sm")}>
+              <LinkButton href={elsewhere.href} variant="secondary" size="sm" transitionTypes={[]}>
                 {elsewhere.label}
-              </a>
+              </LinkButton>
             )}
             {month != null && (
-              <button
-                type="button"
-                className={buttonClasses("secondary", "sm")}
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => go({ month: null })}
                 aria-label="Show the whole year"
               >
                 {MONTHS_LONG[month]}
                 <XIcon className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             )}
             <div className="inline-flex items-center rounded-lg bg-fill p-0.5">
               <button
@@ -299,27 +278,28 @@ export function Dashboard({
 
       {yearRows.length === 0 ? (
         <div className={cn(s.enter, "rounded-xl bg-surface shadow-sm")} key={`empty-${level}-${year}`}>
-          <EmptyState framed={false} icon={<ChartIcon />} title={`No sessions logged in ${year}`}>
-            <p>
-              {mentorRow
-                ? `${mentorRow.name} has no meetings on record here for this year.`
-                : "Hours show up on this page once mentors log their meetings."}
-            </p>
-            {latestWithData != null && latestWithData !== year && (
-              <Button
-                variant="secondary"
-                size="sm"
-                className="mt-3"
-                onClick={() => go({ year: latestWithData, month: null })}
-              >
-                Jump to {latestWithData}
-              </Button>
-            )}
-          </EmptyState>
+          <EmptyState
+            framed={false}
+            icon={<ChartIcon />}
+            title={`No sessions logged in ${year}`}
+            action={
+              latestWithData != null &&
+              latestWithData !== year && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => go({ year: latestWithData, month: null })}
+                >
+                  Jump to {latestWithData}
+                </Button>
+              )
+            }
+          />
         </div>
       ) : (
         <div key={`${level}`} className={cn(s.enter, "space-y-4")}>
-          {mentor != null && <MentorScope data={data} view={view} go={go} ranked={audience === "staff"} words={words} />}
+          {mentor != null && <MentorScope data={data} view={view} go={go} words={words} />}
           <Hero data={data} view={view} today={today} yearRows={yearRows} periodRows={periodRows} />
           <MonthsCard data={data} view={view} go={go} yearRows={yearRows} />
           {program == null && mentor == null && (
@@ -336,7 +316,6 @@ export function Dashboard({
                 periodRows={periodRows}
                 yearRows={yearRows}
                 limit={8}
-                last={last}
               />
             </>
           )}
@@ -351,7 +330,6 @@ export function Dashboard({
               ranked={audience === "staff"}
               periodRows={periodRows}
               yearRows={yearRows}
-              last={last}
             />
           )}
           {mentor != null && <MentorDetail view={view} today={today} go={go} yearRows={yearRows} accent={accent} self={self} />}
@@ -503,7 +481,6 @@ function Hero({
   // "73h" and a footer saying "73h 10m" — one quantity in three formats.
   const minutesShown = useCountUp(t.hours);
   const avg = t.sessions ? t.hours / t.sessions : 0;
-  const noShowRate = t.noShows / Math.max(1, t.sessions + t.noShows);
 
   // A mentor has no "mentors" figure; their busiest month says more.
   const busiest = useMemo(() => {
@@ -530,19 +507,13 @@ function Hero({
               {formatDuration(Math.round(minutesShown))}
             </span>
           </div>
-          <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-fg">
-            {/* It read "New none same period 2025": a badge and a fragment
-                that only parsed together. With nothing to compare against,
-                say so in a sentence instead of a figure. */}
-            {delta == null ? (
-              <span>Nothing logged in {compare.against} to compare with</span>
-            ) : (
-              <>
-                <Delta value={delta} />
-                <span>vs {compare.against}</span>
-              </>
-            )}
-          </p>
+          {/* Nothing to compare against is no line at all. */}
+          {delta != null && (
+            <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-fg">
+              <Delta value={delta} />
+              <span>vs {compare.against}</span>
+            </p>
+          )}
         </div>
         {/* In plan against extra, drawn. It was a sentence under the figure and
             the right two thirds of the card were empty; the split is the one
@@ -551,38 +522,29 @@ function Hero({
       </div>
       {/* THREE figures under the lead, not six (October 2026). Six of equal
           weight is the stat strip DESIGN.md bans: nothing ranked, so nothing
-          read. Extra time is already the bar beside the lead; no-shows and
-          no-shows ride as the hint of the figure they qualify. */}
+          read. Extra time is already the bar beside the lead. */}
       <dl className="grid grid-cols-3 gap-x-6 gap-y-3 border-t border-line px-4 py-3 sm:px-5">
         <Stat
           label="Sessions"
           value={t.sessions.toLocaleString("en-US")}
-          hint={
-            t.noShows > 0
-              ? `${formatDuration(avg)} on average · ${t.noShows} no-show${t.noShows === 1 ? "" : "s"} (${Math.round(noShowRate * 100)}%)`
-              : `${formatDuration(avg)} on average`
-          }
+          detail={`${formatDuration(avg)} on average`}
         />
         <Stat
           label="Students met"
           value={t.students.toLocaleString("en-US")}
-          hint={t.students ? `${formatDuration(t.hours / t.students)} each` : "—"}
+          detail={t.students ? `${formatDuration(t.hours / t.students)} each` : "—"}
         />
         {mentor == null ? (
           <Stat
             label="Mentors active"
             value={t.mentors.toLocaleString("en-US")}
-            hint={t.mentors ? `${formatDuration(t.hours / t.mentors)} each` : "—"}
+            detail={t.mentors ? `${formatDuration(t.hours / t.mentors)} each` : "—"}
           />
         ) : (
           <Stat
             label="Busiest month"
             value={busiest ? MONTHS_LONG[busiest.month] : "—"}
-            hint={
-              busiest
-                ? formatDuration(busiest.minutes)
-                : "no sessions"
-            }
+            detail={busiest ? formatDuration(busiest.minutes) : "—"}
           />
         )}
       </dl>
@@ -625,14 +587,14 @@ function PlanSplit({ completed, extra }: { completed: number; extra: number }) {
   );
 }
 
-function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
+/** `detail` is a figure that qualifies the value ("1h 5m each"), never a sentence. */
+function Stat({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <div className="min-w-0">
       <dt className="min-w-0 truncate text-xs text-muted-fg">{label}</dt>
       <dd className="mt-0.5 text-figure-md font-semibold leading-tight tabular-nums text-ink">{value}</dd>
-      {/* Wraps rather than truncating: a third of a phone is narrow, and the
-          hint now carries the no-shows the strip used to give a column. */}
-      <dd className="min-w-0 text-xs text-muted-fg">{hint}</dd>
+      {/* Wraps rather than truncating: a third of a phone is narrow. */}
+      <dd className="min-w-0 text-xs text-muted-fg">{detail}</dd>
     </div>
   );
 }
@@ -695,7 +657,7 @@ function seriesFor(data: AnalyticsData, view: View, rows: AnalyticsRow[]) {
         { label: "Extra, out of plan", color, opacity: EXTRA_OPACITY },
       ];
 
-  return { segments, legend };
+  return { segments, legend, byProgram };
 }
 
 function MonthsCard({
@@ -710,7 +672,7 @@ function MonthsCard({
   yearRows: AnalyticsRow[];
 }) {
   const { year, month } = view;
-  const { segments, legend } = useMemo(() => seriesFor(data, view, yearRows), [data, view, yearRows]);
+  const { segments, legend, byProgram } = useMemo(() => seriesFor(data, view, yearRows), [data, view, yearRows]);
 
   const columns = useMemo<Column[]>(() => {
     const buckets: AnalyticsRow[][] = Array.from({ length: 12 }, () => []);
@@ -754,9 +716,6 @@ function MonthsCard({
   const from = Math.max(0, Math.min(firstActive < 0 ? 0 : firstActive, month ?? 11));
   const shown = columns.slice(from);
 
-  const monthTally = month != null ? columns[month].tally : null;
-  const activeDays = days?.filter((d) => hoursOf(d.tally) > 0).length ?? 0;
-  const bestDay = days?.reduce<Column | null>((best, d) => (!best || hoursOf(d.tally) > hoursOf(best.tally) ? d : best), null);
 
   return (
     <Section
@@ -764,7 +723,6 @@ function MonthsCard({
       // The column tooltip rises above the tallest bar, past the card's edge.
       className="overflow-visible!"
     >
-      {legend.length > 1 && <Legend items={legend} className="px-4 pt-3 sm:px-5" />}
       <div className="px-4 py-3 sm:px-5">
         <Columns
           key={`${year}`}
@@ -772,27 +730,14 @@ function MonthsCard({
           height={220}
           selected={month == null ? null : month - from}
           onSelect={(i) => go({ month: month === i + from ? null : i + from })}
-          hint="Click to open this month"
         />
+        {/* The key, once, under the chart — and only for programs: in plan
+            against extra is already keyed by the bar beside the hours. */}
+        {byProgram && legend.length > 1 && <Legend items={legend} className="pt-3" />}
       </div>
-      {days && month != null && monthTally && (
+      {days && month != null && (
         <div className={cn(s.enter, "border-t border-line px-4 py-3 sm:px-5")} key={`${year}-${month}`}>
-          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <h3 className="text-title font-semibold text-ink">Inside {MONTHS_LONG[month]}</h3>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-fg">
-              <span>
-                <span className="font-medium tabular-nums text-ink">{formatDuration(hoursOf(monthTally))}</span> total
-              </span>
-              <span>
-                <span className="font-medium tabular-nums text-ink">{activeDays}</span> active {activeDays === 1 ? "day" : "days"}
-              </span>
-              {bestDay && hoursOf(bestDay.tally) > 0 && (
-                <span>
-                  busiest <span className="font-medium text-ink">{bestDay.title.split(",")[1].trim()}</span> · {formatDuration(hoursOf(bestDay.tally))}
-                </span>
-              )}
-            </div>
-          </div>
+          <h3 className="mb-3 text-title font-semibold text-ink">Inside {MONTHS_LONG[month]}</h3>
           <Columns columns={days} height={140} thin labelEvery={days.length > 20 ? 5 : 1} />
         </div>
       )}
@@ -820,7 +765,6 @@ function Columns({
   onSelect,
   thin = false,
   labelEvery = 1,
-  hint,
 }: {
   columns: Column[];
   height: number;
@@ -828,7 +772,6 @@ function Columns({
   onSelect?: (i: number) => void;
   thin?: boolean;
   labelEvery?: number;
-  hint?: string;
 }) {
   const grown = useGrown();
   const [hover, setHover] = useState<number | null>(null);
@@ -908,7 +851,6 @@ function Columns({
                         </div>
                       )}
                       {total === 0 && c.tally.noShows === 0 && <div className="text-muted-fg">No sessions</div>}
-                      {hint && onSelect && selected !== i && <div className={s.tipHint}>{hint}</div>}
                     </div>
                   )}
                   {!thin && total > 0 && <span className={s.capLabel}>{shortHours(total)}</span>}
@@ -995,7 +937,6 @@ function ProgramCards({
     .sort((a, b) => (b.r?.hours ?? 0) - (a.r?.hours ?? 0));
   const order = all.filter(({ r }) => (r?.hours ?? 0) > 0);
   const idle = all.filter(({ r }) => (r?.hours ?? 0) === 0);
-  const period = month != null ? MONTHS_LONG[month] : String(year);
 
   return (
     <section className="@container min-w-0">
@@ -1025,9 +966,7 @@ function ProgramCards({
               <span className="flex items-center gap-2">
                 <Dot color={color} />
                 <span className="min-w-0 flex-1 truncate text-body font-medium text-ink">{p.name}</span>
-                {p.archived && (
-                  <span className="shrink-0 rounded-full bg-fill px-2.5 py-[0.1875rem] text-xs font-medium text-muted-fg">Archived</span>
-                )}
+                {p.archived && <span className="shrink-0 text-xs text-muted-fg">Archived</span>}
                 <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg transition-transform group-hover:translate-x-0.5" />
               </span>
               {/* The figure never breaks ("9h / 30m"); the caption is what
@@ -1036,13 +975,11 @@ function ProgramCards({
                 <span className="shrink-0 whitespace-nowrap text-figure-lg font-semibold leading-none tracking-tight tabular-nums text-ink">
                   {formatDuration(r?.hours ?? 0)}
                 </span>
-                {/* "TO DATE", said: the gauge is all-time on purpose (a grant
-                    is a stock, not a flow), but beside a figure for the picked
-                    period it read as that period's share — September and the
-                    whole year both "13% of the 734h granted". */}
+                {/* The gauge is all-time on purpose: a grant is a stock, not a
+                    flow. */}
                 <span className="min-w-0 text-xs tabular-nums text-muted-fg">
                   {p.granted > 0
-                    ? `${Math.round(progress * 100)}% of ${formatDuration(p.granted)} total, to date`
+                    ? `${Math.round(progress * 100)}% of ${formatDuration(p.granted)}`
                     : "no total set"}
                 </span>
               </span>
@@ -1066,17 +1003,15 @@ function ProgramCards({
         <ul className={cn("overflow-clip rounded-xl bg-surface shadow-sm divide-y divide-line", order.length > 0 && "mt-3")}>
           {idle.map(({ p, i }) => (
             <li key={p.id}>
+              {/* design-allow: list row */}
               <button
+                className="group flex min-h-11 w-full items-center gap-2 px-4 py-2 text-left text-xs text-muted-fg transition-colors hover:bg-fill/40 sm:px-5"
                 type="button"
                 onClick={() => go({ program: i, mentor: null })}
-                className="group flex min-h-11 w-full items-center gap-2 px-4 py-2 text-left text-xs text-muted-fg transition-colors hover:bg-fill/40 sm:px-5"
               >
                 <Dot color={colorOf(data, i)} />
-                <span className="min-w-0 truncate font-medium text-ink">{p.name}</span>
-                <span className="min-w-0 flex-1 truncate">
-                  · nothing logged in {period}
-                  {p.granted > 0 ? ` · ${formatDuration(p.granted)} total` : ""}
-                </span>
+                <span className="min-w-0 flex-1 truncate font-medium text-ink">{p.name}</span>
+                <span className="shrink-0 tabular-nums">—</span>
                 <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg" />
               </button>
             </li>
@@ -1116,7 +1051,6 @@ function Leaderboard({
   periodRows,
   yearRows,
   limit,
-  last,
 }: {
   data: AnalyticsData;
   view: View;
@@ -1132,7 +1066,6 @@ function Leaderboard({
   periodRows: AnalyticsRow[];
   yearRows: AnalyticsRow[];
   limit?: number;
-  last: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [query, setQuery] = useState("");
@@ -1149,27 +1082,12 @@ function Leaderboard({
     [ranked, needle, data.mentors]
   );
   const shown = limit && !expanded && !needle ? found.slice(0, limit) : found;
-  const top = ranked[0]?.hours ?? 0;
   const period = view.month != null ? MONTHS_LONG[view.month] : String(view.year);
 
   return (
-    <Section
-      title={title}
-      eyebrow={`${withRank ? "Ranked by" : "Most"} hours with students in ${period}.`}
-      action={
-        // `py-2.5` cancels the action slot's -my-2, which is for a 44px link
-        // and left this 12px legend hard against the top edge of the card.
-        <Legend
-          className="py-2.5"
-          items={[
-            { label: "In plan", color: HOURS, opacity: 1 },
-            { label: "Extra", color: HOURS, opacity: EXTRA_OPACITY },
-          ]}
-        />
-      }
-    >
+    <Section title={title}>
       {ranked.length === 0 ? (
-        <p className="px-4 py-3 text-body text-muted-fg sm:px-5">No mentor logged a session in {period}.</p>
+        <p className="px-4 py-3 text-body text-muted-fg sm:px-5">No sessions in {period}</p>
       ) : (
         <>
           <label className="relative block border-b border-line px-4 py-2.5 sm:px-5">
@@ -1180,6 +1098,7 @@ function Leaderboard({
             />
             <Input
               type="search"
+              measure="md"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search mentors"
@@ -1189,21 +1108,16 @@ function Leaderboard({
             />
           </label>
           {found.length === 0 && (
-            <p className="px-4 py-3 text-body text-muted-fg sm:px-5">
-              No mentor matching “{query.trim()}” logged a session in {period}.
-            </p>
+            <p className="px-4 py-3 text-body text-muted-fg sm:px-5">No match</p>
           )}
           <div className="divide-y divide-line">
             {shown.map(({ r, rank }, n) => (
               <MentorRow
                 key={r.index}
                 r={r}
-                last={last}
                 rank={rank}
                 showRank={withRank}
-                top={top}
                 mentor={data.mentors[r.index]}
-                highlight={view.month}
                 delay={n * 40}
                 onOpen={() => go({ mentor: r.index })}
               />
@@ -1212,13 +1126,15 @@ function Leaderboard({
         </>
       )}
       {limit && !needle && ranked.length > limit && (
-        <button
-          type="button"
-          className="block w-full border-t border-line px-4 py-3 text-left text-body font-medium text-brand transition-colors hover:bg-fill sm:px-5"
-          onClick={() => setExpanded((e) => !e)}
-        >
-          {expanded ? "Show the top " + limit : `Show all ${ranked.length} mentors`}
-        </button>
+        <div className="border-t border-line px-4 py-2 sm:px-5">
+          <button
+            type="button"
+            className="inline-flex min-h-11 items-center text-body font-medium text-brand hover:underline"
+            onClick={() => setExpanded((e) => !e)}
+          >
+            {expanded ? `Show top ${limit}` : `Show all ${ranked.length}`}
+          </button>
+        </div>
       )}
     </Section>
   );
@@ -1226,28 +1142,20 @@ function Leaderboard({
 
 function MentorRow({
   r,
-  last,
   rank,
   showRank = true,
-  top,
   mentor,
-  highlight,
   delay,
   onOpen,
 }: {
   r: Ranked;
-  last: number;
   rank: number;
   /** Place numbers are for staff; a mentor gets the list, not a ranking. */
   showRank?: boolean;
-  top: number;
   mentor: AnalyticsMentor;
-  highlight: number | null;
   delay: number;
   onOpen: () => void;
 }) {
-  const grown = useGrown();
-  const scale = top ? 100 / top : 0;
   return (
     <button
       type="button"
@@ -1265,35 +1173,8 @@ function MentorRow({
         <span className="text-center text-xs tabular-nums text-muted-fg">{rank}</span>
       )}
       <MentorAvatar mentor={mentor} />
-      <span className="flex min-w-0 flex-col">
-        <span className="min-w-0 truncate text-body font-medium text-ink">{mentor.name}</span>
-        <span className="mt-1.5 flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-fill" aria-hidden>
-          <span className={s.barSeg} style={{ width: grown ? `${r.completed * scale}%` : 0, background: HOURS }} />
-          {r.extra > 0 && (
-            <span
-              className={s.barSeg}
-              style={{ width: grown ? `${r.extra * scale}%` : 0, background: HOURS, opacity: EXTRA_OPACITY }}
-            />
-          )}
-        </span>
-        <span className="mt-1 min-w-0 truncate text-xs text-muted-fg">
-          {r.sessions} {r.sessions === 1 ? "session" : "sessions"} · {r.students} {r.students === 1 ? "student" : "students"}
-          {r.sessions ? ` · ${formatDuration(r.hours / r.sessions)} avg` : ""}
-        </span>
-      </span>
-      <span className="flex items-center gap-3">
-        <span className="max-sm:hidden">
-          <Sparkline
-            values={r.trend.slice(0, last + 1)}
-            color="var(--color-muted-fg)"
-            dotColor={HOURS}
-            width={72}
-            height={24}
-            highlight={highlight}
-          />
-        </span>
-        <span className="min-w-12 whitespace-nowrap text-right text-body font-semibold tabular-nums text-ink">{formatDuration(r.hours)}</span>
-      </span>
+      <span className="min-w-0 truncate text-body font-medium text-ink">{mentor.name}</span>
+      <span className="min-w-12 whitespace-nowrap text-right text-body font-semibold tabular-nums text-ink">{formatDuration(r.hours)}</span>
       <ChevronRightIcon className="h-4 w-4 text-muted-fg transition-transform group-hover:translate-x-0.5" />
     </button>
   );
@@ -1334,20 +1215,8 @@ function MentorDetail({
     0,
     months.findIndex((m) => hoursOf(m) > 0 || m.sessions > 0 || m.noShows > 0),
   );
-  // The month in progress gets no change figure: "▼ 99%" on October 5 was a
-  // fall that had not happened, measured against a month that had finished.
-  const running = year === today.year ? today.month : -1;
-
   return (
-    <>
-      <Section title={`Every day of ${year}`}>
-        <div className="px-4 py-3 sm:px-5">
-          <Heatmap rows={yearRows} year={year} color={accent} selected={month} onPick={(m) => go({ month: m })} />
-        </div>
-      </Section>
-      <Section
-        title={self ? "What you logged each month" : "What they logged each month"}
-      >
+    <Section title={self ? "What you logged each month" : "What they logged each month"}>
         {/* `scroll-x` rather than a bare overflow: on a phone the last columns
             run past the card, and the fade is what says there is more. */}
         <div className="scroll-x px-4 py-2 sm:px-5">
@@ -1358,16 +1227,12 @@ function MentorDetail({
                 <th>Hours</th>
                 <th>Sessions</th>
                 <th>Students</th>
-                <th>Avg</th>
-                <th>Change</th>
               </tr>
             </thead>
             <tbody>
               {months.map((m, i) => {
                 if (i > lastMonth || i < firstMonth) return null;
                 const h = hoursOf(m);
-                const prev = i > 0 ? hoursOf(months[i - 1]) : 0;
-                const d = change(h, prev);
                 return (
                   <tr
                     key={i}
@@ -1391,41 +1256,29 @@ function MentorDetail({
                     </td>
                     <td>{m.sessions || "—"}</td>
                     <td>{students[i] || "—"}</td>
-                    <td>{m.sessions ? formatDuration(h / m.sessions) : "—"}</td>
-                    <td className="text-xs">
-                      {i === firstMonth || i === running || (h === 0 && prev === 0) ? (
-                        i === running ? <span className="text-muted-fg">so far</span> : ""
-                      ) : (
-                        <Delta value={d} />
-                      )}
-                    </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
-      </Section>
-    </>
+    </Section>
   );
 }
 
-/** Which of the mentor's programs to read, and — for staff — where they stand in it. */
+/** Which of the mentor's programs to read. */
 function MentorScope({
   data,
   view,
   go,
-  ranked = true,
   words,
 }: {
   words: Words;
   data: AnalyticsData;
   view: View;
   go: (next: Partial<View>) => void;
-  /** Staff see "#n of m mentors"; a mentor looking at a colleague needs no ranking. */
-  ranked?: boolean;
 }) {
-  const { year, month, program, mentor } = view;
+  const { year, program, mentor } = view;
 
   // Every program this mentor has hours in this year, for the switcher.
   const theirPrograms = useMemo(() => {
@@ -1433,24 +1286,17 @@ function MentorScope({
     return [...ids].sort((a, b) => a - b);
   }, [data.rows, year, mentor]);
 
-  // Where they stand among the mentors of the same scope.
-  const standing = useMemo(() => {
-    const scopeRows = select(data.rows, { year, month, program });
-    const ranked = rankBy(scopeRows, scopeRows, 1);
-    const at = ranked.findIndex((r) => r.index === mentor);
-    return at < 0 ? null : { rank: at + 1, of: ranked.length };
-  }, [data.rows, year, month, program, mentor]);
-
   if (theirPrograms.length === 0) return null;
-  // Filter chips on the page ground, the way every other filter in the app
-  // sits — a card around two chips was a box with nothing to hold.
+  // Filter chips on the page ground, drawn as `FilterBar`'s chips are. Not
+  // `FilterBar` itself: its chips are links that reload the page, and this
+  // view lives in the browser (`useView`).
   const chip = (on: boolean) =>
     cn(
-      "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors",
+      "inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-xs font-medium transition-colors sm:min-h-8",
       on ? "bg-brand text-on-brand" : "bg-fill text-ink hover:bg-fill-strong"
     );
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-wrap items-center gap-3">
       {theirPrograms.length > 1 ? (
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Program">
           <button type="button" className={chip(program == null)} aria-pressed={program == null} onClick={() => go({ program: null })}>
@@ -1474,91 +1320,7 @@ function MentorScope({
           Works in {data.programs[theirPrograms[0]]?.name}
         </span>
       )}
-      {ranked && standing && (
-        <span className="text-xs text-muted-fg">
-          <span className="font-medium tabular-nums text-ink">#{standing.rank}</span> of {standing.of} mentors
-          {program != null ? ` in ${data.programs[program].name}` : ""} ·{" "}
-          {month != null ? MONTHS_LONG[month] : year}
-        </span>
-      )}
     </div>
-  );
-}
-
-function Heatmap({
-  rows,
-  year,
-  color,
-  selected,
-  onPick,
-}: {
-  rows: AnalyticsRow[];
-  year: number;
-  color: string;
-  selected: number | null;
-  onPick: (month: number) => void;
-}) {
-  const weeks = useMemo(() => weeksOf(year), [year]);
-  const hours = useMemo(() => hoursByDay(rows), [rows]);
-  // A phone shows about twenty weeks of the fifty-three. Open on the end of
-  // the year, where the recent days are, rather than on an empty January.
-  const scroller = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = scroller.current;
-    if (el) el.scrollLeft = el.scrollWidth;
-  }, [year]);
-  const max = Math.max(...hours.values(), 1);
-  const level = (m: number) => (m <= 0 ? 0 : m / max <= 0.25 ? 1 : m / max <= 0.5 ? 2 : m / max <= 0.75 ? 3 : 4);
-  const mix = [0, 28, 52, 76, 100];
-  const fill = (lv: number) =>
-    lv === 0 ? undefined : `color-mix(in oklab, ${color} ${mix[lv]}%, var(--color-surface))`;
-
-  return (
-    <>
-      <div ref={scroller} className={cn(s.heat, "scroll-x")}>
-        <div className={s.heatGrid}>
-          {weeks.map((week, w) => {
-            // Label the week a month begins in, and the first week of the year.
-            const opener = week.find((d) => d != null && (dateOf(d) === 1 || w === 0));
-            const labelMonth = opener != null ? monthOf(opener) : null;
-            return [
-              <span key={`m${w}`} className={s.heatMonth}>
-                {labelMonth != null ? MONTHS[labelMonth] : ""}
-              </span>,
-              ...week.map((d, k) => {
-                if (d == null) return <span key={`${w}-${k}`} className={cn(s.heatCell, s.heatVoid)} />;
-                const m = hours.get(d) ?? 0;
-                const mo = monthOf(d);
-                const date = new Date(Date.UTC(year, mo, dateOf(d)));
-                const label = `${WEEKDAYS[date.getUTCDay()]}, ${dateOf(d)} ${MONTHS[mo]}: ${m ? formatDuration(m) : "no sessions"}`;
-                return (
-                  <button
-                    key={`${w}-${k}`}
-                    type="button"
-                    className={s.heatCell}
-                    title={label}
-                    aria-label={label}
-                    onClick={() => onPick(mo)}
-                    style={{
-                      background: fill(level(m)),
-                      opacity: selected != null && selected !== mo ? 0.35 : 1,
-                      cursor: "pointer",
-                    }}
-                  />
-                );
-              }),
-            ];
-          })}
-        </div>
-      </div>
-      <div className="mt-2 flex items-center justify-end gap-1 text-xs text-muted-fg">
-        Less
-        {[0, 1, 2, 3, 4].map((lv) => (
-          <span key={lv} className={s.heatCell} style={{ background: fill(lv) }} />
-        ))}
-        More
-      </div>
-    </>
   );
 }
 
@@ -1587,7 +1349,8 @@ function Sparkline({
   const x = (i: number) => pad + (i / Math.max(1, values.length - 1)) * (width - pad * 2);
   const y = (v: number) => height - pad - (v / max) * (height - pad * 2);
   const line = values.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
-  const area = `${line}L${x(values.length - 1)},${height - pad}L${x(0)},${height - pad}Z`;
+  const floor = height - pad;
+  const area = [line, "L", x(values.length - 1), ",", floor, "L", x(0), ",", floor, "Z"].join("");
   let dot = highlight;
   if (dot == null) for (let i = values.length - 1; i >= 0; i--) if (values[i] > 0) { dot = i; break; }
 
@@ -1646,18 +1409,3 @@ function MentorAvatar({ mentor, large = false }: { mentor: AnalyticsMentor; larg
   );
 }
 
-function Crumb({ current, onClick, children }: { current: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors",
-        current ? "cursor-default font-medium text-ink" : "text-muted-fg hover:bg-fill hover:text-ink"
-      )}
-      onClick={current ? undefined : onClick}
-      aria-current={current ? "page" : undefined}
-    >
-      {children}
-    </button>
-  );
-}

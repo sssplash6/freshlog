@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 
+import { buttonClasses } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { reportBug } from "@/lib/actions/bugs";
@@ -78,26 +79,23 @@ export function ReportBugForm({ from }: { from: string | null }) {
   const fieldError = (name: string) => (failed?.field === name ? failed.error : undefined);
 
   return (
-    <form action={submit} className="space-y-4 rounded-xl bg-surface p-4 shadow-sm sm:p-5">
+    <form action={submit} className="max-w-xl space-y-4 rounded-xl bg-surface p-4 shadow-sm sm:p-5">
       <input type="hidden" name="from" value={from ?? ""} />
 
-      <Field label="What went wrong?" required error={fieldError("title")} hint="A few words.">
+      <Field label="What went wrong?" required error={fieldError("title")}>
         <Input
           name="title"
+          measure="md"
           required
           maxLength={BUG_TITLE_MAX}
           defaultValue={failed?.values?.title ?? ""}
         />
       </Field>
 
-      <Field
-        label="Tell us more"
-        required
-        error={fieldError("description")}
-        hint="What you did, what you expected, and what happened instead."
-      >
+      <Field label="Tell us more" required error={fieldError("description")}>
         <Textarea
           name="description"
+          measure="lg"
           required
           rows={6}
           maxLength={BUG_DESCRIPTION_MAX}
@@ -105,12 +103,17 @@ export function ReportBugForm({ from }: { from: string | null }) {
         />
       </Field>
 
-      <Field label="Screenshot" error={shotError ?? undefined} hint="Optional. Avoid anything private.">
+      {/* The same picker as a profile picture: a button-shaped label over a
+          visually hidden input. */}
+      <Field label="Screenshot (optional)" error={shotError ?? undefined}>
+        <span className={buttonClasses("secondary", "md", "cursor-pointer")}>
+          {shot ? "Replace" : "Choose image"}
+        </span>
         <input
           type="file"
           accept={BUG_SHOT_ACCEPT}
           onChange={(event) => void pick(event.target.files?.[0])}
-          className="block w-full text-sm text-ink file:mr-3 file:min-h-11 file:rounded-lg file:border-0 file:bg-fill file:px-4 file:text-sm file:font-medium file:text-ink"
+          className="sr-only"
         />
       </Field>
 
@@ -120,7 +123,7 @@ export function ReportBugForm({ from }: { from: string | null }) {
           would be sent again. This row is the truth, and the way to drop it. */}
       {shot && (
         <p className="flex flex-wrap items-center gap-x-3 text-sm text-ink">
-          <span>Screenshot attached ({Math.max(1, Math.round(shot.size / 1024))} KB)</span>
+          <span>Screenshot attached</span>
           <button
             type="button"
             onClick={() => setShot(null)}

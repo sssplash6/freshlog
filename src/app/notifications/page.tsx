@@ -12,10 +12,8 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle } from "@/components/ui/section";
 import { Section } from "@/components/ui/section";
-import { ArrowLink } from "@/components/ui/link";
 import { Pagination, parsePage } from "@/components/ui/pagination";
 import { attentionFor } from "@/lib/attention";
-import { inStudentLens } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { profileOf } from "@/lib/profile";
@@ -33,7 +31,7 @@ export const metadata: Metadata = { title: "Notifications" };
  * button: everything about the reader is behind it, and no page carries either
  * list any more.
  *
- * So the order is the question and then the record. Active issues, then a
+ * So the order is the question and then the record. Needs you, then a
  * rule, then what has happened, paged and filterable. `lib/attention.ts`
  * derives the first half for whichever of the three readers is looking; this
  * page renders it and asks nothing about who they are, except for the two
@@ -58,18 +56,6 @@ function isCategory(value: unknown): value is NotificationCategory {
     typeof value === "string" && (CATEGORY_ORDER as string[]).includes(value)
   );
 }
-
-/** What this feed is for, in the words of the person reading it. */
-const BLURB: Record<string, string> = {
-  ADMIN:
-    "Sessions your mentors log, work they finish, signups waiting on approval, and every change to a student's time.",
-  DEPT_LEADER: "Changes to students and across your program.",
-  SALES: "Changes to students and across your program.",
-  MENTOR:
-    "Agenda an admin plans for you, tasks your students move along, time granted for them, and deadlines coming up.",
-  STUDENT:
-    "Tasks your mentors set you, every session they log, every change to your time, and deadlines before they pass.",
-};
 
 export default async function NotificationsPage({
   searchParams,
@@ -96,18 +82,6 @@ export default async function NotificationsPage({
       attentionFor(user, profile),
       prisma.notification.findMany({
         where,
-        include: {
-          actor: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              // Feeds the actor's PersonBadge; without it they'd show initials
-              // here while wearing their picture everywhere else.
-              avatarUpdatedAt: true,
-            },
-          },
-        },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * PER_PAGE,
         take: PER_PAGE,
@@ -124,14 +98,11 @@ export default async function NotificationsPage({
     ]);
   const countOf = new Map(byCategory.map((c) => [c.category, c._count]));
   const present = CATEGORY_ORDER.filter((c) => countOf.has(c));
-  const blurb = BLURB[user.role] ?? "Everything that changed for you.";
 
   // ORDER (October 2026): what is new, then what to act on, then the history
   // with its filter directly above it. The one unread notice used to sit
   // under a five-row copy of the home page's checklist, below the fold on a
-  // phone — the page's subtitle said "1 unread" about something you could
-  // not see.
-  const issues = attention.statuses.filter((s) => s.type !== "ALL_CLEAR").length;
+  // phone.
   const unreadRows = notifications.filter((n) => !n.read);
   const readRows = notifications.filter((n) => n.read);
   // A pager only when there is more than one page: on one page its "12
@@ -159,19 +130,7 @@ export default async function NotificationsPage({
 
   return (
     <div className="max-w-3xl space-y-4">
-      <PageTitle
-        // Both counts, each in its own words. "Nothing unread" above six
-        // issues read as "nothing to do", which was the opposite of the page.
-        title="Notifications"
-        subtitle={
-          [
-            issues > 0 ? `${issues} to act on` : null,
-            unread > 0 ? `${unread} unread` : null,
-          ]
-            .filter(Boolean)
-            .join(" · ") || "All caught up"
-        }
-      />
+      <PageTitle title="Notifications" />
 
       {unreadRows.length > 0 && (
         <NotificationList
@@ -183,11 +142,6 @@ export default async function NotificationsPage({
 
       <AttentionList
         statuses={attention.statuses}
-        // "Active issues" is the staff word for a queue they work through. A
-        // student has no queue — these are things about their own time to look
-        // at — so they are told so in their own words.
-        title={inStudentLens(user, profile) ? "Things to check" : "Active issues"}
-        empty={attention.empty}
         dismissible={attention.dismissible}
         renderAction={(s) => {
           // The one row that can discharge itself where it is read: an admin
@@ -217,27 +171,20 @@ export default async function NotificationsPage({
           goes: a filter that can only select everything is a button whose job
           nobody can guess. */}
       {present.length > 1 && (
-        <div className="space-y-1.5">
-          {/* Unlabelled, four grey pills between two lists read as a second set
-              of sections. They narrow the history below (October 2026 audit). */}
-          <p className="px-1 text-xs text-muted-fg">Filter earlier updates by type</p>
-          <FilterBar
-            basePath="/notifications"
-            params={params}
-            framed={false}
-            presets={present.map((c) => ({
-              label: NOTIFICATION_CATEGORY_LABELS[c],
-              params: { category: c },
-            }))}
-          />
-        </div>
+        <FilterBar
+          basePath="/notifications"
+          params={params}
+          framed={false}
+          presets={present.map((c) => ({
+            label: NOTIFICATION_CATEGORY_LABELS[c],
+            params: { category: c },
+          }))}
+        />
       )}
 
       {notifications.length === 0 ? (
         <Section title="Earlier">
-          <EmptyState framed={false} title="Nothing has happened yet">
-            {blurb} Changes to time, sessions and deadlines arrive here.
-          </EmptyState>
+          <EmptyState framed={false} title="Nothing has happened yet" />
         </Section>
       ) : (
         readRows.length > 0 && (
@@ -245,11 +192,6 @@ export default async function NotificationsPage({
         )
       )}
 
-      {/* The feed's other half — which of these also reach the reader's inbox
-          — is decided on Settings, and nothing here led there. */}
-      <ArrowLink href="/settings" className="text-sm">
-        Email preferences
-      </ArrowLink>
     </div>
   );
 }

@@ -1,24 +1,22 @@
 import Link from "next/link";
 
-import { ArrowRightIcon, ArrowUpRightIcon } from "@/components/icons";
+import { ArrowUpRightIcon } from "@/components/icons";
 import { buttonClasses, type ButtonSize } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
 /**
- * The two kinds of link, so the reader can tell them apart before clicking.
- *
- * `ArrowLink` goes somewhere else in this app: arrow points right, and it
- * slides on hover. `ExternalLink` leaves: arrow points up-right and the tab is
- * new. That distinction was being made by hand in nine places, three of which
- * had grown into their own components — `arrow-link.tsx`, `telegram-handle.tsx`
- * and `student-folder-link.tsx`, the last two identical but for their icon and
- * label.
+ * The two kinds of link. `ArrowLink` goes somewhere else in this app;
+ * `ExternalLink` leaves, in a new tab. Both wear one text style: brand,
+ * medium weight, the surrounding size, underlined on hover. Only the
+ * `action` button still marks that it leaves, with an up-right arrow.
  *
  * Anywhere the app previously printed a literal "→" as text, use `ArrowLink`.
  * A glyph in a sentence is not a link and cannot be tabbed to.
  */
 
-/** Internal navigation. */
+const LINK_TEXT = "font-medium text-brand hover:underline";
+
+/** Internal navigation. The name is historical: it no longer draws an arrow. */
 export function ArrowLink({
   href,
   children,
@@ -30,24 +28,15 @@ export function ArrowLink({
   className?: string;
   reloadDocument?: boolean;
 }) {
-  const classes = cn(
-    "group inline-flex min-h-11 items-center gap-1.5 font-semibold text-brand hover:text-brand-dark",
-    className
-  );
-  const contents = (
-    <>
-      {children}
-      <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-    </>
-  );
+  const classes = cn(LINK_TEXT, "inline-flex min-h-11 items-center gap-1.5", className);
 
   return reloadDocument ? (
     <a href={href} className={classes}>
-      {contents}
+      {children}
     </a>
   ) : (
     <Link href={href} transitionTypes={["nav-forward"]} className={classes}>
-      {contents}
+      {children}
     </Link>
   );
 }
@@ -69,7 +58,7 @@ export type ExternalVariant =
    * already starting.
    */
   | "quiet"
-  /** A grey-filled pill, for a table cell where a bare link would not read as one. */
+  /** Drawn as `quiet`; kept so callers compile. */
   | "chip"
   /** The primary thing to do on the view — booking a session, joining a call. */
   | "action";
@@ -93,11 +82,8 @@ export function ExternalLink({
   title?: string;
   className?: string;
 }) {
-  // The chip's own icon already says what it reaches, and it is the only
-  // variant in a table cell, where a second glyph beside a truncating name is
-  // the noise this file exists to remove. Inline links sit mid-sentence, where
-  // an arrow reads as punctuation. Both say where they go with `title`.
-  const marker = variant === "quiet" || variant === "action";
+  const marker = variant === "action";
+  const quiet = variant === "quiet" || variant === "chip";
 
   return (
     <a
@@ -107,12 +93,8 @@ export function ExternalLink({
       title={title}
       className={cn(
         "group",
-        variant === "inline" &&
-          "tap-target inline-flex items-center gap-1 py-1 align-middle font-medium text-brand hover:underline",
-        variant === "quiet" &&
-          "inline-flex min-h-11 items-center gap-1.5 text-xs font-medium text-brand hover:underline",
-        variant === "chip" &&
-          "inline-flex min-h-9 items-center gap-1.5 rounded-full bg-fill px-3 text-xs font-medium text-brand transition-colors hover:bg-fill-strong",
+        variant === "inline" && cn(LINK_TEXT, "tap-target inline-flex items-center gap-1 py-1 align-middle"),
+        quiet && cn(LINK_TEXT, "inline-flex min-h-11 items-center gap-1.5"),
         variant === "action" && buttonClasses("primary", size),
         className
       )}

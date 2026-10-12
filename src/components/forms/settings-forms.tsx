@@ -7,7 +7,7 @@ import {
   setWeeklyDigest,
 } from "@/lib/actions/email-prefs";
 import { setOwnTelegram } from "@/lib/actions/profile";
-import { inputClasses } from "@/components/ui/field";
+import { Input } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SettingsRow } from "@/components/ui/settings-row";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -45,17 +45,14 @@ export function OwnTelegramForm({ defaultHandle }: { defaultHandle: string }) {
               include it. Required here as it is at sign-in — a field that
               looks optional and is not is how a student learns the rule from
               an error message. */}
-          <div className="relative min-w-0 flex-1">
+          <div className="relative min-w-0 flex-1 sm:max-w-48">
             <span
               aria-hidden="true"
               className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-body text-muted-fg"
             >
               @
             </span>
-            {/* The field chrome with its left padding swapped rather than
-                overridden: `cn` does not merge, so a `pl-7` added after
-                `px-3.5` would race it on CSS order. */}
-            <input
+            <Input
               id={id}
               name="telegramUsername"
               required
@@ -65,7 +62,8 @@ export function OwnTelegramForm({ defaultHandle }: { defaultHandle: string }) {
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
-              className={inputClasses.replace("px-3.5", "pl-7 pr-3.5")}
+              measure="sm"
+              className="pl-7"
             />
           </div>
           {/* Only lit once there is something to save. An always-blue Save

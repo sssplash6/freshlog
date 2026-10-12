@@ -1,9 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 
 import { Avatar } from "@/components/avatar";
-import { BookingLinksForm } from "@/components/forms/booking-link-form";
 import { EditMentorForm } from "@/components/forms/mentor-forms";
-import { AvatarForm, OwnNameForm } from "@/components/forms/profile-forms";
+import { PencilIcon } from "@/components/icons";
 import { CreateButton, CreatePanel, CreateSlot } from "@/components/page-create";
 import { PersonCell } from "@/components/person-chip";
 import { ProgramChip } from "@/components/program-chip";
@@ -11,8 +10,7 @@ import { HoursLeft } from "@/components/ui/hours-left";
 import { StatusChip } from "@/components/ui/status-chip";
 import { SessionsLog } from "@/components/session-row";
 import { toSessionEntries } from "@/lib/session-entries";
-import { Disclosure } from "@/components/ui/disclosure";
-import { Button } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DateField } from "@/components/ui/date-field";
 import { Figure, FigureRow } from "@/components/ui/figure";
@@ -30,7 +28,7 @@ import { cn } from "@/lib/cn";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
-import { formatDate, formatDuration } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
 import { allocationSummary, canBookOn } from "@/lib/hours";
 import { mentorWindow } from "@/lib/mentor-window";
 import { prisma } from "@/lib/prisma";
@@ -107,7 +105,7 @@ export default async function MentorPage({
   const isStudent = viewer.role === ROLES.STUDENT;
   // `manages` opens the record — a shared program at any grant level reads a
   // mentor's figures. `edits` is the write answer, so a read-only grant (a
-  // LEADER, a SALES row) sees the record but not the Edit disclosure.
+  // LEADER, a SALES row) sees the record but not its Edit.
   const manages = !isStudent && (await canManageMentor(viewer, mentor.id));
   const edits = !isStudent && (await canAdministerMentor(viewer, mentor.id));
 
@@ -185,7 +183,7 @@ async function MentorRecord({
     // The picker is built from the READER's programs, which is what makes an
     // unticked box safe to read as a removal: a pairing in a program they do
     // not hold draws no row, and `updateMentor` refuses to delete what drew no
-    // row. Only fetched when there is an Edit fold to put it in.
+    // row. Only fetched when there is an Edit panel to put it in.
     edits ? programOptions(programIds) : Promise.resolve([]),
   ]);
 
@@ -249,7 +247,7 @@ async function MentorRecord({
   });
   const delivered = sum((r) => r.delivered);
   const missed = sum((r) => r.missed);
-  const meetings = sum((r) => r.sessions);
+  const sessionCount = sum((r) => r.sessions);
   const name = mentor.name ?? mentor.email;
   const rated = feedback._count > 0 && feedback._avg.rating != null;
   const base = `/mentors/${mentor.id}`;
@@ -296,9 +294,7 @@ async function MentorRecord({
               thing marking it.
             */
             <>
-              <span className="block">
-                {mentor.email} · registered {formatDate(mentor.createdAt)}
-              </span>
+              <span className="block">{mentor.email}</span>
               {pairings.length > 0 && (
                 <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                   {pairings.map((a) => (
@@ -327,11 +323,23 @@ async function MentorRecord({
               className="h-16 w-16 text-2xl"
             />
           }
-          actions={edits ? <CreateButton label="Edit" icon="edit" /> : undefined}
+          actions={
+            edits ? (
+              <CreateButton label="Edit" icon="edit" />
+            ) : isSelf ? (
+              // The same pencil in the same place. A mentor's picture, name
+              // and booking links are edited in Settings, which is where the
+              // missing-link warning sends them.
+              <LinkButton href="/settings" variant="secondary" className="gap-1.5">
+                <PencilIcon className="h-4 w-4 shrink-0" />
+                Edit
+              </LinkButton>
+            ) : undefined
+          }
         />
 
         {edits && (
-          <CreatePanel title="Edit mentor" hint="Their name, sign-in email and programs.">
+          <CreatePanel title="Edit mentor">
             <EditMentorForm
               mentorId={mentor.id}
               name={mentor.name ?? ""}
@@ -352,55 +360,6 @@ async function MentorRecord({
           </CreatePanel>
         )}
 
-        {/*
-          The mentor's own edit forms, which §6.9 moves to /settings in commit
-          48. They stay folded here until that page exists: this is the ONLY
-          place in the app that sets a booking link, a profile picture or a
-          mentor's own name, and /mentor's BOOKING_LINK_MISSING row points here
-          to do it. Deleting them now would leave a mentor told to set a link
-          with nowhere to set one.
-        */}
-        {isSelf && (
-          <Disclosure
-            label="Edit your profile and booking links"
-             // Open when a link is missing. /mentor's booking-link warning
-            // sends the mentor here to fix it, and landing on a closed fold is
-            // a second click on a page they were told to visit.
-            defaultOpen={allPairings.some((a) => !a.calendlyUrl)}
-          >
-            <div className="mt-2 space-y-4">
-              <Section title="Picture and name">
-                <div className="space-y-4 p-4 sm:p-5">
-                  <AvatarForm
-                    person={{
-                      id: mentor.id,
-                      name: mentor.name,
-                      email: mentor.email,
-                      avatarUpdatedAt: mentor.avatarUpdatedAt,
-                    }}
-                  />
-                  <div className="border-t border-line pt-5">
-                    <OwnNameForm defaultName={mentor.name ?? ""} />
-                  </div>
-                </div>
-              </Section>
-              {allPairings.length > 0 ? (
-                <BookingLinksForm
-                  assignments={allPairings.map((a) => ({
-                    id: a.id,
-                    label: labelOf(a),
-                    calendlyUrl: a.calendlyUrl,
-                  }))}
-                />
-              ) : (
-                <EmptyState title="No programs">
-                  An admin adds you to a program, and its booking link is yours
-                  to set.
-                </EmptyState>
-              )}
-            </div>
-          </Disclosure>
-        )}
       </div>
 
       {/* "Time", not "Completed" over a "Completed" eyebrow-and-figure: the
@@ -431,22 +390,15 @@ async function MentorRecord({
             className="flex flex-wrap items-end gap-2 px-4 pt-3 sm:px-5"
           >
             <input type="hidden" name="period" value="custom" />
-            <label className="min-w-0 flex-1 text-sm sm:w-40 sm:flex-none">
+            {/* Divs, not labels: the date field's trigger is a button. */}
+            <div className="min-w-0 flex-1 text-sm sm:w-40 sm:flex-none">
               <span className="block text-muted-fg">From</span>
-              <DateField
-                name="from"
-                label="Completed from"
-                defaultValue={win.fromValue}
-              />
-            </label>
-            <label className="min-w-0 flex-1 text-sm sm:w-40 sm:flex-none">
+              <DateField name="from" label="From" defaultValue={win.fromValue} className="mt-1" />
+            </div>
+            <div className="min-w-0 flex-1 text-sm sm:w-40 sm:flex-none">
               <span className="block text-muted-fg">To</span>
-              <DateField
-                name="to"
-                label="Completed to"
-                defaultValue={win.toValue}
-              />
-            </label>
+              <DateField name="to" label="To" defaultValue={win.toValue} className="mt-1" />
+            </div>
             <Button type="submit" size="md">
               Apply
             </Button>
@@ -460,7 +412,7 @@ async function MentorRecord({
               size="lead"
               tone="hours"
             />
-            <Figure label="Meetings" value={String(meetings)} />
+            <Figure label="Sessions" value={String(sessionCount)} />
             <Figure
               label="Missed"
               value={missed > 0 ? formatDuration(missed) : "—"}
@@ -470,19 +422,10 @@ async function MentorRecord({
               tone={missed > 0 ? "ink" : "muted"}
             />
           </FigureRow>
-          {/* Said once, here: a balance is what is owed after every session
-              ever logged, so no reporting range can move it — and the Students
-              list is that ledger, grant by grant, not a report. */}
-          <p className="pb-3 text-xs text-muted-fg">
-            The tables below count every session ever logged, whatever the range.
-          </p>
         </div>
 
         {byProgram.length === 0 && idle.length === 0 ? (
-          <EmptyState framed={false} title="No time in these programs">
-            A line appears for each program once this mentor holds a
-            student&apos;s time or logs a session.
-          </EmptyState>
+          <EmptyState framed={false} title="No time in these programs" />
         ) : (
           <Table
             framed={false}
@@ -568,7 +511,6 @@ async function MentorRecord({
                     href={manages ? `/programs/${p.id}` : undefined}
                     className="font-semibold"
                   />
-                  <span className="block text-xs text-muted-fg">Nothing granted or logged yet</span>
                 </Td>
                 <Td label="Students" align="right" tone="muted">—</Td>
                 <Td label="Completed" align="right" tone="muted">—</Td>
@@ -588,19 +530,16 @@ async function MentorRecord({
         count={holders.length || undefined}
       >
         {holders.length === 0 ? (
-          <EmptyState framed={false} title="Nobody holds their time">
-            An admin allocates a student time from a mentor, on the
-            student&apos;s own page.
-          </EmptyState>
+          <EmptyState framed={false} title="Nobody holds their time" />
         ) : (
           /*
-            REDESIGN.md §5.2 gives `AllocationRow` a `person="mentor|student"`
+            docs/archive/REDESIGN.md §5.2 gives `AllocationRow` a `person="mentor|student"`
             prop for exactly this table; the component that shipped only draws
             the mentor, and its first column is headed "Mentor". So the columns
             below are AllocationRow's, in its order, so that the prop can
             replace this block without moving a value.
           */
-          <Table framed={false} columns={studentColumns} label="Students with time on this mentor">
+          <Table framed={false} columns={studentColumns} label="Students">
             {holders.map((s, i) => (
               <Tr
                 key={s.student.id}
@@ -619,7 +558,7 @@ async function MentorRecord({
                     // The program rides here rather than in a seventh column:
                     // a table stacks to one labelled line per field on a phone,
                     // and six is the cap.
-                    secondary={`${s.student.user.email} · ${s.program.name}`}
+                    secondary={s.program.name}
                   >
                     {s.student.user.status === USER_STATUS.PENDING && (
                       <StatusChip severity="attention" className="shrink-0">
@@ -644,13 +583,6 @@ async function MentorRecord({
                     used={Math.max(s.allocated - s.remaining - s.forfeited, 0)}
                     expired={s.forfeited}
                   />
-                  {/* Expired time is part of the grant, so it is named here
-                      or the row would not add up to the Total figure. */}
-                  {s.forfeited > 0 && (
-                    <span className="block text-xs font-normal text-danger-ink">
-                      {formatDuration(s.forfeited)} expired
-                    </span>
-                  )}
                 </Td>
                 <Td
                   label="Total"
@@ -683,11 +615,10 @@ async function MentorRecord({
         moreHref={`/sessions?mentor=${mentor.id}`}
         moreLabel="All sessions"
         empty={
-          <EmptyState framed={false} title="No sessions in this period">
-            {win.kind === "all"
-              ? "This mentor has logged none at all."
-              : "Widen the period above to see older ones."}
-          </EmptyState>
+          <EmptyState
+            framed={false}
+            title={win.kind === "all" ? "No sessions yet" : "No sessions in this period"}
+          />
         }
       />
 
@@ -696,14 +627,9 @@ async function MentorRecord({
       <Section title="Ratings" count={rated ? feedback._count : undefined}>
         {rated ? (
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 sm:px-5">
-            <p className="flex items-baseline gap-x-2 text-body text-muted-fg">
-              <span className="text-figure-md font-semibold tabular-nums text-ink">
-                {feedback._avg.rating!.toFixed(1)}
-              </span>
-              <span>
-                from {feedback._count}{" "}
-                {feedback._count === 1 ? "rating" : "ratings"}
-              </span>
+            {/* The count is the title's; the average is this row's. */}
+            <p className="text-figure-md font-semibold tabular-nums text-ink">
+              {feedback._avg.rating!.toFixed(1)}
             </p>
             {/* A mentor's own address for this is the bare page — /feedback
                 already answers with their ratings and nobody else's. */}
@@ -715,9 +641,7 @@ async function MentorRecord({
             </ArrowLink>
           </div>
         ) : (
-          <p className="px-4 py-3 text-body text-muted-fg sm:px-5">
-            No ratings written{isSelf ? " about you" : ""} so far.
-          </p>
+          <EmptyState framed={false} title="No ratings yet" />
         )}
       </Section>
     </div>
@@ -802,14 +726,13 @@ async function MentorCard({
       <PageTitle
         backHref={isStudent ? "/student/book" : undefined}
         backLabel={isStudent ? "Book" : undefined}
-        eyebrow="Mentor"
         title={name}
         subtitle={visible.map(labelOf).join(" · ")}
         leading={
           <Avatar
             person={mentor}
             alt={`${name}'s profile picture`}
-            className="h-20 w-20 text-3xl sm:h-24 sm:w-24"
+            className="h-16 w-16 text-2xl"
           />
         }
       />

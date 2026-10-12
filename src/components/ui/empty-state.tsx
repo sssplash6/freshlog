@@ -9,14 +9,16 @@ import { cn } from "@/lib/cn";
  * here once it's booked" tells the reader where a thing WILL be, which they can
  * see, instead of why it is not there yet, which they cannot.
  *
- * So: `title` names what is absent, `children` says why in one clause, and the
- * `variant` decides whether that absence is normal.
+ * So: `title` names what is absent, in six words or fewer, and the `variant`
+ * decides whether that absence is normal. There is no sentence under it
+ * (DESIGN.md C4, October 2026): a reason that needs saying belongs in the title,
+ * and one that does not is noise on the emptiest screen the reader will see.
  *
  * `action` is ONE way out, and only when it goes somewhere the page does not
  * already show. The empty states that carried buttons before were pages
  * teaching their own layout — "log a session at the bottom of this page and it
  * appears here" — pointing at a form already on screen. That is still wrong.
- * What is right is the iOS shape: one sentence, and the one link that fills
+ * What is right is the iOS shape: one title, and the one link that fills
  * the list when the thing that fills it lives on another page.
  */
 export type EmptyVariant =
@@ -30,7 +32,6 @@ export type EmptyVariant =
 export function EmptyState({
   icon,
   title,
-  children,
   variant = "healthy",
   framed = true,
   action,
@@ -39,8 +40,6 @@ export function EmptyState({
   icon?: React.ReactNode;
   /** What is absent. A noun phrase, not a sentence. */
   title?: React.ReactNode;
-  /** Why, in one clause of twelve words or fewer. */
-  children?: React.ReactNode;
   variant?: EmptyVariant;
   framed?: boolean;
   /** One link or button, to where this list gets filled. Never a second. */
@@ -75,9 +74,6 @@ export function EmptyState({
         >
           {title}
         </p>
-      )}
-      {children && (
-        <div className="max-w-sm text-xs text-muted-fg">{children}</div>
       )}
       {action && <div className="mt-2">{action}</div>}
     </div>

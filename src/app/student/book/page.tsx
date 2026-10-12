@@ -29,7 +29,7 @@ import {
 } from "@/lib/status";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Book a session" };
+export const metadata: Metadata = { title: "Book a meeting" };
 
 type MentorHours = AllocationSummary["perMentor"][number];
 type Mentor = NonNullable<MentorHours["mentor"]>;
@@ -178,7 +178,7 @@ export default async function StudentBookPage() {
 
   return (
     <div className="space-y-4">
-      <PageTitle title="Book a session" />
+      <PageTitle title="Book a meeting" />
 
       {states.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
@@ -188,11 +188,9 @@ export default async function StudentBookPage() {
         </div>
       )}
 
-      <BookList titled={all.length > 1} count={all.length}>
+      <Section title="Mentors" count={all.length > 1 ? all.length : undefined}>
         {nothingToShow ? (
-          <EmptyState framed={false} variant="blocked" title={nothingToShow.label}>
-            {nothingToShow.explanation}
-          </EmptyState>
+          <EmptyState framed={false} variant="blocked" title={nothingToShow.label} />
         ) : (
           // One grouped list, hairlines between. The two-up grid it replaces
           // drew a vertical rule down the card and a rule across its top — a
@@ -213,7 +211,7 @@ export default async function StudentBookPage() {
 
         {folded.length > 0 && (
           <Disclosure
-            label="Mentors with no time remaining"
+            label="None remaining"
             count={folded.length}
             className="border-t border-line px-4 py-2 sm:px-5"
           >
@@ -229,27 +227,9 @@ export default async function StudentBookPage() {
             </ul>
           </Disclosure>
         )}
-      </BookList>
+      </Section>
     </div>
   );
-}
-
-/**
- * The mentors' card, under a "Mentors" heading only when there is more than one
- * to tell apart. A heading over a single card said "Your mentors 1" about the
- * one person the card named (October 2026 audit).
- */
-function BookList({
-  titled,
-  count,
-  children,
-}: {
-  titled: boolean;
-  count: number;
-  children: React.ReactNode;
-}) {
-  if (titled) return <Section title="Mentors" count={count}>{children}</Section>;
-  return <div className="overflow-clip rounded-xl bg-surface shadow-sm">{children}</div>;
 }
 
 /**
@@ -321,12 +301,10 @@ function MentorRow({
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         {bookable && bookingUrl ? (
           // The one thing this page is for, at full size: 44px, and the full
-          // width of the card on a phone. It was a 32px button on a laptop,
-          // smaller than the name above it.
+          // width of the card on a phone.
           <ExternalLink
             variant="action"
             href={bookingUrl}
-            title={`Book with ${name}`}
             className="ml-auto max-sm:w-full"
           >
             Book with {firstName}

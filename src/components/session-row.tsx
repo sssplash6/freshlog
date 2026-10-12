@@ -5,9 +5,8 @@ import { Fragment } from "react";
 
 import { ExpandableNote } from "@/components/expandable-note";
 import { ExpandableText } from "@/components/expandable-text";
-import { Avatar } from "@/components/avatar";
 import { PersonChip } from "@/components/person-chip";
-import { ProgramDot, type ProgramRef } from "@/components/program-chip";
+import type { ProgramRef } from "@/components/program-chip";
 import { Rating } from "@/components/rating";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusChip } from "@/components/ui/status-chip";
@@ -242,11 +241,8 @@ function SessionRowContent({
   const chips =
     statuses.length > 0 ? (
       <span className="flex flex-wrap gap-1.5">
-        {statuses.map((s) => (
-          // The timeline is the student's own history, read on a phone —
-          // where a `title` tooltip never appears — so the reason a session
-          // cost what it cost is printed, not hovered.
-          <StatusChip key={s.type} status={s} explain={variant === "timeline" && !footer} />
+        {statuses.map((s, i) => (
+          <StatusChip key={`${s.type}-${i}`} status={s} />
         ))}
       </span>
     ) : null;
@@ -345,9 +341,8 @@ function SessionRowContent({
         className={cn("group flex items-start gap-3 py-3", index != null && "deal-in")}
         style={stagger}
       >
-        {/* The day as a leaf, the same shape the ledger uses, once the
-            CONTAINER is `@4xl` wide; below that the date stays a word on the
-            row's first line. The two must switch on the same query: the word
+        {/* The day as a leaf once the CONTAINER is `@4xl` wide; below that
+            the date stays a word on the row's first line. The two must switch on the same query: the word
             was on `sm` (the viewport) while the leaf moved to `@4xl`, so a
             narrow column on a wide screen showed neither. */}
         <DateLeaf date={date} muted={voided} />
@@ -483,7 +478,6 @@ function SessionRowContent({
   // names with its own dot.
   const topic = [showTask ? task?.purpose : null, showNote ? note : null].filter(Boolean);
   const when = formatDate(date);
-  const program = student?.programRef ?? null;
   const programName = student?.program ?? null;
 
   const lead = showStudent && student ? student : showMentor ? mentor : null;
@@ -498,22 +492,20 @@ function SessionRowContent({
       )}
       style={stagger}
     >
-      {/* October 2026, second pass: a row was four runs of grey text on one
-          line — date, names, program, note — and a page of them read as a
-          spreadsheet nobody had formatted (the owner: "very boring"). Each
-          fact now has a SHAPE, so the eye finds it without reading: the day
-          is a small calendar leaf, the person is a face, the program is a
-          dot, the note is the quiet run in the middle, and the minutes are a
-          figure on a capsule against the right edge. On a phone the same
-          facts stack, as before. */}
+      {/* October 2026, third pass: no calendar leaf, no face, no program dot
+          and no capsule — four shapes per row that each restated a fact the
+          row already said in words. The date is a column of text on a wide
+          list and leads the second line on a narrow one; the minutes are the
+          figure against the right edge. */}
       <div className="flex items-start gap-3 @4xl:items-center @4xl:gap-4">
-        <DateLeaf date={date} muted={voided} />
-        {lead && (
-          <Avatar
-            person={lead}
-            className={cn("h-9 w-9 shrink-0 text-xs", voided && "opacity-60")}
-          />
-        )}
+        <span
+          className={cn(
+            "hidden w-24 shrink-0 whitespace-nowrap text-sm tabular-nums @4xl:block",
+            voided ? "text-muted-fg" : "text-ink",
+          )}
+        >
+          {when}
+        </span>
         <div className="min-w-0 flex-1 @4xl:flex @4xl:items-center @4xl:gap-6">
           {/* A MINIMUM, not a width, as before: the people take what they
               need and the topic — the column that can afford to — gives way
@@ -538,11 +530,9 @@ function SessionRowContent({
             {(second || programName) && (
               <span className="mt-0.5 flex min-w-0 items-center gap-x-2 text-xs text-muted-fg">
                 {second && (
-                  // The mentor keeps their name; the program, which the dot
-                  // already identifies, is what truncates.
-                  <span className="flex min-w-0 max-w-[65%] shrink-0 items-baseline gap-x-1">
-                    <span className="shrink-0">with</span>
-                    <PersonName person={second} className="min-w-0 truncate text-ink" />
+                  // The mentor keeps their name; the program is what truncates.
+                  <span className="flex min-w-0 max-w-[65%] shrink-0">
+                    <PersonName person={second} className="min-w-0 truncate" />
                   </span>
                 )}
                 {/* Not on a phone: there the line is too short for both, and
@@ -555,12 +545,11 @@ function SessionRowContent({
                 {programName && (
                   <span
                     className={cn(
-                      "flex min-w-0 shrink-[2] items-center gap-1.5",
+                      "min-w-0 shrink-[2] truncate",
                       second && "@max-4xl:hidden",
                     )}
                   >
-                    {program && <ProgramDot program={program} />}
-                    <span className="min-w-0 truncate">{programName}</span>
+                    {programName}
                   </span>
                 )}
               </span>
@@ -599,30 +588,18 @@ function SessionRowContent({
             chipSlot && <div aria-hidden="true" className="hidden shrink-0 @4xl:block @4xl:w-48" />
           )}
         </div>
-        {/* The figure on a capsule in a fixed column, so 12, 45 and 150
-            stack into one edge, then the menu — which, on a pointer, waits
-            for the row to be hovered or focused rather than repeating down
-            every line. */}
+        {/* The figure in a fixed column, so 12, 45 and 150 stack into one
+            edge, then the pencil — always shown: a correction nobody can find
+            is a wrong number made permanent. */}
         <div className="flex shrink-0 items-center gap-1 @4xl:gap-2">
           <span className="whitespace-nowrap text-body leading-snug @4xl:flex @4xl:min-w-20 @4xl:justify-end @4xl:text-sm">
-            <span
-              className={cn(
-                charged &&
-                  "@4xl:inline-flex @4xl:h-7 @4xl:items-center @4xl:rounded-full @4xl:bg-fill @4xl:px-2.5",
-              )}
-            >
-              {duration}
-            </span>
+            {duration}
           </span>
-          {actions && (
-            <span className="-my-2.5 shrink-0 transition-opacity @4xl:-my-1 pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:group-focus-within/row:opacity-100 pointer-fine:has-[[aria-expanded=true]]:opacity-100">
-              {actions}
-            </span>
-          )}
+          {actions && <span className="-my-2.5 shrink-0 @4xl:-my-1">{actions}</span>}
         </div>
       </div>
 
-      {footer && <div className="mt-2 @4xl:pl-[7.25rem]">{footer}</div>}
+      {footer && <div className="mt-2 @4xl:pl-28">{footer}</div>}
     </li>
   );
 }
@@ -743,13 +720,7 @@ export function SessionsList({
   className?: string;
 }) {
   if (sessions.length === 0) {
-    return (
-      empty ?? (
-        <EmptyState framed={framed} title="No sessions logged">
-          A mentor logs each meeting once it has happened.
-        </EmptyState>
-      )
-    );
+    return empty ?? <EmptyState framed={framed} title="No sessions yet" />;
   }
 
   const rowActions = sessions.map((s) => actions?.[s.id]);
@@ -843,7 +814,7 @@ export function SessionsLog({
   sessions,
   viewer,
   title = "Sessions",
-  eyebrow = "Logged by mentors",
+  eyebrow,
   caption,
   empty,
   manage,
@@ -879,12 +850,9 @@ export function SessionsLog({
       title={title}
       action={
         moreHref ? (
-          <span className="flex items-center gap-3 text-xs text-muted-fg">
-            {tally}
-            <ArrowLink href={moreHref} className="text-xs">
-              {moreLabel}
-            </ArrowLink>
-          </span>
+          <ArrowLink href={moreHref} className="text-xs">
+            {moreLabel}
+          </ArrowLink>
         ) : undefined
       }
       caption={tally}
@@ -894,11 +862,7 @@ export function SessionsLog({
         viewer={viewer}
         framed={false}
         empty={
-          empty ?? (
-            <EmptyState framed={false} title="No sessions logged yet">
-              A mentor logs each meeting once it has happened.
-            </EmptyState>
-          )
+          empty ?? <EmptyState framed={false} title="No sessions yet" />
         }
         actions={Object.fromEntries(
           sessions.map((s) => [

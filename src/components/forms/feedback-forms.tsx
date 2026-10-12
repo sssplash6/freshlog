@@ -5,18 +5,11 @@ import { useState } from "react";
 import { submitMentorFeedback } from "@/lib/actions/feedback";
 import { StarIcon } from "@/components/icons";
 import { Select } from "@/components/select";
-import { inputClasses } from "@/components/ui/field";
+import { Field, Textarea } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/cn";
 import { RequiredMark } from "@/components/ui/required-mark";
-
-// The shared field chrome — `text-base` under `sm`, so iOS does not zoom the
-// page when the comment box takes focus (it did, at the old 15px).
-const inputClass = cn(inputClasses, "resize-y leading-relaxed");
-
-/** What each number of stars means, in the student's words. */
-const STAR_WORDS = ["Not helpful", "Could be better", "Okay", "Good", "Great"];
 
 /** Native radio inputs retain expected keyboard behavior while labels render
  * as a large, tap-friendly star picker. */
@@ -81,15 +74,6 @@ export function StarRating({
             </label>
           </span>
         ))}
-        {/* A word, not "4/5": a fraction is a score, and the student is
-            saying how it went. Announced as it changes, so a screen-reader
-            user hears their choice land. */}
-        <span
-          aria-live="polite"
-          className="ml-1 text-xs font-medium text-muted-fg"
-        >
-          {shown > 0 ? STAR_WORDS[shown - 1] : ""}
-        </span>
       </div>
     </fieldset>
   );
@@ -108,43 +92,30 @@ export function MentorFeedbackForm({
   return (
     // No heading of its own: the page's title says "Report a mentor" directly
     // above this, and the form was repeating it word for word.
-    <form action={action} className="rounded-xl bg-surface px-4 py-3 shadow-sm sm:px-5">
-      <div className="space-y-4">
-        <div className="block">
-          <span className="block text-sm font-medium text-ink">
-            Mentor<RequiredMark />
-          </span>
-          <div className="mt-1.5">
-            <Select
-              name="mentorId"
-              ariaLabel="Mentor"
-              placeholder="Choose a mentor"
-              requiredMessage="Pick who you're rating."
-              title="Mentor"
-              defaultValue={defaultMentorId ?? ""}
-              options={mentors.map((m) => ({ value: m.id, label: m.label }))}
-            />
-          </div>
-        </div>
-        <StarRating name="rating" idPrefix="mentor-rating" />
-        <label className="block space-y-1.5">
-          <span className="block text-sm font-medium text-ink">Comment</span>
-          {/* Under the label, where the worry starts. */}
-          <span className="block text-xs text-muted-fg">
-            Your mentor can&apos;t see who wrote this.
-          </span>
-          <textarea
-            name="comment"
-            rows={3}
-            placeholder="Optional"
-            className={inputClass}
+    <form action={action} className="space-y-4 rounded-xl bg-surface px-4 py-3 shadow-sm sm:px-5">
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+        <Field label="Mentor" required className="w-full sm:w-80">
+          <Select
+            name="mentorId"
+            ariaLabel="Mentor"
+            requiredMessage="Pick who you're rating."
+            title="Mentor"
+            // One mentor is the only answer, so it is already chosen.
+            defaultValue={defaultMentorId ?? (mentors.length === 1 ? mentors[0].id : "")}
+            options={mentors.map((m) => ({ value: m.id, label: m.label }))}
           />
-        </label>
+        </Field>
+        <StarRating name="rating" idPrefix="mentor-rating" />
       </div>
-      <div className="mt-4">
+      <Field label="Note">
+        <Textarea name="comment" rows={3} />
+      </Field>
+      {/* design-allow: privacy promise */}
+      <p className="text-xs text-muted-fg">Your mentor never sees who wrote this.</p>
+      <div className="flex flex-wrap items-center gap-3">
         <SubmitButton pendingText="Sending…">Send</SubmitButton>
+        <SaveState state={save} />
       </div>
-      <SaveState state={save} />
     </form>
   );
 }

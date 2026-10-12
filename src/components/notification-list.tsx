@@ -1,4 +1,3 @@
-import { PersonBadge } from "@/components/person-chip";
 import { ChevronRightIcon } from "@/components/icons";
 import { Section } from "@/components/ui/section";
 import { NOTIFICATION_META } from "@/lib/constants";
@@ -12,7 +11,6 @@ export type FeedNotification = {
   href: string | null;
   read: boolean;
   createdAt: Date;
-  actor: { id: string; name: string | null; email: string } | null;
 };
 
 /**
@@ -78,9 +76,6 @@ function NotificationRow({
             {n.message}
           </span>
           <span className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-fg">
-            {n.actor && (
-              <PersonBadge person={n.actor} className="h-6 w-6" />
-            )}
             <span>{meta.label}</span>
             <span aria-hidden="true">·</span>
             <span className="tabular-nums">{formatAgo(n.createdAt)}</span>

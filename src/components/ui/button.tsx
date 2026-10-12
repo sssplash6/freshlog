@@ -9,7 +9,7 @@ export type ButtonVariant =
   | "ghost"
   | "danger"
   | "dangerSolid";
-export type ButtonSize = "xs" | "sm" | "md";
+export type ButtonSize = "sm" | "md";
 
 /** Brand (blue) = actions (DESIGN.md). No accent-colored buttons — orange is
  * reserved for hours/progress. Red only for destructive. */
@@ -42,7 +42,6 @@ const VARIANTS: Record<ButtonVariant, string> = {
  * small label never sits in an oversized box. */
 const SIZES: Record<ButtonSize, string> = {
   // xs is for controls inside a popover menu, where sm is already too tall.
-  xs: "h-7 gap-1 px-2.5 text-xs",
   sm: "h-8 gap-1.5 px-3 text-xs",
   // 44px, the smallest reliable touch target. Students and mentors use
   // this app on a phone, and md is the size every primary action gets.

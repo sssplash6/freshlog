@@ -36,7 +36,6 @@ export function EssayStageBar({
   editable = false,
   studentProfileId,
   target,
-  showSteps = false,
 }: {
   stage: string | null;
   /** What the essay is, for screen readers: "Motivational essay", "Princeton". */
@@ -45,8 +44,6 @@ export function EssayStageBar({
   studentProfileId?: string;
   /** "essay", or the id of the student's university row. */
   target?: string;
-  /** Name every stage under its segment, on screens wide enough for four. */
-  showSteps?: boolean;
 }) {
   const [result, dispatch] = useActionState(setEssayStage, null);
   const [shown, setShown] = useOptimistic(stage);
@@ -80,16 +77,6 @@ export function EssayStageBar({
         className="group min-w-0 flex-1 cursor-pointer rounded-md py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:py-1.5"
       >
         <span className="block transition-transform group-hover:scale-y-150">{bar}</span>
-        {showSteps && (
-          <span
-            className={cn(
-              "mt-1.5 hidden truncate text-caption sm:block",
-              current === s ? "font-semibold text-ink" : "text-muted-fg"
-            )}
-          >
-            {ESSAY_STAGE_LABEL[s]}
-          </span>
-        )}
       </button>
     );
   });
@@ -124,9 +111,7 @@ export function EssayStageBar({
       <fieldset className="flex items-start gap-3">
         <legend className="sr-only">{label}</legend>
         <div className="flex min-w-0 flex-1 gap-1">{segments}</div>
-        {/* Where every step is named under its segment, the bold one already
-            says which; the word beside the bar is for the phone. */}
-        <span className={cn("py-1 sm:py-0.5", showSteps && "sm:hidden")}>{word}</span>
+        <span className="py-1 sm:py-0.5">{word}</span>
       </fieldset>
       {result && !result.ok && (
         <p role="alert" className="mt-1 text-xs text-danger-ink">

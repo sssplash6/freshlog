@@ -35,9 +35,9 @@ export function AttendancePicker({
       legend="How did it go?"
       required
       dense={compact}
-      // Four choices never fit one row on a phone — 2×2 beats a ragged 3+1
-      // wrap, and stays predictable on a desktop too.
-      columns={2}
+      // One row of four from `sm`. Four never fit one row on a phone, and
+      // 2×2 beats a ragged 3+1 wrap there — the track is the fieldset's div.
+      className="max-sm:[&>div]:grid max-sm:[&>div]:grid-cols-2"
       defaultValue={defaultValue}
       options={ORDER.map((state) => ({
         value: state,

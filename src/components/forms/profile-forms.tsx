@@ -26,7 +26,6 @@ import {
 import { AVATAR_ACCEPT, AVATAR_PX } from "@/lib/avatar";
 import type { ActionState } from "@/lib/actions/shared";
 import type { ProgramOption } from "@/lib/queries";
-import { RequiredMark } from "@/components/ui/required-mark";
 
 /**
  * Every form that writes YOUR OWN record: the two on /settings, and the three
@@ -56,7 +55,7 @@ import { RequiredMark } from "@/components/ui/required-mark";
  */
 function NameField({ defaultValue }: { defaultValue: string }) {
   return (
-    <Field label="Full name" required hint="First and last name.">
+    <Field label="Full name" required className="w-full sm:w-80">
       <NameInput name="name" required defaultValue={defaultValue} />
     </Field>
   );
@@ -64,21 +63,17 @@ function NameField({ defaultValue }: { defaultValue: string }) {
 
 /**
  * The handle a mentor actually messages you on. Stored without the `@` —
- * `parseTelegramField` strips it — so the placeholder shows the bare form and
- * the hint says who reads it, which is the only reason a student is being asked.
+ * `parseTelegramField` strips it — so the placeholder shows the bare form.
  */
 function TelegramField() {
   return (
-    <Field
-      label="Telegram username"
-      required
-      hint="How your mentors reach you between sessions."
-    >
+    <Field label="Telegram username" required className="w-full sm:w-48">
       <Input
         name="telegramUsername"
         type="text"
         required
         placeholder="username"
+        measure="sm"
       />
     </Field>
   );
@@ -99,11 +94,9 @@ export function NameStepForm({ defaultName }: { defaultName: string }) {
   const [, action, save] = useSaveState(completeMentorProfile);
 
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} className="flex flex-wrap items-end gap-3">
       <NameField defaultValue={defaultName} />
-      <SubmitButton pendingText="Saving…" className="w-full">
-        Continue
-      </SubmitButton>
+      <SubmitButton pendingText="Saving…">Continue</SubmitButton>
       <SaveState state={save} />
     </form>
   );
@@ -119,11 +112,11 @@ export function DetailsStepForm({ defaultName }: { defaultName: string }) {
 
   return (
     <form action={action} className="space-y-4">
-      <NameField defaultValue={defaultName} />
-      <TelegramField />
-      <SubmitButton pendingText="Saving…" className="w-full">
-        Save and continue
-      </SubmitButton>
+      <div className="flex flex-wrap items-end gap-3">
+        <NameField defaultValue={defaultName} />
+        <TelegramField />
+      </div>
+      <SubmitButton pendingText="Saving…">Continue</SubmitButton>
       <SaveState state={save} />
     </form>
   );
@@ -151,47 +144,34 @@ export function RegistrationStepForm({
 
   return (
     <form action={action} className="space-y-4">
-      <NameField defaultValue={defaultName} />
-      <TelegramField />
+      <div className="flex flex-wrap items-end gap-3">
+        <NameField defaultValue={defaultName} />
+        <TelegramField />
+      </div>
 
-      {/* Not a `Field`: `Select` is a combobox built from buttons, and a
-          <label> wrapping one has nothing to label. Its own `ariaLabel` names
-          it instead. */}
-      <div>
-        <span className="block text-sm font-medium text-ink">
-          Your program
-          <RequiredMark />
-        </span>
-        <div className="mt-1.5">
+      <div className="flex flex-wrap items-end gap-3">
+        <Field label="Your program" required className="w-full sm:w-80">
           <Select
             name="programId"
             ariaLabel="Your program"
             options={programs.map((p) => ({ value: p.id, label: p.name }))}
             onChange={setProgramId}
           />
-        </div>
-      </div>
-
-      {cohorts.length > 0 && (
-        <div>
-          <span className="block text-sm font-medium text-ink">
-            Your cohort
-            <RequiredMark />
-          </span>
-          <div className="mt-1.5">
+        </Field>
+        {cohorts.length > 0 && (
+          <Field label="Your cohort" required className="w-full sm:w-48">
             <Select
               key={programId}
               name="cohortId"
               ariaLabel="Your cohort"
+              measure="sm"
               options={cohorts.map((c) => ({ value: c.id, label: c.name }))}
             />
-          </div>
-        </div>
-      )}
+          </Field>
+        )}
+      </div>
 
-      <SubmitButton pendingText="Submitting…" className="w-full">
-        Submit registration
-      </SubmitButton>
+      <SubmitButton pendingText="Submitting…">Continue</SubmitButton>
       <SaveState state={save} />
     </form>
   );
@@ -336,7 +316,7 @@ export function AvatarForm({
         error:
           error instanceof Error
             ? error.message
-            : "That image couldn't be read. Try a PNG or JPEG.",
+            : "That image couldn't be read.",
       });
     } finally {
       setBusy(false);
@@ -384,7 +364,7 @@ export function AvatarForm({
                 busy ? "cursor-not-allowed opacity-50" : "cursor-pointer"
               )}
             >
-              {busy ? "Working…" : hasPicture ? "Change picture" : "Upload picture"}
+              {busy ? "Working…" : hasPicture ? "Change" : "Upload"}
               <input
                 type="file"
                 accept={AVATAR_ACCEPT}

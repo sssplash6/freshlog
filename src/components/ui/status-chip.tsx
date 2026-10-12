@@ -46,37 +46,16 @@ type Props = {
   className?: string;
   /** Override the glyph — progress states use ○ and ◐ as shapes, not signals. */
   glyph?: string;
-  /**
-   * Print the explanation as a visible line under the chip.
-   *
-   * Without it the why rides on `title` (a hovering pointer) and an sr-only
-   * span (a screen reader) — and a phone, where students and mentors read this
-   * product, gets neither: the tone and glyph, never the reason. DESIGN.md
-   * already has the shape for this — "the ≤12-word explanation is a sibling
-   * line, not chip content" — so where the reason is the point (a charge, a
-   * forfeit, an overdraw, anything on a student's own page), a caller asks for
-   * it here and it is on screen for everybody.
-   */
-  explain?: boolean;
 } & (
   | { status: Status; severity?: never; children?: never }
   | { status?: never; severity: Severity; children: React.ReactNode }
 );
 
-export function StatusChip({ className, glyph, explain, ...rest }: Props) {
+export function StatusChip({ className, glyph, ...rest }: Props) {
   const severity = rest.status ? rest.status.severity : rest.severity;
   const body = rest.status ? rest.status.label : rest.children;
   const mark = glyph ?? (SHOWS_GLYPH[severity] ? GLYPH[severity] : null);
-  const explanation = rest.status?.explanation;
 
-  if (explain && explanation) {
-    return (
-      <span className="inline-flex min-w-0 flex-col items-start gap-0.5">
-        <StatusChip status={{ ...rest.status!, explanation: undefined }} glyph={glyph} className={className} />
-        <span className="text-xs text-muted-fg">{explanation}</span>
-      </span>
-    );
-  }
 
   return (
     <span

@@ -22,8 +22,8 @@ import {
   feedbackEditable,
   feedbackEditableUntil,
   feedbackVisibleTo,
+  formatSlotDay,
   formatSlotSpan,
-  formatSlotWhen,
   guideOpen,
   interviewPhase,
   sideOf,
@@ -106,9 +106,8 @@ export default async function InterviewPage({
       <PageTitle
         backHref="/student/interviews"
         backLabel="Interviews"
-        eyebrow={side === "host" ? "They booked your time" : "You booked their time"}
         title={template?.name ?? "Practice interview"}
-        subtitle={`${formatSlotWhen(interview.slot.startsAt)} · ${formatSlotSpan(interview.slot)}`}
+        subtitle={`${formatSlotDay(interview.slot.startsAt)} · ${formatSlotSpan(interview.slot, { zone: true })}`}
         actions={chip && <StatusChip status={chip} />}
       />
 
@@ -130,18 +129,11 @@ export default async function InterviewPage({
               {interview.answers.length || myFeedback ? "Continue interview" : "Start interview"}
             </LinkButton>
           )}
-          {phase === "booked" && (
-            <p className="text-xs text-muted-fg">
-              {interview.slot.meetingUrl
-                ? "You can mark it done once it starts."
-                : "Arrange where to meet between you. You can mark it done once it starts."}
-            </p>
-          )}
         </div>
       </Section>
 
       {template && !interview.answers.length && !myFeedback?.submittedAt && (
-        <Section title="Questions" count={template.questions.length} caption={template.summary}>
+        <Section title="Questions" count={template.questions.length}>
           <ol className="list-decimal space-y-2 py-3 pl-9 pr-4 text-body text-ink marker:text-muted-fg sm:pl-10 sm:pr-5">
             {template.questions.map((q) => (
               <li key={q}>{q}</li>
@@ -151,7 +143,7 @@ export default async function InterviewPage({
       )}
 
       {interview.answers.length > 0 && (
-        <Section title="Your answers" caption="Only you and your mentors can see these.">
+        <Section title="Your answers">
           <dl className="divide-y divide-line">
             {interview.answers.map((a) => (
               <div key={a.questionIndex} className="px-4 py-2 sm:px-5">
@@ -164,7 +156,10 @@ export default async function InterviewPage({
       )}
 
       {canEditFeedback && myFeedback && (
-        <Section title={`Your feedback to ${other.name ?? "your partner"}`} caption="Sent. Fix anything you missed while the interview is fresh.">
+        <Section
+          title="Your feedback"
+          caption={`Until ${formatTimeOfDay(feedbackEditableUntil(interview.slot), true) ?? ""}`}
+        >
           <EditFeedbackForm
             interviewId={interview.id}
             saved={{
@@ -172,7 +167,6 @@ export default async function InterviewPage({
               wentWell: myFeedback.wentWell ?? "",
               toImprove: myFeedback.toImprove ?? "",
             }}
-            until={formatTimeOfDay(feedbackEditableUntil(interview.slot), true) ?? ""}
           />
         </Section>
       )}
@@ -186,21 +180,18 @@ export default async function InterviewPage({
               <div><dt className="font-semibold text-ink">What to improve</dt><dd className="whitespace-pre-wrap">{theirs.toImprove}</dd></div>
             </dl>
           ) : (
-            <EmptyState framed={false} title="Not sent yet">
-              {other.name ?? "Your partner"} hasn&apos;t sent their feedback.
-            </EmptyState>
+            <EmptyState framed={false} title="Not sent yet" />
           )}
         </Section>
       ) : null}
 
       {phase === "absent" ? (
-        <Section title="Marked absent">
-          <EmptyState framed={false} title={interview.absentId === me.id ? "You were marked absent" : `${other.name ?? "Your partner"} was marked absent`}>
-            {interview.absentId === me.id
-              ? `${other.name ?? "Your partner"} said you didn't join this interview, so it is closed.`
-              : "You said they didn't join this interview, so it is closed."}
-          </EmptyState>
-        </Section>
+        // One line: the chip in the title already says Absent; this says who.
+        <p className="text-body text-ink">
+          {interview.absentId === me.id
+            ? "You were marked absent"
+            : `${other.name ?? "Your partner"} was marked absent`}
+        </p>
       ) : phase === "completed" ? (
         <Section
           title="Notes"

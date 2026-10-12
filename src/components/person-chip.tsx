@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { Avatar } from "@/components/avatar";
 import { cn } from "@/lib/cn";
-import type { PersonTone } from "@/lib/person-tone";
 
 /**
  * `avatarUpdatedAt` is optional so the many call sites that `select` only
@@ -23,7 +22,6 @@ type Person = {
  *                identifying detail quiet underneath.
  *   PersonChip   the person is a VALUE inside a row about something else — who
  *                ran this session, who owns this task, who holds this grant.
- *   PersonBadge  the face alone, where there is no room for a name.
  *   bare text    running prose only: a sentence, a receipt, a toast, an email,
  *                a notification message, a `title` or an aria-label.
  *
@@ -56,17 +54,6 @@ export function PersonChip({
    * than somebody mentioned inside another row.
    */
   lead?: boolean;
-  /**
-   * Wear somebody else's hue.
-   *
-   * Only one caller has a reason to: a program's own page, where every mentor
-   * on the list belongs to that program and the owner asked for them to match
-   * it. Identity is unambiguous there — the page is one program and the row is
-   * one person — so the chip can spend its colour on the place instead. Nowhere
-   * else: a mentor in three programs must not be three colours on the roster
-   * that lists all three.
-   */
-  tone?: PersonTone;
   className?: string;
 }) {
   const label = person.name ?? person.email;
@@ -249,25 +236,5 @@ export function PersonCell({
     <div className={cn("flex min-w-0 items-center gap-3", className)}>
       {body}
     </div>
-  );
-}
-
-/**
- * The initials badge on its own, for tight spots (a stack of mentors on one
- * row) where the full chip would not fit. Name stays available on hover.
- */
-export function PersonBadge({
-  person,
-  className,
-}: {
-  person: Person;
-  className?: string;
-}) {
-  return (
-    <Avatar
-      person={person}
-      title={person.name ?? person.email}
-      className={cn("h-6 w-6 text-caption ring-2 ring-surface", className)}
-    />
   );
 }

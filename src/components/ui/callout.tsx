@@ -1,6 +1,5 @@
 import { AlertIcon, InfoIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
-import type { Status } from "@/lib/status";
 
 /**
  * A notice that takes a whole line of the page.
@@ -34,12 +33,6 @@ const SURFACE: Record<CalloutTone, string> = {
   danger: "bg-danger-soft",
 };
 
-const BODY: Record<CalloutTone, string> = {
-  info: "text-muted-fg",
-  warn: "text-warn-ink",
-  danger: "text-danger-ink",
-};
-
 const TITLE: Record<CalloutTone, string> = {
   info: "text-ink",
   warn: "text-warn-ink",
@@ -71,6 +64,7 @@ export function Callout({
 }: {
   tone?: CalloutTone;
   title?: React.ReactNode;
+  /** Shown only when there is no `title`: a callout is one line, never a body. */
   children?: React.ReactNode;
   action?: React.ReactNode;
   /** One line, action on the right — the "ready for your next session?" shape. */
@@ -78,6 +72,7 @@ export function Callout({
   className?: string;
 }) {
   const Icon = ICON[tone];
+  const text = title ?? children;
 
   if (row) {
     return (
@@ -85,16 +80,12 @@ export function Callout({
         className={cn(
           "flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3 text-body sm:px-5",
           SURFACE[tone],
-          BODY[tone],
           className
         )}
       >
         <div className="flex min-w-0 items-baseline gap-2">
           <Icon className={cn("h-4 w-4 shrink-0 translate-y-0.5", ICON_COLOR[tone])} />
-          <div>
-            {title && <span className={cn("font-medium", TITLE[tone])}>{title} </span>}
-            {children}
-          </div>
+          <div className={cn("font-medium", TITLE[tone])}>{text}</div>
         </div>
         {action}
       </div>
@@ -105,40 +96,9 @@ export function Callout({
     <div className={cn("flex gap-2.5 rounded-xl px-4 py-3 sm:px-5", SURFACE[tone], className)}>
       <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", ICON_COLOR[tone])} />
       <div className="min-w-0">
-        {title && (
-          <div className={cn("text-body font-semibold", TITLE[tone])}>{title}</div>
-        )}
-        {children && (
-          <div className={cn("text-xs", BODY[tone], title && "mt-0.5")}>{children}</div>
-        )}
+        {text && <div className={cn("text-body font-semibold", TITLE[tone])}>{text}</div>}
         {action && <div className="mt-3">{action}</div>}
       </div>
     </div>
-  );
-}
-
-/**
- * A callout built from a blocked status, which is the only kind of state
- * allowed to become one. Keeps the wording and the tone in the model's hands
- * rather than at the call site.
- */
-export function StatusCallout({
-  status,
-  action,
-  className,
-}: {
-  status: Status;
-  action?: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <Callout
-      tone={status.severity === "problem" ? "danger" : status.severity === "attention" ? "warn" : "info"}
-      title={status.label}
-      action={action}
-      className={className}
-    >
-      {status.explanation}
-    </Callout>
   );
 }

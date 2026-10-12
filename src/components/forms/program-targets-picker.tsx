@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 
 import { ChevronDownIcon, SearchIcon } from "@/components/icons";
-import { fieldChrome } from "@/components/ui/field";
+import { Input } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
 import type { ProgramOption } from "@/lib/queries";
 import { RequiredMark } from "@/components/ui/required-mark";
@@ -23,35 +23,14 @@ const cohortTarget = (cohortId: string) => `c:${cohortId}`;
  */
 const SEARCH_THRESHOLD = 8;
 
-function labelFor(programs: ProgramOption[], target: Target): string | null {
-  for (const p of programs) {
-    if (target === programTarget(p.id)) {
-      return p.levels.length > 0
-        ? `${p.name} · all levels`
-        : p.cohorts.length > 0
-          ? `${p.name} · all cohorts`
-          : p.name;
-    }
-    for (const l of p.levels) {
-      if (target === levelTarget(l.id)) return `${p.name} / ${l.name}`;
-      const nested = l.cohorts.find((c) => cohortTarget(c.id) === target);
-      if (nested) return `${p.name} / ${l.name} / ${nested.name}`;
-    }
-    const cohort = p.cohorts.find((c) => cohortTarget(c.id) === target);
-    if (cohort) return `${p.name} / ${cohort.name}`;
-  }
-  return null;
-}
-
 /**
  * Which programs (or single cohorts within them) a mentor works in.
  *
  * This used to be every program and every cohort as one flat wrapping row of
  * checkboxes, which stops working the moment the roster grows: nothing said
- * which cohort belonged to which program, and what was already assigned could
- * only be read by hunting for ticks. So: the selection is stated as chips at the
- * top, each program is its own row, and cohorts stay folded away until someone
- * actually needs to narrow a mentor down to one.
+ * which cohort belonged to which program. So each program is its own row, and
+ * cohorts stay folded away until someone actually needs to narrow a mentor
+ * down to one — a program opens on its own when something inside it is ticked.
  *
  * A program-wide assignment and a cohort-specific one inside it are the same
  * claim made twice, so picking the whole program clears — and locks — its
@@ -162,8 +141,6 @@ export function ProgramTargetsPicker({
     set(has(t) ? selected.filter((s) => s !== t) : [...selected, t]);
   };
 
-  const remove = (t: Target) => set(selected.filter((s) => s !== t));
-
   const selectAllVisible = () => {
     const wide = visible.map((p) => programTarget(p.id));
     const inside = visible.flatMap((p) => [
@@ -206,63 +183,18 @@ export function ProgramTargetsPicker({
         </div>
       </div>
 
-      {/* What is selected, stated plainly — reading ticks off a long list is
-          not the same as being told. */}
-      <div className="mt-1.5 flex min-h-8 flex-wrap items-center gap-1.5">
-        {selected.length === 0 ? (
-          // A required picker must not say that picking nothing is fine: the
-          // asterisk and "the mentor stays unassigned" contradicted each other.
-          <span className="text-xs text-muted-fg">
-            {required
-              ? "Pick at least one program."
-              : "Nothing selected yet — the mentor stays unassigned."}
-          </span>
-        ) : (
-          selected.map((t) => {
-            const label = labelFor(programs, t);
-            if (!label) return null;
-            return (
-              <span
-                key={t}
-                className="inline-flex items-center gap-1 rounded-full bg-brand-soft py-[0.1875rem] pl-2.5 pr-1 text-xs font-medium text-brand"
-              >
-                {label}
-                <button
-                  type="button"
-                  onClick={() => remove(t)}
-                  aria-label={`Remove ${label}`}
-                  // 20px drawn, 44px to a thumb: the pseudo-element is the
-                  // target on a phone, so the chip itself stays small.
-                  className="relative flex h-5 w-5 items-center justify-center rounded-full text-brand/70 transition-colors hover:bg-brand/10 hover:text-brand max-sm:after:absolute max-sm:after:-inset-3"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    aria-hidden="true"
-                    className="h-3 w-3"
-                  >
-                    <path d="M6 6l12 12M18 6 6 18" />
-                  </svg>
-                </button>
-              </span>
-            );
-          })
-        )}
-      </div>
-
       {withSearch && (
-        <div className={cn(fieldChrome, "mt-2 flex items-center gap-2 px-3 focus-within:border-brand focus-within:bg-surface")}>
-          <SearchIcon className="h-4 w-4 shrink-0 text-muted-fg" />
-          <input
-            type="text"
+        <div className="relative mt-2">
+          <SearchIcon
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg"
+          />
+          <Input
+            type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Filter programs"
-            placeholder="Filter programs and cohorts…"
-            className="h-10 min-w-0 flex-1 bg-transparent text-sm text-ink placeholder:text-muted-fg focus:outline-none"
+            className="pl-9"
           />
         </div>
       )}
@@ -282,16 +214,7 @@ export function ProgramTargetsPicker({
           const wide = has(programTarget(p.id));
           // Everything narrower than the program itself — its levels, and the
           // cohorts under them or directly under it.
-          const subdivisions =
-            p.levels.length +
-            p.cohorts.length;
-          const chosen =
-            p.cohorts.filter((c) => has(cohortTarget(c.id))).length +
-            p.levels.filter((l) => has(levelTarget(l.id))).length +
-            p.levels.reduce(
-              (n, l) => n + l.cohorts.filter((c) => has(cohortTarget(c.id))).length,
-              0,
-            );
+          const subdivisions = p.levels.length + p.cohorts.length;
           const open = expanded.includes(p.id);
           return (
             <li key={p.id}>
@@ -306,18 +229,7 @@ export function ProgramTargetsPicker({
                     onChange={() => toggleProgram(p)}
                     className="h-4 w-4 shrink-0 accent-brand"
                   />
-                  <span className="min-w-0">
-                    <span className="block min-w-0 truncate font-medium">{p.name}</span>
-                    {subdivisions > 0 && (
-                      <span className="block text-xs text-muted-fg">
-                        {wide
-                          ? "Everything in it, including what is added later"
-                          : chosen > 0
-                            ? `${chosen} of ${subdivisions} inside`
-                            : "Entire program"}
-                      </span>
-                    )}
-                  </span>
+                  <span className="min-w-0 truncate font-medium">{p.name}</span>
                 </label>
                 {subdivisions > 0 && (
                   <button
@@ -342,14 +254,9 @@ export function ProgramTargetsPicker({
                 )}
               </div>
 
+              {/* Ticking the whole program ticks and locks everything in it. */}
               {open && subdivisions > 0 && (
                 <ul className="border-t border-line/60 bg-canvas/60 px-3 py-2">
-                  {wide && (
-                    <li className="pb-1.5 text-xs text-muted-fg">
-                      The whole program is assigned, so single levels or
-                      cohorts add nothing. Untick it to pick inside instead.
-                    </li>
-                  )}
                   {p.levels.map((l) => {
                     const levelWide = has(levelTarget(l.id));
                     return (
@@ -367,16 +274,7 @@ export function ProgramTargetsPicker({
                             onChange={() => toggleLevel(l)}
                             className="h-4 w-4 shrink-0 accent-brand"
                           />
-                          <span className="min-w-0">
-                            {l.name}
-                            {l.cohorts.length > 0 && (
-                              <span className="block text-xs text-muted-fg">
-                                {levelWide || wide
-                                  ? `All ${l.cohorts.length} cohort${l.cohorts.length === 1 ? "" : "s"}`
-                                  : `${l.cohorts.length} cohort${l.cohorts.length === 1 ? "" : "s"}`}
-                              </span>
-                            )}
-                          </span>
+                          <span className="min-w-0">{l.name}</span>
                         </label>
                         {l.cohorts.length > 0 && (
                           <ul className="pl-7">
@@ -432,7 +330,7 @@ export function ProgramTargetsPicker({
 
       {invalid && (
         <p id={errorId} role="alert" className="mt-1.5 text-xs text-danger-ink">
-          Pick at least one program, level or cohort.
+          Pick at least one.
         </p>
       )}
 
@@ -457,7 +355,7 @@ export function ProgramTargetsPicker({
         }}
         tabIndex={-1}
         aria-hidden="true"
-        className="pointer-events-none absolute bottom-0 left-0 h-px w-px opacity-0"
+        className="sr-only pointer-events-none"
       />
     </fieldset>
   );

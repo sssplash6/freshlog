@@ -116,7 +116,7 @@ export function NavCount({ count, muted }: { count: number; muted?: boolean }) {
 }
 
 /**
- * Inline text links in a top bar. The student shell's only nav at ≥ md, where
+ * Inline text links in a top bar. The student shell's only nav at ≥ lg, where
  * four items fit a row and a bottom bar would be a phone habit on a laptop.
  */
 export function NavLinks({ items }: { items: NavItem[] }) {
@@ -134,10 +134,9 @@ export function NavLinks({ items }: { items: NavItem[] }) {
             prefetch
             aria-current={active ? "page" : undefined}
             className={cn(
-              // The selected item is a tinted pill, the rail's own shape laid
-              // on its side — not a 2px underline, which is a web tab strip's
-              // tell and was the only underline in the chrome.
-              "inline-flex min-h-9 items-center rounded-full px-3 text-body transition-colors",
+              // The rail's own row and selected state, laid on its side — not
+              // a 2px underline, which is a web tab strip's tell.
+              "inline-flex min-h-9 items-center rounded-lg px-3 text-body transition-colors",
               active
                 ? "bg-brand-soft font-semibold text-brand"
                 : "font-medium text-muted-fg hover:bg-fill hover:text-ink"
@@ -181,17 +180,11 @@ export function SidebarNav({
         // from cache with no skeleton at all (see NativeGestures for rows).
         prefetch
         aria-current={active ? "page" : undefined}
-        // `title` is what a collapsed rail leaves a reader: the label is
-        // display:none there, so the browser's own tooltip is the label.
-        title={item.label}
         className={cn(
           // 40px: the rail exists only at lg, under a pointer, where 44 is not
           // the floor it is on a phone — and six 44px rows read as a list of
           // buttons rather than a sidebar. 15px labels, a 20px glyph.
           "relative flex min-h-10 items-center gap-3 rounded-lg px-3 text-body transition-colors",
-          // Shut: the mark alone, centred. Peeking: the row it always was.
-          "rail-collapsed:justify-center rail-collapsed:px-0",
-          "rail-collapsed:group-hover/rail:justify-start rail-collapsed:group-hover/rail:px-3",
           active
             ? "bg-brand-soft font-semibold text-brand before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-brand"
             : "font-medium text-ink hover:bg-fill"
@@ -203,13 +196,9 @@ export function SidebarNav({
         />
         {/* A program's name is the one label that can be long, and it takes a
             second line rather than sliding out of view. */}
-        <span className="min-w-0 flex-1 rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
-          {item.label}
-        </span>
+        <span className="min-w-0 flex-1">{item.label}</span>
         {item.count != null && item.count > 0 && (
-          <span className="rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
-            <NavCount count={item.count} muted={active} />
-          </span>
+          <NavCount count={item.count} muted={active} />
         )}
       </Link>
     );
@@ -218,11 +207,10 @@ export function SidebarNav({
   return (
     <nav aria-label="Primary" className="flex flex-col gap-0.5">
       {items.map((item, i) =>
-        // A heading over the first item of each run sharing a group. Hidden
-        // when the rail is shut: a heading is words, and a shut rail is marks.
+        // A heading over the first item of each run sharing a group.
         item.group && item.group !== items[i - 1]?.group ? (
           <div key={item.href} className="flex flex-col gap-0.5">
-            <p className="px-3 pt-3 text-xs font-medium text-muted-fg rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
+            <p className="px-3 pt-3 text-xs font-medium text-muted-fg">
               {item.group}
             </p>
             {row(item)}

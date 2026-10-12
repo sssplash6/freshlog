@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { Avatar } from "@/components/avatar";
-import { PlusIcon } from "@/components/icons";
+import { CheckIcon, PlusIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { DateField } from "@/components/ui/date-field";
@@ -37,8 +37,8 @@ type StudentOption = { id: string; name: string };
 /**
  * Set the program's mentors a task: what, by when, for whom, about whom.
  *
- * Closed, it is the "Set a task" row at the head of the list; open, it unfolds
- * in place, the shape `SetStudentTaskForm` has, so the two read as one family.
+ * Closed, it is a "Set a task" button at the head of the list; open, it
+ * unfolds in place.
  *
  * Mentors are a checklist with "Everyone" at the top, because the two ways an
  * admin asks are "the whole team" and "these three", and one control answers
@@ -87,27 +87,26 @@ export function SetMentorTaskForm({
     const q = query.trim().toLowerCase();
     return q ? students.filter((s) => s.name.toLowerCase().includes(q)) : students;
   }, [students, query]);
-  const nameOf = new Map(students.map((s) => [s.id, s.name]));
 
   if (!open) {
     return (
-      <div>
-        <button
-          type="button"
+      <div className="px-4 py-3 sm:px-5">
+        <Button
+          variant="secondary"
           onClick={() => setOpen(true)}
           disabled={team.length === 0}
-          className="flex min-h-11 w-full items-center gap-2 px-4 py-3 text-left text-body font-medium text-brand transition-colors hover:bg-fill focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand disabled:cursor-default disabled:text-muted-fg disabled:hover:bg-transparent sm:px-5"
+          className="gap-1.5"
         >
           <PlusIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {team.length === 0 ? "Pair a mentor to this program to set them tasks" : "Set a task for mentors"}
-        </button>
-        <SaveState state={save} className="px-4 has-[span]:pb-2 sm:px-5" />
+          New mentor task
+        </Button>
+        <SaveState state={save} />
       </div>
     );
   }
 
   return (
-    <form action={action} className="rise-in space-y-4 px-4 py-3 sm:px-5">
+    <form action={action} className="rise-in max-w-xl space-y-4 px-4 py-3 sm:px-5">
       <input type="hidden" name="programId" value={programId} />
       {mentors.map((id) => (
         <input key={id} type="hidden" name="mentorIds" value={id} />
@@ -122,18 +121,17 @@ export function SetMentorTaskForm({
           required
           autoFocus
           maxLength={MAX_TITLE}
-          placeholder="Send each of your students' essay feedback"
+          placeholder="e.g. Essay feedback"
         />
       </Field>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        {/* A div, not a `Field`: the date field's trigger is a button. */}
-        <div className="min-w-0 space-y-1.5">
-          <span className="block text-sm font-medium text-ink">
-            Deadline<RequiredMark />
-          </span>
-          <DateField name="dueOn" label="Deadline" required min={today} />
-        </div>
+      {/* A div, not a `Field`: `Field` is a <label>, and the date field's
+          trigger is a button. Drawn the way `Field` draws its label. */}
+      <div className="min-w-0 space-y-1.5">
+        <span className="block text-sm font-medium text-ink">
+          Deadline<RequiredMark />
+        </span>
+        <DateField name="dueOn" label="Deadline" required min={today} />
       </div>
 
       <fieldset className="min-w-0 space-y-1.5">
@@ -152,10 +150,7 @@ export function SetMentorTaskForm({
                 onChange={() => setMentors(everyone ? [] : team.map((m) => m.id))}
                 className="h-4 w-4 shrink-0 accent-brand"
               />
-              Everyone in the team
-              <span className="font-normal text-muted-fg">
-                {mentors.length}/{team.length}
-              </span>
+              Everyone
             </label>
           </li>
           {team.map((m) => (
@@ -177,25 +172,7 @@ export function SetMentorTaskForm({
 
       {students.length > 0 && (
         <fieldset className="min-w-0 space-y-1.5">
-          <legend className="text-sm font-medium text-ink">
-            Students it is about <span className="font-normal text-muted-fg">(optional)</span>
-          </legend>
-          {picked.length > 0 && (
-            <ul className="flex flex-wrap gap-1.5" aria-label="Attached students">
-              {picked.map((id) => (
-                <li key={id}>
-                  <button
-                    type="button"
-                    onClick={() => toggleStudent(id)}
-                    aria-label={`Remove ${nameOf.get(id)}`}
-                    className="inline-flex min-h-8 items-center gap-1 rounded-full bg-fill px-3 text-xs font-medium text-ink transition-colors hover:bg-fill-strong"
-                  >
-                    {nameOf.get(id)} <span aria-hidden="true">×</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          <legend className="text-sm font-medium text-ink">Students</legend>
           {students.length > STUDENT_SEARCH_THRESHOLD && (
             <Input
               type="search"
@@ -228,11 +205,7 @@ export function SetMentorTaskForm({
       )}
 
       <Field label="Notes">
-        <GrowingField
-          name="note"
-          maxLength={MAX_NOTE}
-          placeholder="What good looks like, or where to start"
-        />
+        <GrowingField name="note" maxLength={MAX_NOTE} />
       </Field>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -263,7 +236,7 @@ export function WithdrawMentorTask({ taskId }: { taskId: string }) {
         values={{ taskId }}
         pending={save.kind === "saving"}
         label="Withdraw"
-        question="It leaves every mentor's list."
+        question="Withdraw from every mentor?"
         confirmLabel="Yes, withdraw"
         pendingLabel="Withdrawing…"
       />
@@ -290,15 +263,13 @@ export function MentorTaskDoneButton({
         name="intent"
         value={done ? "reopen" : "done"}
         disabled={pending}
-        className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-fill px-3 text-xs font-semibold text-brand transition-colors hover:bg-fill-strong disabled:opacity-50"
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-fill px-3 text-xs font-semibold text-brand transition-colors hover:bg-fill-strong disabled:text-disabled"
       >
         {done ? (
-          <>
-            <span aria-hidden="true">↺</span> Mark incomplete
-          </>
+          "Mark incomplete"
         ) : (
           <>
-            <span aria-hidden="true">✓</span> Done
+            <CheckIcon className="h-4 w-4 shrink-0" /> Done
           </>
         )}
       </button>

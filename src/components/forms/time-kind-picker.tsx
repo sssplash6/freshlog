@@ -16,8 +16,8 @@ const SHORT: Record<string, string> = {
 
 /**
  * Whose hours these are — the student's allocation, or the mentor's own time
- * given on top of it. Asked beside attendance and shaped identically, because
- * they are two halves of one thought: what happened, and what it costs.
+ * given on top of it. Asked beside attendance, because they are two halves of
+ * one thought: what happened, and what it costs. Sized to its two labels.
  *
  * In-plan leads and is the default: nearly every meeting spends allocated
  * hours, and a mentor who never touches this control should still get the
@@ -40,11 +40,6 @@ export function TimeKindPicker({
       legend="Whose hours?"
       required
       dense={compact}
-      // The same full-width, equal-cell track as the attendance picker above
-      // it. Sized to its labels it was a narrower control of a different
-      // shape under a wider one — two answers to one thought that did not
-      // look related.
-      columns={2}
       defaultValue={defaultValue}
       options={ORDER.map((kind) => ({
         value: kind,
