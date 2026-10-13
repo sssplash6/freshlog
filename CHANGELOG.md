@@ -70,6 +70,9 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Mentors' Home counts hour-bank meetings.** Time an admin gives a mentor out of a student's hour bank now appears as that student's row on the mentor's Home. Meetings drawn from a student's hour bank now count in the mentor's Completed, as they already did on the admin's page for that mentor.
 - **Move a student's time to yourself.** An admin who also mentors now appears in the list when moving a student's unused time from another mentor, and can move their own time to someone else.
 
+### Fixed
+- **Move a student's time to yourself.** An admin who also mentors now appears in the list when moving a student's unused time from another mentor, and can move their own time to someone else.
+
 ## 2026-10-12
 
 ### New
