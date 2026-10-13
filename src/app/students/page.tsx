@@ -81,7 +81,7 @@ export default async function StudentsPage({
     STUDENT_SORTS
   );
   const nameOrder = asked?.dir === "desc" ? "desc" : "asc";
-  // The three the database cannot order by, because they are summed per row
+  // The figures the database cannot order by, because they are summed per row
   // after it has answered. Naming them here is what decides whether this page
   // pages in SQL or in JavaScript.
   const computedSort = asked != null && asked.key !== "student";
@@ -133,7 +133,7 @@ export default async function StudentsPage({
     // their program cell are summed from.
     //
     // NO `slice` WHEN THE READER ASKED FOR A COMPUTED ORDER, and that is the
-    // price of the three sortable figures. Completed, Remaining and Last
+    // price of the sortable figures. Completed, Remaining, Use by and Last
     // session are derived per row AFTER the query, so ordering by one of them
     // over a page the database has already chosen would order twenty-five rows
     // and call it the roster — a header that changes the URL and not the answer
@@ -175,6 +175,7 @@ export default async function StudentsPage({
         completed: (s) => s.completedMinutes,
         total: (s) => s.allottedMinutes,
         remaining: (s) => s.remainingMinutes,
+        deadline: (s) => s.expiring?.date,
         seen: (s) => s.lastSessionAt,
       })
     : visible;

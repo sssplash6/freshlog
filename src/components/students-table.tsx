@@ -4,13 +4,17 @@ import { PersonCell } from "@/components/person-chip";
 import { ProgramChip } from "@/components/program-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { RowFold } from "@/components/ui/row-fold";
-import { StatusChip } from "@/components/ui/status-chip";
+import { DeadlineText, StatusChip } from "@/components/ui/status-chip";
 import { FILL_CELL, Table, Td, Tr, type Column } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import { sortEnrollments } from "@/lib/enrollments";
 import { HoursLeft } from "@/components/ui/hours-left";
 import { formatDate, formatDaysAgo, formatDuration } from "@/lib/format";
-import { studentStatuses, type ViewerContext } from "@/lib/status";
+import {
+  EXPIRY_WINDOW_DAYS,
+  studentStatuses,
+  type ViewerContext,
+} from "@/lib/status";
 import type { StudentWithHours } from "@/lib/queries";
 
 /**
@@ -35,12 +39,16 @@ import type { StudentWithHours } from "@/lib/queries";
  * of time and not have been seen for six weeks, and that is the thing worth
  * finding on a list.
  *
- * WHAT IS NOT HERE, on the owner's instruction (12 September 2026): a "Use by"
- * column, and every chip beside the name except "Not signed in". A roster
- * of forty rows wearing a red chip each is a roster nobody reads, and the
- * deadline that drives forfeiture is not a date a reader acts on from here —
- * it is on the student's own page, beside the grant it belongs to, and the
- * bell is what says whose is running out.
+ * "Use by" came back on 13 October 2026, at the admins' request: the mentor's
+ * caseload had it and the roster did not, and finding whose hours run out
+ * first meant opening forty student pages. It is the soonest date that still
+ * has unused hours behind it, with those minutes under it — never the
+ * student's whole Remaining, which is mostly grants running months later. It
+ * is a date, not a chip: quiet ink until the staff window, amber inside it.
+ *
+ * WHAT IS STILL NOT HERE, on the owner's instruction (12 September 2026):
+ * every chip beside the name except "Not signed in". A roster of forty rows
+ * wearing a red chip each is a roster nobody reads.
  */
 /**
  * The href, only if it is a web address.
@@ -68,7 +76,14 @@ const ICON_LINK =
  * What this table can be ordered by. The page says which of them it can
  * honour; `lib/sort.ts` does the ordering.
  */
-export const STUDENT_SORTS = ["student", "completed", "total", "remaining", "seen"] as const;
+export const STUDENT_SORTS = [
+  "student",
+  "completed",
+  "total",
+  "remaining",
+  "deadline",
+  "seen",
+] as const;
 export type StudentSort = (typeof STUDENT_SORTS)[number];
 
 /**
@@ -153,7 +168,7 @@ export function StudentsTable({
 
   const columns: Column[] = [
     // Only the name is offered, and only where the page can honour it. The
-    // other four are computed per row after the query has already sliced the
+    // others are computed per row after the query has already sliced the
     // roster into pages, so ordering by them here would order one page of
     // forty and call it the list.
     { label: "Student", ...(on("student") ? { sort: "student" } : {}) },
@@ -182,6 +197,17 @@ export function StudentsTable({
       align: "right",
       emphasis: "key",
       ...(on("remaining") ? { sort: "remaining", sortDir: "desc" as const } : {}),
+    },
+    {
+      label: "Use by",
+      // Hidden from `sm` up to 1366px. At 1280 (`xl`, where Program comes
+      // back) the seven columns needed 1,050px of a 1,028px table: the names
+      // were cut to "Aziz K…" and Contact went off the edge. At 1366 they
+      // fit. A phone still has it in the fold.
+      className: "sm:max-[1365px]:hidden",
+      // Up first: soonest at the top is the whole reason to click it. Rows
+      // with nothing left to expire sit at the bottom either way (`lib/sort`).
+      ...(on("deadline") ? { sort: "deadline" } : {}),
     },
     {
       label: "Last session",
@@ -348,6 +374,26 @@ export function StudentsTable({
                 used={s.completedMinutes + s.missedMinutes}
                 expired={s.forfeitedMinutes}
               />
+            </Td>
+
+            <Td label="Use by" className="whitespace-nowrap sm:max-[1365px]:hidden" data-fold>
+              {/* The date, and under it only the minutes that date takes —
+                  "October 20 / 2h to use" beside 22h remaining says most of
+                  the time is safe. */}
+              {s.expiring ? (
+                <span className="flex flex-col">
+                  <DeadlineText
+                    deadline={s.expiring.date}
+                    now={viewer.now}
+                    within={EXPIRY_WINDOW_DAYS[viewer.audience]}
+                  />
+                  <span className="text-xs text-muted-fg tabular-nums">
+                    {formatDuration(s.expiring.minutes)} to use
+                  </span>
+                </span>
+              ) : (
+                <span className="text-muted-fg">—</span>
+              )}
             </Td>
 
             <Td label="Last session" className="whitespace-nowrap" data-fold>

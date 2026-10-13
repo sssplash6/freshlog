@@ -12,6 +12,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Meetings arrive from Google Meet.** Mentors can connect Google in Settings. When a Meet call with a student ends, it waits in Needs you with the minutes and attendance measured from the call, ready to check and log.
 - **Add students from a list.** On a program's Add students, choose Paste or import a list. Paste rows from a spreadsheet or the addresses from an email, or pick an Excel or CSV file. Each person becomes a row you can check and correct before adding.
 - **Register mentors from a list.** Register a mentor now has Register several from a list. Type, paste or import their names and addresses, pick the programs once, and register them all together. Anyone who can't be registered is named, and the rest still go in.
+- **Use by on the Students list.** Admins now see when each student's next hours run out, and how much time expires then, the way mentors already do on their own list. Sort by it to put the soonest first.
 
 ### Fixed
 - **Missed meetings count in Analytics.** When a student misses a meeting, its time now counts toward the mentor's and the program's hours, shown striped as "Missed" beside in-plan and extra time. This applies to past missed meetings too. Each mentor's month table has a Missed column.

@@ -164,6 +164,7 @@ export default async function ProgramPage({
         completed: (s) => s.completedMinutes,
         total: (s) => s.allottedMinutes,
         remaining: (s) => s.remainingMinutes,
+        deadline: (s) => s.expiring?.date,
         seen: (s) => s.lastSessionAt,
       })
     : visible;
