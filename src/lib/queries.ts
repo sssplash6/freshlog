@@ -1095,6 +1095,14 @@ export type CaseloadStudent = {
   pool?: number;
   /** `pool` is the student's hour bank, which every meeting draws: what is LEFT in it. */
   bank?: boolean;
+  /**
+   * Minutes this mentor delivered here that no grant of theirs paid for: their
+   * meetings drawn from the student's bank, and those on a grant of theirs
+   * kept from before the bank (whose row is not shown). Outside the row's
+   * balance, which is the mentor's own grant; counted in what they have
+   * completed, as the admin's mentor page counts them.
+   */
+  bankCompleted?: number;
   /** How this mentor reaches them, for a list that sorts by closeness. */
   reach: "allocation" | "pool" | "met" | "task";
 };
@@ -1187,6 +1195,7 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
   const used = new Map<string, number>();
   const missedBy = new Map<string, number>();
   const extraBy = new Map<string, number>();
+  const bankDone = new Map<string, number>();
   const key = (s: { studentId: string; programId: string }) =>
     `${s.studentId}:${s.programId}`;
   for (const s of mySessionSums) {
@@ -1197,7 +1206,10 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
       continue;
     }
     // Drawn from the student's bank, not from this mentor's grant.
-    if (s.fromBank) continue;
+    if (s.fromBank) {
+      if (s.attended) bankDone.set(k, (bankDone.get(k) ?? 0) + minutes);
+      continue;
+    }
     used.set(k, (used.get(k) ?? 0) + minutes);
     if (!s.attended) missedBy.set(k, (missedBy.get(k) ?? 0) + minutes);
   }
@@ -1205,7 +1217,21 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
   // A student with a bank in a program is logged against the bank, so a grant
   // the mentor also holds there (kept from before the bank) is not a second
   // choice for the same (student, program).
+  //
+  // A SHARE is the exception (13 October 2026): it is time an admin moved out
+  // of the bank to this mentor, and their meetings draw it rather than the
+  // bank (`bankDrawnBy`), so it is their row there and the bank's row is not.
+  // Hiding it as a kept grant dropped every meeting on it from Home.
   const banked = new Set(poolAllocations.filter((p) => p.isBank).map((p) => key(p)));
+  const shared = new Set(allocations.filter((a) => a.fromBankShare).map((a) => key(a)));
+  // What the mentor did on a kept grant is still what they did: it goes to the
+  // bank's row with their bank meetings, since that row stands for the student.
+  for (const a of allocations) {
+    if (a.fromBankShare || !banked.has(key(a))) continue;
+    const k = key(a);
+    const done = (used.get(k) ?? 0) - (missedBy.get(k) ?? 0);
+    bankDone.set(k, (bankDone.get(k) ?? 0) + done);
+  }
   const bankDrawn = new Map<string, number>();
   if (banked.size > 0) {
     const sums = await prisma.session.groupBy({
@@ -1221,7 +1247,7 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
   }
 
   const students: CaseloadStudent[] = allocations
-    .filter((a) => !banked.has(key(a)))
+    .filter((a) => a.fromBankShare || !banked.has(key(a)))
     .map((a) => {
     const drawn = used.get(key(a)) ?? 0;
     const missed = missedBy.get(key(a)) ?? 0;
@@ -1238,6 +1264,8 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
       deadline: a.deadline,
       expired,
       approved: a.student.user.status === USER_STATUS.ACTIVE,
+      // Bank meetings they held before the share was theirs.
+      bankCompleted: a.fromBankShare ? (bankDone.get(key(a)) ?? 0) : 0,
       reach: "allocation",
     };
   });
@@ -1266,6 +1294,7 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
   const mine = new Set(allocations.map((a) => key(a)));
   for (const p of poolAllocations) {
     if (!p.isBank && mine.has(key(p))) continue;
+    if (p.isBank && shared.has(key(p))) continue;
     // A bank is left to be overdrawn (warned, never blocked); only the pool,
     // which is a stock to claim from, is dropped once it is empty.
     const left = p.isBank ? p.minutes - (bankDrawn.get(key(p)) ?? 0) : p.minutes;
@@ -1284,6 +1313,7 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
       approved: p.student.user.status === USER_STATUS.ACTIVE,
       pool: left,
       bank: p.isBank,
+      bankCompleted: p.isBank ? (bankDone.get(key(p)) ?? 0) : 0,
       reach: "pool",
     });
   }
