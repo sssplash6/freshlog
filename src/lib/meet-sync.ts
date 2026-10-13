@@ -10,6 +10,7 @@ import {
   listAttendance,
   listConferences,
   listEvents,
+  MEETING_CODE,
   openToken,
   type CalendarEvent,
 } from "@/lib/google";
@@ -177,6 +178,9 @@ function meetingOf(event: CalendarEvent, now: Date) {
   const endText = event.end?.dateTime;
   // All-day events have a date and no time; nobody holds a lesson that way.
   if (!code || !startText || !endText) return null;
+  // Never reaches the filter unless it is the shape Google issues: the
+  // event's organiser, who may be anybody, writes this field.
+  if (!MEETING_CODE.test(code)) return null;
   const start = new Date(startText);
   const end = new Date(endText);
   const date = localDay(startText);

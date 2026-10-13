@@ -164,6 +164,35 @@ describe("syncMeetDrafts", () => {
     expect((await syncMeetDrafts(NOW)).drafts).toBe(0);
   });
 
+  it("never puts a meeting code that is not one into Meet's filter", async () => {
+    const { fixture } = await setUp();
+    const google = fakeGoogle(fixture);
+    const crafted = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/calendar/v3/calendars/primary/events") {
+        return new Response(
+          JSON.stringify({
+            items: [
+              {
+                ...EVENT,
+                conferenceData: {
+                  conferenceId: 'abc-defg-hij" OR space.meeting_code != "x',
+                  conferenceSolution: { key: { type: "hangoutsMeet" } },
+                },
+                attendees: [{ email: fixture.studentEmail }],
+              },
+            ],
+          }),
+          { status: 200 }
+        );
+      }
+      return google(input);
+    });
+    vi.stubGlobal("fetch", crafted);
+    expect((await syncMeetDrafts(NOW)).drafts).toBe(0);
+    expect(crafted.mock.calls.some(([u]) => String(u).includes("conferenceRecords"))).toBe(false);
+  });
+
   it("stops reading a mentor whose grant Google refused, and says so", async () => {
     const { mentor: m, fixture } = await setUp();
     vi.stubGlobal("fetch", fakeGoogle(fixture, { refresh: "revoked" }));

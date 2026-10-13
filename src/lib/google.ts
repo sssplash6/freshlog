@@ -260,6 +260,13 @@ export function listEvents(token: string, from: Date, to: Date): Promise<Calenda
 export type ConferenceRecord = { name: string; startTime: string; endTime?: string };
 
 /**
+ * A Meet code as Google issues them: `abc-defg-hij`. It arrives on a calendar
+ * event, which whoever organised the event controls, and it is pasted into a
+ * filter expression below — so anything else is refused rather than escaped.
+ */
+export const MEETING_CODE = /^[a-z]{3}-[a-z]{4}-[a-z]{3}$/;
+
+/**
  * The calls held on one Meet link inside a window. A recurring meeting keeps
  * its link for every occurrence, so the time window is what picks out this
  * one — and a call everybody left and rejoined is two records, both wanted.
@@ -270,6 +277,9 @@ export function listConferences(
   from: Date,
   to: Date
 ): Promise<ConferenceRecord[]> {
+  if (!MEETING_CODE.test(meetingCode)) {
+    return Promise.reject(new GoogleError("failed", "not a Meet code"));
+  }
   return all<ConferenceRecord>(
     token,
     "https://meet.googleapis.com/v2/conferenceRecords",
