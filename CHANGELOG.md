@@ -17,6 +17,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Missed meetings count in Analytics.** When a student misses a meeting, its time now counts toward the mentor's and the program's hours, shown striped as "Missed" beside in-plan and extra time. This applies to past missed meetings too. Each mentor's month table has a Missed column.
 - **Analytics agrees with the rest of the app.** A meeting logged as extra is counted as extra even when the student didn't come, as it is on the mentor's own page. Sessions now include missed ones. A program's share of its total hours counts only the time its students' hours paid for, not extra time.
 - **Mentors' Home counts hour-bank meetings.** Time an admin gives a mentor out of a student's hour bank now appears as that student's row on the mentor's Home. Meetings drawn from a student's hour bank now count in the mentor's Completed, as they already did on the admin's page for that mentor.
+- **Move a student's time to yourself.** An admin who also mentors now appears in the list when moving a student's unused time from another mentor, and can move their own time to someone else.
 
 ## 2026-10-12
 

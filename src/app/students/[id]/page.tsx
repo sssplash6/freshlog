@@ -908,7 +908,7 @@ export default async function StudentWorkspacePage({
                         // `remaining` is already zero once a deadline passes.
                         unusedMinutes={Math.max(0, entry.remaining)}
                         transferTo={mentorOptions.filter(
-                          (m) => m.value !== entry.mentor?.id && m.value !== me.id
+                          (m) => m.value !== entry.mentor?.id
                         )}
                       />
                     ) : null

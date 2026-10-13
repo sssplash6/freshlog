@@ -2364,13 +2364,6 @@ export async function transferMentorAllocation(
   const denied = await assertProgramScope(actor, source.programId);
   if (denied) return { ok: false, error: "That allocation no longer exists." };
 
-  if (fromMentorId === actor.id || toMentorId === actor.id) {
-    return {
-      ok: false,
-      error: "Your own hours are moved by another admin — not by you.",
-    };
-  }
-
   const target = await prisma.user.findUnique({ where: { id: toMentorId } });
   if (!target || !canActAsMentor(target)) return { ok: false, error: "Pick a mentor." };
 
