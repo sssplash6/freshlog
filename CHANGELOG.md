@@ -11,6 +11,10 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Give a mentor time from a student's hour bank.** On Allocate time for a student with an hour bank, pick a mentor: the minutes come out of the bank and become that mentor's time, which their meetings use. Others still draw on the bank. Lowering or removing a mentor's time puts the unused minutes back.
 - **Meetings arrive from Google Meet.** Mentors can connect Google in Settings. When a Meet call with a student ends, it waits in Needs you with the minutes and attendance measured from the call, ready to check and log.
 
+### Fixed
+- **Missed meetings count in Analytics.** When a student misses a meeting, its time now counts toward the mentor's and the program's hours, shown striped as "Missed" beside in-plan and extra time. This applies to past missed meetings too. Each mentor's month table has a Missed column.
+- **Analytics agrees with the rest of the app.** A meeting logged as extra is counted as extra even when the student didn't come, as it is on the mentor's own page. Sessions now include missed ones. A program's share of its total hours counts only the time its students' hours paid for, not extra time.
+
 ## 2026-10-12
 
 ### Fixed

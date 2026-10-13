@@ -14,8 +14,13 @@ import { prisma } from "@/lib/prisma";
  * words are the ledger's (`lib/hours.ts`):
  *
  *   COMPLETED  in plan and attended — the ledger's "Completed"
- *   EXTRA      out of plan and attended — delivered, charged to nobody
- *   NO_SHOW    the student did not come — charged, but nothing was delivered
+ *   EXTRA      out of plan, attended or not — charged to nobody
+ *   NO_SHOW    in plan, and the student did not come — the ledger's "Missed",
+ *              charged like any other meeting
+ *
+ * Plan first, then attendance, as the ledger asks it. An out-of-plan no-show
+ * was a NO_SHOW here until 13 October 2026, so the same meeting was "missed"
+ * on this page and "extra" on the mentor's own.
  *
  * WHOSE SESSIONS. `programIds` narrows to those programs; `undefined` is the
  * whole school, which is what `/analytics` reads for every mentor and member of staff. A session belongs to the program it names (`Session.programId`), never
@@ -84,8 +89,8 @@ export function kindOf(session: {
   withinPlan: boolean;
   attended: boolean;
 }): SessionKind {
-  if (!session.attended) return SESSION_KIND.NO_SHOW;
-  return session.withinPlan ? SESSION_KIND.COMPLETED : SESSION_KIND.EXTRA;
+  if (!session.withinPlan) return SESSION_KIND.EXTRA;
+  return session.attended ? SESSION_KIND.COMPLETED : SESSION_KIND.NO_SHOW;
 }
 
 export function dayKey(date: Date): number {
