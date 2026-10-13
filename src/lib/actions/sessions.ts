@@ -45,6 +45,7 @@ import {
   type ActionState,
 } from "@/lib/actions/shared";
 import { reachablePrograms } from "@/lib/queries";
+import { bankDrawnBy, bankRemaining } from "@/lib/hours";
 
 /**
  * A session records a meeting that has happened, so its day cannot be after the
@@ -107,23 +108,6 @@ async function remainingWith(
     _sum: { minutes: true },
   });
   return allocatedHours - (sum._sum.minutes ?? 0);
-}
-
-/** Minutes left in a student's hour bank: what it holds less what its meetings drew. */
-async function bankRemaining(
-  db: Pick<typeof prisma, "session">,
-  bank: { studentId: string; programId: string; minutes: number }
-): Promise<number> {
-  const sum = await db.session.aggregate({
-    where: {
-      studentId: bank.studentId,
-      programId: bank.programId,
-      fromBank: true,
-      ...CHARGED_SESSION,
-    },
-    _sum: { minutes: true },
-  });
-  return bank.minutes - (sum._sum.minutes ?? 0);
 }
 
 /**
@@ -376,12 +360,11 @@ export async function logSession(
   //
   // A student with an HOUR BANK in this program is the exception: every
   // meeting in-plan draws the bank, whoever delivers it, so the mentor's own
-  // grant and the pool are not looked at. Only in-plan hours draw it — extra
-  // time charges nothing, bank or not.
+  // grant and the pool are not looked at — unless an admin handed this mentor
+  // a share of the bank, which their meetings draw instead. Only in-plan hours
+  // draw either — extra time charges nothing, bank or not.
   const bank = withinPlan
-    ? await prisma.hourAllocation.findFirst({
-        where: { studentId: profile.id, programId, isBank: true },
-      })
+    ? await bankDrawnBy(prisma, profile.id, programId, mentor.id)
     : null;
   const allocation = bank
     ? null
@@ -994,11 +977,10 @@ export async function editSession(
   // refusal is now only which allocation the charge lands on below.
   const charges = timeKindFields(kind).withinPlan;
   // Becoming in-plan is a new charge, and against a bank when the student has
-  // one; a session that was already in-plan stays on whatever it was drawing.
+  // one and the mentor holds no share of it; a session that was already
+  // in-plan stays on whatever it was drawing.
   const bankRow = charges
-    ? await prisma.hourAllocation.findFirst({
-        where: { studentId: session.studentId, programId: session.programId, isBank: true },
-      })
+    ? await bankDrawnBy(prisma, session.studentId, session.programId, session.mentorId)
     : null;
   const fromBank = !charges ? false : session.withinPlan ? session.fromBank : bankRow !== null;
 

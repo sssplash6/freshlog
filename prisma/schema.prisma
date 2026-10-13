@@ -672,8 +672,17 @@ model HourAllocation {
   // The student's HOUR BANK in this program: no mentor, and the row every
   // `Session.fromBank` meeting draws down. One per (student, program). Not the
   // unassigned pool, which is also mentor-less but is carved into a mentor's own
-  // allocation by the first meeting; nothing is ever carved out of a bank.
+  // allocation by the first meeting. A bank is carved only by an admin, into a
+  // mentor's share (`fromBankShare`), never by a meeting.
   isBank        Boolean  @default(false)
+  // A MENTOR's time an admin handed out of this student's hour bank in this
+  // program. The minutes left the bank when it was granted and go back to it
+  // when it is cut or removed, so the bank plus its shares is the student's
+  // whole balance. Meetings with this mentor draw this row, not the bank;
+  // meetings with a mentor who holds no share still draw the bank. False on
+  // every row granted before 13 October 2026, including the per-mentor time a
+  // bank was created beside: that time was never the bank's to take back.
+  fromBankShare Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
