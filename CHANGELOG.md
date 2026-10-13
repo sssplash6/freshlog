@@ -7,9 +7,11 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-13
 
 ### New
-- **Interview prep for admins.** A new Interview prep page lists your students' practice interviews: who is meeting whom and when, and afterwards whether it happened or who didn't join. A table shows how many each student has held and how much time they have practised. Their answers, notes and feedback stay private to them and their mentors.
+- **Interview prep for admins.** A new Interview prep page lists your students' practice interviews: who is meeting whom and when, and afterwards whether it happened or who didn't join. A table shows how many each student has held and for how long. Their answers, notes and feedback stay private to them and their mentors.
 - **Give a mentor time from a student's hour bank.** On Allocate time for a student with an hour bank, pick a mentor: the minutes come out of the bank and become that mentor's time, which their meetings use. Others still draw on the bank. Lowering or removing a mentor's time puts the unused minutes back.
 - **Meetings arrive from Google Meet.** Mentors can connect Google in Settings. When a Meet call with a student ends, it waits in Needs you with the minutes and attendance measured from the call, ready to check and log.
+- **Add students from a list.** On a program's Add students, choose Paste or import a list. Paste rows from a spreadsheet or the addresses from an email, or pick an Excel or CSV file. Each person becomes a row you can check and correct before adding.
+- **Register mentors from a list.** Register a mentor now has Register several from a list. Type, paste or import their names and addresses, pick the programs once, and register them all together. Anyone who can't be registered is named, and the rest still go in.
 
 ### Fixed
 - **Missed meetings count in Analytics.** When a student misses a meeting, its time now counts toward the mentor's and the program's hours, shown striped as "Missed" beside in-plan and extra time. This applies to past missed meetings too. Each mentor's month table has a Missed column.
