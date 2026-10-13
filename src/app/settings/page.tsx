@@ -15,7 +15,12 @@ import {
   canActAsMentor,
   type NotificationCategory,
 } from "@/lib/constants";
+import { disconnectGoogle } from "@/lib/actions/google";
+import { buttonClasses } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { requireUser } from "@/lib/dal";
+import { formatDate } from "@/lib/format";
+import { googleConfigured } from "@/lib/google";
 import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
 
@@ -54,11 +59,26 @@ function EmailText({ email }: { email: string }) {
   );
 }
 
-export default async function SettingsPage() {
+/** What the Google consent round trip came back with, in the reader's words. */
+const GOOGLE_RESULT: Record<string, string> = {
+  connected: "Connected. Meetings that end from now on will arrive in Needs you.",
+  denied: "Not connected: Google was not given access.",
+  "wrong-account": "Not connected: use the Google account you sign in to Freshlog with.",
+  "missing-scope": "Not connected: allow both Calendar and Meet on Google's screen.",
+  failed: "Not connected: Google did not answer. Try again.",
+};
+
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const user = await requireUser();
   const isMentor = canActAsMentor(user);
+  const googleResult = (await searchParams).google;
+  const showGoogle = isMentor && googleConfigured();
 
-  const [profile, assignments, prefs] = await Promise.all([
+  const [profile, assignments, prefs, google] = await Promise.all([
     prisma.studentProfile.findUnique({
       where: { userId: user.id },
       select: { telegramUsername: true },
@@ -71,6 +91,9 @@ export default async function SettingsPage() {
         })
       : Promise.resolve([]),
     prisma.notificationPreference.findMany({ where: { userId: user.id } }),
+    showGoogle
+      ? prisma.googleConnection.findUnique({ where: { userId: user.id } })
+      : Promise.resolve(null),
   ]);
   const prefOf = new Map(prefs.map((p) => [p.category, p]));
 
@@ -124,6 +147,51 @@ export default async function SettingsPage() {
             calendlyUrl: a.calendlyUrl,
           }))}
         />
+      )}
+
+      {/* Mentors only, and only once Google is configured on this
+          deployment. Connecting is a separate grant from signing in, so a
+          student is never asked for their calendar. */}
+      {showGoogle && (
+        <Section id="google" title="Google Meet">
+          <div className="px-4 py-2 sm:px-5">
+            <SettingsRow
+              label="Calendar and Meet"
+              description={
+                google
+                  ? google.failedAt
+                    ? "Google stopped accepting the connection. Reconnect to keep meetings arriving."
+                    : google.lastSyncAt
+                      ? `Connected as ${google.googleEmail}. Last checked ${formatDate(google.lastSyncAt)}.`
+                      : `Connected as ${google.googleEmail}.`
+                  : "When a Meet call with a student ends, it arrives in Needs you with the minutes and attendance filled in, for you to check and log."
+              }
+              state={
+                typeof googleResult === "string" && GOOGLE_RESULT[googleResult] ? (
+                  <p role="status" className="text-xs text-muted-fg">
+                    {GOOGLE_RESULT[googleResult]}
+                  </p>
+                ) : undefined
+              }
+              control={
+                google && !google.failedAt ? (
+                  <form action={disconnectGoogle}>
+                    <SubmitButton variant="secondary" pendingText="Disconnecting…">
+                      Disconnect
+                    </SubmitButton>
+                  </form>
+                ) : (
+                  // A plain link, not `LinkButton`: this leaves the app for
+                  // Google's consent screen, and a client-side transition to a
+                  // route handler has nothing to render.
+                  <a href="/api/google/connect" className={buttonClasses("primary", "md")}>
+                    {google ? "Reconnect Google" : "Connect Google"}
+                  </a>
+                )
+              }
+            />
+          </div>
+        </Section>
       )}
 
       {/* Kept in this browser rather than on the account: a laptop at a desk

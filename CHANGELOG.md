@@ -9,6 +9,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ### New
 - **Interview prep for admins.** A new Interview prep page lists your students' practice interviews: who is meeting whom and when, and afterwards whether it happened or who didn't join. A table shows how many each student has held and how much time they have practised. Their answers, notes and feedback stay private to them and their mentors.
 - **Give a mentor time from a student's hour bank.** On Allocate time for a student with an hour bank, pick a mentor: the minutes come out of the bank and become that mentor's time, which their meetings use. Others still draw on the bank. Lowering or removing a mentor's time puts the unused minutes back.
+- **Meetings arrive from Google Meet.** Mentors can connect Google in Settings. When a Meet call with a student ends, it waits in Needs you with the minutes and attendance measured from the call, ready to check and log.
 
 ## 2026-10-12
 

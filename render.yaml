@@ -78,6 +78,17 @@ services:
       # render and logging a session is unchanged.
       - key: OPENROUTER_API_KEY
         sync: false
+      # Google Meet drafts. Until all three are set the Settings row does not
+      # render and the meet-sync cron below reads nobody. A separate, Internal
+      # OAuth client from sign-in — see .env.example.
+      #   Add redirect URI: <NEXTAUTH_URL>/api/google/callback
+      - key: GOOGLE_CONNECT_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CONNECT_CLIENT_SECRET
+        sync: false
+      #   openssl rand -base64 32 — encrypts the stored Google tokens
+      - key: GOOGLE_TOKEN_KEY
+        sync: false
 
   # Daily deadline reminders. The SQLite disk belongs to the web service, so
   # the cron job can't touch the database directly — it calls the app's
@@ -126,6 +137,32 @@ services:
       -H "Authorization: Bearer $CRON_SECRET"
       "$APP_URL/api/cron/db-backup"
     envVars:
+      - key: APP_URL
+        value: "https://www.freshlog.net"
+      - key: CRON_SECRET
+        fromService:
+          type: web
+          name: freshform
+          envVarKey: CRON_SECRET
+
+  # Google Meet calls turned into drafts the mentor confirms — see
+  # src/lib/meet-sync.ts. Every ten minutes, so a meeting is waiting in Needs
+  # you soon after it ends. Same arrangement as the jobs around it: the cron
+  # calls the web service, which owns the SQLite disk. A no-op that answers
+  # `configured: false` until the GOOGLE_CONNECT_* and GOOGLE_TOKEN_KEY
+  # variables are set on the web service.
+  - type: cron
+    name: freshform-meet-sync
+    runtime: node
+    plan: starter
+    schedule: "*/10 * * * *"
+    buildCommand: "true"
+    startCommand: >-
+      curl -fsSL --retry 3 --retry-delay 10
+      -H "Authorization: Bearer $CRON_SECRET"
+      "$APP_URL/api/cron/meet-sync"
+    envVars:
+      # MUST be the canonical host — see the deadline reminders above.
       - key: APP_URL
         value: "https://www.freshlog.net"
       - key: CRON_SECRET
