@@ -619,10 +619,12 @@ const META: Record<StatusType, Meta> = {
     },
   },
 
-  // Students only: nobody else reads a practice interview.
+  // Students, and staff on /interviews: whether two students met, never what
+  // they said. Mentors have no voice here.
   INTERVIEW_BOOKED: {
     severity: "neutral",
     voices: {
+      staff: { kind: "informational", label: () => "Booked" },
       student: { kind: "informational", label: () => "Booked" },
     },
   },
@@ -633,6 +635,7 @@ const META: Record<StatusType, Meta> = {
   INTERVIEW_TO_MARK: {
     severity: "attention",
     voices: {
+      staff: { kind: "informational", label: () => "Not marked done" },
       student: {
         kind: "actionable",
         label: () => "Not marked done",
@@ -644,6 +647,7 @@ const META: Record<StatusType, Meta> = {
   INTERVIEW_COMPLETED: {
     severity: "ok",
     voices: {
+      staff: { kind: "informational", label: () => "Completed" },
       student: { kind: "informational", label: () => "Completed" },
     },
   },
@@ -653,6 +657,7 @@ const META: Record<StatusType, Meta> = {
   INTERVIEW_ABSENT: {
     severity: "neutral",
     voices: {
+      staff: { kind: "informational", label: () => "No-show" },
       student: { kind: "informational", label: () => "Absent" },
     },
   },

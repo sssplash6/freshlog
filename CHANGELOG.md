@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-13
+
+### New
+- **Interview prep for admins.** A new Interview prep page lists your students' practice interviews: who is meeting whom and when, and afterwards whether it happened or who didn't join. A table shows how many each student has held and how much time they have practised. Their answers, notes and feedback stay private to them and their mentors.
+
 ## 2026-10-12
 
 ### Fixed

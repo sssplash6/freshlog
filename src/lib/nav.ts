@@ -158,6 +158,9 @@ async function staffNav(
     { href: "/mentors", label: "Mentors" },
     ...programItem,
     { href: "/sessions", label: "Sessions" },
+    // Students' practice interviews: who met whom and for how long, never
+    // what was said (lib/interview-prep.ts).
+    { href: "/interviews", label: "Interview prep" },
     analytics,
     feedback,
   ];

@@ -46,6 +46,7 @@ const NAV_ICONS: [string, (p: { className?: string }) => React.ReactNode][] = [
   ["/mentors", UserIcon],
   ["/programs", LayersIcon],
   ["/sessions", CalendarIcon],
+  ["/interviews", UsersIcon],
   ["/analytics", ChartIcon],
   ["/feedback", StarIcon],
   ["/notifications", InboxIcon],
