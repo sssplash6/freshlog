@@ -19,6 +19,12 @@ export type Column = {
    * top — the biggest balance, the most hours taught — and a name opens A to Z.
    */
   sortDir?: "asc" | "desc";
+  /**
+   * A second order the same heading offers, beside the first: "Student ·
+   * Cohort", where the cohort is a line under the name rather than a column
+   * of its own. For a fact that sits inside another column's cell.
+   */
+  also?: { label: ReactNode; sort: string; sortDir?: "asc" | "desc" };
   /** Extra classes for the heading cell — to hide it where its column is hidden. */
   className?: string;
   /**
@@ -107,6 +113,7 @@ export function Table({
               <SortTh
                 key={i}
                 sortKey={c.sort && c.label ? c.sort : undefined}
+                alsoKey={c.also?.sort}
                 className={cn(
                   // A BAND, in small capitals (October 2026, second pass). The
                   // heading row was the card's own white with grey sentence-
@@ -123,13 +130,23 @@ export function Table({
                 )}
               >
                 {c.sort && c.label ? (
-                  <SortHeader
-                    sortKey={c.sort}
-                    align={c.align}
-                    defaultDir={c.sortDir}
-                  >
-                    {c.label}
-                  </SortHeader>
+                  <>
+                    <SortHeader
+                      sortKey={c.sort}
+                      align={c.align}
+                      defaultDir={c.sortDir}
+                    >
+                      {c.label}
+                    </SortHeader>
+                    {c.also && (
+                      <>
+                        <span aria-hidden className="mx-1.5">·</span>
+                        <SortHeader sortKey={c.also.sort} defaultDir={c.also.sortDir}>
+                          {c.also.label}
+                        </SortHeader>
+                      </>
+                    )}
+                  </>
                 ) : (
                   // The same inline-flex box a sortable heading sits in, so a
                   // plain label and a sortable one share a baseline.

@@ -1,4 +1,9 @@
 import { STUDENT_SORTS, StudentsTable } from "@/components/students-table";
+
+/** Every heading but Cohort, which only a program's own roster has. */
+const SORTS = STUDENT_SORTS.filter(
+  (k): k is Exclude<(typeof STUDENT_SORTS)[number], "cohort"> => k !== "cohort"
+);
 import { CreateLink } from "@/components/create-link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -78,7 +83,7 @@ export default async function StudentsPage({
       ...(readParam(params, "sort") ? { sort: readParam(params, "sort") } : {}),
       ...(readParam(params, "dir") ? { dir: readParam(params, "dir") } : {}),
     },
-    STUDENT_SORTS
+    SORTS
   );
   const nameOrder = asked?.dir === "desc" ? "desc" : "asc";
   // The figures the database cannot order by, because they are summed per row
@@ -284,7 +289,7 @@ export default async function StudentsPage({
             viewer={lens}
             // Filtered to one program, the student's page leads back to it.
             from={readParam(params, "program") || undefined}
-            sorts={STUDENT_SORTS}
+            sorts={SORTS}
           />
           {/* Only when there is a page to turn to: on one page it was the
               roster's size said a second time. */}

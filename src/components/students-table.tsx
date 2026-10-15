@@ -46,6 +46,15 @@ import type { StudentWithHours } from "@/lib/queries";
  * student's whole Remaining, which is mostly grants running months later. It
  * is a date, not a chip: quiet ink until the staff window, amber inside it.
  *
+ * The cohort came back on 15 October 2026, on a program's own roster only, at
+ * Research's request: "can we sort our students within the program by
+ * cohort?" It is offered only where the program HAS cohorts, so the reason it
+ * went — a column empty in every row — still holds everywhere it is absent.
+ * It is a line under the name, not a column: the roster already fills its
+ * 816px beside the mentors rail, and a seventh column pushed Contact off the
+ * edge at every width. So it sorts from the Student heading ("Student ·
+ * Cohort"), and it does not filter: a cohort select is still not on the page.
+ *
  * WHAT IS STILL NOT HERE, on the owner's instruction (12 September 2026):
  * every chip beside the name except "Not signed in". A roster of forty rows
  * wearing a red chip each is a roster nobody reads.
@@ -83,6 +92,7 @@ export const STUDENT_SORTS = [
   "remaining",
   "deadline",
   "seen",
+  "cohort",
 ] as const;
 export type StudentSort = (typeof STUDENT_SORTS)[number];
 
@@ -124,6 +134,7 @@ export function StudentsTable({
   href = "/students",
   from,
   sorts = [],
+  cohortOf,
   framed = true,
   empty,
 }: {
@@ -149,6 +160,12 @@ export function StudentsTable({
    * set in memory (`programs/[id]/page.tsx`) and can order by any of them.
    */
   sorts?: readonly StudentSort[];
+  /**
+   * The row's cohort, as this page names it — present only on a program's own
+   * roster, and only where that program has cohorts. Absent, no cohort line
+   * and no "Cohort" beside the Student heading.
+   */
+  cohortOf?: (s: StudentWithHours) => string | null;
   framed?: boolean;
   /** Pass an `EmptyState variant="no-results"` when a filter did the emptying. */
   empty?: React.ReactNode;
@@ -171,7 +188,11 @@ export function StudentsTable({
     // others are computed per row after the query has already sliced the
     // roster into pages, so ordering by them here would order one page of
     // forty and call it the list.
-    { label: "Student", ...(on("student") ? { sort: "student" } : {}) },
+    {
+      label: "Student",
+      ...(on("student") ? { sort: "student" } : {}),
+      ...(cohortOf && on("cohort") ? { also: { label: "Cohort", sort: "cohort" } } : {}),
+    },
     // Folded into the student's own cell between `sm` and `xl`: with the rail
     // beside it a 1024px window gives the table ~770px, and a Program column
     // cost the name its width and the page a sideways scroll.
@@ -246,6 +267,7 @@ export function StudentsTable({
         const overdrawn = s.remainingMinutes < 0;
         const visiting = !showProgram && s.enrollments.some((e) => e.exchangeId);
         const enrollments = sortEnrollments(s.enrollments);
+        const cohort = cohortOf?.(s) ?? null;
 
         const telegramHref = s.telegramUsername
           ? webHref(`https://t.me/${s.telegramUsername.replace(/^@/, "")}`)
@@ -344,6 +366,12 @@ export function StudentsTable({
                   enrollments={enrollments}
                   className="mt-1.5 hidden flex-wrap gap-x-2 gap-y-1 pl-12 sm:max-xl:flex"
                 />
+              )}
+              {/* Under the address, in line with it (avatar 32 + gap 10). */}
+              {cohort && (
+                <span title={cohort} className="mt-1 block truncate pl-12 text-xs text-muted-fg">
+                  {cohort}
+                </span>
               )}
             </Td>
 

@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-15
+
+### New
+- **Sort a program's students by cohort.** In a program that has cohorts, each student's cohort now shows under their name. Click Cohort, beside Student at the top of the list, to put each cohort's students together.
+
 ## 2026-10-14
 
 ### New
