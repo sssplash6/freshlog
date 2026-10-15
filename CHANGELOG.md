@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-14
+
+### New
+- **Schedule classes (SAT).** SAT mentors get a Classes page: book a class for a student out of the hours they hold with you, and see each student's classes and hours by month. A class reserves its time until you mark it held against the session you logged. Only the SAT programs have it; a platform admin can switch it on elsewhere in a program's settings.
+
 ## 2026-10-13
 
 ### New

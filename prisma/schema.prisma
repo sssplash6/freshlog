@@ -77,6 +77,7 @@ model User {
   staffGrants         ProgramStaff[]           @relation("StaffGrantUser")
   grantsMade          ProgramStaff[]           @relation("StaffGrantCreatedBy")
   mentorSessions      Session[]                @relation("SessionMentor")
+  mentorClasses       ScheduledClass[]         @relation("ClassMentor")
   hourAllocations     HourAllocation[]         @relation("AllocationMentor")
   assignments         Assignment[]             @relation("AssignmentMentor")
   createdAssignments  Assignment[]             @relation("AssignmentCreatedBy")
@@ -150,6 +151,12 @@ model Program {
   // `hourBank` is one: Full Support is the program an admin switched it on
   // for, not the one with that name. Off by default.
   tracksAdmissions  Boolean               @default(false)
+  // Do this program's mentors schedule CLASSES in the platform — a dated time
+  // for a student, reserved out of the hours that student holds with them, and
+  // totalled by month? A column for the reason `hourBank` is one: SAT is the
+  // department an admin switched it on for, not the one with that name. Off by
+  // default, and a platform admin's to turn on — see `setProgramSchedulesClasses`.
+  schedulesClasses  Boolean               @default(false)
   // The standard grant: every student who joins this program is given
   // `standardMinutes` — in their unassigned pool, or in their hour bank where
   // `hourBank` is on — to use within `standardDays` of joining. Both set or both null (off). It is how a program that is one
@@ -186,6 +193,7 @@ model Program {
   // sum somebody has to remember to filter.
   hourAllocations   HourAllocation[]
   sessions          Session[]
+  scheduledClasses  ScheduledClass[]
   assignments       Assignment[]
   studentTasks      StudentTask[]
   mentorTasks       MentorTask[]
@@ -339,6 +347,7 @@ model StudentProfile {
   enrollments       StudentEnrollment[]
   sessions          Session[]
   meetDrafts        MeetDraft[]
+  scheduledClasses  ScheduledClass[]
   hourAllocations   HourAllocation[]
   assignments       Assignment[]
   tasks             StudentTask[]
@@ -791,6 +800,8 @@ model Session {
   program    Program          @relation(fields: [programId], references: [id])
   mentor     User             @relation("SessionMentor", fields: [mentorId], references: [id])
   exchange   ProgramExchange? @relation(fields: [exchangeId], references: [id], onDelete: SetNull)
+  // The class this meeting delivered, when it was marked held against it.
+  scheduledClass ScheduledClass?
   // SetNull, not Cascade: deleting a goal must never delete the time that was
   // already delivered against it. The session survives, minus its goal.
   assignment Assignment?      @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
@@ -799,6 +810,45 @@ model Session {
   @@index([programId])
   @@index([exchangeId])
   @@index([studentId, programId, mentorId])
+}
+
+// A class a mentor put in the diary: a dated time for one student, in one
+// program, reserved out of the hours that student holds with that mentor.
+//
+// Only programs with `schedulesClasses` switched on offer it. A class is a PLAN,
+// not a meeting: it draws nothing down. The ledger moves when the mentor logs
+// the meeting as a Session, as it always has, and `sessionId` is the join
+// between the two — so "scheduled" and "delivered" are read side by side, per
+// student per month, without a second balance that could disagree with the first.
+//
+//   SCHEDULED  in the diary; its minutes are RESERVED against the allocation
+//   HELD       delivered; `sessionId` names the session that charged the hours
+//   CANCELLED  gave its minutes back; kept, so the month still says it happened
+model ScheduledClass {
+  id        String   @id @default(cuid())
+  studentId String
+  // Which program's hours this class is reserved from. Stored for the reason
+  // `Session.programId` is: a student in two programs has two balances.
+  programId String
+  mentorId  String
+  startsAt  DateTime
+  minutes   Int
+  status    String   @default("SCHEDULED")
+  // What the class is for, in the mentor's words. Optional.
+  topic     String?
+  // The meeting that delivered it. Unique: one class is one session.
+  sessionId String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  program Program        @relation(fields: [programId], references: [id])
+  mentor  User           @relation("ClassMentor", fields: [mentorId], references: [id])
+  session Session?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([programId, startsAt])
+  @@index([studentId, programId, mentorId])
+  @@index([mentorId, startsAt])
 }
 
 // Audit log of admin changes to a student's per-mentor allocation, in minutes.

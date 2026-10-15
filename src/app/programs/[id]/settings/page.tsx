@@ -5,6 +5,7 @@ import {
   CreateLevelForm,
   ClassHoursToggle,
   TracksAdmissionsToggle,
+  SchedulesClassesToggle,
   DeleteCohortButton,
   DeleteLevelButton,
   DeleteProgramButton,
@@ -366,6 +367,15 @@ export default async function ProgramSettingsPage({
             <TracksAdmissionsToggle
               programId={program.id}
               tracksAdmissions={program.tracksAdmissions}
+            />
+          )}
+          {/* Same rule as the applications toggle: off is the program's own
+              call, on is a platform admin's. This is what makes scheduling
+              exclusive to the department that asked for it. */}
+          {(program.schedulesClasses || viewer.platformAdmin) && (
+            <SchedulesClassesToggle
+              programId={program.id}
+              schedulesClasses={program.schedulesClasses}
             />
           )}
           <StandardHoursForm
