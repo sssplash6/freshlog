@@ -5,9 +5,16 @@
  * same reason `lib/avatar.ts` has none. Nothing here touches the database.
  */
 
+/**
+ * The stored values predate feature requests, so they keep their old names and
+ * only the labels moved: FIXED reads "Done" because a feature is not fixed, and
+ * CLOSED reads "Won't do". Renaming the values would have meant rewriting every
+ * report already filed for no change anybody could see.
+ */
 export const BUG_STATUS = {
   PENDING: "PENDING",
   IN_PROGRESS: "IN_PROGRESS",
+  IN_REVIEW: "IN_REVIEW",
   FIXED: "FIXED",
   CLOSED: "CLOSED",
 } as const;
@@ -17,10 +24,11 @@ export type BugStatus = (typeof BUG_STATUS)[keyof typeof BUG_STATUS];
 export const BUG_STATUSES = Object.values(BUG_STATUS) as BugStatus[];
 
 export const BUG_STATUS_LABELS: Record<BugStatus, string> = {
-  PENDING: "Pending",
+  PENDING: "New",
   IN_PROGRESS: "In progress",
-  FIXED: "Fixed",
-  CLOSED: "Closed",
+  IN_REVIEW: "In review",
+  FIXED: "Done",
+  CLOSED: "Won't do",
 };
 
 /** Which `StatusChip` severity each status wears. Amber means "being worked on". */
@@ -30,13 +38,49 @@ export const BUG_STATUS_SEVERITY: Record<
 > = {
   PENDING: "neutral",
   IN_PROGRESS: "attention",
+  IN_REVIEW: "attention",
   FIXED: "ok",
   CLOSED: "neutral",
 };
 
+/** Still on somebody's plate: the board's columns, in order. */
+export const OPEN_BUG_STATUSES: BugStatus[] = [
+  BUG_STATUS.PENDING,
+  BUG_STATUS.IN_PROGRESS,
+  BUG_STATUS.IN_REVIEW,
+];
+
 export function isBugStatus(value: unknown): value is BugStatus {
   return typeof value === "string" && (BUG_STATUSES as string[]).includes(value);
 }
+
+/** Fixed and Closed both need words, because both end up in front of somebody. */
+export function isClosingStatus(status: BugStatus): boolean {
+  return status === BUG_STATUS.FIXED || status === BUG_STATUS.CLOSED;
+}
+
+export const BUG_KIND = {
+  BUG: "BUG",
+  FEATURE: "FEATURE",
+} as const;
+
+export type BugKind = (typeof BUG_KIND)[keyof typeof BUG_KIND];
+
+export const BUG_KINDS = Object.values(BUG_KIND) as BugKind[];
+
+export const BUG_KIND_LABELS: Record<BugKind, string> = {
+  BUG: "Bug",
+  FEATURE: "Feature request",
+};
+
+export function isBugKind(value: unknown): value is BugKind {
+  return typeof value === "string" && (BUG_KINDS as string[]).includes(value);
+}
+
+export const BUG_SOURCE = {
+  APP: "APP",
+  TELEGRAM: "TELEGRAM",
+} as const;
 
 export const BUG_TITLE_MAX = 120;
 export const BUG_DESCRIPTION_MAX = 2000;
@@ -88,14 +132,12 @@ export function resolutionPrefill(
   current: BugStatus,
   resolution: string | null
 ): string {
-  const resolved = target === BUG_STATUS.FIXED || target === BUG_STATUS.CLOSED;
-  return resolved && target === current ? (resolution ?? "") : "";
+  return isClosingStatus(target) && target === current ? (resolution ?? "") : "";
 }
 
-export type TriageFilter = "open" | "all" | BugStatus;
+export type TriageFilter = "all" | BugKind;
 
-/** `?status=` on the triage page. Anything unreadable opens on the work to do. */
+/** `?kind=` on the board. Anything unreadable shows both kinds. */
 export function readTriageFilter(raw: string): TriageFilter {
-  if (raw === "all" || isBugStatus(raw)) return raw;
-  return "open";
+  return isBugKind(raw) ? raw : "all";
 }

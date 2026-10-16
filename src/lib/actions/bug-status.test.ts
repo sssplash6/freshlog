@@ -5,7 +5,14 @@ import { fixedBugs } from "@/lib/bug-queries";
 import { admin, bugReport, mentor, platformAdmin } from "@/test/db";
 
 const actor = vi.hoisted(() => ({ value: null as { id: string } | null }));
+const replies = vi.hoisted(() => [] as { chatId: string; messageId: number; text: string }[]);
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
+vi.mock("@/lib/telegram", () => ({
+  telegramConfigured: () => true,
+  reply: async (chatId: string, messageId: number, text: string) => {
+    replies.push({ chatId, messageId, text });
+  },
+}));
 vi.mock("@/lib/dal", () => ({
   getCurrentUser: async () =>
     actor.value ? prisma.user.findUnique({ where: { id: actor.value.id } }) : null,
@@ -189,5 +196,46 @@ describe("setBugStatus", () => {
       await setBugStatus(null, form({ id: r.id, status: "FIXED", resolution: "x" }));
       expect(await prisma.notification.count()).toBe(0);
     });
+  });
+});
+
+describe("setBugStatus, for the board", () => {
+  it("moves a report to In review", async () => {
+    actor.value = await platformAdmin();
+    const r = await bugReport();
+    expect(await setBugStatus(null, form({ id: r.id, status: "IN_REVIEW" }))).toMatchObject({ ok: true });
+    expect((await reload(r.id)).status).toBe("IN_REVIEW");
+  });
+
+  it("corrects the kind, and refuses one that is not bug or feature", async () => {
+    actor.value = await platformAdmin();
+    const r = await bugReport();
+    expect(await setBugStatus(null, form({ id: r.id, status: "PENDING", kind: "FEATURE" }))).toMatchObject({ ok: true });
+    expect((await reload(r.id)).kind).toBe("FEATURE");
+    expect(await setBugStatus(null, form({ id: r.id, status: "PENDING", kind: "IDEA" }))).toMatchObject({ ok: false });
+    expect((await reload(r.id)).kind).toBe("FEATURE");
+  });
+
+  it("answers a Telegram report in the group when it is done, once", async () => {
+    actor.value = await platformAdmin();
+    replies.length = 0;
+    const r = await bugReport({ source: "TELEGRAM" });
+    await prisma.telegramMessage.create({ data: { chatId: "-100", messageId: 42, reportId: r.id } });
+
+    await setBugStatus(null, form({ id: r.id, status: "FIXED", resolution: "Totals add up now." }));
+    await setBugStatus(null, form({ id: r.id, status: "FIXED", resolution: "Totals add up again." }));
+
+    expect(replies).toEqual([{ chatId: "-100", messageId: 42, text: "Done: Totals add up now." }]);
+  });
+
+  it("does not post a Won't do note, which is only the reporter's, to the group", async () => {
+    actor.value = await platformAdmin();
+    replies.length = 0;
+    const r = await bugReport({ source: "TELEGRAM" });
+    await prisma.telegramMessage.create({ data: { chatId: "-100", messageId: 43, reportId: r.id } });
+
+    await setBugStatus(null, form({ id: r.id, status: "CLOSED", resolution: "Works as intended." }));
+
+    expect(replies).toEqual([]);
   });
 });

@@ -30,6 +30,7 @@ export async function resetDb() {
   await prisma.studentEnrollment.deleteMany();
   await prisma.studentProfile.deleteMany();
   await prisma.avatarImage.deleteMany();
+  await prisma.telegramMessage.deleteMany();
   await prisma.bugReportImage.deleteMany();
   await prisma.bugReport.deleteMany();
   await prisma.user.deleteMany();
@@ -343,12 +344,20 @@ export async function bugReport(
     pagePath?: string | null;
     createdAt?: Date;
     image?: boolean;
+    kind?: string;
+    source?: string;
+    telegramAuthor?: string | null;
+    originalText?: string | null;
   } = {}
 ) {
   return prisma.bugReport.create({
     data: {
       reporterId: opts.reporterId ?? null,
       reporterRole: opts.reporterRole ?? ROLES.STUDENT,
+      kind: opts.kind ?? "BUG",
+      source: opts.source ?? "APP",
+      telegramAuthor: opts.telegramAuthor ?? null,
+      originalText: opts.originalText ?? null,
       title: opts.title ?? "Hours look wrong",
       description: opts.description ?? "The total says 3h but I logged 4h.",
       pagePath: opts.pagePath ?? null,

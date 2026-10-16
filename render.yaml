@@ -78,6 +78,14 @@ services:
       # render and logging a session is unchanged.
       - key: OPENROUTER_API_KEY
         sync: false
+      # Bug reports from the Telegram group (lib/telegram.ts). Off until all
+      # three are set; .env.example has the setup steps.
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        generateValue: true
+      - key: TELEGRAM_CHAT_ID
+        sync: false
 
   # Daily deadline reminders. The SQLite disk belongs to the web service, so
   # the cron job can't touch the database directly — it calls the app's
