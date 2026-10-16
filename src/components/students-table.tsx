@@ -221,17 +221,22 @@ export function StudentsTable({
     },
     {
       label: "Use by",
-      // Hidden from `sm` up to 1366px. At 1280 (`xl`, where Program comes
-      // back) the seven columns needed 1,050px of a 1,028px table: the names
-      // were cut to "Aziz K…" and Contact went off the edge. At 1366 they
-      // fit. A phone still has it in the fold.
-      className: "sm:max-[1365px]:hidden",
+      // Shown at every width since 16 October 2026. It was hidden from `sm`
+      // up to 1366px, which is most laptops, and the admins who asked for it
+      // could not find it there.
       // Up first: soonest at the top is the whole reason to click it. Rows
       // with nothing left to expire sit at the bottom either way (`lib/sort`).
       ...(on("deadline") ? { sort: "deadline" } : {}),
     },
     {
       label: "Last session",
+      // Hidden from `sm` up to 1366px, in Use by's place. At 1280 (`xl`,
+      // where Program comes back) seven columns needed 1,050px of a 1,028px
+      // table: the names were cut to "Aziz K…" and Contact went off the edge,
+      // so one of the two dates gives way. A laptop reader asked for the one
+      // that loses hours; who has gone quiet is still on the student's page,
+      // on a wide screen, and on a phone in the fold.
+      className: "sm:max-[1365px]:hidden",
       // Down first: the question this column answers is "who has gone quiet",
       // and the most recent session is the top of that order — the same rule
       // the two figures beside it follow.
@@ -404,7 +409,7 @@ export function StudentsTable({
               />
             </Td>
 
-            <Td label="Use by" className="whitespace-nowrap sm:max-[1365px]:hidden" data-fold>
+            <Td label="Use by" className="whitespace-nowrap" data-fold>
               {/* The date, and under it only the minutes that date takes —
                   "October 20 / 2h to use" beside 22h remaining says most of
                   the time is safe. */}
@@ -424,7 +429,7 @@ export function StudentsTable({
               )}
             </Td>
 
-            <Td label="Last session" className="whitespace-nowrap" data-fold>
+            <Td label="Last session" className="whitespace-nowrap sm:max-[1365px]:hidden" data-fold>
               {/* A dash for "nothing has happened", the one way every table
                   writes it — not "never" here and "—" in the next column.
                   Under the date, how long ago: "who has gone quiet" is the

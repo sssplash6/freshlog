@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-16
+
+### Fixed
+- **Use by shows on laptops.** The Students list now shows when each student's hours run out on laptop-sized screens too, where it was hidden before, so you can sort by it to see the soonest first. To make room, Last session now shows only on wider screens.
+
 ## 2026-10-15
 
 ### New
