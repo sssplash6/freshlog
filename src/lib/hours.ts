@@ -392,3 +392,44 @@ export async function pastHours(
   ]);
   return { allocated: allocated._sum.minutes ?? 0, logged: logged._sum.minutes ?? 0 };
 }
+
+/** Minutes left in a student's hour bank: what it holds less what its meetings drew. */
+export async function bankRemaining(
+  db: Pick<typeof prisma, "session">,
+  bank: { studentId: string; programId: string; minutes: number }
+): Promise<number> {
+  const sum = await db.session.aggregate({
+    where: {
+      studentId: bank.studentId,
+      programId: bank.programId,
+      fromBank: true,
+      ...CHARGED_SESSION,
+    },
+    _sum: { minutes: true },
+  });
+  return bank.minutes - (sum._sum.minutes ?? 0);
+}
+
+/**
+ * The hour bank an in-plan meeting with `mentorId` draws, or null when it
+ * draws something else.
+ *
+ * Every meeting draws the student's bank in this program, unless an admin has
+ * handed this mentor a share of it: then the share is theirs to spend, and
+ * their meetings draw it as any mentor's own time is drawn.
+ */
+export async function bankDrawnBy(
+  db: Pick<typeof prisma, "hourAllocation">,
+  studentId: string,
+  programId: string,
+  mentorId: string
+) {
+  const [bank, share] = await Promise.all([
+    db.hourAllocation.findFirst({ where: { studentId, programId, isBank: true } }),
+    db.hourAllocation.findFirst({
+      where: { studentId, programId, mentorId, fromBankShare: true },
+      select: { id: true },
+    }),
+  ]);
+  return share ? null : bank;
+}

@@ -42,7 +42,7 @@ import { sendWelcomeEmails, welcomeMail } from "@/lib/email/welcome";
 import { enrollmentsLabel } from "@/lib/enrollments";
 import { allocatedUnder, ExchangeCapExceeded, openExchangeFrom } from "@/lib/exchanges";
 import { deadlinePassed } from "@/lib/deadlines";
-import { pastHours } from "@/lib/hours";
+import { bankRemaining, pastHours } from "@/lib/hours";
 import { grantStandardHours } from "@/lib/standard-hours";
 import { groupEmail } from "@/lib/groups";
 import { carryForward } from "@/lib/carry-forward";
@@ -1485,6 +1485,31 @@ export async function rejectStudent(
   return { ok: true, message: `${profile.user.email} rejected and removed.` };
 }
 
+/** Thrown inside the allocation's transaction when the bank a share is taken
+ *  from was spent, or the share's own minutes were used, since the pre-check. */
+class BankShareExceeded extends Error {
+  constructor(readonly left: number) {
+    super("the hour bank no longer has that much to give");
+  }
+}
+
+/** Minutes a mentor's own time with a student in a program has been drawn by. */
+async function mentorDrawn(
+  db: Pick<typeof prisma, "session">,
+  studentId: string,
+  programId: string,
+  mentorId: string
+): Promise<number> {
+  const sum = await db.session.aggregate({
+    where: { studentId, programId, mentorId, fromBank: false, ...CHARGED_SESSION },
+    _sum: { minutes: true },
+  });
+  return sum._sum.minutes ?? 0;
+}
+
+const mentorLabelOf = (mentor: { name: string | null; email: string } | null) =>
+  mentor ? (mentor.name ?? mentor.email) : "this mentor";
+
 /**
  * Set the hours a student holds with ONE mentor (spec §3 key rule: admin
  * only, always audited, always notifies the student), with the required
@@ -1619,18 +1644,26 @@ export async function setMentorAllocation(
   // The compound unique can't address the pool row (SQLite NULLs are distinct
   // there), so the pool is found by filter and kept single here — single PER
   // PROGRAM, since a student may hold unassigned time in each of theirs.
-  // Time granted beside a bank would sit unspent: meetings draw the bank, not
-  // the mentor's grant. Refuse it rather than strand the hours.
-  if (
-    !isBank &&
-    (await prisma.hourAllocation.count({
-      where: { studentId: profile.id, programId: program.id, isBank: true },
-    })) > 0
-  ) {
+  //
+  // Beside a bank, time is not granted to a mentor but handed to them OUT of
+  // the bank: a share (freshmanac, 13 October 2026 — "admin should be able to
+  // allocate time from that hour bank to different mentors"). The minutes the
+  // share gains, the bank loses, so the student's total does not move. The
+  // unassigned pool beside a bank is still refused: nobody would ever draw it.
+  const bank = isBank
+    ? null
+    : await prisma.hourAllocation.findFirst({
+        where: { studentId: profile.id, programId: program.id, isBank: true },
+      });
+  const share = bank !== null;
+  if (bank && !mentorId) {
     return {
       ok: false,
-      error: `This student's hours in ${program.name} are in an hour bank, which every meeting draws, whichever mentor holds it. Add these minutes to the bank instead: pick "Hour bank" on the Agenda list.`,
+      error: `This student's hours in ${program.name} are in an hour bank. Pick the mentor to give part of it to, or add these minutes to the bank itself.`,
     };
+  }
+  if (share && (await staffLevel(actor, program.id)) !== "ADMIN") {
+    return { ok: false, error: "Only an admin of this program can change an hour bank." };
   }
   const existing = isBank
     ? await prisma.hourAllocation.findFirst({
@@ -1702,6 +1735,41 @@ export async function setMentorAllocation(
   }
 
   /**
+   * A share is the bank's own minutes, so it is held to what the bank has.
+   *
+   * It may not take more than the bank has left, nor outlive the bank's date.
+   * Cut, it gives back only what the mentor has not used: delivered minutes
+   * returned to the bank would be the same hour spent twice. Checked here and
+   * again inside the transaction, where a meeting logged meanwhile is visible.
+   */
+  const shareUsed =
+    share && mentorId ? await mentorDrawn(prisma, profile.id, program.id, mentorId) : 0;
+  if (bank) {
+    const left = await bankRemaining(prisma, bank);
+    if (granted > left) {
+      return {
+        ok: false,
+        error:
+          left > 0
+            ? `Their hour bank has ${formatDuration(left)} left to give. Add to the bank first to give ${mentorLabelOf(mentor)} more.`
+            : `Their hour bank has nothing left to give. Add to the bank first.`,
+      };
+    }
+    if (newMinutes < shareUsed) {
+      return {
+        ok: false,
+        error: `${mentorLabelOf(mentor)} has already used ${formatDuration(shareUsed)} of this time, so it can't go below that.`,
+      };
+    }
+    if (deadline > bank.deadline) {
+      return {
+        ok: false,
+        error: `Their hour bank runs out on ${formatDate(bank.deadline)}, so time given from it can't be dated past it.`,
+      };
+    }
+  }
+
+  /**
    * A visitor's hours are capped by the program that lent them.
    *
    * The student is in this program on an exchange — another program promised
@@ -1717,7 +1785,7 @@ export async function setMentorAllocation(
   const exchange = target.exchangeId
     ? await prisma.programExchange.findUnique({ where: { id: target.exchangeId } })
     : null;
-  if (exchange && exchange.status === EXCHANGE_STATUS.OPEN) {
+  if (!share && exchange && exchange.status === EXCHANGE_STATUS.OPEN) {
     const others = await allocatedUnder(prisma, exchange.id, existing?.id);
     if (others + newMinutes > exchange.minutes) {
       const spare = Math.max(0, exchange.minutes - others);
@@ -1789,7 +1857,7 @@ export async function setMentorAllocation(
       // The cap again, from inside the transaction: the read above is stale the
       // moment a second admin allocates against the same exchange, and both of
       // them would otherwise pass a check neither of them was the last to make.
-      if (exchange && exchange.status === EXCHANGE_STATUS.OPEN) {
+      if (!share && exchange && exchange.status === EXCHANGE_STATUS.OPEN) {
         const others = await allocatedUnder(tx, exchange.id, existing?.id);
         if (others + newMinutes > exchange.minutes) {
           throw new ExchangeCapExceeded(
@@ -1797,6 +1865,32 @@ export async function setMentorAllocation(
             exchange.minutes
           );
         }
+      }
+
+      // The bank pays for the share, re-read here: a meeting logged or a share
+      // given since the check above may have spent what we were about to take.
+      if (bank && granted !== 0) {
+        const fresh = await tx.hourAllocation.findUnique({ where: { id: bank.id } });
+        if (!fresh) throw new BankShareExceeded(0);
+        const left = await bankRemaining(tx, fresh);
+        if (granted > left) throw new BankShareExceeded(left);
+        if (newMinutes < (await mentorDrawn(tx, profile.id, program.id, mentorId!))) {
+          throw new BankShareExceeded(left);
+        }
+        await tx.hourAllocation.update({
+          where: { id: fresh.id },
+          data: { minutes: fresh.minutes - granted },
+        });
+        await tx.hourAllotmentChange.create({
+          data: {
+            studentId: profile.id,
+            programId: program.id,
+            mentorId: null,
+            changedById: actor.id,
+            oldMinutes: fresh.minutes,
+            newMinutes: fresh.minutes - granted,
+          },
+        });
       }
 
       // Update-by-id rather than upsert: the pool row (mentor null) can't be
@@ -1812,7 +1906,9 @@ export async function setMentorAllocation(
             ...(tracksPayment ? { amountPaid: newPaid } : {}),
             // Late-stamped for a grant made before the exchange existed — the
             // enrollment says which placement this program's time belongs to.
-            ...(exchange && !existing.exchangeId ? { exchangeId: exchange.id } : {}),
+            // A share is the bank's time, and stays under whatever it was under.
+            ...(!share && exchange && !existing.exchangeId ? { exchangeId: exchange.id } : {}),
+            ...(share ? { fromBankShare: true } : {}),
           },
         });
       } else {
@@ -1822,10 +1918,17 @@ export async function setMentorAllocation(
             programId: program.id,
             mentorId,
             isBank,
+            fromBankShare: share,
             minutes: newMinutes,
             deadline,
             ...(tracksPayment ? { amountPaid: newPaid } : {}),
-            ...(exchange ? { exchangeId: exchange.id } : {}),
+            ...(share
+              ? bank.exchangeId
+                ? { exchangeId: bank.exchangeId }
+                : {}
+              : exchange
+                ? { exchangeId: exchange.id }
+                : {}),
           },
         });
         // A NEW bank that includes what was logged before: those meetings now
@@ -1953,7 +2056,7 @@ export async function setMentorAllocation(
         // The sender is waiting to hear that somebody here took it on. It is the
         // one thing they cannot see coming: they promised the hours and have no
         // say in who delivers them.
-        if (exchange) {
+        if (exchange && !share) {
           const held = (await allocatedUnder(tx, exchange.id)) + newMinutes - oldMinutes;
           await notify(tx, {
             to: [exchange.sentById],
@@ -1977,7 +2080,9 @@ export async function setMentorAllocation(
           granted > 0
             ? isBank
               ? `${formatDuration(granted)} were added to your hour bank${programNote} (now ${formatDuration(newMinutes)}${folded > 0 ? `, which includes ${formatDuration(folded)} of unused time moved in from your old grants` : ""}).${deadlineNote}`
-              : `You were granted ${formatDuration(granted)} more hours${programNote}${withMentor}${task ? ` for "${task}"` : ""} (now ${formatDuration(newMinutes)}${mentorLabel ? " with them" : ""}).${deadlineNote}`
+              : share
+                ? `${formatDuration(granted)} of your hour bank${programNote} is now set aside${withMentor} (now ${formatDuration(newMinutes)} with them). Your total hours are the same.${deadlineNote}`
+                : `You were granted ${formatDuration(granted)} more hours${programNote}${withMentor}${task ? ` for "${task}"` : ""} (now ${formatDuration(newMinutes)}${mentorLabel ? " with them" : ""}).${deadlineNote}`
             : granted < 0
               ? `Your time${programNote}${withMentor} was adjusted from ${formatDuration(oldMinutes)} to ${formatDuration(newMinutes)}.${deadlineNote}`
               : `The deadline for your time${programNote}${withMentor} was updated to ${formatDate(deadline)}.`,
@@ -1986,6 +2091,12 @@ export async function setMentorAllocation(
       return outcome;
     });
   } catch (error) {
+    if (error instanceof BankShareExceeded) {
+      return {
+        ok: false,
+        error: `Their hour bank changed while you were filling this in, and has ${formatDuration(error.left)} left to give. Check the figures and try again.`,
+      };
+    }
     if (error instanceof ExchangeCapExceeded) {
       return {
         ok: false,
@@ -2011,7 +2122,7 @@ export async function setMentorAllocation(
     : "";
   return {
     ok: true,
-    message: `${profile.user.email} now has ${formatDuration(newMinutes)} ${mentorLabel ? `with ${mentorLabel}` : isBank ? "in their hour bank" : "unassigned"}${programNote}, to use by ${formatDate(deadline)}${paidNote}.${foldedNote}${taskSummary}`,
+    message: `${profile.user.email} now has ${formatDuration(newMinutes)} ${mentorLabel ? `with ${mentorLabel}` : isBank ? "in their hour bank" : "unassigned"}${programNote}, to use by ${formatDate(deadline)}${paidNote}.${share && granted !== 0 ? ` ${granted > 0 ? `${formatDuration(granted)} came out of` : `${formatDuration(-granted)} went back to`} their hour bank.` : ""}${foldedNote}${taskSummary}`,
   };
 }
 
@@ -2143,6 +2254,30 @@ export async function removeMentorAllocation(
     // "mentor null" here would be every unassigned task the student has.
     if (!removingBank) await tx.assignment.deleteMany({ where: scoped });
     await tx.hourAllocation.delete({ where: { id: allocation.id } });
+    // A share was the bank's time, and nothing was logged against it (checked
+    // above), so all of it goes back. Removing it must not lose the student
+    // hours they still hold.
+    if (allocation.fromBankShare && allocation.minutes > 0) {
+      const bank = await tx.hourAllocation.findFirst({
+        where: { studentId: profileId, programId: allocation.programId, isBank: true },
+      });
+      if (bank) {
+        await tx.hourAllocation.update({
+          where: { id: bank.id },
+          data: { minutes: bank.minutes + allocation.minutes },
+        });
+        await tx.hourAllotmentChange.create({
+          data: {
+            studentId: profileId,
+            programId: allocation.programId,
+            mentorId: null,
+            changedById: actor.id,
+            oldMinutes: bank.minutes,
+            newMinutes: bank.minutes + allocation.minutes,
+          },
+        });
+      }
+    }
     await notify(tx, {
       to: [allocation.student.userId],
       type: NOTIFICATION_TYPES.HOURS_GRANTED,
@@ -2160,7 +2295,7 @@ export async function removeMentorAllocation(
   return {
     ok: true,
     message: mentorLabel
-      ? `${mentorLabel} removed from this student in ${allocation.program.name}, along with the tasks their time was for.`
+      ? `${mentorLabel} removed from this student in ${allocation.program.name}, along with the tasks their time was for.${allocation.fromBankShare && allocation.minutes > 0 ? ` ${formatDuration(allocation.minutes)} went back to their hour bank.` : ""}`
       : removingBank
         ? `The hour bank in ${allocation.program.name} was removed.`
         : `The unassigned time in ${allocation.program.name} was removed, along with the tasks it was for.`,
@@ -2229,13 +2364,6 @@ export async function transferMentorAllocation(
   const denied = await assertProgramScope(actor, source.programId);
   if (denied) return { ok: false, error: "That allocation no longer exists." };
 
-  if (fromMentorId === actor.id || toMentorId === actor.id) {
-    return {
-      ok: false,
-      error: "Your own hours are moved by another admin — not by you.",
-    };
-  }
-
   const target = await prisma.user.findUnique({ where: { id: toMentorId } });
   if (!target || !canActAsMentor(target)) return { ok: false, error: "Pick a mentor." };
 
@@ -2259,7 +2387,14 @@ export async function transferMentorAllocation(
     if (!row) return { row: null, spare: 0 };
     if (!fromMentorId) return { row, spare: row.minutes };
     const used = await db.session.aggregate({
-      where: { studentId: profileId, programId, mentorId: fromMentorId, ...CHARGED_SESSION },
+      // Not the meetings they held on the hour bank: those drew the bank.
+      where: {
+        studentId: profileId,
+        programId,
+        mentorId: fromMentorId,
+        fromBank: false,
+        ...CHARGED_SESSION,
+      },
       _sum: { minutes: true },
     });
     return { row, spare: Math.max(0, row.minutes - (used._sum.minutes ?? 0)) };
@@ -2331,6 +2466,8 @@ export async function transferMentorAllocation(
               ? { amountPaid: Number(((dest.amountPaid ?? 0) + paidMoved).toFixed(2)) }
               : {}),
             ...(row.exchangeId && !dest.exchangeId ? { exchangeId: row.exchangeId } : {}),
+            // Still the bank's time, and goes back to it if this is cut.
+            ...(row.fromBankShare ? { fromBankShare: true } : {}),
           },
         });
       } else {
@@ -2345,6 +2482,7 @@ export async function transferMentorAllocation(
             // Still the same placement's time: moving it between the host
             // program's mentors does not change what it was lent under.
             ...(row.exchangeId ? { exchangeId: row.exchangeId } : {}),
+            fromBankShare: row.fromBankShare,
           },
         });
       }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { RosterImport } from "@/components/forms/roster-import";
 import { PlusIcon, XIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { EmailInput, Input, inputClasses } from "@/components/ui/field";
@@ -16,6 +17,7 @@ import {
 } from "@/lib/actions/shared";
 import { cn } from "@/lib/cn";
 import type { ProgramOption } from "@/lib/queries";
+import type { ImportedPerson } from "@/lib/roster-import";
 
 type Row = {
   id: number;
@@ -127,6 +129,18 @@ function StudentRows({
       { id: nextId, email: "", first: "", last: "", folderUrl: "" },
     ]);
     setNextId((n) => n + 1);
+  };
+
+  // A pasted or imported list lands as rows like any typed ones, to be read
+  // and corrected before the submit adds them. It takes the place of rows
+  // nobody has started, so the one blank row the card opens with does not sit
+  // above the list as a row "needing an email address".
+  const importPeople = (people: ImportedPerson[]) => {
+    setRows((rs) => [
+      ...rs.filter((r) => r.email.trim() || r.first.trim() || r.last.trim() || r.folderUrl.trim()),
+      ...people.map((p, i) => ({ id: nextId + i, ...p })),
+    ]);
+    setNextId((n) => n + people.length);
   };
 
   // A row is ready when it has both halves of an identity: the address they
@@ -388,11 +402,19 @@ function StudentRows({
               </Button>
             </div>
           </div>
-          {/* Another row, from inside the card it adds to. */}
-          <Button type="button" variant="ghost" onClick={addRow} className="-ml-2 gap-1.5">
-            <PlusIcon className="h-4 w-4 shrink-0" />
-            {classHours ? "Another group" : "Another student"}
-          </Button>
+          {/* Another row, from inside the card it adds to — or a whole list
+              of them, pasted or from a file, for a cohort arriving at once. */}
+          <div className="-ml-2 flex flex-wrap items-start gap-x-2 gap-y-2">
+            <Button type="button" variant="ghost" onClick={addRow} className="gap-1.5">
+              <PlusIcon className="h-4 w-4 shrink-0" />
+              {classHours ? "Another group" : "Another student"}
+            </Button>
+            {!classHours && (
+              <div className="min-w-0 flex-1 basis-full sm:basis-auto">
+                <RosterImport noun="student" onImport={importPeople} />
+              </div>
+            )}
+          </div>
         </div>
       )}
     </>

@@ -14,9 +14,10 @@ import {
   byMonth,
   change,
   dateOf,
+  drawnByProgram,
   hoursByDay,
-  hoursByProgram,
   hoursOf,
+  meetingsOf,
   monthOf,
   monthsByProgram,
   niceAxis,
@@ -98,6 +99,19 @@ const DEFAULT = "var(--color-brand)";
 const HOURS = "var(--color-accent)";
 /** Extra time is the same hue, lighter — never a second colour. */
 const EXTRA_OPACITY = 0.35;
+
+/**
+ * Missed time is the same hue again, striped: the student was charged and the
+ * mentor kept the slot, so it is hours, but not hours anybody spent together.
+ * The stripe is the ledger's own (`HoursBreakdown`), so "missed" looks the
+ * same on a student's page and here.
+ */
+function fillOf(color: string, striped?: boolean): string {
+  if (!striped) return color;
+  // Mixed toward the SURFACE, as in `HoursBreakdown`: on a dark card the light
+  // half of the stripe has to be the card's own ground.
+  return `repeating-linear-gradient(135deg, ${color} 0 4px, color-mix(in srgb, ${color} 40%, var(--color-surface)) 4px 8px)`;
+}
 
 /**
  * A program's colour on this page: its own, out of eight that are kept apart
@@ -502,7 +516,8 @@ function Hero({
   // is: "110h 39m". It was decimal hours — "73.2 hours" over a bar labelled
   // "73h" and a footer saying "73h 10m" — one quantity in three formats.
   const minutesShown = useCountUp(t.hours);
-  const avg = t.sessions ? t.hours / t.sessions : 0;
+  const meetings = meetingsOf(t);
+  const avg = meetings ? t.hours / meetings : 0;
   const noShowRate = t.noShows / Math.max(1, t.sessions + t.noShows);
 
   // A mentor has no "mentors" figure; their busiest month says more.
@@ -547,24 +562,25 @@ function Hero({
         {/* In plan against extra, drawn. It was a sentence under the figure and
             the right two thirds of the card were empty; the split is the one
             thing about a period's hours that is a proportion, so it is a bar. */}
-        <PlanSplit completed={t.completed} extra={t.extra} />
+        <PlanSplit completed={t.completed} extra={t.extra} missed={t.noShow} />
       </div>
       {/* THREE figures under the lead, not six (October 2026). Six of equal
           weight is the stat strip DESIGN.md bans: nothing ranked, so nothing
-          read. Extra time is already the bar beside the lead; no-shows and
-          no-shows ride as the hint of the figure they qualify. */}
+          read. Extra and missed time are already the bar beside the lead; the
+          count of missed meetings rides as the hint of the figure it
+          qualifies. */}
       <dl className="grid grid-cols-3 gap-x-6 gap-y-3 border-t border-line px-4 py-3 sm:px-5">
         <Stat
           label="Sessions"
-          value={t.sessions.toLocaleString("en-US")}
+          value={meetings.toLocaleString("en-US")}
           hint={
             t.noShows > 0
-              ? `${formatDuration(avg)} on average · ${t.noShows} no-show${t.noShows === 1 ? "" : "s"} (${Math.round(noShowRate * 100)}%)`
+              ? `${formatDuration(avg)} on average · ${t.noShows} missed (${Math.round(noShowRate * 100)}%)`
               : `${formatDuration(avg)} on average`
           }
         />
         <Stat
-          label="Students met"
+          label="Students"
           value={t.students.toLocaleString("en-US")}
           hint={t.students ? `${formatDuration(t.hours / t.students)} each` : "—"}
         />
@@ -590,27 +606,28 @@ function Hero({
   );
 }
 
-/** Hours in plan against hours beyond it, as one proportional bar. */
-function PlanSplit({ completed, extra }: { completed: number; extra: number }) {
-  const total = completed + extra;
-  const extraPct = total > 0 ? (extra / total) * 100 : 0;
+/** Hours in plan, beyond it, and missed, as one proportional bar. */
+function PlanSplit({ completed, extra, missed }: { completed: number; extra: number; missed: number }) {
+  const total = completed + extra + missed;
+  const pct = (m: number) => (total > 0 ? (m / total) * 100 : 0);
   return (
     <div
       className="w-full min-w-0 sm:w-72 lg:w-80"
       role="img"
-      aria-label={`${formatDuration(completed)} in plan, ${formatDuration(extra)} extra`}
+      aria-label={`${formatDuration(completed)} in plan, ${formatDuration(extra)} extra, ${formatDuration(missed)} missed`}
     >
       <div className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-fill">
-        {total > 0 && (
-          <>
-            <span className="h-full rounded-full bg-accent" style={{ width: `${100 - extraPct}%` }} />
-            {extra > 0 && (
-              <span
-                className="h-full rounded-full bg-accent"
-                style={{ width: `${extraPct}%`, opacity: EXTRA_OPACITY }}
-              />
-            )}
-          </>
+        {completed > 0 && (
+          <span className="h-full rounded-full bg-accent" style={{ width: `${pct(completed)}%` }} />
+        )}
+        {extra > 0 && (
+          <span
+            className="h-full rounded-full bg-accent"
+            style={{ width: `${pct(extra)}%`, opacity: EXTRA_OPACITY }}
+          />
+        )}
+        {missed > 0 && (
+          <span className="h-full rounded-full" style={{ width: `${pct(missed)}%`, background: fillOf(HOURS, true) }} />
         )}
       </div>
       <div className="mt-2 flex justify-between gap-4 text-xs text-muted-fg">
@@ -619,6 +636,11 @@ function PlanSplit({ completed, extra }: { completed: number; extra: number }) {
         </span>
         <span>
           <span className="font-medium tabular-nums text-ink">{formatDuration(extra)}</span> extra
+        </span>
+        {/* Said even at nothing, as "extra" is: three figures that are always
+            there read as a key; one that comes and goes reads as an alert. */}
+        <span>
+          <span className="font-medium tabular-nums text-ink">{formatDuration(missed)}</span> missed
         </span>
       </div>
     </div>
@@ -654,18 +676,23 @@ function Delta({ value }: { value: number | null }) {
 
 /* ---------------------------------------------------------------- columns */
 
-type Segment = { key: string; label: string; value: number; color: string; opacity?: number };
+type Segment = { key: string; label: string; value: number; color: string; opacity?: number; striped?: boolean };
 type Column = {
   key: string;
   label: string;
   /** A narrower label for a narrow chart: "S" for "Sep". */
   short?: string;
   title: string; segments: Segment[]; tally: Tally; weekend?: boolean };
-type LegendItem = { label: string; color: string; opacity: number };
+type LegendItem = { label: string; color: string; opacity: number; striped?: boolean };
 
-/** How one level stacks its hours: by program, or in plan against extra. */
+/**
+ * How one level stacks its hours: by program, or in plan against extra — with
+ * missed time on top either way, striped, so it is counted in the bar's height
+ * and never mistaken for a program's delivered hours.
+ */
 function seriesFor(data: AnalyticsData, view: View, rows: AnalyticsRow[]) {
-  const programsHere = new Set(rows.filter((r) => r[5] !== 2).map((r) => r[0]));
+  const programsHere = new Set(rows.map((r) => r[0]));
+  const anyMissed = rows.some((r) => r[5] === 2);
   const byProgram = view.program == null && programsHere.size > 1;
   const color =
     view.program != null
@@ -675,8 +702,9 @@ function seriesFor(data: AnalyticsData, view: View, rows: AnalyticsRow[]) {
         : DEFAULT;
   const programs = [...programsHere].sort((a, b) => a - b);
 
-  const segments = (bucket: AnalyticsRow[], tally: Tally): Segment[] =>
-    byProgram
+  const missedColor = byProgram ? DEFAULT : color;
+  const segments = (bucket: AnalyticsRow[], tally: Tally): Segment[] => [
+    ...(byProgram
       ? programs.map((p) => ({
           key: String(p),
           label: data.programs[p].name,
@@ -686,14 +714,19 @@ function seriesFor(data: AnalyticsData, view: View, rows: AnalyticsRow[]) {
       : [
           { key: "plan", label: "In plan", color, value: tally.completed },
           { key: "extra", label: "Extra", color, value: tally.extra, opacity: EXTRA_OPACITY },
-        ];
+        ]),
+    { key: "missed", label: "Missed", color: missedColor, value: tally.noShow, striped: true },
+  ];
 
-  const legend: LegendItem[] = byProgram
-    ? programs.map((p) => ({ label: data.programs[p].name, color: colorOf(data, p), opacity: 1 }))
-    : [
-        { label: "In plan", color, opacity: 1 },
-        { label: "Extra, out of plan", color, opacity: EXTRA_OPACITY },
-      ];
+  const legend: LegendItem[] = [
+    ...(byProgram
+      ? programs.map((p) => ({ label: data.programs[p].name, color: colorOf(data, p), opacity: 1 }))
+      : [
+          { label: "In plan", color, opacity: 1 },
+          { label: "Extra, out of plan", color, opacity: EXTRA_OPACITY },
+        ]),
+    ...(anyMissed ? [{ label: "Missed, charged", color: missedColor, opacity: 1, striped: true }] : []),
+  ];
 
   return { segments, legend };
 }
@@ -805,7 +838,7 @@ function Legend({ items, className }: { items: LegendItem[]; className?: string 
     <div className={cn("flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-fg", className)}>
       {items.map((l) => (
         <span key={l.label} className="inline-flex items-center gap-1.5">
-          <Dot color={l.color} opacity={l.opacity} />
+          <Dot color={l.color} opacity={l.opacity} striped={l.striped} />
           {l.label}
         </span>
       ))}
@@ -891,7 +924,7 @@ function Columns({
                         .map((x) => (
                           <div key={x.key} className={s.tipRow}>
                             <span className={s.tipKey}>
-                              <Dot color={x.color} opacity={x.opacity} />
+                              <Dot color={x.color} opacity={x.opacity} striped={x.striped} />
                               {x.label}
                             </span>
                             <span className={s.tipVal}>{formatDuration(x.value)}</span>
@@ -899,15 +932,12 @@ function Columns({
                         ))}
                       <div className={s.tipRow}>
                         <span className={s.tipKey}>Sessions</span>
-                        <span className={s.tipVal}>{c.tally.sessions}</span>
+                        <span className={s.tipVal}>
+                          {meetingsOf(c.tally)}
+                          {c.tally.noShows > 0 && `, ${c.tally.noShows} missed`}
+                        </span>
                       </div>
-                      {c.tally.noShows > 0 && (
-                        <div className={s.tipRow}>
-                          <span className={s.tipKey}>No-shows</span>
-                          <span className={s.tipVal}>{c.tally.noShows}</span>
-                        </div>
-                      )}
-                      {total === 0 && c.tally.noShows === 0 && <div className="text-muted-fg">No sessions</div>}
+                      {total === 0 && <div className="text-muted-fg">No sessions</div>}
                       {hint && onSelect && selected !== i && <div className={s.tipHint}>{hint}</div>}
                     </div>
                   )}
@@ -920,7 +950,7 @@ function Columns({
                           key={x.key}
                           className={s.seg}
                           style={{
-                            background: x.color,
+                            background: fillOf(x.color, x.striped),
                             opacity: x.opacity ?? 1,
                             height: grown ? Math.max(2, (x.value / axis.top) * height - 2) : 0,
                             ["--delay" as string]: `${i * (thin ? 12 : 35) + k * 40}ms`,
@@ -980,10 +1010,10 @@ function ProgramCards({
   const periodRows = useMemo(() => (month == null ? yearRows : select(yearRows, { year, month })), [yearRows, year, month]);
   const ranked = useMemo(() => new Map(rankBy(periodRows, yearRows, 0).map((r) => [r.index, r])), [periodRows, yearRows]);
   const trends = useMemo(() => monthsByProgram(yearRows, data.programs.length), [yearRows, data.programs.length]);
-  // Progress against a program's grant is a stock question: the delivered
-  // hours are all-time, not the period's, so the gauge does not pretend the
-  // program is barely started when March is picked.
-  const delivered = useMemo(() => hoursByProgram(data.rows, data.programs.length), [data.rows, data.programs.length]);
+  // Progress against a program's grant is a stock question: the drawn hours
+  // are all-time, not the period's, so the gauge does not pretend the program
+  // is barely started when March is picked.
+  const drawn = useMemo(() => drawnByProgram(data.rows, data.programs.length), [data.rows, data.programs.length]);
 
   // Busiest first. A program with nothing logged in the period is not a card:
   // a full-height card of "0 min · 0 mentors · 0 students · 0 sessions" with
@@ -1007,7 +1037,7 @@ function ProgramCards({
       </div>
       <div className={cn("grid gap-3", cardColumns(order.length))}>
         {order.map(({ p, i, r }, n) => {
-          const progress = p.granted > 0 ? delivered[i] / p.granted : 0;
+          const progress = p.granted > 0 ? drawn[i] / p.granted : 0;
           const color = colorOf(data, i);
           return (
             <button
@@ -1056,7 +1086,7 @@ function ProgramCards({
               <span className="mt-auto flex flex-wrap gap-x-1.5 text-xs tabular-nums text-muted-fg">
                 <span className="whitespace-nowrap">{count(r?.mentors ?? 0, "mentor")} ·</span>
                 <span className="whitespace-nowrap">{count(r?.students ?? 0, "student")} ·</span>
-                <span className="whitespace-nowrap">{count(r?.sessions ?? 0, "session")}</span>
+                <span className="whitespace-nowrap">{count(r ? meetingsOf(r) : 0, "session")}</span>
               </span>
             </button>
           );
@@ -1164,6 +1194,7 @@ function Leaderboard({
           items={[
             { label: "In plan", color: HOURS, opacity: 1 },
             { label: "Extra", color: HOURS, opacity: EXTRA_OPACITY },
+            { label: "Missed", color: HOURS, opacity: 1, striped: true },
           ]}
         />
       }
@@ -1275,10 +1306,17 @@ function MentorRow({
               style={{ width: grown ? `${r.extra * scale}%` : 0, background: HOURS, opacity: EXTRA_OPACITY }}
             />
           )}
+          {r.noShow > 0 && (
+            <span
+              className={s.barSeg}
+              style={{ width: grown ? `${r.noShow * scale}%` : 0, background: fillOf(HOURS, true) }}
+            />
+          )}
         </span>
         <span className="mt-1 min-w-0 truncate text-xs text-muted-fg">
-          {r.sessions} {r.sessions === 1 ? "session" : "sessions"} · {r.students} {r.students === 1 ? "student" : "students"}
-          {r.sessions ? ` · ${formatDuration(r.hours / r.sessions)} avg` : ""}
+          {meetingsOf(r)} {meetingsOf(r) === 1 ? "session" : "sessions"}
+          {r.noShows ? ` (${r.noShows} missed)` : ""} · {r.students} {r.students === 1 ? "student" : "students"}
+          {meetingsOf(r) ? ` · ${formatDuration(r.hours / meetingsOf(r))} avg` : ""}
         </span>
       </span>
       <span className="flex items-center gap-3">
@@ -1322,7 +1360,7 @@ function MentorDetail({
   const months = useMemo(() => byMonth(yearRows), [yearRows]);
   const students = useMemo(() => {
     const out = Array.from({ length: 12 }, () => new Set<number>());
-    for (const r of yearRows) if (r[5] !== 2) out[monthOf(r[3])].add(r[2]);
+    for (const r of yearRows) out[monthOf(r[3])].add(r[2]);
     return out.map((x) => x.size);
   }, [yearRows]);
   const maxMonth = Math.max(...months.map(hoursOf), 1);
@@ -1357,6 +1395,7 @@ function MentorDetail({
                 <th>Month</th>
                 <th>Hours</th>
                 <th>Sessions</th>
+                <th>Missed</th>
                 <th>Students</th>
                 <th>Avg</th>
                 <th>Change</th>
@@ -1389,9 +1428,10 @@ function MentorDetail({
                       <span className={s.inlineBar} style={{ width: (h / maxMonth) * 48, background: accent }} />
                       <span className="font-medium">{h ? formatDuration(h) : "—"}</span>
                     </td>
-                    <td>{m.sessions || "—"}</td>
+                    <td>{meetingsOf(m) || "—"}</td>
+                    <td>{m.noShow ? formatDuration(m.noShow) : "—"}</td>
                     <td>{students[i] || "—"}</td>
-                    <td>{m.sessions ? formatDuration(h / m.sessions) : "—"}</td>
+                    <td>{meetingsOf(m) ? formatDuration(h / meetingsOf(m)) : "—"}</td>
                     <td className="text-xs">
                       {i === firstMonth || i === running || (h === 0 && prev === 0) ? (
                         i === running ? <span className="text-muted-fg">so far</span> : ""
@@ -1613,12 +1653,22 @@ function Sparkline({
 }
 
 /** A small round mark in a series colour — the app's program dot, any hue. */
-function Dot({ color, opacity, className }: { color: string; opacity?: number; className?: string }) {
+function Dot({
+  color,
+  opacity,
+  striped,
+  className,
+}: {
+  color: string;
+  opacity?: number;
+  striped?: boolean;
+  className?: string;
+}) {
   return (
     <span
       aria-hidden
       className={cn("h-2 w-2 shrink-0 rounded-full", className)}
-      style={{ background: color, opacity }}
+      style={{ background: fillOf(color, striped), opacity }}
     />
   );
 }

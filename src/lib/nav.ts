@@ -1,6 +1,7 @@
 import "server-only";
 
 import { adminScope, scopeIsEmpty, staffLevel, type StaffLevel } from "@/lib/authz";
+import { classProgramIds } from "@/lib/classes";
 import { canActAsMentor, inStudentLens } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import type { Profile } from "@/lib/profile";
@@ -158,9 +159,24 @@ async function staffNav(
     { href: "/mentors", label: "Mentors" },
     ...programItem,
     { href: "/sessions", label: "Sessions" },
+    ...(await classesItem(viewer)),
+    // Students' practice interviews: who met whom and for how long, never
+    // what was said (lib/interview-prep.ts).
+    { href: "/interviews", label: "Interview prep" },
     analytics,
     feedback,
   ];
+}
+
+/**
+ * Classes, for the people whose programs schedule them — and nobody else. The
+ * item exists only where `classProgramIds` finds a program with the setting on,
+ * which is what keeps scheduling exclusive to the department that asked for it.
+ */
+async function classesItem(viewer: User): Promise<NavItem[]> {
+  return (await classProgramIds(viewer)).length > 0
+    ? [{ href: "/classes", label: "Classes" }]
+    : [];
 }
 
 /**
@@ -170,7 +186,7 @@ async function staffNav(
  * `/mentor` IS the caseload as well as the inbox, so a second item would be the
  * same page under a different name. Commit 40 splits them.
  */
-function mentorNav(inbox?: number): NavItem[] {
+async function mentorNav(viewer: User, inbox?: number): Promise<NavItem[]> {
   return [
     // Same rename as the staff rail: the page is the mentor's home and
     // caseload, and the inbox it promised is the bell's now. Not "Students" —
@@ -183,6 +199,7 @@ function mentorNav(inbox?: number): NavItem[] {
     // page about the same places (`programs/mentor-programs.tsx`).
     { href: "/programs", label: "Programs" },
     { href: "/sessions", label: "Sessions" },
+    ...(await classesItem(viewer)),
     { href: "/feedback", label: "Feedback" },
     analytics,
   ];
@@ -199,6 +216,6 @@ export async function navFor(
   // never in one, unless they are a student who also mentors and have
   // switched to the mentor half.
   if (inStudentLens(viewer, profile)) return STUDENT_NAV;
-  if (profile === "mentor" && canActAsMentor(viewer)) return mentorNav(inbox);
+  if (profile === "mentor" && canActAsMentor(viewer)) return mentorNav(viewer, inbox);
   return staffNav(viewer, space, inbox);
 }

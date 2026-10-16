@@ -633,6 +633,48 @@ export async function setProgramTracksAdmissions(
 }
 
 /**
+ * Do this program's mentors schedule classes in the platform? A column, like
+ * `hourBank` — and the way scheduling is SAT-exclusive: it is off everywhere,
+ * and a program has it only because somebody switched it on here, never
+ * because of what the program is called.
+ *
+ * Turning it ON is a platform admin's, since it opens a new write surface to
+ * every mentor of the program. Turning it OFF is the program's own call. Off
+ * hides the page and refuses new classes; classes already in the diary are
+ * kept and come back if it is turned on again.
+ */
+export async function setProgramSchedulesClasses(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+
+  const programId = String(formData.get("programId") ?? "");
+  const denied = await assertProgramScope(actor, programId);
+  if (denied) return denied;
+
+  const schedulesClasses = String(formData.get("schedulesClasses") ?? "") === "on";
+  if (schedulesClasses) {
+    const notPlatform = assertPlatformAdmin(actor);
+    if (notPlatform) return notPlatform;
+  }
+
+  const program = await prisma.program.findUnique({ where: { id: programId } });
+  if (!program) return { ok: false, error: "Program not found." };
+  if (schedulesClasses === program.schedulesClasses) return { ok: true, message: "No change." };
+
+  await prisma.program.update({ where: { id: programId }, data: { schedulesClasses } });
+
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: schedulesClasses
+      ? `${program.name} now schedules classes. Its mentors have a Classes page.`
+      : `${program.name} no longer schedules classes. Classes already in the diary are kept.`,
+  };
+}
+
+/**
  * Does this program log its hours as classes? Its roster is then groups, added
  * by name, and an hour is logged for a group. A column, like `hourBank`.
  * Turning it off changes what the add form and the log button OFFER; groups

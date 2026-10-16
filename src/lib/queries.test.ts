@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { prisma } from "@/lib/prisma";
 import { logSessionOptions, mentorCaseload, mentorOverview } from "@/lib/queries";
 import {
   allocation,
@@ -23,6 +24,44 @@ import {
  * a mentor whose list held dozens of students' work.
  */
 describe("mentorCaseload", () => {
+  /**
+   * A bank-share holder's meetings, and a mentor's bank meetings, vanished
+   * from Home's Completed while the admin's page for the same mentor counted
+   * them (13 October 2026).
+   */
+  it("shows a bank share as the mentor's row, and counts bank meetings as completed", async () => {
+    const p = await program("Full Support");
+    const s = await student({ programId: p.id, name: "Azim" });
+    const [milutin, other] = [await mentor("Milutin"), await mentor("Other")];
+    await pairing({ mentorId: milutin.id, programId: p.id });
+    await pairing({ mentorId: other.id, programId: p.id });
+    const bank = await allocation({ studentId: s.id, minutes: 480 });
+    await prisma.hourAllocation.update({ where: { id: bank.id }, data: { isBank: true } });
+    const share = await allocation({ studentId: s.id, mentorId: milutin.id, minutes: 120 });
+    await prisma.hourAllocation.update({ where: { id: share.id }, data: { fromBankShare: true } });
+    // One bank meeting before the share, one on it.
+    await session({ studentId: s.id, mentorId: milutin.id, minutes: 30, fromBank: true });
+    await session({ studentId: s.id, mentorId: milutin.id, minutes: 45 });
+    // Another mentor, with a grant kept from before the bank and a bank meeting.
+    await allocation({ studentId: s.id, mentorId: other.id, minutes: 60 });
+    await session({ studentId: s.id, mentorId: other.id, minutes: 60 });
+    await session({ studentId: s.id, mentorId: other.id, minutes: 20, fromBank: true });
+
+    const mine = (await mentorCaseload(milutin.id)).students;
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({
+      reach: "allocation",
+      allocated: 120,
+      completed: 45,
+      remaining: 75,
+      bankCompleted: 30,
+    });
+
+    const theirs = (await mentorCaseload(other.id)).students;
+    expect(theirs).toHaveLength(1);
+    expect(theirs[0]).toMatchObject({ reach: "pool", bank: true, bankCompleted: 80 });
+  });
+
   it("lists a student whose task is this mentor's, with no hours and no sessions", async () => {
     const p = await program("Master's");
     const s = await student({ programId: p.id, name: "Guzal" });

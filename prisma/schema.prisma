@@ -65,6 +65,10 @@ model User {
   // comparison of dates against `changelogSeenAt` never could. Null until the
   // first visit; the createdAt floor above applies until then.
   changelogSeen   String?
+  // The Google account's own id (the `sub` Google signs in with). It is how a
+  // Google Meet participant — who arrives as `users/<id>`, never as an email —
+  // is recognised as this person. Recorded at sign-in; null until their next.
+  googleId        String?   @unique
 
   studentProfile      StudentProfile?          @relation("StudentUser")
   createdStudents     StudentProfile[]         @relation("CreatedBy")
@@ -73,6 +77,7 @@ model User {
   staffGrants         ProgramStaff[]           @relation("StaffGrantUser")
   grantsMade          ProgramStaff[]           @relation("StaffGrantCreatedBy")
   mentorSessions      Session[]                @relation("SessionMentor")
+  mentorClasses       ScheduledClass[]         @relation("ClassMentor")
   hourAllocations     HourAllocation[]         @relation("AllocationMentor")
   assignments         Assignment[]             @relation("AssignmentMentor")
   createdAssignments  Assignment[]             @relation("AssignmentCreatedBy")
@@ -93,6 +98,8 @@ model User {
   bugsTriaged         BugReport[]              @relation("BugTriager")
   applicationEdits    StudentApplication[]     @relation("ApplicationUpdatedBy")
   universitiesAdded   University[]             @relation("UniversityCreatedBy")
+  googleConnection    GoogleConnection?
+  meetDrafts          MeetDraft[]              @relation("MeetDraftMentor")
 }
 
 // One profile picture, stored in the database rather than on disk so it travels
@@ -144,6 +151,12 @@ model Program {
   // `hourBank` is one: Full Support is the program an admin switched it on
   // for, not the one with that name. Off by default.
   tracksAdmissions  Boolean               @default(false)
+  // Do this program's mentors schedule CLASSES in the platform — a dated time
+  // for a student, reserved out of the hours that student holds with them, and
+  // totalled by month? A column for the reason `hourBank` is one: SAT is the
+  // department an admin switched it on for, not the one with that name. Off by
+  // default, and a platform admin's to turn on — see `setProgramSchedulesClasses`.
+  schedulesClasses  Boolean               @default(false)
   // The standard grant: every student who joins this program is given
   // `standardMinutes` — in their unassigned pool, or in their hour bank where
   // `hourBank` is on — to use within `standardDays` of joining. Both set or both null (off). It is how a program that is one
@@ -180,6 +193,7 @@ model Program {
   // sum somebody has to remember to filter.
   hourAllocations   HourAllocation[]
   sessions          Session[]
+  scheduledClasses  ScheduledClass[]
   assignments       Assignment[]
   studentTasks      StudentTask[]
   mentorTasks       MentorTask[]
@@ -332,6 +346,8 @@ model StudentProfile {
   createdBy         User                  @relation("CreatedBy", fields: [createdById], references: [id])
   enrollments       StudentEnrollment[]
   sessions          Session[]
+  meetDrafts        MeetDraft[]
+  scheduledClasses  ScheduledClass[]
   hourAllocations   HourAllocation[]
   assignments       Assignment[]
   tasks             StudentTask[]
@@ -672,8 +688,17 @@ model HourAllocation {
   // The student's HOUR BANK in this program: no mentor, and the row every
   // `Session.fromBank` meeting draws down. One per (student, program). Not the
   // unassigned pool, which is also mentor-less but is carved into a mentor's own
-  // allocation by the first meeting; nothing is ever carved out of a bank.
+  // allocation by the first meeting. A bank is carved only by an admin, into a
+  // mentor's share (`fromBankShare`), never by a meeting.
   isBank        Boolean  @default(false)
+  // A MENTOR's time an admin handed out of this student's hour bank in this
+  // program. The minutes left the bank when it was granted and go back to it
+  // when it is cut or removed, so the bank plus its shares is the student's
+  // whole balance. Meetings with this mentor draw this row, not the bank;
+  // meetings with a mentor who holds no share still draw the bank. False on
+  // every row granted before 13 October 2026, including the per-mentor time a
+  // bank was created beside: that time was never the bank's to take back.
+  fromBankShare Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -775,6 +800,8 @@ model Session {
   program    Program          @relation(fields: [programId], references: [id])
   mentor     User             @relation("SessionMentor", fields: [mentorId], references: [id])
   exchange   ProgramExchange? @relation(fields: [exchangeId], references: [id], onDelete: SetNull)
+  // The class this meeting delivered, when it was marked held against it.
+  scheduledClass ScheduledClass?
   // SetNull, not Cascade: deleting a goal must never delete the time that was
   // already delivered against it. The session survives, minus its goal.
   assignment Assignment?      @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
@@ -783,6 +810,45 @@ model Session {
   @@index([programId])
   @@index([exchangeId])
   @@index([studentId, programId, mentorId])
+}
+
+// A class a mentor put in the diary: a dated time for one student, in one
+// program, reserved out of the hours that student holds with that mentor.
+//
+// Only programs with `schedulesClasses` switched on offer it. A class is a PLAN,
+// not a meeting: it draws nothing down. The ledger moves when the mentor logs
+// the meeting as a Session, as it always has, and `sessionId` is the join
+// between the two — so "scheduled" and "delivered" are read side by side, per
+// student per month, without a second balance that could disagree with the first.
+//
+//   SCHEDULED  in the diary; its minutes are RESERVED against the allocation
+//   HELD       delivered; `sessionId` names the session that charged the hours
+//   CANCELLED  gave its minutes back; kept, so the month still says it happened
+model ScheduledClass {
+  id        String   @id @default(cuid())
+  studentId String
+  // Which program's hours this class is reserved from. Stored for the reason
+  // `Session.programId` is: a student in two programs has two balances.
+  programId String
+  mentorId  String
+  startsAt  DateTime
+  minutes   Int
+  status    String   @default("SCHEDULED")
+  // What the class is for, in the mentor's words. Optional.
+  topic     String?
+  // The meeting that delivered it. Unique: one class is one session.
+  sessionId String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  program Program        @relation(fields: [programId], references: [id])
+  mentor  User           @relation("ClassMentor", fields: [mentorId], references: [id])
+  session Session?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([programId, startsAt])
+  @@index([studentId, programId, mentorId])
+  @@index([mentorId, startsAt])
 }
 
 // Audit log of admin changes to a student's per-mentor allocation, in minutes.
@@ -1160,4 +1226,70 @@ model StudentUniversity {
   university University     @relation(fields: [universityId], references: [id])
 
   @@unique([studentId, universityId])
+}
+
+// A mentor's Google Calendar and Meet, connected so that a meeting they held
+// arrives in Freshlog already measured. Read-only on Google's side: nothing
+// here can create, change or join a meeting.
+//
+// Its own grant, not the sign-in's. Students sign in with Google too, and must
+// never be asked for their calendar; and a mentor who disconnects here is
+// still signed in.
+model GoogleConnection {
+  userId       String    @id
+  // The Google account that granted access. Always the mentor's own sign-in
+  // address — a connection made from any other account is refused.
+  googleEmail  String
+  // AES-256-GCM under GOOGLE_TOKEN_KEY (lib/google/tokens.ts). A database
+  // backup must not be a key to every mentor's calendar.
+  refreshToken String
+  scope        String
+  createdAt    DateTime  @default(now())
+  // The last run that reached Google for this mentor, successful or not.
+  lastSyncAt   DateTime?
+  // Set when Google refused the stored grant — revoked, password changed,
+  // expired. The sync skips the mentor and their Needs-you list says to
+  // reconnect, until they do.
+  failedAt     DateTime?
+  lastError    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// A meeting Google Meet saw, measured and waiting for the mentor to log it.
+//
+// NOT a Session. A draft charges nothing and moves no balance: the only way
+// time leaves an allocation is still the mentor saving the ordinary log form,
+// which this pre-fills. So every rule that form enforces — reach, the
+// program's allocation, an exchange's cap, the student's answer — still holds,
+// because nothing here goes around it.
+model MeetDraft {
+  id         String   @id @default(cuid())
+  mentorId   String
+  studentId  String
+  // Which program the meeting belongs to, when only one could be meant: the
+  // only program in which this mentor holds time with this student. Null when
+  // there are two or none, and the mentor picks — never a guess, because a
+  // guess here spends one program's hours out of another's grant.
+  programId  String?
+  // The Calendar event. With the mentor and the student, what makes a re-run
+  // of the sync find the same draft instead of writing a second.
+  eventId    String
+  // When the meeting was booked to start, and the day it falls on in the
+  // calendar's own time zone (UTC midnight, the way Session.date is stored).
+  startsAt   DateTime
+  date       DateTime
+  // Measured from Meet's join and leave times, not the booking: the time both
+  // the mentor and the student were in the call, rounded to five minutes.
+  minutes    Int
+  // ATTENDED | LATE | ABSENT, or null when Meet could not say which of the
+  // people in the call was the student.
+  attendance String?
+  createdAt  DateTime @default(now())
+
+  mentor  User           @relation("MeetDraftMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([mentorId, eventId, studentId])
+  @@index([mentorId, date])
 }

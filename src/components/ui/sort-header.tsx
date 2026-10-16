@@ -107,10 +107,17 @@ export function SortHeader({
  */
 export function SortTh({
   sortKey,
+  alsoKey,
   ...props
-}: ComponentProps<"th"> & { sortKey?: string }) {
+}: ComponentProps<"th"> & {
+  sortKey?: string;
+  /** The heading's second order, where it offers one (`Column.also`). */
+  alsoKey?: string;
+}) {
   const params = useSearchParams();
-  const active = sortKey != null && params.get("sort") === sortKey;
+  const active =
+    sortKey != null &&
+    (params.get("sort") === sortKey || (alsoKey != null && params.get("sort") === alsoKey));
   const sort = sortKey == null
     ? undefined
     : active

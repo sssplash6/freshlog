@@ -5,9 +5,9 @@ import { Section } from "@/components/ui/section";
 import { staffLevel } from "@/lib/authz";
 import { requireProgramScope } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
-import { formatBalance, formatDuration, formatMinutes } from "@/lib/format";
+import { formatBalance, formatDuration, formatMinutes, toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { pastHours } from "@/lib/hours";
+import { bankRemaining, pastHours } from "@/lib/hours";
 import { studentLedger } from "@/lib/queries";
 
 import { programOf, programPairings, programStudents, studentsOf } from "../../reads";
@@ -108,11 +108,16 @@ export default async function AllocateInProgramPage({
   // "Hour bank" leads the Agenda list only for an admin of a program that has
   // one — the only people who may change it.
   const bankOn = program.hourBank && (await staffLevel(me, id)) === "ADMIN";
-  const banked = chosen
-    ? (await prisma.hourAllocation.count({
+  const bankRow = chosen
+    ? await prisma.hourAllocation.findFirst({
         where: { studentId: chosen.id, programId: id, isBank: true },
-      })) > 0
-    : false;
+      })
+    : null;
+  const banked = bankRow !== null;
+  // What the bank still has to give a mentor, and the date a share may not pass.
+  const bank = bankRow
+    ? { left: await bankRemaining(prisma, bankRow), useBy: toDateInputValue(bankRow.deadline) }
+    : null;
   const past = chosen && bankOn && !banked ? await pastHours(prisma, chosen.id, id) : null;
   const openTasksByMentor: Record<string, { purpose: string; hint?: string }[]> = {};
   for (const task of ledger?.assignments ?? []) {
@@ -181,6 +186,7 @@ export default async function AllocateInProgramPage({
               paymentPrograms={program.tracksPayment && !program.hourBank ? [id] : []}
               bankPrograms={bankOn ? [id] : []}
               bankedPrograms={banked ? [id] : []}
+              banks={bank ? { [id]: bank } : {}}
               pastByProgram={past ? { [id]: past } : {}}
             />
           </div>

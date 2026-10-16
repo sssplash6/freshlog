@@ -157,6 +157,30 @@ export async function createMentor(
     if (denied) return denied;
   }
 
+  const done = await registerMentor(actor, email, name, targets);
+  if (!done.ok) return done;
+
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: `Mentor ${name} (${email}) registered in ${done.labels}. They can sign in with Google right away and set their booking links.`,
+  };
+}
+
+type Target = NonNullable<Awaited<ReturnType<typeof resolveAssignmentTargets>>>[number];
+
+/**
+ * One mentor's account and pairings, once the caller has checked the address,
+ * the name and that the actor may place them in every target. Shared by the
+ * one-at-a-time form and the list, so a mentor registered from a pasted list
+ * is the same account, greeted the same way.
+ */
+async function registerMentor(
+  actor: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>,
+  email: string,
+  name: string,
+  targets: readonly Target[]
+): Promise<{ ok: true; labels: string } | { ok: false; error: string }> {
   // Somebody who tried to sign in before being registered is a PENDING student
   // on this address, on no roster an admin could remove them from — and the
   // mentor picker never lists a student, so they could not be found to assign
@@ -210,10 +234,79 @@ export async function createMentor(
     });
   });
 
-  revalidatePath("/", "layout");
+  return { ok: true, labels };
+}
+
+/**
+ * Admin registers a LIST of mentors into the same programs at once — a new
+ * intake of mentors pasted from a spreadsheet or imported from a file. Each
+ * row is registered exactly as `createMentor` registers one; a row that cannot
+ * be (a bad address, one name, somebody already here) is skipped and named,
+ * and the rest still go in. The programs are checked once, before any row.
+ */
+export async function createMentors(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await getCurrentUser();
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+
+  const targets = await resolveAssignmentTargets(formData.getAll("targets"));
+  if (!targets || targets.length === 0) {
+    return { ok: false, error: "Pick at least one program or cohort." };
+  }
+  for (const target of targets) {
+    const denied = await assertProgramScope(actor, target.programId);
+    if (denied) return denied;
+  }
+
+  const emails = formData.getAll("email").map((e) => normalizeEmail(e));
+  const firsts = formData.getAll("firstName");
+  const lasts = formData.getAll("lastName");
+  const seen = new Set<string>();
+  const rows = emails
+    .map((email, i) => ({
+      email,
+      joined: [firsts[i], lasts[i]]
+        .map((part) => String(part ?? "").trim())
+        .filter(Boolean)
+        .join(" "),
+    }))
+    .filter((r) => r.email && !seen.has(r.email) && (seen.add(r.email), true));
+  if (rows.length === 0) return { ok: false, error: "Enter at least one mentor email." };
+
+  const added: string[] = [];
+  const skipped: string[] = [];
+  let labels = "";
+  // One at a time, each in its own transaction: one address already taken
+  // must not undo the twenty registered beside it.
+  for (const r of rows) {
+    if (!EMAIL_RE.test(r.email)) {
+      skipped.push(`${r.email} (not a valid email)`);
+      continue;
+    }
+    const parsed = parseNameField(r.joined, "the mentor's");
+    if ("error" in parsed) {
+      skipped.push(`${r.email} (${r.joined ? "needs a first and last name" : "no name"})`);
+      continue;
+    }
+    const done = await registerMentor(actor, r.email, parsed.value, targets);
+    if (done.ok) {
+      added.push(parsed.value);
+      labels = done.labels;
+    } else {
+      skipped.push(`${r.email} (${done.error.replace(`${r.email} `, "").replace(/\.$/, "")})`);
+    }
+  }
+
+  if (added.length > 0) revalidatePath("/", "layout");
+  if (added.length === 0) {
+    return { ok: false, error: `No mentors registered. Skipped: ${skipped.join("; ")}.` };
+  }
+  const head = `${added.length} mentor${added.length === 1 ? "" : "s"} registered in ${labels}. They can sign in with Google right away.`;
   return {
     ok: true,
-    message: `Mentor ${name} (${email}) registered in ${labels}. They can sign in with Google right away and set their booking links.`,
+    message: skipped.length > 0 ? `${head} Skipped: ${skipped.join("; ")}.` : head,
   };
 }
 

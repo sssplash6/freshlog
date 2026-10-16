@@ -158,13 +158,31 @@ export default async function ProgramPage({
         timeStateHolds(timeFilter, s, { audience: "staff", now })
       )
     : matching;
+  // The level this roster is narrowed to, when the tab above names one of
+  // this program's — anything else in `?level=` already matched nobody.
+  const level = levels.find((l) => l.id === readParam(query, "level")) ?? null;
+  // A cohort as this roster names it. Under a level tab the level goes without
+  // saying; on "All students" it leads, because "Fall 2026" under Emerging and
+  // under Advanced are two intakes — and leading, it sorts them level by level.
+  const cohortOf =
+    cohorts.length > 0
+      ? (s: (typeof matching)[number]) => {
+          const here = s.byProgram.get(id);
+          if (!here?.cohort) return null;
+          return here.level && !level
+            ? `${here.level.name} · ${here.cohort.name}`
+            : here.cohort.name;
+        }
+      : undefined;
   const ordered = asked
     ? applySort(visible, asked, {
         student: (s) => s.user.name ?? s.user.email,
         completed: (s) => s.completedMinutes,
         total: (s) => s.allottedMinutes,
         remaining: (s) => s.remainingMinutes,
+        deadline: (s) => s.expiring?.date,
         seen: (s) => s.lastSessionAt,
+        cohort: (s) => cohortOf?.(s),
       })
     : visible;
   const total = ordered.length;
@@ -181,9 +199,6 @@ export default async function ProgramPage({
       ? { ...entry, student: { ...entry.student, href: `${entry.student.href}?from=${id}` } }
       : entry,
   );
-  // The level this roster is narrowed to, when the tab above names one of
-  // this program's — anything else in `?level=` already matched nobody.
-  const level = levels.find((l) => l.id === readParam(query, "level")) ?? null;
   const basePath = `/programs/${program.id}`;
 
   // One line per MENTOR: somebody paired with three cohorts of this program is
@@ -310,6 +325,7 @@ export default async function ProgramPage({
               showProgram={false}
               from={id}
               sorts={STUDENT_SORTS}
+              cohortOf={cohortOf}
             />
             {/* Only with a second page: the tab above already counts them. */}
             {total > PAGE_SIZE && (

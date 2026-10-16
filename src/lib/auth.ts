@@ -40,6 +40,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // that renders as nothing: every `name ?? email` fallback skips it.
       const name = user.name?.trim().replace(/\s+/g, " ") || null;
       if (!email) return false;
+      // Google's own id for this account. A Google Meet participant arrives as
+      // this id and never as an email, so it is how a meeting recognises who
+      // was in it (lib/meet-drafts.ts).
+      const googleId = account.providerAccountId || null;
 
       const existing = await prisma.user.findUnique({ where: { email } });
       if (existing) {
@@ -50,6 +54,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             data: { name },
           });
         }
+        if (googleId && existing.googleId !== googleId) {
+          // Never fatal: a sign-in must not fail over a meeting-matching aid.
+          await prisma.user
+            .update({ where: { id: existing.id }, data: { googleId } })
+            .catch((error) => console.error("[auth] googleId not recorded:", error));
+        }
         return true;
       }
 
@@ -59,6 +69,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           data: {
             email,
             name,
+            googleId,
             role: ROLES.MENTOR,
             status: USER_STATUS.UNASSIGNED,
           },
@@ -71,6 +82,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         data: {
           email,
           name,
+          googleId,
           role: ROLES.STUDENT,
           status: USER_STATUS.PENDING,
         },

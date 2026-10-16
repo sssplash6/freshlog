@@ -4,6 +4,32 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-15
+
+### New
+- **Sort a program's students by cohort.** In a program that has cohorts, each student's cohort now shows under their name. Click Cohort, beside Student at the top of the list, to put each cohort's students together.
+
+## 2026-10-14
+
+### New
+- **Schedule classes (SAT).** SAT mentors get a Classes page: book a class for a student out of the hours they hold with you, and see each student's classes and hours by month. A class reserves its time until you mark it held against the session you logged. Only the SAT programs have it; a platform admin can switch it on elsewhere in a program's settings.
+
+## 2026-10-13
+
+### New
+- **Interview prep for admins.** A new Interview prep page lists your students' practice interviews: who is meeting whom and when, and afterwards whether it happened or who didn't join. A table shows how many each student has held and for how long. Their answers, notes and feedback stay private to them and their mentors.
+- **Give a mentor time from a student's hour bank.** On Allocate time for a student with an hour bank, pick a mentor: the minutes come out of the bank and become that mentor's time, which their meetings use. Others still draw on the bank. Lowering or removing a mentor's time puts the unused minutes back.
+- **Meetings arrive from Google Meet.** Mentors can connect Google in Settings. When a Meet call with a student ends, it waits in Needs you with the minutes and attendance measured from the call, ready to check and log.
+- **Add students from a list.** On a program's Add students, choose Paste or import a list. Paste rows from a spreadsheet or the addresses from an email, or pick an Excel or CSV file. Each person becomes a row you can check and correct before adding.
+- **Register mentors from a list.** Register a mentor now has Register several from a list. Type, paste or import their names and addresses, pick the programs once, and register them all together. Anyone who can't be registered is named, and the rest still go in.
+- **Use by on the Students list.** Admins now see when each student's next hours run out, and how much time expires then, the way mentors already do on their own list. Sort by it to put the soonest first.
+
+### Fixed
+- **Missed meetings count in Analytics.** When a student misses a meeting, its time now counts toward the mentor's and the program's hours, shown striped as "Missed" beside in-plan and extra time. This applies to past missed meetings too. Each mentor's month table has a Missed column.
+- **Analytics agrees with the rest of the app.** A meeting logged as extra is counted as extra even when the student didn't come, as it is on the mentor's own page. Sessions now include missed ones. A program's share of its total hours counts only the time its students' hours paid for, not extra time.
+- **Mentors' Home counts hour-bank meetings.** Time an admin gives a mentor out of a student's hour bank now appears as that student's row on the mentor's Home. Meetings drawn from a student's hour bank now count in the mentor's Completed, as they already did on the admin's page for that mentor.
+- **Move a student's time to yourself.** An admin who also mentors now appears in the list when moving a student's unused time from another mentor, and can move their own time to someone else.
+
 ## 2026-10-12
 
 ### New

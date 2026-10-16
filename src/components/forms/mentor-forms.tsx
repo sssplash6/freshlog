@@ -3,13 +3,17 @@
 import { useState } from "react";
 
 import { ProgramTargetsPicker } from "@/components/forms/program-targets-picker";
+import { RosterImport } from "@/components/forms/roster-import";
 import { useAutosave } from "@/components/forms/use-autosave";
+import { UsersIcon, XIcon } from "@/components/icons";
+import { Button } from "@/components/ui/button";
 import { EmailInput, Field, Input, NameInput } from "@/components/ui/field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { createMentor, updateMentor } from "@/lib/actions/mentors";
-import { NAME_MAX } from "@/lib/actions/shared";
+import { createMentor, createMentors, updateMentor } from "@/lib/actions/mentors";
+import { EMAIL_RE, FULL_NAME_RE, NAME_MAX, normalizeEmail, type ActionState } from "@/lib/actions/shared";
 import type { ProgramOption } from "@/lib/queries";
+import type { ImportedPerson } from "@/lib/roster-import";
 
 /**
  * The two writes an admin makes about a mentor: register one, and change where
@@ -41,6 +45,9 @@ export function RegisterMentorForm({ programs }: { programs: ProgramOption[] }) 
   const [, action, save] = useSaveState(createMentor);
   const [errors, setErrors] = useState<RegisterErrors>({});
   const errorCount = Object.keys(errors).length;
+  // A new intake of mentors arrives as a list; the same card takes the list.
+  const [many, setMany] = useState(false);
+  if (many) return <RegisterMentorsForm programs={programs} onOne={() => setMany(false)} />;
 
   return (
     <form
@@ -118,7 +125,11 @@ export function RegisterMentorForm({ programs }: { programs: ProgramOption[] }) 
         </Field>
       </div>
       <ProgramTargetsPicker programs={programs} legend="Programs" />
-      <div className="mt-3 flex justify-end">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <Button type="button" variant="ghost" onClick={() => setMany(true)} className="-ml-2 gap-1.5">
+          <UsersIcon className="h-4 w-4 shrink-0" />
+          Register several from a list
+        </Button>
         <SubmitButton pendingText="Registering…">Register mentor</SubmitButton>
       </div>
       {errorCount > 0 ? (
@@ -131,6 +142,178 @@ export function RegisterMentorForm({ programs }: { programs: ProgramOption[] }) 
     </form>
   );
 }
+
+type MentorRow = { id: number; email: string; first: string; last: string };
+
+/**
+ * Register a LIST of mentors into the same programs: rows typed, pasted from
+ * a spreadsheet or imported from a file, each read before the one submit
+ * registers them all. A row the action cannot register is skipped and named
+ * in its answer; the rest still go in.
+ */
+function RegisterMentorsForm({
+  programs,
+  onOne,
+}: {
+  programs: ProgramOption[];
+  onOne: () => void;
+}) {
+  const blank = (id: number): MentorRow => ({ id, email: "", first: "", last: "" });
+  const [rows, setRows] = useState<MentorRow[]>([blank(0)]);
+  const [nextId, setNextId] = useState(1);
+  // Bumped on success: the picker's `key`, so its chips clear with its boxes.
+  const [attempt, setAttempt] = useState(0);
+  const [, action, save] = useSaveState(async (previous: ActionState, formData: FormData) => {
+    const result = await createMentors(previous, formData);
+    if (result?.ok) {
+      setRows([blank(nextId)]);
+      setNextId((n) => n + 1);
+      setAttempt((n) => n + 1);
+    }
+    return result;
+  });
+  const pending = save.kind === "saving";
+
+  const ready = (r: MentorRow) =>
+    EMAIL_RE.test(normalizeEmail(r.email)) &&
+    FULL_NAME_RE.test(`${r.first} ${r.last}`.trim().replace(/\s+/g, " "));
+  const count = rows.filter(ready).length;
+  const started = rows.filter((r) => r.email.trim() || r.first.trim() || r.last.trim());
+  const blocking =
+    started.length === 0
+      ? null
+      : started.some((r) => !EMAIL_RE.test(normalizeEmail(r.email)))
+        ? "Every row needs a valid email address."
+        : "Every row needs a first and last name.";
+
+  const update = (id: number, field: "email" | "first" | "last", value: string) =>
+    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
+  const addRow = () => {
+    setRows((rs) => [...rs, blank(nextId)]);
+    setNextId((n) => n + 1);
+  };
+  // Imported rows take the place of rows nobody has started, as on the
+  // students form.
+  const importPeople = (people: ImportedPerson[]) => {
+    setRows((rs) => [
+      ...rs.filter((r) => r.email.trim() || r.first.trim() || r.last.trim()),
+      ...people.map((p, i) => ({ id: nextId + i, email: p.email, first: p.first, last: p.last })),
+    ]);
+    setNextId((n) => n + people.length);
+  };
+
+  return (
+    <form
+      action={action}
+      noValidate
+      // The program picker marks itself on `invalid`; nothing else here is
+      // left to the browser, since the count beside the button already says
+      // which rows are not ready.
+      onSubmit={(event) => {
+        if (!event.currentTarget.checkValidity() || count === 0) event.preventDefault();
+      }}
+      className="space-y-2 rounded-xl bg-surface p-4 shadow-sm"
+    >
+      <div
+        aria-hidden="true"
+        className="hidden gap-2 text-xs font-medium text-muted-fg sm:grid sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem]"
+      >
+        <span>Email</span>
+        <span>First name</span>
+        <span>Last name</span>
+      </div>
+      {rows.map((r, i) => (
+        <div
+          key={r.id}
+          className="relative grid gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem]"
+        >
+          <label className="block min-w-0">
+            <span className={PHONE_LABEL}>Email</span>
+            <EmailInput
+              name="email"
+              value={r.email}
+              onChange={(e) => update(r.id, "email", e.target.value)}
+              placeholder="mentor@example.com"
+              aria-label={`Mentor ${i + 1} email`}
+            />
+          </label>
+          <label className="block min-w-0">
+            <span className={PHONE_LABEL}>First name</span>
+            <Input
+              name="firstName"
+              type="text"
+              autoComplete="off"
+              maxLength={NAME_MAX}
+              value={r.first}
+              onChange={(e) => update(r.id, "first", e.target.value)}
+              aria-label={`Mentor ${i + 1} first name`}
+            />
+          </label>
+          <label className="block min-w-0">
+            <span className={PHONE_LABEL}>Last name</span>
+            <Input
+              name="lastName"
+              type="text"
+              autoComplete="off"
+              maxLength={NAME_MAX}
+              value={r.last}
+              onChange={(e) => update(r.id, "last", e.target.value)}
+              aria-label={`Mentor ${i + 1} last name`}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => setRows((rs) => rs.filter((x) => x.id !== r.id))}
+            aria-label={`Remove mentor ${i + 1}`}
+            className="absolute -right-2 -top-2 flex h-11 w-11 items-center justify-center rounded-lg text-muted-fg transition-colors hover:bg-canvas hover:text-danger-ink sm:static sm:w-9"
+          >
+            <XIcon className="h-4 w-4" />
+          </button>
+        </div>
+      ))}
+      <div className="-ml-2 flex flex-wrap items-start gap-2">
+        <Button type="button" variant="ghost" onClick={addRow}>
+          Another mentor
+        </Button>
+        <div className="min-w-0 flex-1 basis-full sm:basis-auto">
+          <RosterImport noun="mentor" onImport={importPeople} />
+        </div>
+      </div>
+      <ProgramTargetsPicker key={attempt} programs={programs} legend="Programs" />
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <Button type="button" variant="ghost" onClick={onOne} className="-ml-2">
+          One at a time
+        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-xs text-muted-fg" aria-live="polite">
+            {count > 0 ? (
+              <>
+                <span className="font-medium tabular-nums text-ink">{count}</span> ready to register
+              </>
+            ) : (
+              blocking
+            )}
+          </p>
+          <Button
+            type="submit"
+            variant={count > 0 ? "primary" : "secondary"}
+            disabled={pending || count === 0}
+          >
+            {pending
+              ? "Registering…"
+              : count > 0
+                ? `Register ${count} mentor${count === 1 ? "" : "s"}`
+                : "Register mentors"}
+          </Button>
+        </div>
+      </div>
+      <SaveState state={save} />
+    </form>
+  );
+}
+
+/** A field's name above it on a phone; from `sm` the column headings say it. */
+const PHONE_LABEL = "mb-1 block text-xs font-medium text-muted-fg sm:sr-only";
 
 type RegisterErrors = Partial<Record<"email" | "firstName" | "lastName", string>>;
 

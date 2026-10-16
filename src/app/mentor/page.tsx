@@ -256,7 +256,9 @@ export default async function MentorHomePage({
   // Lifetime, and it moves with the program tabs, because the question is
   // "what have I done here" and the tabs are how a mentor asks it of one
   // program.
-  const completed = inView.reduce((sum, s) => sum + s.completed, 0);
+  // Meetings drawn from a student's hour bank count too: the mentor held
+  // them, and the admin's page for this mentor already says so.
+  const completed = inView.reduce((sum, s) => sum + s.completed + (s.bankCompleted ?? 0), 0);
 
   // Two rows for one student in two programs is not a duplicate, and the
   // column is what says so.
