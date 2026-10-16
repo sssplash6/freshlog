@@ -12,7 +12,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-14
 
 ### New
-- **Schedule classes (SAT).** SAT mentors get a Classes page: book a class for a student out of the hours they hold with you, and see each student's classes and hours by month. A class reserves its time until you mark it held against the session you logged. Only the SAT programs have it; a platform admin can switch it on elsewhere in a program's settings.
+- **Schedule classes (SAT).** SAT mentors get a Classes page: book a class out of a student's hours with you and see their classes and hours by month. A class holds its time until you mark it held. A platform admin can switch it on for other programs in their settings.
 
 ## 2026-10-13
 
