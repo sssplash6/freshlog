@@ -78,6 +78,14 @@ services:
       # render and logging a session is unchanged.
       - key: OPENROUTER_API_KEY
         sync: false
+      # Bug reports from the Telegram group (lib/telegram.ts). Off until all
+      # three are set; .env.example has the setup steps.
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        generateValue: true
+      - key: TELEGRAM_CHAT_ID
+        sync: false
       # Google Meet drafts. Until all three are set the Settings row does not
       # render and the meet-sync cron below reads nobody. A separate, Internal
       # OAuth client from sign-in — see .env.example.

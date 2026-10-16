@@ -122,7 +122,7 @@ describe("bugReportFor", () => {
     const found = await bugReportFor(boss, r.id);
     expect(found).not.toBeNull();
     expect(found?.reporterName).toBe("Former user");
-    const [row] = await triageList(boss, "all");
+    const { open: [row] } = await triageList(boss, "all");
     expect(row.reporterName).toBe("Former user");
   });
 });
@@ -130,19 +130,37 @@ describe("bugReportFor", () => {
 describe("triageList", () => {
   it("is empty for anybody who is not a platform admin", async () => {
     await bugReport();
-    expect(await triageList(await admin(), "all")).toEqual([]);
-    expect(await triageList(await mentor(), "open")).toEqual([]);
+    expect(await triageList(await admin(), "all")).toEqual({ open: [], finished: [] });
+    expect(await triageList(await mentor(), "BUG")).toEqual({ open: [], finished: [] });
   });
 
-  it("opens on Pending and In progress, and filters by status", async () => {
+  it("splits what is still open from what is finished", async () => {
     const boss = await platformAdmin();
     await bugReport({ title: "p", status: "PENDING" });
     await bugReport({ title: "w", status: "IN_PROGRESS" });
+    await bugReport({ title: "r", status: "IN_REVIEW" });
     await bugReport({ title: "f", status: "FIXED", resolution: "x", resolvedAt: new Date() });
     await bugReport({ title: "c", status: "CLOSED", resolution: "y", resolvedAt: new Date() });
 
-    expect((await triageList(boss, "open")).map((r) => r.title).sort()).toEqual(["p", "w"]);
-    expect((await triageList(boss, "FIXED")).map((r) => r.title)).toEqual(["f"]);
-    expect(await triageList(boss, "all")).toHaveLength(4);
+    const board = await triageList(boss, "all");
+    expect(board.open.map((r) => r.title).sort()).toEqual(["p", "r", "w"]);
+    expect(board.finished.map((r) => r.title).sort()).toEqual(["c", "f"]);
+  });
+
+  it("filters by kind", async () => {
+    const boss = await platformAdmin();
+    await bugReport({ title: "bug" });
+    await bugReport({ title: "idea", kind: "FEATURE" });
+
+    expect((await triageList(boss, "FEATURE")).open.map((r) => r.title)).toEqual(["idea"]);
+    expect((await triageList(boss, "BUG")).open.map((r) => r.title)).toEqual(["bug"]);
+  });
+
+  it("names a Telegram sender with no account by their name in the group", async () => {
+    const boss = await platformAdmin();
+    const r = await bugReport({ source: "TELEGRAM", telegramAuthor: "Sardor (@sardor_dev)" });
+
+    expect((await triageList(boss, "all")).open[0].reporterName).toBe("Sardor (@sardor_dev)");
+    expect((await bugReportFor(boss, r.id))?.reporterName).toBe("Sardor (@sardor_dev)");
   });
 });

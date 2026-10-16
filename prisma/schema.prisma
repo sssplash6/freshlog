@@ -1084,30 +1084,67 @@ model InterviewFeedback {
 // title and description can name a student, so they are never selected by the
 // public list. `resolution` is the public fix line when FIXED and a note
 // private to the reporter and triagers when CLOSED.
+//
+// Reports arrive two ways: the in-app form, and the team's Telegram group,
+// where a bot reads every message and keeps the ones that are a bug or a
+// feature request (lib/telegram-intake.ts). A Telegram sender is matched to an
+// account by their username when a student profile holds it; otherwise
+// `reporterId` is null and `telegramAuthor` is the only name there is.
 model BugReport {
-  id            String    @id @default(cuid())
+  id             String    @id @default(cuid())
   // SetNull: removing an account never removes what they reported.
-  reporterId    String?
-  reporterRole  String // the role at the time, for triage
-  title         String
-  description   String
+  reporterId     String?
+  reporterRole   String // the role at the time, for triage; TELEGRAM for an unmatched sender
+  kind           String    @default("BUG") // BUG | FEATURE
+  source         String    @default("APP") // APP | TELEGRAM
+  title          String
+  description    String
   // A path only, validated by sanitizePagePath — never a URL.
-  pagePath      String?
-  status        String    @default("PENDING") // PENDING | IN_PROGRESS | FIXED | CLOSED
-  resolution    String?
-  resolvedAt    DateTime?
+  pagePath       String?
+  status         String    @default("PENDING") // PENDING | IN_PROGRESS | IN_REVIEW | FIXED | CLOSED
+  // What the sender wrote or said, verbatim — the description is the model's
+  // tidy version of it, and a triager settling "is that what they meant?"
+  // needs the words. Voice notes are stored as their transcript, never audio.
+  telegramAuthor String?
+  originalText   String?
+  resolution     String?
+  resolvedAt     DateTime?
   // YYYY-MM-DD, the changelog entry a fix shipped in.
-  changelogDate String?
-  triagedById   String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  changelogDate  String?
+  triagedById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  reporter  User?           @relation("BugReporter", fields: [reporterId], references: [id], onDelete: SetNull)
-  triagedBy User?           @relation("BugTriager", fields: [triagedById], references: [id], onDelete: SetNull)
+  reporter  User?             @relation("BugReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  triagedBy User?             @relation("BugTriager", fields: [triagedById], references: [id], onDelete: SetNull)
   image     BugReportImage?
+  messages  TelegramMessage[]
 
   @@index([reporterId, createdAt])
   @@index([status, createdAt])
+}
+
+// Every group message the bot has read, by id — kept or not. Two jobs:
+//
+//   - Telegram redelivers an update it thinks we missed, and the unique key is
+//     what makes a redelivery a no-op instead of a second report.
+//   - A reply in the group names the message it answers. When that message
+//     belongs to a report, the reply is folded into it rather than judged on
+//     its own, so "same on my phone" lands on the bug it is about.
+//
+// A message that was chatter keeps its ids and nothing else: its words are
+// never stored.
+model TelegramMessage {
+  id        String   @id @default(cuid())
+  chatId    String
+  messageId Int
+  reportId  String?
+  createdAt DateTime @default(now())
+
+  report BugReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@unique([chatId, messageId])
+  @@index([reportId])
 }
 
 // One screenshot per report, in its own table for the reason AvatarImage is:

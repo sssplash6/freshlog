@@ -12,7 +12,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-14
 
 ### New
-- **Schedule classes (SAT).** SAT mentors get a Classes page: book a class for a student out of the hours they hold with you, and see each student's classes and hours by month. A class reserves its time until you mark it held against the session you logged. Only the SAT programs have it; a platform admin can switch it on elsewhere in a program's settings.
+- **Schedule classes (SAT).** SAT mentors get a Classes page: book a class out of a student's hours with you and see their classes and hours by month. A class holds its time until you mark it held. A platform admin can switch it on for other programs in their settings.
 
 ## 2026-10-13
 
@@ -32,7 +32,12 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ## 2026-10-12
 
+### New
+- **Bugs and requests from the Telegram group.** Bugs and feature requests posted in the team's Telegram group, voice notes and screenshots included, are now filed automatically, and small talk is left out. A 👀 on your message means it was picked up, and the bot replies under it once it is done.
+- **A board for triage.** Platform admins now see every report as a board with New, In progress and In review columns, and the most recently finished reports underneath. A card moves from its own status menu. Bugs and feature requests can be viewed separately, and a report filed as the wrong kind can be switched.
+
 ### Fixed
+- **Clearer report statuses.** Your bug reports now read New, In progress, In review, Done or Won't do.
 - **Log a session sits in the corner.** On a program's page and a student's page, Log a session is now always the right-most button, with Allocate time on the left. A program's Set a task sends the task to its students; tasks for mentors are set on the Mentor tasks tab.
 - **Progress leads a Full Support student's page.** Their application and universities now sit in a column beside Progress on a wide screen, instead of above it. On a narrower screen they come after the sessions, tasks and agenda.
 - **Adding a university takes one line.** The university, its supplemental word count, Primary and the round now sit side by side with the Add button, without the notes under each field. After an add, Primary is no longer left ticked on screen while the form has actually cleared it.

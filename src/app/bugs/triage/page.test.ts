@@ -14,7 +14,7 @@ vi.mock("@/lib/dal", () => ({
 vi.mock("@/lib/bug-queries", () => ({
   triageList: async () => {
     calls.push("read");
-    return [];
+    return { open: [], finished: [] };
   },
 }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));

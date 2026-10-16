@@ -44,8 +44,9 @@ describe("sanitizePagePath", () => {
 });
 
 describe("isBugStatus", () => {
-  it("accepts the four statuses and nothing else", () => {
+  it("accepts the five statuses and nothing else", () => {
     for (const s of BUG_STATUSES) expect(isBugStatus(s)).toBe(true);
+    expect(BUG_STATUSES).toContain("IN_REVIEW");
     for (const bad of ["fixed", "DONE", "", null, undefined, 1]) {
       expect(isBugStatus(bad)).toBe(false);
     }
@@ -53,15 +54,15 @@ describe("isBugStatus", () => {
 });
 
 describe("readTriageFilter", () => {
-  it("opens on Pending and In progress", () => {
-    expect(readTriageFilter("")).toBe("open");
-    expect(readTriageFilter("banana")).toBe("open");
+  it("shows both kinds unless one is asked for", () => {
+    expect(readTriageFilter("")).toBe("all");
+    expect(readTriageFilter("banana")).toBe("all");
+    expect(readTriageFilter("FIXED")).toBe("all");
   });
 
-  it("reads a status or all", () => {
-    expect(readTriageFilter("FIXED")).toBe("FIXED");
-    expect(readTriageFilter("PENDING")).toBe("PENDING");
-    expect(readTriageFilter("all")).toBe("all");
+  it("reads a kind", () => {
+    expect(readTriageFilter("BUG")).toBe("BUG");
+    expect(readTriageFilter("FEATURE")).toBe("FEATURE");
   });
 });
 

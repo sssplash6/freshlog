@@ -11,9 +11,12 @@ import {
   BUG_RESOLUTION_MAX,
   BUG_SHOT_MAX_BYTES,
   BUG_SHOT_MIME_TYPES,
+  BUG_SOURCE,
   BUG_STATUS,
   BUG_TITLE_MAX,
+  isBugKind,
   isBugStatus,
+  isClosingStatus,
   sanitizePagePath,
 } from "@/lib/bugs";
 import { isRealDay } from "@/lib/changelog";
@@ -22,6 +25,7 @@ import { getCurrentUser } from "@/lib/dal";
 import { toDateInputValue } from "@/lib/format";
 import { notify } from "@/lib/notify";
 import { prisma } from "@/lib/prisma";
+import { reply, telegramConfigured } from "@/lib/telegram";
 import type { Prisma } from "@/generated/prisma/client";
 
 const HOUR = 60 * 60 * 1000;
@@ -140,6 +144,9 @@ export async function reportBug(
  * the fix line is read by every user, the note by the person who reported it.
  * A report that was reopened keeps its old line on the record and loses its
  * dates, so it leaves the public list without anything being deleted.
+ *
+ * `kind` is optional and corrects a report filed as the wrong one — the model
+ * reading the Telegram group calls a feature request a bug now and then.
  */
 export async function setBugStatus(
   _prev: ActionState,
@@ -160,7 +167,10 @@ export async function setBugStatus(
     return { ok: false, field: "resolution", error: `Keep it under ${BUG_RESOLUTION_MAX} characters.` };
   }
 
-  const closing = status === BUG_STATUS.FIXED || status === BUG_STATUS.CLOSED;
+  const kindField = formData.get("kind");
+  if (kindField !== null && !isBugKind(kindField)) return { ok: false, error: "Choose bug or feature request." };
+
+  const closing = isClosingStatus(status);
   if (closing && !resolution) {
     return {
       ok: false,
@@ -182,7 +192,7 @@ export async function setBugStatus(
 
   const before = await prisma.bugReport.findUnique({
     where: { id },
-    select: { status: true, title: true, reporterId: true },
+    select: { status: true, title: true, reporterId: true, source: true },
   });
   if (!before) return { ok: false, error: "That report doesn't exist." };
 
@@ -190,6 +200,7 @@ export async function setBugStatus(
     where: { id },
     data: {
       status,
+      ...(kindField !== null ? { kind: kindField } : {}),
       triagedById: actor.id,
       ...(closing
         ? {
@@ -219,6 +230,23 @@ export async function setBugStatus(
       href: `/bugs/${id}`,
       actorId: actor.id,
     });
+  }
+
+  // Close the loop where it was opened: a report from the Telegram group is
+  // answered there, under the message that started it. Fixed only — the fix
+  // line is written for everybody, while a Won't do note is the reporter's.
+  if (
+    status === BUG_STATUS.FIXED &&
+    before.status !== status &&
+    before.source === BUG_SOURCE.TELEGRAM &&
+    telegramConfigured()
+  ) {
+    const first = await prisma.telegramMessage.findFirst({
+      where: { reportId: id },
+      orderBy: { createdAt: "asc" },
+      select: { chatId: true, messageId: true },
+    });
+    if (first) await reply(first.chatId, first.messageId, `Done: ${resolution}`);
   }
 
   revalidatePath("/bugs", "layout");
