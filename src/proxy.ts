@@ -17,7 +17,18 @@ import { NextRequest, NextResponse } from "next/server";
 // unless DEV_LOGIN=1 on a localhost request, so listing it here opens nothing
 // anywhere else — it has to be reachable signed-out because signing in is
 // what it is for.
-const PUBLIC_PATHS = ["/login", "/unsubscribe", "/api/email", "/api/dev-login"];
+//
+// /api/telegram is Telegram's webhook, which never carries a session. It
+// authorizes on the X-Telegram-Bot-Api-Secret-Token header instead (see its
+// route). Telegram does not follow redirects, so a bounce to /login would
+// silently drop every message from the group.
+const PUBLIC_PATHS = [
+  "/login",
+  "/unsubscribe",
+  "/api/email",
+  "/api/dev-login",
+  "/api/telegram",
+];
 
 export default function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
