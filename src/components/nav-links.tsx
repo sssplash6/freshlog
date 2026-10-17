@@ -18,6 +18,7 @@ import {
 } from "@/components/icons";
 import { cn } from "@/lib/cn";
 import type { NavItem } from "@/lib/nav";
+import { matchNavItem } from "@/lib/nav-match";
 
 /**
  * A shape to aim at, beside the word that carries the meaning.
@@ -81,17 +82,23 @@ export function useCurrentNavItem(items: NavItem[]): NavItem | null {
   const pending = usePendingHref();
   const current = usePathname();
   const params = useSearchParams();
-  const pathname = pending ?? current;
-  return items.reduce<NavItem | null>((best, item) => {
-    const [path, query = ""] = item.href.split("?");
-    const matches = pathname === path || pathname.startsWith(`${path}/`);
-    if (!matches) return best;
-    for (const [key, value] of new URLSearchParams(query)) {
-      if (params.get(key) !== value) return best;
-    }
-    if (!best || item.href.length > best.href.length) return item;
-    return best;
-  }, null);
+  return matchNavItem(items, pending ?? current, params);
+}
+
+/**
+ * Which item the reader is ACTUALLY on — the router's pathname, ignoring any
+ * tap still in flight.
+ *
+ * This, not `useCurrentNavItem`, is what decides that a tap is a re-tap. The
+ * pending destination is recorded by a capture-phase listener on the document,
+ * so it is set — and React has re-rendered — before the click reaches the
+ * link itself. A re-tap handler keyed on the pending-aware item therefore saw
+ * every tab as "the one you are standing on", cancelled its own navigation,
+ * and left the tab lit over the old page until NavProgress gave up twelve
+ * seconds later (October 2026: "Book stays on Home and never moves").
+ */
+export function useLandedNavItem(items: NavItem[]): NavItem | null {
+  return matchNavItem(items, usePathname(), useSearchParams());
 }
 
 /**

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { MoreHorizontalIcon } from "@/components/icons";
-import { NavIcon, useCurrentNavItem } from "@/components/nav-links";
+import { NavIcon, useCurrentNavItem, useLandedNavItem } from "@/components/nav-links";
 import { Popover } from "@/components/ui/popover";
 import { cn } from "@/lib/cn";
 import type { NavItem } from "@/lib/nav";
@@ -74,6 +74,9 @@ export function TabBar({
   className?: string;
 }) {
   const current = useCurrentNavItem(items);
+  // Where the router is, for the re-tap below — never `current`, which has
+  // already moved to the tapped tab by the time its click handler runs.
+  const landed = useLandedNavItem(items);
   // Exactly five fit as five: 64px a tab on a 320px screen holds "Analytics"
   // at 12px. Folding one item into More cost a mentor a sheet that held two
   // destinations — Feedback and Analytics — behind a tap, which is the hidden
@@ -145,7 +148,7 @@ export function TabBar({
                 /* The iOS reflex: a tap on the lit tab scrolls its page home
                    rather than navigating nowhere. */
                 onClick={
-                  active
+                  item === landed
                     ? (e) => {
                         // A re-tap is a scroll, not a navigation — iOS never
                         // reloads the tab you're standing on.
