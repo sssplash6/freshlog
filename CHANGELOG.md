@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-17
+
+### New
+- **Research on the agenda list.** When you allocate time, Research is now one of the agenda items you can pick.
+
 ## 2026-10-16
 
 ### Fixed

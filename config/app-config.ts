@@ -36,6 +36,7 @@ export const TASK_PRESETS: string[] = [
   "Recommendation Essays & Bragsheets",
   "EC descriptions",
   "University Selection",
+  "Research",
 ];
 
 /**
