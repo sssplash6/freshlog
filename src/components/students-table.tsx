@@ -236,7 +236,14 @@ export function StudentsTable({
       // so one of the two dates gives way. A laptop reader asked for the one
       // that loses hours; who has gone quiet is still on the student's page,
       // on a wide screen, and on a phone in the fold.
-      className: "sm:max-[1365px]:hidden",
+      //
+      // The same rule by the TABLE's width too (`@container`, on the frame
+      // below), because the screen's is not the roster's: a program's page
+      // sets it beside the mentors rail at 816px however wide the screen is,
+      // and there the six columns took 672px and left every name 57px —
+      // "Abdul…", "Khabi…" (17 October 2026). Under 57rem (912px) the name
+      // would get less than 15rem, so Last session gives way.
+      className: "sm:max-[1365px]:hidden sm:@max-[57rem]:hidden",
       // Down first: the question this column answers is "who has gone quiet",
       // and the most recent session is the top of that order — the same rule
       // the two figures beside it follow.
@@ -246,7 +253,8 @@ export function StudentsTable({
   ];
 
   return (
-    <Table columns={columns} framed={framed} label="Students">
+    // `@container` so Last session can give way by the roster's own width.
+    <Table columns={columns} framed={framed} label="Students" className="@container">
       {students.map((s, i) => {
         // ONE chip, and always the same one: has this person ever signed in.
         // It was the highest-severity status true of them, which put "Over by
@@ -429,7 +437,11 @@ export function StudentsTable({
               )}
             </Td>
 
-            <Td label="Last session" className="whitespace-nowrap sm:max-[1365px]:hidden" data-fold>
+            <Td
+              label="Last session"
+              className="whitespace-nowrap sm:max-[1365px]:hidden sm:@max-[57rem]:hidden"
+              data-fold
+            >
               {/* A dash for "nothing has happened", the one way every table
                   writes it — not "never" here and "—" in the next column.
                   Under the date, how long ago: "who has gone quiet" is the

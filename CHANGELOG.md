@@ -9,6 +9,9 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ### New
 - **Research on the agenda list.** When you allocate time, Research is now one of the agenda items you can pick.
 
+### Fixed
+- **Student names show in full.** On a program's student list, beside the mentors, names were cut to their first few letters. They now show in full; to make room, Last session shows there only on a phone, in each student's details. Anywhere a long name still doesn't fit, it goes onto a second line.
+
 ## 2026-10-16
 
 ### Fixed

@@ -194,14 +194,21 @@ export function PersonCell({
       <Avatar person={person} className="h-9 w-9 shrink-0 text-xs" />
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 flex-wrap items-center gap-x-2 font-semibold text-ink group-hover:text-brand">
-          <span className="min-w-0 truncate">{person.name ?? person.email}</span>
-          {/* The name gives way FIRST, never the chip. These used to wrap
-              freely to a second line, so a roster of forty stood at two
+          {/* The name WRAPS; it is never cut. It truncated, and on a program's
+              roster beside the mentors rail every student was "Abdul…",
+              "Alisher…", "Khabi…" — a list of people nobody could tell apart
+              without hovering each one (Doston, 17 October 2026: "all names
+              should be readable"). The line under it still truncates: an
+              address is read to be copied, not to find somebody. A name that
+              fits keeps one line, so the rows stay one height until a name
+              genuinely has no room. */}
+          <span className="min-w-0 break-words">{person.name ?? person.email}</span>
+          {/* The chip stays on the name's line while both fit. These used to
+              wrap freely to a second line, so a roster of forty stood at two
               different heights depending on how long somebody's name happened
               to be — and a ragged left edge reads as a difference in kind
               rather than in spelling. The chips here are short by contract
-              (see above), so holding them on the line costs the longest name
-              a few characters and nothing else.
+              (see above).
 
               `flex-wrap` covers the case `nowrap` could not: with no room for
               BOTH at their natural sizes — a long chip beside a long name on a
