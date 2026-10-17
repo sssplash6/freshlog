@@ -7,6 +7,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-17
 
 ### New
+- **See one cohort at a time.** Open a level in a program (Advanced, Emerging, Frontiers) and a row of its cohorts appears under the level tabs. Pick one to see only that cohort's students, with each cohort's count beside its name. Programs with cohorts but no levels show the row under Students.
 - **Research on the agenda list.** When you allocate time, Research is now one of the agenda items you can pick.
 
 ## 2026-10-16
