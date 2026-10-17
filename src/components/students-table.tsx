@@ -53,7 +53,8 @@ import type { StudentWithHours } from "@/lib/queries";
  * It is a line under the name, not a column: the roster already fills its
  * 816px beside the mentors rail, and a seventh column pushed Contact off the
  * edge at every width. So it sorts from the Student heading ("Student ·
- * Cohort"), and it does not filter: a cohort select is still not on the page.
+ * Cohort"). It does not filter; since 17 October 2026 the cohort tabs above
+ * the roster do that (see the program page), and under one this line goes.
  *
  * WHAT IS STILL NOT HERE, on the owner's instruction (12 September 2026):
  * every chip beside the name except "Not signed in". A roster of forty rows

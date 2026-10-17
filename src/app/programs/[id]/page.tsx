@@ -11,6 +11,7 @@ import { FilterBar } from "@/components/ui/filter-bar";
 import { ArrowLink } from "@/components/ui/link";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
 import { Section } from "@/components/ui/section";
+import { TabLinks } from "@/components/ui/segmented";
 import { canManageProgram } from "@/lib/authz";
 import { SESSION_STATUS, USER_STATUS } from "@/lib/constants";
 import { requireProgramScope } from "@/lib/dal";
@@ -37,6 +38,7 @@ import {
   programLevels,
   programOf,
   programPairings,
+  programStudents,
   requestNow,
 } from "../reads";
 import type { Metadata } from "next";
@@ -65,14 +67,22 @@ const RECENT_SESSIONS = 6;
  * `?program=` arriving from somewhere else ANDs against it and can only narrow
  * (`lib/filters.ts`, rule 3).
  *
- * NO FILTER CHIPS AND NO COHORT SELECT, on the owner's instruction (12
- * September 2026): a search box over a program's own roster is the whole
- * control. The presets still work as URLs — `?time=expiring` from the bell
- * narrows this list exactly as it did — they are simply not offered as six
- * pills above a table that is usually shorter than they are. The one select a
- * leveled program earns is LEVEL: with Emerging, Advanced and Frontiers under
- * one Research program, "which level is this roster?" is a question the page
- * has to be able to answer.
+ * NO FILTER CHIPS, on the owner's instruction (12 September 2026): a search
+ * box over a program's own roster is the whole control. The presets still work
+ * as URLs — `?time=expiring` from the bell narrows this list exactly as it did
+ * — they are simply not offered as six pills above a table that is usually
+ * shorter than they are. The one select a leveled program earns is LEVEL: with
+ * Emerging, Advanced and Frontiers under one Research program, "which level is
+ * this roster?" is a question the page has to be able to answer.
+ *
+ * COHORTS ARE TABS, not a select (17 October 2026, Doston, reversing the 12
+ * September "no cohort select"): Research asked to see one intake at a time.
+ * They are a second row of tabs under the level tabs, shown only where there
+ * is a set of cohorts to choose between — under a level tab, that level's
+ * cohorts; in a flat program, its own. "All students" in a leveled program
+ * gets none: "Fall 2026" under Emerging and under Advanced are two intakes,
+ * and one row of bare names could not say which. `?cohort=` was already a
+ * filter `studentsWhere` understood; the tabs only offer it.
  */
 export default async function ProgramPage({
   params,
@@ -161,11 +171,23 @@ export default async function ProgramPage({
   // The level this roster is narrowed to, when the tab above names one of
   // this program's — anything else in `?level=` already matched nobody.
   const level = levels.find((l) => l.id === readParam(query, "level")) ?? null;
+  // The cohorts a tab row offers here: the level's under a level tab, the
+  // flat ones in a program without levels, none on a leveled "All students".
+  const cohortTabs = level
+    ? level.cohorts
+    : levels.length === 0
+      ? cohorts.filter((c) => c.levelId === null)
+      : [];
+  const cohort = cohortTabs.find((c) => c.id === readParam(query, "cohort")) ?? null;
+  // The level and cohort tabs are filters the reader did not set in the bar,
+  // so Reset and "nothing matched" discount them.
+  const tabFilters = (level ? 1 : 0) + (readParam(query, "cohort") ? 1 : 0);
   // A cohort as this roster names it. Under a level tab the level goes without
   // saying; on "All students" it leads, because "Fall 2026" under Emerging and
   // under Advanced are two intakes — and leading, it sorts them level by level.
+  // Under a cohort tab every row is that cohort, so the line goes.
   const cohortOf =
-    cohorts.length > 0
+    cohorts.length > 0 && !cohort
       ? (s: (typeof matching)[number]) => {
           const here = s.byProgram.get(id);
           if (!here?.cohort) return null;
@@ -242,8 +264,36 @@ export default async function ProgramPage({
     .filter((m) => !paired.has(m.id))
     .map((m) => ({ value: m.id, label: m.name ?? m.email }));
 
+  // Each tab counts its own members out of the whole roster, as the level
+  // tabs above do — never the filtered list, which would count only itself.
+  const roster = cohortTabs.length > 0 ? await programStudents(id) : [];
+  const levelHref = level ? `${basePath}?level=${level.id}` : basePath;
+
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
+      {cohortTabs.length > 0 && (
+        <TabLinks
+          label={level ? `${level.name} cohorts` : "Cohorts"}
+          // Across the roster AND the mentors rail: it narrows the page, as
+          // the level tabs above it do, not only the column it sits over.
+          className="xl:col-span-2"
+          items={[
+            {
+              href: levelHref,
+              label: level ? `All ${level.name}` : "All cohorts",
+              count: roster.filter((s) =>
+                level ? s.byProgram.get(id)?.level?.id === level.id : true
+              ).length,
+            },
+            ...cohortTabs.map((c) => ({
+              href: `${levelHref}${level ? "&" : "?"}cohort=${c.id}`,
+              label: c.name,
+              count: roster.filter((s) => s.byProgram.get(id)?.cohort?.id === c.id)
+                .length,
+            })),
+          ]}
+        />
+      )}
       <div className="min-w-0 space-y-4">
         {settingTask && (
           <ProgramTaskForm
@@ -276,14 +326,14 @@ export default async function ProgramPage({
           />
         </div>
 
-        {/* The level is a tab in the layout above, not a select here. */}
-        {/* Reset only for a filter the reader set here; the level tab is
-            not one, and Reset would have cleared it along with the rest. */}
+        {/* The level and cohort are tabs above, not selects here. */}
+        {/* Reset only for a filter the reader set here; the tabs are not
+            ones, and Reset would have cleared them along with the rest. */}
         <FilterBar
           basePath={basePath}
           params={query}
           q="students"
-          reset={activeFilterCount(query) > (level ? 1 : 0)}
+          reset={activeFilterCount(query) > tabFilters}
         />
 
         {/* What the level buys, said where the level is being read: the
@@ -302,14 +352,14 @@ export default async function ProgramPage({
         )}
 
         {total === 0 ? (
-          activeFilterCount(query) > (level ? 1 : 0) ? (
+          activeFilterCount(query) > tabFilters ? (
             // The bar above has just said in words that nothing matched, so
             // this adds the way out and not the count again.
             <EmptyState variant="no-results">
               Check the spelling, or reset to see everyone.
             </EmptyState>
-          ) : level ? (
-            <EmptyState title={`Nobody in ${level.name} yet`}>
+          ) : cohort || level ? (
+            <EmptyState title={`Nobody in ${(cohort ?? level)!.name} yet`}>
               Add them with the button above.
             </EmptyState>
           ) : (
