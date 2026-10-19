@@ -16,6 +16,7 @@
  */
 
 import type { AnalyticsRow } from "@/lib/analytics";
+import { DAY } from "@/lib/calendar";
 import { formatDuration } from "@/lib/format";
 
 const KIND_COMPLETED = 0;
@@ -23,9 +24,13 @@ const KIND_EXTRA = 1;
 const KIND_NO_SHOW = 2;
 
 export type Filter = {
-  year: number;
+  /** Left out for a window of chosen days, which may cross a new year. */
+  year?: number;
   /** 0–11, or null for the whole year. */
   month?: number | null;
+  /** First and last day of a chosen window, inclusive, as yyyymmdd. */
+  from?: number | null;
+  to?: number | null;
   program?: number | null;
   mentor?: number | null;
 };
@@ -49,6 +54,21 @@ export type Totals = Tally & {
 export const yearOf = (day: number) => Math.floor(day / 10000);
 export const monthOf = (day: number) => Math.floor(day / 100) % 100 - 1;
 export const dateOf = (day: number) => day % 100;
+
+/** A UTC midnight as its day key, yyyymmdd. */
+export function dayKeyOf(ms: number): number {
+  const d = new Date(ms);
+  return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
+}
+
+export const msOfDay = (day: number) => Date.UTC(yearOf(day), monthOf(day), dateOf(day));
+
+/** The window as long as `from`..`to` that ends the day before it: what it is compared with. */
+export function windowBefore(from: number, to: number): [number, number] {
+  const start = msOfDay(from);
+  const days = Math.round((msOfDay(to) - start) / DAY) + 1;
+  return [dayKeyOf(start - days * DAY), dayKeyOf(start - DAY)];
+}
 
 export function emptyTally(): Tally {
   return { completed: 0, extra: 0, noShow: 0, sessions: 0, noShows: 0 };
@@ -77,7 +97,9 @@ export function meetingsOf(t: Tally): number {
 }
 
 export function matches(row: AnalyticsRow, f: Filter): boolean {
-  if (yearOf(row[3]) !== f.year) return false;
+  if (f.year != null && yearOf(row[3]) !== f.year) return false;
+  if (f.from != null && row[3] < f.from) return false;
+  if (f.to != null && row[3] > f.to) return false;
   if (f.month != null && monthOf(row[3]) !== f.month) return false;
   if (f.program != null && row[0] !== f.program) return false;
   if (f.mentor != null && row[1] !== f.mentor) return false;

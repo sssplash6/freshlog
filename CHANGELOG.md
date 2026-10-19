@@ -8,6 +8,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ### New
 - **Month totals in Analytics.** Pointing at a month in Month by month now ends its list with the month's total hours, the same figure shown on top of the bar.
+- **Pick the dates Analytics reads.** Dates, beside the year, offers This week, Last 30 days, Last 90 days, or any two days you choose. The totals, programs and mentor rankings then cover only those days, compared with the same number of days just before.
 
 ## 2026-10-17
 

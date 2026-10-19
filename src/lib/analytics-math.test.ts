@@ -14,6 +14,7 @@ import {
   shortHours,
   totals,
   weeksOf,
+  windowBefore,
   yearsOf,
 } from "@/lib/analytics-math";
 
@@ -61,6 +62,17 @@ describe("select", () => {
   it("narrows by month, program and mentor together", () => {
     const rows = select(ROWS, { year: 2026, month: 0, program: 0, mentor: 0 });
     expect(rows).toHaveLength(2);
+  });
+
+  it("narrows to a window of days, both ends kept, across a new year", () => {
+    expect(select(ROWS, { from: 20250910, to: 20260105 })).toHaveLength(3);
+    expect(select(ROWS, { from: 20260106, to: 20260210, program: 0 })).toHaveLength(1);
+  });
+
+  it("compares a window with the same number of days just before it", () => {
+    expect(windowBefore(20260915, 20261014)).toEqual([20260816, 20260914]);
+    expect(windowBefore(20260101, 20260107)).toEqual([20251225, 20251231]);
+    expect(windowBefore(20260301, 20260301)).toEqual([20260228, 20260228]);
   });
 });
 
