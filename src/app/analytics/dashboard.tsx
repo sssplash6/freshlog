@@ -930,6 +930,13 @@ function Columns({
                             <span className={s.tipVal}>{formatDuration(x.value)}</span>
                           </div>
                         ))}
+                      {/* The figure on the bar, so the rows above add up to something. */}
+                      {c.segments.filter((x) => x.value > 0).length > 1 && (
+                        <div className={cn(s.tipRow, s.tipTotal)}>
+                          <span>Total</span>
+                          <span className="tabular-nums">{formatDuration(total)}</span>
+                        </div>
+                      )}
                       <div className={s.tipRow}>
                         <span className={s.tipKey}>Sessions</span>
                         <span className={s.tipVal}>

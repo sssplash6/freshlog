@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-19
+
+### New
+- **Month totals in Analytics.** Pointing at a month in Month by month now ends its list with the month's total hours, the same figure shown on top of the bar.
+
 ## 2026-10-17
 
 ### New
