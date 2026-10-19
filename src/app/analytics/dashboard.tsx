@@ -369,9 +369,15 @@ export function Dashboard({
         }
       />
 
-      {yearRows.length === 0 ? (
+      {/* The window's own rows count too: "Last 30 days" on January 3 ends in
+          a year with nothing in it yet, and its December is not nothing. */}
+      {yearRows.length === 0 && periodRows.length === 0 ? (
         <div className={cn(s.enter, "rounded-xl bg-surface shadow-sm")} key={`empty-${level}-${year}`}>
-          <EmptyState framed={false} icon={<ChartIcon />} title={`No sessions logged in ${year}`}>
+          <EmptyState
+            framed={false}
+            icon={<ChartIcon />}
+            title={`No sessions logged in ${view.from != null ? period : year}`}
+          >
             <p>
               {mentorRow
                 ? `${mentorRow.name} has no meetings on record here for this year.`
