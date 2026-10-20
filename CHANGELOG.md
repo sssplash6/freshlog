@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-20
+
+### New
+- **Name the agenda item when you log.** Logging a session, you can now pick a standard agenda item or type your own under Something else, even if none was set up for the student. It is added to their agenda with no hours planned, and an admin can give it hours later.
+
 ## 2026-10-19
 
 ### New

@@ -1107,6 +1107,13 @@ export type CaseloadStudent = {
   reach: "allocation" | "pool" | "met" | "task";
 };
 
+/**
+ * An agenda item the log form offers. `label` is what the list shows, marks
+ * and all; `purpose` is the name alone, so the form need not offer a preset
+ * the student's agenda already has.
+ */
+export type LogGoal = { value: string; label: string; purpose: string };
+
 export type MentorCaseload = {
   students: CaseloadStudent[];
   /** In the mentor's programs, but not theirs: pickable, never totalled. */
@@ -1117,7 +1124,7 @@ export type MentorCaseload = {
     user: { name: string | null; email: string };
   }[];
   /** studentId → the tasks this mentor may log against for them. */
-  goalsByStudent: Map<string, { value: string; label: string }[]>;
+  goalsByStudent: Map<string, LogGoal[]>;
   assignments: Awaited<ReturnType<typeof mentorAssignments>>;
   /** Lifetime figures for this mentor, across every program. */
   delivered: { minutes: number; missed: number; extra: number; sessions: number };
@@ -1171,7 +1178,7 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
   // Keyed by (student, program): a task belongs to one program's plan, and
   // offering the Master's Program's essay against a Global Admissions session
   // would attach delivered hours to work in a program that never ordered it.
-  const goalsByStudent = new Map<string, { value: string; label: string }[]>();
+  const goalsByStudent = new Map<string, LogGoal[]>();
   for (const g of myGoals) {
     const key = `${g.studentId}:${g.programId}`;
     const list = goalsByStudent.get(key) ?? [];
@@ -1179,6 +1186,7 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
     // admin already ticked off, and hiding it would strand those hours.
     list.push({
       value: g.id,
+      purpose: g.purpose,
       label:
         g.progress === ASSIGNMENT_PROGRESS.DONE
           ? `${g.purpose} (done)`
@@ -1526,7 +1534,7 @@ export function logSessionOptions(
     state: LogState;
     /** Sorts live time above bare reach, so the default pick is the useful one. */
     rank: number;
-    goals: { value: string; label: string }[];
+    goals: LogGoal[];
   };
   const byStudent = new Map<string, { label: string; choices: Choice[] }>();
   const at = (id: string, label: string) => {

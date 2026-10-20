@@ -13,6 +13,7 @@ import {
 import type { Prisma, User } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
+  ASSIGNMENT_PROGRESS,
   ATTENDANCE,
   ATTENDANCE_META,
   attendanceFields,
@@ -38,6 +39,7 @@ import { describeSessionChange } from "@/lib/session-change";
 import { programToday } from "@/lib/when";
 import { chargeableAgainst } from "@/lib/deadlines";
 import { syncGoalProgress } from "@/lib/goal-progress";
+import { parseNewAgendaField } from "@/lib/tasks";
 import { notify, notificationHref, staffIdsFor } from "@/lib/notify";
 import {
   parseDateField,
@@ -171,6 +173,45 @@ async function resolveGoal(
 }
 
 /**
+ * What a logged session goes toward. `id` is null for a name the agenda does
+ * not have yet, which the log adds.
+ */
+type Goal = { id: string | null; purpose: string; unassigned: boolean };
+
+/**
+ * The open item on this student's agenda, in this program, called `name` —
+ * the mentor's own first, then one no mentor holds yet, which logging claims.
+ * Never a colleague's: their item is their hours. Case and spacing aside,
+ * "supplemental essays" is the same work as "Supplemental Essays", and a second
+ * row of it would split one piece of work in two.
+ */
+async function openAgendaNamed(
+  db: Pick<typeof prisma, "assignment">,
+  name: string,
+  studentId: string,
+  programId: string,
+  mentorId: string
+): Promise<Goal | null> {
+  const want = name.trim().toLowerCase();
+  const rows = await db.assignment.findMany({
+    where: {
+      studentId,
+      programId,
+      OR: [{ mentorId }, { mentorId: null }],
+      progress: { not: ASSIGNMENT_PROGRESS.DONE },
+    },
+    orderBy: { position: "asc" },
+    select: { id: true, purpose: true, mentorId: true },
+  });
+  const match =
+    rows.find((r) => r.mentorId === mentorId && r.purpose.trim().toLowerCase() === want) ??
+    rows.find((r) => r.mentorId === null && r.purpose.trim().toLowerCase() === want);
+  return match
+    ? { id: match.id, purpose: match.purpose, unassigned: match.mentorId === null }
+    : null;
+}
+
+/**
  * Log a completed session against one of the mentor's open tasks for the
  * student. Draws down the hours the student holds with THIS mentor (derived) —
  * or, when the mentor holds none, carves what the session charges out of the
@@ -194,6 +235,7 @@ const LOG_FIELDS = [
   "studentProfileId",
   "programId",
   "assignmentId",
+  "agendaName",
   "minutes",
   "date",
   "note",
@@ -408,13 +450,28 @@ export async function logSession(
 
   // Checked after reach, so a mentor who may not log for this student at all
   // hears that first rather than being told about a task they can't use.
-  const resolved = await resolveGoal(
-    formData.get("assignmentId"),
-    profile.id,
-    programId,
-    mentor.id,
-    onBehalf ? `${mentorLabel}'s` : "yours"
-  );
+  //
+  // The agenda used to be only what an admin had named while granting hours,
+  // so a meeting about anything else could say nothing about its work but the
+  // note. A NAME — a preset, or typed under "Something else…" — goes to the
+  // open item already called that, or is added to the agenda below.
+  const newAgenda = parseNewAgendaField(formData.get("assignmentId"), formData.get("agendaName"));
+  if (newAgenda && "error" in newAgenda) return bad(newAgenda.error, "assignmentId");
+  const resolved: { value: Goal | null } | { error: string } = newAgenda
+    ? {
+        value: (await openAgendaNamed(prisma, newAgenda.name, profile.id, programId, mentor.id)) ?? {
+          id: null,
+          purpose: newAgenda.name,
+          unassigned: false,
+        },
+      }
+    : await resolveGoal(
+        formData.get("assignmentId"),
+        profile.id,
+        programId,
+        mentor.id,
+        onBehalf ? `${mentorLabel}'s` : "yours"
+      );
   if ("error" in resolved) return bad(resolved.error, "assignmentId");
   const goal = resolved.value;
   // Reads "toward "Main essay"" when there is one, and nothing at all when there
@@ -451,13 +508,46 @@ export async function logSession(
   // program back to somebody who was never asked about it is noise.
   const inProgram = reachable.length > 1 ? ` in ${program.name}` : "";
 
-  const { sessionId, sync, carved, poolAfter } = await prisma.$transaction(async (tx) => {
+  const { sessionId, sync, carved, poolAfter, added } = await prisma.$transaction(async (tx) => {
+    // A name the agenda does not have yet is added to it: the mentor's item,
+    // at the foot of the student's list, and with NO budget — how many hours
+    // the work gets is still an admin's to plan. Looked for again here, where
+    // a log of the same name a moment ago is finally visible, so the two land
+    // on one item rather than two.
+    let target = goal;
+    let added = false;
+    if (goal && goal.id === null) {
+      target = await openAgendaNamed(tx, goal.purpose, profile.id, programId, mentor.id);
+      if (!target) {
+        const last = await tx.assignment.findFirst({
+          where: { studentId: profile.id },
+          orderBy: { position: "desc" },
+          select: { position: true },
+        });
+        const item = await tx.assignment.create({
+          data: {
+            studentId: profile.id,
+            programId,
+            mentorId: mentor.id,
+            purpose: goal.purpose,
+            position: (last?.position ?? -1) + 1,
+            // Whoever typed it, like `changedById`: on an admin's log for a
+            // mentor, the admin added the item and the mentor holds it.
+            createdById: actor.id,
+          },
+        });
+        target = { id: item.id, purpose: item.purpose, unassigned: false };
+        added = true;
+      }
+    }
+    const goalId = target?.id ?? null;
+
     const session = await tx.session.create({
       data: {
         studentId: profile.id,
         programId,
         mentorId: mentor.id,
-        assignmentId: goal?.id ?? null,
+        assignmentId: goalId,
         minutes: minutesParsed.value,
         date: dateParsed.value,
         note,
@@ -558,9 +648,9 @@ export async function logSession(
     }
 
     // A named task that had no mentor yet: logging against it claims it.
-    if (goal?.unassigned) {
+    if (target?.unassigned && goalId) {
       await tx.assignment.update({
-        where: { id: goal.id },
+        where: { id: goalId },
         data: { mentorId: mentor.id },
       });
     }
@@ -568,7 +658,7 @@ export async function logSession(
     // Progress follows the hours: this may move the task to In progress, or
     // finish it outright if the logged total reached its limit. A session that
     // names no task moves nothing.
-    const synced = goal ? await syncGoalProgress(tx, goal.id) : null;
+    const synced = goalId ? await syncGoalProgress(tx, goalId) : null;
 
     await notify(tx, {
       to: [profile.userId],
@@ -613,6 +703,11 @@ export async function logSession(
             : state === ATTENDANCE.ABSENT
               ? `${mentorLabel} recorded a ${formatMinutes(minutesParsed.value)} no-show for ${studentName} on ${formatFullDate(dateParsed.value)}${forTask}.`
               : `${mentorLabel} logged ${formatMinutes(minutesParsed.value)} with ${studentName} on ${formatFullDate(dateParsed.value)}${toward}${state === ATTENDANCE.LATE ? " (came late)" : ""}.`) +
+        // An agenda item nobody planned is the admin's to budget, so they
+        // hear that it now exists.
+        (added && target
+          ? ` "${target.purpose}" was added to their agenda, with no hours planned for it yet.`
+          : "") +
         // The hand-off is news an admin would otherwise reconstruct from the
         // allocation history: the pool chose its mentor.
         (carved > 0
@@ -638,7 +733,7 @@ export async function logSession(
         message: `"${synced.purpose}" for ${studentName} is complete: ${formatMinutes(synced.loggedMinutes)} of ${formatMinutes(synced.minuteLimit ?? 0)} planned hours logged.`,
       });
     }
-    return { sessionId: session.id, sync: synced, carved, poolAfter };
+    return { sessionId: session.id, sync: synced, carved, poolAfter, added };
   });
 
   revalidatePath("/", "layout");
@@ -655,6 +750,9 @@ export async function logSession(
     notes.push(
       `These hours were to be used by ${formatFullDate(lateDeadline)} — logged past the deadline.`
     );
+  }
+  if (added && goal) {
+    notes.push(`Added "${goal.purpose}" to their agenda.`);
   }
   // Tell the mentor what their own log just did to the task, so an automatic
   // status change is never a surprise they discover later.

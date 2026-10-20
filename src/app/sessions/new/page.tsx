@@ -149,6 +149,7 @@ export default async function LogSessionPage({
     studentProfileId: preselected,
     programId: lost ? undefined : (one("programId") ?? one("program")),
     assignmentId: lost ? undefined : one("assignmentId"),
+    agendaName: lost ? undefined : one("agendaName"),
     minutes: one("minutes"),
     date: one("date"),
         note: one("note"),

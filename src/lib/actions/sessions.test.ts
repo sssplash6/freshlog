@@ -137,6 +137,135 @@ describe("logSession authorization", () => {
 });
 
 /**
+ * Naming the agenda item a meeting went toward when nobody has set one up.
+ *
+ * Mentors asked for it: the agenda used to be only what an admin had named
+ * while granting hours, so a meeting about anything else could say nothing
+ * about its work but the note. A name typed or picked in the log adds an item
+ * to the student's agenda with no budget — the hours are still the admin's to
+ * plan — or goes to the open one already called that.
+ */
+describe("logSession naming an agenda item that isn't set up", () => {
+  async function setUp() {
+    const p = await program("Full Support");
+    const s = await student({ programId: p.id });
+    const m = await mentor("Valera");
+    await pairing({ mentorId: m.id, programId: p.id });
+    actor.value = m;
+    return { p, s, m };
+  }
+
+  it("adds a typed name to the student's agenda, unbudgeted, and logs toward it", async () => {
+    const { p, s, m } = await setUp();
+    await assignment({ studentId: s.id, mentorId: m.id, purpose: "Strategy", position: 0 });
+
+    const state = await log(s.id, { assignmentId: "__other__", agendaName: "  Mock interview " });
+
+    expect(state).toMatchObject({ ok: true });
+    const item = await prisma.assignment.findFirstOrThrow({
+      where: { studentId: s.id, purpose: "Mock interview" },
+    });
+    expect(item).toMatchObject({
+      programId: p.id,
+      mentorId: m.id,
+      minuteLimit: null,
+      dueOn: null,
+      createdById: m.id,
+      position: 1,
+    });
+    const logged = await prisma.session.findFirstOrThrow({ where: { studentId: s.id } });
+    expect(logged.assignmentId).toBe(item.id);
+  });
+
+  it("adds a picked preset the same way", async () => {
+    const { s, m } = await setUp();
+
+    const state = await log(s.id, { assignmentId: "new:Supplemental Essays" });
+
+    expect(state).toMatchObject({ ok: true });
+    const item = await prisma.assignment.findFirstOrThrow({ where: { studentId: s.id } });
+    expect(item).toMatchObject({ purpose: "Supplemental Essays", mentorId: m.id, position: 0 });
+    await expect(
+      prisma.session.findFirstOrThrow({ where: { studentId: s.id } })
+    ).resolves.toMatchObject({ assignmentId: item.id });
+  });
+
+  it("goes to the open item already called that instead of adding a second", async () => {
+    const { s, m } = await setUp();
+    const open = await assignment({ studentId: s.id, mentorId: m.id, purpose: "Supplemental Essays" });
+
+    const state = await log(s.id, { assignmentId: "__other__", agendaName: "supplemental essays" });
+
+    expect(state).toMatchObject({ ok: true });
+    await expect(prisma.assignment.count({ where: { studentId: s.id } })).resolves.toBe(1);
+    await expect(
+      prisma.session.findFirstOrThrow({ where: { studentId: s.id } })
+    ).resolves.toMatchObject({ assignmentId: open.id });
+  });
+
+  it("claims an unassigned open item of that name", async () => {
+    const { s, m } = await setUp();
+    const unassigned = await assignment({ studentId: s.id, mentorId: null, purpose: "Strategy" });
+
+    expect(await log(s.id, { assignmentId: "new:Strategy" })).toMatchObject({ ok: true });
+
+    await expect(prisma.assignment.count({ where: { studentId: s.id } })).resolves.toBe(1);
+    await expect(
+      prisma.assignment.findUniqueOrThrow({ where: { id: unassigned.id } })
+    ).resolves.toMatchObject({ mentorId: m.id });
+  });
+
+  it("never logs onto a colleague's item of the same name", async () => {
+    const { p, s, m } = await setUp();
+    const colleague = await mentor("Umid");
+    await pairing({ mentorId: colleague.id, programId: p.id });
+    const theirs = await assignment({ studentId: s.id, mentorId: colleague.id, purpose: "Strategy" });
+
+    expect(await log(s.id, { assignmentId: "new:Strategy" })).toMatchObject({ ok: true });
+
+    const logged = await prisma.session.findFirstOrThrow({ where: { studentId: s.id } });
+    expect(logged.assignmentId).not.toBe(theirs.id);
+    await expect(
+      prisma.assignment.findUniqueOrThrow({ where: { id: logged.assignmentId! } })
+    ).resolves.toMatchObject({ purpose: "Strategy", mentorId: m.id });
+  });
+
+  it("asks for the name when Something else was picked and nothing typed", async () => {
+    const { s } = await setUp();
+
+    const state = await log(s.id, { assignmentId: "__other__", agendaName: "   " });
+
+    expect(state).toMatchObject({ ok: false, field: "assignmentId" });
+    await expect(prisma.session.count()).resolves.toBe(0);
+    await expect(prisma.assignment.count()).resolves.toBe(0);
+  });
+
+  it("refuses a name past the length limit", async () => {
+    const { s } = await setUp();
+
+    const state = await log(s.id, { assignmentId: "__other__", agendaName: "x".repeat(101) });
+
+    expect(state).toMatchObject({ ok: false, field: "assignmentId" });
+    await expect(prisma.assignment.count()).resolves.toBe(0);
+  });
+
+  it("puts it in the mentor's name, and the admin's as who added it, when logged on their behalf", async () => {
+    const { p, s, m } = await setUp();
+    const a = await admin("Malika");
+    await grant({ userId: a.id, programId: p.id });
+    actor.value = a;
+
+    expect(
+      await log(s.id, { mentorId: m.id, assignmentId: "__other__", agendaName: "Strategy" })
+    ).toMatchObject({ ok: true });
+
+    await expect(
+      prisma.assignment.findFirstOrThrow({ where: { studentId: s.id } })
+    ).resolves.toMatchObject({ mentorId: m.id, createdById: a.id });
+  });
+});
+
+/**
  * An admin logging a session for somebody else.
  *
  * The hours are the MENTOR's wherever they are counted — the row, the

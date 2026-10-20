@@ -9,15 +9,16 @@ import { AttendancePicker } from "@/components/forms/attendance-picker";
 import { DictateButton } from "@/components/forms/dictate-button";
 import { TimeKindPicker } from "@/components/forms/time-kind-picker";
 import { AlertIcon } from "@/components/icons";
-import { Select } from "@/components/select";
+import { Select, type SelectOption } from "@/components/select";
 import { DateField } from "@/components/ui/date-field";
-import { GrowingField, inputClasses } from "@/components/ui/field";
+import { GrowingField, Input, inputClasses } from "@/components/ui/field";
 import { Receipt } from "@/components/ui/receipt";
 import { SaveState, saveStateFrom } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/cn";
 import { MAX_SESSION_MINUTES } from "@/lib/constants";
-import type { LogState } from "@/lib/queries";
+import type { LogGoal, LogState } from "@/lib/queries";
+import { MAX_TASK_LENGTH, NEW_AGENDA_PREFIX, TASK_OTHER, TASK_PRESETS } from "@/lib/tasks";
 import { programToday } from "@/lib/when";
 import { RequiredMark } from "@/components/ui/required-mark";
 
@@ -52,7 +53,7 @@ export type LogSessionStudent = {
   /** What logging for them would do to their balance — see `LogState`. */
   state: LogState;
   /** The mentor's own open agenda for this student, in the admin's order. */
-  goals: { value: string; label: string }[];
+  goals: LogGoal[];
   /**
    * The programs of theirs this mentor could be logging into, best first.
    *
@@ -66,7 +67,7 @@ export type LogSessionStudent = {
     label: string;
     balance: string;
     state: LogState;
-    goals: { value: string; label: string }[];
+    goals: LogGoal[];
   }[];
 };
 
@@ -94,6 +95,8 @@ export type LogSessionDraft = {
   studentProfileId?: string;
   programId?: string;
   assignmentId?: string;
+  /** Typed under "Something else…" in the agenda picker. */
+  agendaName?: string;
   minutes?: string;
   date?: string;
   note?: string;
@@ -320,7 +323,17 @@ export function LogSessionForm({
   const goals = chosen?.goals ?? student?.goals ?? [];
   const balance = chosen?.balance ?? student?.balance;
   const logState = chosen?.state ?? student?.state;
-  const noGoals = Boolean(student) && Boolean(chosen) && goals.length === 0;
+  // What the agenda picker holds, for the box "Something else…" opens. Keyed
+  // like the picker, which remounts per student and program and so starts
+  // again from the draft.
+  const agendaKey = `${studentId}:${chosen?.value ?? ""}`;
+  const [agendaPick, setAgendaPick] = useState({
+    key: agendaKey,
+    value: opening.assignmentId ?? "",
+  });
+  const agendaValue =
+    agendaPick.key === agendaKey ? agendaPick.value : (opening.assignmentId ?? "");
+  const [agendaName, setAgendaName] = useState(opening.agendaName ?? "");
   // A student whose time is already spent, one way or the other.
   const warn = logState === "overdrawn" || logState === "expired";
   const minutesId = useId();
@@ -347,6 +360,7 @@ export function LogSessionForm({
       "studentProfileId",
       "programId",
       "assignmentId",
+      "agendaName",
       "minutes",
       "date",
       "note",
@@ -429,22 +443,57 @@ export function LogSessionForm({
    * choose one…", was also the first row of the list, so the list opened with
    * a ticked instruction.
    */
+  //
+  // It offered only what an admin had already put on the agenda, so a meeting
+  // about anything else — or with a student whose agenda was empty — could not
+  // say what it was for. Mentors asked to name it anyway: the presets and
+  // "Something else…" follow the student's own items, and picking one adds it
+  // to their agenda (or goes to the open item already called that).
+  const listed = new Set(goals.map((g) => g.purpose.trim().toLowerCase()));
+  const agendaOptions: SelectOption[] = student
+    ? [
+        ...goals.map((g) => ({ value: g.value, label: g.label, group: "On their agenda" })),
+        ...TASK_PRESETS.filter((p) => !listed.has(p.toLowerCase())).map((p) => ({
+          value: `${NEW_AGENDA_PREFIX}${p}`,
+          label: p,
+          group: "Add to their agenda",
+        })),
+        { value: TASK_OTHER, label: "Something else…", group: "Add to their agenda" },
+      ]
+    : [];
   const agendaField = (
     <div className="block min-w-0 text-sm">
       <span className={labelClass}>Agenda item worked on</span>
       <Select
         // Remount per student so the previous student's goal is never
         // left selected behind the new student's list.
-        key={`${studentId}:${chosen?.value ?? ""}`}
+        key={agendaKey}
         name="assignmentId"
         ariaLabel="Agenda item worked on"
+        invalid={Boolean(fieldErrors.assignmentId)}
         defaultValue={opening.assignmentId}
-        options={goals}
+        options={agendaOptions}
         required={false}
-        placeholder={
-          !student ? "Pick a student first" : noGoals ? "Nothing planned yet" : "None"
-        }
+        placeholder={!student ? "Pick a student first" : "None"}
+        onChange={(value) => {
+          setAgendaPick({ key: agendaKey, value });
+          touched({ assignmentId: value });
+        }}
       />
+      {agendaValue === TASK_OTHER && (
+        <Input
+          name="agendaName"
+          type="text"
+          aria-label="Name of the agenda item"
+          autoFocus
+          maxLength={MAX_TASK_LENGTH}
+          placeholder="Name the work"
+          value={agendaName}
+          onChange={(event) => setAgendaName(event.target.value)}
+          aria-invalid={Boolean(fieldErrors.assignmentId) || undefined}
+          className={cn("rise-in mt-2", fieldErrors.assignmentId && badInputClass)}
+        />
+      )}
       <FieldError message={fieldErrors.assignmentId} />
     </div>
   );
@@ -883,6 +932,9 @@ function checkFields(data: FormData): FieldErrors {
     errors.minutes = `A session is at most ${MAX_SESSION_MINUTES} minutes (24 hours).`;
   }
   if (!text("date")) errors.date = "Choose the date it happened.";
+  if (text("assignmentId") === TASK_OTHER && !text("agendaName")) {
+    errors.assignmentId = "Name the agenda item, or pick None.";
+  }
   if (text("needsAck") && !data.get("acknowledgeOverdraw")) {
     errors.acknowledgeOverdraw = "Tick this to log it, or choose Extra below.";
   }
