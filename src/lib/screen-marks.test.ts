@@ -37,10 +37,16 @@ describe("captureScale", () => {
 });
 
 describe("penWidth", () => {
-  it("draws a pen line at least 3px wide, wider on a wide image", () => {
-    expect(penWidth(600)).toBe(3);
-    expect(penWidth(3000)).toBe(10);
+  it("is 3px on screen however small the picture is shown", () => {
+    // A 390px phone at 3x, shown 217px wide in the overlay.
+    expect(penWidth(1170, 217)).toBe(16);
+    // A 1024px window at 2x, shown 593px wide.
+    expect(penWidth(2048, 593)).toBe(10);
   });
+
+  it("is never thinner than 3 image pixels", () => expect(penWidth(600, 900)).toBe(3));
+
+  it("falls back to 3 when the canvas has not been laid out", () => expect(penWidth(1170, 0)).toBe(3));
 });
 
 describe("drawMarks", () => {
@@ -73,7 +79,7 @@ describe("drawMarks", () => {
       { kind: "hide", x: 10, y: 20, w: 40, h: 60 },
     ];
 
-    drawMarks(ctx, marks, { pen: "pen-colour", hide: "hide-colour" }, 600);
+    drawMarks(ctx, marks, { pen: "pen-colour", hide: "hide-colour" }, 3);
 
     const drawn = calls.filter((c) => /^(moveTo|lineTo|stroke|fillRect)/.test(c));
     expect(drawn).toEqual([
@@ -86,7 +92,7 @@ describe("drawMarks", () => {
 
   it("draws a single-point pen mark as a dot, not nothing", () => {
     const { ctx, calls } = recorder();
-    drawMarks(ctx, [{ kind: "pen", points: [{ x: 5, y: 5 }] }], { pen: "p", hide: "h" }, 600);
+    drawMarks(ctx, [{ kind: "pen", points: [{ x: 5, y: 5 }] }], { pen: "p", hide: "h" }, 3);
     expect(calls.filter((c) => c.startsWith("stroke"))).toHaveLength(1);
     expect(calls.some((c) => c.startsWith("lineTo(5,5)"))).toBe(true);
   });

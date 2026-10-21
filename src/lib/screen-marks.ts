@@ -51,9 +51,18 @@ export function boxFrom(a: Point, b: Point): Extract<Mark, { kind: "hide" }> {
   };
 }
 
-/** Thick enough to see once the picture is shrunk for sending. */
-export function penWidth(imageWidth: number): number {
-  return Math.max(3, Math.round(imageWidth / 300));
+/** How thick a pen line looks on screen while it is drawn, in CSS pixels. */
+const PEN_ON_SCREEN = 3;
+
+/**
+ * A pen line in image pixels that reads as 3px on screen, wherever the
+ * picture is shown. Sized off the image alone it was 4px on a phone's 3×
+ * capture — under one CSS pixel once the overlay shrinks it to fit, too thin
+ * for the person drawing to see. Before layout (`shownWidth` 0), 3.
+ */
+export function penWidth(imageWidth: number, shownWidth: number): number {
+  if (!(shownWidth > 0)) return PEN_ON_SCREEN;
+  return Math.max(PEN_ON_SCREEN, Math.round((imageWidth / shownWidth) * PEN_ON_SCREEN));
 }
 
 /**
@@ -87,11 +96,11 @@ export function drawMarks(
   ctx: MarkCanvas,
   marks: Mark[],
   colors: { pen: string; hide: string },
-  imageWidth: number
+  lineWidth: number
 ): void {
   ctx.save();
   ctx.globalAlpha = 1;
-  ctx.lineWidth = penWidth(imageWidth);
+  ctx.lineWidth = lineWidth;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   for (const mark of marks) {

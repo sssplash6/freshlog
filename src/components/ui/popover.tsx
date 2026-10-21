@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  createContext,
   useCallback,
+  useContext,
   useEffect,
   useId,
   useRef,
@@ -105,6 +107,18 @@ const MAX_HEIGHT = 10_000;
 
 export type PopoverContents = "actions" | "fields";
 
+const PopoverCloseContext = createContext<(() => void) | null>(null);
+
+/**
+ * Close the panel this is rendered inside, the way an item that acts in place
+ * needs to — null outside a panel. The children-as-a-function form hands over
+ * the same `close`, but a server component (the account menu) cannot pass a
+ * function, so a client item inside it reaches for this instead.
+ */
+export function usePopoverClose(): (() => void) | null {
+  return useContext(PopoverCloseContext);
+}
+
 function focusablesIn(panel: HTMLElement): HTMLElement[] {
   // offsetParent is a layout read, which is why this only ever runs from an
   // event handler or an effect — never during render.
@@ -198,6 +212,9 @@ export function Popover({
     setRestoring(restoreFocus);
     setOpen(false);
   }, []);
+  // What an item inside the panel closes it with: focus goes back to the
+  // trigger, because the item it was on is about to unmount.
+  const closeAndRestore = useCallback(() => close(true), [close]);
 
   // Sheets dismiss by dragging down, not only by tapping the dimmed page.
   useSwipeDownToDismiss(panelRef, open && sheet, () => close(false));
@@ -446,9 +463,11 @@ export function Popover({
                   className="mx-auto mb-1.5 mt-1 h-1 w-9 rounded-full bg-line"
                 />
               )}
-              {typeof children === "function"
-                ? children({ close: () => close(true) })
-                : children}
+              <PopoverCloseContext value={closeAndRestore}>
+                {typeof children === "function"
+                  ? children({ close: closeAndRestore })
+                  : children}
+              </PopoverCloseContext>
               {/* Net-zero height (the negative margin eats it), stuck to the
                   panel's bottom edge while there is more to scroll to. */}
               {more && !sheet && (

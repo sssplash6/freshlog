@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-21
+
+### New
+- **Report a bug by drawing on the screen.** Report a bug in your account menu now takes a picture of the page you're on, so you can circle what's wrong, cover anything private, write one line and send it without leaving the page.
+
 ## 2026-10-20
 
 ### New

@@ -30,7 +30,8 @@ import {
 } from "@/components/profile-switch";
 import { PublicShell } from "@/components/public-shell";
 import { ProgramDot } from "@/components/program-chip";
-import { ReportBugLink } from "@/components/report-bug-link";
+import { ReportBugButton } from "@/components/report-bug-button";
+import { ScreenReportHost } from "@/components/screen-report/screen-report-host";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DensityToggle } from "@/components/density-toggle";
 import { Sidebar } from "@/components/sidebar";
@@ -303,10 +304,10 @@ function AccountMenu({
         </Link>
       )}
 
-      <ReportBugLink className={MENU_ROW}>
+      <ReportBugButton className={cn(MENU_ROW, "w-full cursor-pointer text-left")}>
         <AlertIcon className={MENU_ICON} />
         Report a bug
-      </ReportBugLink>
+      </ReportBugButton>
 
       {!student && (
         <Link href="/bugs" transitionTypes={["nav-forward"]} className={MENU_ROW}>
@@ -762,6 +763,7 @@ export async function AppShell({
         lens={(await canSwitchProfile(user)) ? profile : null}
       >
         {children}
+        <ScreenReportHost />
       </StudentShell>
     );
   }
@@ -791,6 +793,7 @@ export async function AppShell({
       search={search}
     >
       {children}
+      <ScreenReportHost />
     </StaffShell>
   );
 }

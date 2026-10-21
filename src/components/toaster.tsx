@@ -97,6 +97,9 @@ export function Toaster() {
 
   return (
     <div
+      // Never in a picture taken for a bug report: a toast is about the
+      // moment, not about the page.
+      data-capture-skip
       onPointerEnter={() => setPaused(true)}
       onPointerLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
