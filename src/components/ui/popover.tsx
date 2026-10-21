@@ -227,9 +227,13 @@ export function Popover({
   // fight the reader for their own cursor.
   // Nothing resets the flag: the effect fires on a transition, and it can only
   // transition into "closed and ours" by way of a `close` that said so.
+  // `preventScroll`: the trigger was on screen when it was pressed. A plain
+  // focus() let Safari honour the page's scroll-padding for the sticky top bar
+  // and scroll a trigger that lives IN that bar 66px up — which moved the page
+  // under a bug report's capture, and under the reader on every Escape.
   useEffect(() => {
     if (open || !restoring) return;
-    triggerRef.current?.focus();
+    triggerRef.current?.focus({ preventScroll: true });
   }, [open, restoring]);
 
   useEffect(() => {

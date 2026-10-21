@@ -9,6 +9,9 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ### New
 - **Report a bug by drawing on the screen.** Report a bug in your account menu now takes a picture of the page you're on, so you can circle what's wrong, cover anything private, write one line and send it without leaving the page.
 
+### Fixed
+- **Closing a menu keeps your place.** In Safari, closing a menu at the top of the page no longer scrolls what you were reading up a little.
+
 ## 2026-10-20
 
 ### New

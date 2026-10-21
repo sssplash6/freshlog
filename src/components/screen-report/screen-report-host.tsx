@@ -73,11 +73,23 @@ export function ScreenReportHost() {
     return () => window.removeEventListener(EVENT, open);
   }, []);
 
+  // Seen, not only announced: the first press also downloads the capture
+  // library, and a press that shows nothing for seconds gets pressed again —
+  // which is ignored while this runs. The toast's capsule, in the toast's
+  // place, and never in the picture it is waiting for.
   if (state.phase === "capturing") {
     return (
-      <p role="status" className="sr-only" data-capture-skip>
-        Capturing the page…
-      </p>
+      <div
+        data-capture-skip
+        className="pointer-events-none fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[60] flex justify-center px-4 lg:bottom-6"
+      >
+        <p
+          role="status"
+          className="toast-in flex min-h-11 items-center rounded-full bg-ink/90 px-5 text-sm text-canvas shadow-lg backdrop-blur-xl backdrop-saturate-150"
+        >
+          Capturing the page…
+        </p>
+      </div>
     );
   }
   if (state.phase !== "open") return null;
