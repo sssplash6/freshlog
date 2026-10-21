@@ -1101,6 +1101,15 @@ model BugReport {
   description    String
   // A path only, validated by sanitizePagePath — never a URL.
   pagePath       String?
+  // Filled only by a report drawn on the screen. The browser sends all of
+  // them but `build`, so all of them but `build` are untrusted and pass
+  // through readDiagnostics, which drops what does not fit rather than
+  // refusing the report. `build` is the server's own commit, never the form's.
+  viewport       String? // "1061×1084 @2x"
+  theme          String? // light | dark
+  userAgent      String?
+  build          String?
+  marks          Int?
   status         String    @default("PENDING") // PENDING | IN_PROGRESS | IN_REVIEW | FIXED | CLOSED
   // What the sender wrote or said, verbatim — the description is the model's
   // tidy version of it, and a triager settling "is that what they meant?"

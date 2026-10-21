@@ -118,6 +118,134 @@ export function sanitizePagePath(raw: unknown): string | null {
 }
 
 /**
+ * The page a report from the screen names: the one it was drawn on, except
+ * from inside /bugs, where it would only name the bug pages.
+ */
+export function reportPagePath(pathname: string): string | null {
+  return pathname === "/bugs" || pathname.startsWith("/bugs/") ? null : pathname;
+}
+
+/** What a report drawn on the screen answers, for the overlay that sent it. */
+export type ScreenReportState =
+  | { ok: true; id: string }
+  | { ok: false; error: string; field?: "caption" }
+  | null;
+
+/**
+ * A report drawn on the screen has one caption, not a title and a description.
+ * Its first line is what the triage board lists it by.
+ */
+export function captionTitle(caption: string): string {
+  const first = caption.split("\n").map((line) => line.trim()).find(Boolean) ?? "";
+  return first.length > BUG_TITLE_MAX ? `${first.slice(0, BUG_TITLE_MAX - 1)}…` : first;
+}
+
+export const BUG_UA_MAX = 300;
+export const BUG_MARKS_MAX = 500;
+
+/** What the browser says about where a report was drawn. Every field may be missing. */
+export type BugDiagnostics = {
+  viewport: string | null;
+  theme: "light" | "dark" | null;
+  userAgent: string | null;
+  marks: number | null;
+};
+
+const text = (value: FormDataEntryValue | null) => (typeof value === "string" ? value.trim() : "");
+
+/**
+ * The browser's account of itself, kept only where it fits.
+ *
+ * All of it is whatever the request said, so each field is checked on its
+ * own and a field that does not fit is DROPPED — never the report. A report
+ * missing its theme is still a report; a report refused for a theme of
+ * "sepia" is a person who gave up telling us.
+ */
+export function readDiagnostics(form: { get(name: string): FormDataEntryValue | null }): BugDiagnostics {
+  const side = (raw: string) => (/^\d{1,5}$/.test(raw) && +raw >= 1 && +raw <= 10000 ? +raw : null);
+  const width = side(text(form.get("width")));
+  const height = side(text(form.get("height")));
+  const ratioText = text(form.get("ratio"));
+  const ratio = ratioText === "" ? NaN : Number(ratioText);
+  const viewport =
+    width && height && Number.isFinite(ratio) && ratio >= 0.5 && ratio <= 5
+      ? `${width}×${height} @${parseFloat(ratio.toFixed(2))}x`
+      : null;
+
+  const themeText = text(form.get("theme"));
+  const theme = themeText === "light" || themeText === "dark" ? themeText : null;
+
+  const ua = text(form.get("userAgent"));
+  const userAgent = ua && !/\p{Cc}/u.test(ua) ? ua.slice(0, BUG_UA_MAX) : null;
+
+  const marksText = text(form.get("marks"));
+  const marks = /^\d{1,3}$/.test(marksText) && +marksText <= BUG_MARKS_MAX ? +marksText : null;
+
+  return { viewport, theme, userAgent, marks };
+}
+
+/** The deployed commit, short, from the server's own environment — or null. */
+export function shortBuild(raw: string | undefined): string | null {
+  return raw && /^[0-9a-f]{7,40}$/i.test(raw) ? raw.slice(0, 7).toLowerCase() : null;
+}
+
+/**
+ * "Chrome 141 on macOS", from a user agent. Only the common browsers and
+ * systems; anything else is null, and the raw string is still on the report.
+ * Order matters: Edge and Samsung Internet also say Chrome, every iPhone says
+ * "like Mac OS X", and Android says Linux.
+ */
+export function summarizeUserAgent(ua: string): string | null {
+  const BROWSERS: [RegExp, string][] = [
+    [/Edg(?:e|A|iOS)?\/(\d+)/, "Edge"],
+    [/SamsungBrowser\/(\d+)/, "Samsung Internet"],
+    [/(?:Firefox|FxiOS)\/(\d+)/, "Firefox"],
+    [/(?:Chrome|CriOS)\/(\d+)/, "Chrome"],
+    [/Version\/(\d+)[\d.]*.*Safari\//, "Safari"],
+  ];
+  const SYSTEMS: [RegExp, string][] = [
+    [/iPhone|iPad|iPod/, "iOS"],
+    [/Android/, "Android"],
+    [/Mac OS X/, "macOS"],
+    [/Windows/, "Windows"],
+    [/Linux/, "Linux"],
+  ];
+  let browser: string | null = null;
+  for (const [re, name] of BROWSERS) {
+    const match = re.exec(ua);
+    if (match) {
+      browser = `${name} ${match[1]}`;
+      break;
+    }
+  }
+  const system = SYSTEMS.find(([re]) => re.test(ua))?.[1] ?? null;
+  if (browser && system) return `${browser} on ${system}`;
+  return browser ?? system;
+}
+
+/**
+ * The one line under a report's picture: "Chrome 141 on macOS · dark ·
+ * 1061×1084 @2x · 2 marks · build f249b1f". Missing parts are left out, and
+ * so is "0 marks", which says nothing a triager can use.
+ */
+export function diagnosticsLine(d: {
+  viewport: string | null;
+  theme: string | null;
+  userAgent: string | null;
+  marks: number | null;
+  build: string | null;
+}): string | null {
+  const parts = [
+    d.userAgent ? summarizeUserAgent(d.userAgent) : null,
+    d.theme,
+    d.viewport,
+    d.marks ? `${d.marks} ${d.marks === 1 ? "mark" : "marks"}` : null,
+    d.build ? `build ${d.build}` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : null;
+}
+
+/**
  * What the triage form's "Fix line" / "Note" box opens with.
  *
  * `resolution` means two different things — the public fix line when FIXED, a
