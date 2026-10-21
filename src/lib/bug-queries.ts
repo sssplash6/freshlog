@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   BUG_STATUS,
+  diagnosticsLine,
   OPEN_BUG_STATUSES,
   isBugStatus,
   isClosingStatus,
@@ -92,6 +93,11 @@ export async function bugReportFor(
       resolvedAt: true,
       changelogDate: true,
       createdAt: true,
+      viewport: true,
+      theme: true,
+      userAgent: true,
+      build: true,
+      marks: true,
       reporter: { select: { name: true, email: true } },
       image: { select: { id: true } },
     },
@@ -99,10 +105,24 @@ export async function bugReportFor(
   if (!row) return null;
   if (!viewer.platformAdmin && row.reporterId !== viewer.id) return null;
 
-  const { reporter, image, reporterId, telegramAuthor, originalText, ...rest } = row;
+  const {
+    reporter,
+    image,
+    reporterId,
+    telegramAuthor,
+    originalText,
+    viewport,
+    theme,
+    build,
+    marks,
+    ...rest
+  } = row;
   void reporterId;
   return {
     ...rest,
+    // Where it was drawn, as one line; the raw user agent rides along for the
+    // line's tooltip, for anything the summary does not recognise.
+    diagnostics: diagnosticsLine({ viewport, theme, userAgent: row.userAgent, marks, build }),
     resolution:
       viewer.platformAdmin || isResolved(row.status) ? row.resolution : null,
     hasImage: image !== null,

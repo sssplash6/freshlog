@@ -95,6 +95,11 @@ export default async function BugPage({
               className="max-h-[32rem] max-w-full rounded-lg border border-line"
             />
           )}
+          {report.diagnostics && (
+            <p className="text-xs text-muted-fg" title={report.userAgent ?? undefined}>
+              {report.diagnostics}
+            </p>
+          )}
         </div>
       </Section>
 

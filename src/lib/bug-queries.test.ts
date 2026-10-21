@@ -130,6 +130,34 @@ describe("bugReportFor", () => {
     const { open: [row] } = await triageList(boss, "all");
     expect(row.reporterName).toBe("Former user");
   });
+
+  it("gives the reporter and a platform admin the diagnostics line", async () => {
+    const me = await mentor("Me");
+    const boss = await platformAdmin();
+    const ua =
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
+    const r = await bugReport({
+      reporterId: me.id,
+      userAgent: ua,
+      theme: "dark",
+      viewport: "1061×1084 @2x",
+      marks: 2,
+      build: "f249b1f",
+    });
+    for (const viewer of [me, boss]) {
+      const found = await bugReportFor(viewer, r.id);
+      expect(found?.diagnostics).toBe("Chrome 141 on macOS · dark · 1061×1084 @2x · 2 marks · build f249b1f");
+      expect(found?.userAgent).toBe(ua);
+    }
+  });
+
+  it("has no line for a report filed through the form", async () => {
+    const me = await mentor("Me");
+    const r = await bugReport({ reporterId: me.id });
+    const found = await bugReportFor(me, r.id);
+    expect(found?.diagnostics).toBeNull();
+    expect(found?.userAgent).toBeNull();
+  });
 });
 
 describe("triageList", () => {
