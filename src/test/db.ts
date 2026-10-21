@@ -351,6 +351,11 @@ export async function bugReport(
     source?: string;
     telegramAuthor?: string | null;
     originalText?: string | null;
+    viewport?: string | null;
+    theme?: string | null;
+    userAgent?: string | null;
+    build?: string | null;
+    marks?: number | null;
   } = {}
 ) {
   return prisma.bugReport.create({
@@ -368,6 +373,11 @@ export async function bugReport(
       resolution: opts.resolution ?? null,
       resolvedAt: opts.resolvedAt ?? null,
       changelogDate: opts.changelogDate ?? null,
+      viewport: opts.viewport ?? null,
+      theme: opts.theme ?? null,
+      userAgent: opts.userAgent ?? null,
+      build: opts.build ?? null,
+      marks: opts.marks ?? null,
       ...(opts.createdAt ? { createdAt: opts.createdAt } : {}),
       ...(opts.image
         ? { image: { create: { bytes: PNG_BYTES, mimeType: "image/png" } } }

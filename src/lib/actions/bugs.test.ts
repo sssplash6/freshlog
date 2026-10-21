@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
 import { BUG_REPORTS_PER_HOUR, BUG_SHOT_MAX_BYTES } from "@/lib/bugs";
@@ -11,7 +11,7 @@ vi.mock("@/lib/dal", () => ({
     actor.value ? prisma.user.findUnique({ where: { id: actor.value.id } }) : null,
 }));
 
-const { reportBug } = await import("@/lib/actions/bugs");
+const { reportBug, reportOnScreen } = await import("@/lib/actions/bugs");
 
 function form(fields: Record<string, string | File>) {
   const data = new FormData();
@@ -174,5 +174,116 @@ describe("reportBug", () => {
       expect(results.filter((r) => r.id)).toHaveLength(BUG_REPORTS_PER_HOUR);
       expect(await prisma.bugReport.count()).toBe(BUG_REPORTS_PER_HOUR);
     });
+  });
+});
+
+describe("reportOnScreen", () => {
+  const MAC_CHROME =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
+  const onScreen = (fields: Record<string, string | File>) => reportOnScreen(null, form(fields));
+  const shot = () => ({ caption: "Make this card bigger\nit is tiny", screenshot: png(), from: "/students/abc?x=1" });
+  const filedId = (state: Awaited<ReturnType<typeof onScreen>>) => {
+    if (!state?.ok) throw new Error(`expected a filed report, got ${JSON.stringify(state)}`);
+    return state.id;
+  };
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("files the caption as title and description, with the image and page, and tells the platform admins", async () => {
+    const me = await mentor("Dilnoza");
+    const boss = await platformAdmin();
+    const second = await platformAdmin("Second Boss");
+    actor.value = me;
+
+    const id = filedId(await onScreen(shot()));
+
+    const row = await prisma.bugReport.findUniqueOrThrow({ where: { id } });
+    expect(row).toMatchObject({
+      reporterId: me.id,
+      reporterRole: "MENTOR",
+      title: "Make this card bigger",
+      description: "Make this card bigger\nit is tiny",
+      pagePath: "/students/abc",
+      kind: "BUG",
+      source: "APP",
+    });
+    expect(await prisma.bugReportImage.count({ where: { reportId: id } })).toBe(1);
+    const notes = await prisma.notification.findMany({ where: { type: "BUG_REPORTED" } });
+    expect(notes.map((n) => n.userId).sort()).toEqual([boss.id, second.id].sort());
+    expect(notes[0].href).toBe(`/bugs/${id}`);
+  });
+
+  it("stores good diagnostics", async () => {
+    actor.value = await mentor();
+    const id = filedId(
+      await onScreen({ ...shot(), width: "1061", height: "1084", ratio: "2", theme: "dark", userAgent: MAC_CHROME, marks: "2" })
+    );
+    expect(await prisma.bugReport.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      viewport: "1061×1084 @2x",
+      theme: "dark",
+      userAgent: MAC_CHROME,
+      marks: 2,
+    });
+  });
+
+  it("drops bad diagnostics and still files the report", async () => {
+    actor.value = await mentor();
+    const id = filedId(await onScreen({ ...shot(), theme: "sepia", marks: "9999", width: "abc", height: "900", ratio: "1" }));
+    expect(await prisma.bugReport.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      theme: null,
+      marks: null,
+      viewport: null,
+    });
+  });
+
+  it("takes the build from the environment, never from the form", async () => {
+    vi.stubEnv("RENDER_GIT_COMMIT", "f249b1f0c2d4e5");
+    actor.value = await mentor();
+    const id = filedId(await onScreen({ ...shot(), build: "deadbee" }));
+    expect((await prisma.bugReport.findUniqueOrThrow({ where: { id } })).build).toBe("f249b1f");
+  });
+
+  it("refuses a signed-out call", async () => {
+    actor.value = null;
+    expect(await onScreen(shot())).toEqual({ ok: false, error: "Sign in to do that." });
+    expect(await prisma.bugReport.count()).toBe(0);
+  });
+
+  it.each(["", "  \n \n"])("refuses an empty caption: %j", async (caption) => {
+    actor.value = await mentor();
+    expect(await onScreen({ ...shot(), caption })).toEqual({
+      ok: false,
+      field: "caption",
+      error: "Say what should change.",
+    });
+    expect(await prisma.bugReport.count()).toBe(0);
+  });
+
+  it("refuses a caption over 2000 characters", async () => {
+    actor.value = await mentor();
+    expect(await onScreen({ ...shot(), caption: "c".repeat(2001) })).toMatchObject({ ok: false, field: "caption" });
+    expect(await prisma.bugReport.count()).toBe(0);
+  });
+
+  it("refuses a report with no image", async () => {
+    actor.value = await mentor();
+    expect(await onScreen({ caption: "Make this card bigger" })).toMatchObject({ ok: false });
+    expect(await prisma.bugReport.count()).toBe(0);
+  });
+
+  it("refuses a file labelled PNG whose bytes are HTML", async () => {
+    actor.value = await mentor();
+    const fake = new File(["<script>alert(1)</script>"], "x.png", { type: "image/png" });
+    expect(await onScreen({ ...shot(), screenshot: fake })).toMatchObject({ ok: false });
+    expect(await prisma.bugReport.count()).toBe(0);
+    expect(await prisma.bugReportImage.count()).toBe(0);
+  });
+
+  it("shares the hourly cap with the form", async () => {
+    actor.value = await mentor();
+    for (let i = 0; i < 3; i++) expect((await submit(form(valid))).id).not.toBeNull();
+    for (let i = 0; i < 2; i++) filedId(await onScreen(shot()));
+    expect(await onScreen(shot())).toMatchObject({ ok: false });
+    expect(await prisma.bugReport.count()).toBe(BUG_REPORTS_PER_HOUR);
   });
 });

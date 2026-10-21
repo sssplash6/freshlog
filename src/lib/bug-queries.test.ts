@@ -35,6 +35,11 @@ describe("fixedBugs", () => {
       resolution: "Totals now add up.",
       resolvedAt: new Date(),
       image: true,
+      viewport: "1061×1084 @2x",
+      theme: "dark",
+      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/141.0.0.0",
+      build: "f249b1f",
+      marks: 2,
     });
 
     const rows = await fixedBugs();

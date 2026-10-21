@@ -4,20 +4,21 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import type { ActionState } from "@/lib/actions/shared";
-import { sniffImageType } from "@/lib/avatar";
+import { fileBugReport, HOURLY_CAP_MESSAGE, readScreenshot } from "@/lib/bug-filing";
 import {
   BUG_DESCRIPTION_MAX,
-  BUG_REPORTS_PER_HOUR,
   BUG_RESOLUTION_MAX,
-  BUG_SHOT_MAX_BYTES,
-  BUG_SHOT_MIME_TYPES,
   BUG_SOURCE,
   BUG_STATUS,
   BUG_TITLE_MAX,
+  captionTitle,
   isBugKind,
   isBugStatus,
   isClosingStatus,
+  readDiagnostics,
   sanitizePagePath,
+  shortBuild,
+  type ScreenReportState,
 } from "@/lib/bugs";
 import { isRealDay } from "@/lib/changelog";
 import { NOTIFICATION_TYPES } from "@/lib/constants";
@@ -26,9 +27,6 @@ import { toDateInputValue } from "@/lib/format";
 import { notify } from "@/lib/notify";
 import { prisma } from "@/lib/prisma";
 import { reply, telegramConfigured } from "@/lib/telegram";
-import type { Prisma } from "@/generated/prisma/client";
-
-const HOUR = 60 * 60 * 1000;
 
 /**
  * Report a bug.
@@ -66,62 +64,16 @@ export async function reportBug(
     return { ok: false, field: "description", values, error: `Keep the description under ${BUG_DESCRIPTION_MAX} characters.` };
   }
 
-  let screenshot: Prisma.BugReportImageCreateWithoutReportInput | null = null;
-  const file = formData.get("screenshot");
-  if (file instanceof File && file.size > 0) {
-    if (file.size > BUG_SHOT_MAX_BYTES) {
-      return { ok: false, values, error: `That screenshot is too large (${Math.round(BUG_SHOT_MAX_BYTES / 1024)}KB max).` };
-    }
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const mimeType = sniffImageType(bytes);
-    if (!mimeType || !BUG_SHOT_MIME_TYPES.includes(mimeType as (typeof BUG_SHOT_MIME_TYPES)[number])) {
-      return { ok: false, values, error: "That file isn't a PNG, JPEG, or WebP image." };
-    }
-    screenshot = { bytes, mimeType };
-  }
+  const screenshot = await readScreenshot(formData.get("screenshot"));
+  if (!screenshot.ok) return { ok: false, values, error: screenshot.error };
 
-  const pagePath = sanitizePagePath(formData.get("from"));
-  const since = new Date(Date.now() - HOUR);
-
-  // Counted and written in one transaction, so seven clicks at once cannot all
-  // read "four so far".
-  const created = await prisma.$transaction(async (tx) => {
-    const recent = await tx.bugReport.count({
-      where: { reporterId: actor.id, createdAt: { gte: since } },
-    });
-    if (recent >= BUG_REPORTS_PER_HOUR) return null;
-    return tx.bugReport.create({
-      data: {
-        reporterId: actor.id,
-        reporterRole: actor.role,
-        title,
-        description,
-        pagePath,
-        ...(screenshot ? { image: { create: screenshot } } : {}),
-      },
-      select: { id: true },
-    });
+  const created = await fileBugReport(actor, {
+    title,
+    description,
+    pagePath: sanitizePagePath(formData.get("from")),
+    image: screenshot.image,
   });
-
-  if (!created) {
-    return {
-      ok: false,
-      values,
-      error: `You have sent ${BUG_REPORTS_PER_HOUR} reports in the last hour. Please try again a little later.`,
-    };
-  }
-
-  const admins = await prisma.user.findMany({
-    where: { platformAdmin: true },
-    select: { id: true },
-  });
-  await notify(prisma, {
-    to: admins.map((a) => a.id),
-    type: NOTIFICATION_TYPES.BUG_REPORTED,
-    message: `Bug report: ${title}`,
-    href: `/bugs/${created.id}`,
-    actorId: actor.id,
-  });
+  if (!created) return { ok: false, values, error: HOURLY_CAP_MESSAGE };
 
   // Success is a redirect from HERE, not a state for the form to act on. A
   // `router.push` fired from an effect, or a confirmation held in the form's
@@ -132,6 +84,51 @@ export async function reportBug(
   // survive.
   revalidatePath("/bugs", "layout");
   redirect(`/bugs/${created.id}`);
+}
+
+/**
+ * Report a bug from the screen: a picture of the page with the person's marks
+ * burned in, one caption, and what the browser says about where it was drawn.
+ *
+ * Unlike `reportBug` this answers with a state instead of redirecting, because
+ * the whole point is that the person stays on the page they were reporting.
+ * The overlay holds no form state for a refresh to race: on success it closes
+ * and says so in a toast with a link to the report.
+ *
+ * The same checks as the form, re-derived here because an action is a public
+ * endpoint: the caption's length, the image's real format, the page, the cap.
+ * The picture is required — the overlay always has one, and a caption alone is
+ * what /bugs/new is for. `build` is read from the server's environment, never
+ * from the form.
+ */
+export async function reportOnScreen(
+  _prev: ScreenReportState,
+  formData: FormData
+): Promise<ScreenReportState> {
+  const actor = await getCurrentUser();
+  if (!actor) return { ok: false, error: "Sign in to do that." };
+
+  const caption = String(formData.get("caption") ?? "").trim();
+  if (!caption) return { ok: false, field: "caption", error: "Say what should change." };
+  if (caption.length > BUG_DESCRIPTION_MAX) {
+    return { ok: false, field: "caption", error: `Keep it under ${BUG_DESCRIPTION_MAX} characters.` };
+  }
+
+  const screenshot = await readScreenshot(formData.get("screenshot"));
+  if (!screenshot.ok) return { ok: false, error: screenshot.error };
+  if (!screenshot.image) return { ok: false, error: "Attach a picture of the screen." };
+
+  const created = await fileBugReport(actor, {
+    title: captionTitle(caption),
+    description: caption,
+    pagePath: sanitizePagePath(formData.get("from")),
+    image: screenshot.image,
+    diagnostics: { ...readDiagnostics(formData), build: shortBuild(process.env.RENDER_GIT_COMMIT) },
+  });
+  if (!created) return { ok: false, error: HOURLY_CAP_MESSAGE };
+
+  revalidatePath("/bugs", "layout");
+  return { ok: true, id: created.id };
 }
 
 /**
