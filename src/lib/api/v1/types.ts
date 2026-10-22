@@ -23,7 +23,10 @@ export type ApiRole = "student" | "mentor" | "admin";
  * - `unassigned`: a mentor no program has taken on yet
  * - `no-access`: no role at all, so there is no home to open
  *
- * `null` when it needs nothing.
+ * `null` when it needs nothing, and always when `roles[0]` is "admin": a person
+ * whose first role is admin gets `null` whatever their status or name. So
+ * `null` does not mean the account is ACTIVE, and the app must read
+ * `MeResponse.status` too.
  */
 export type Onboarding = "student-profile" | "mentor-name" | "pending-approval" | "unassigned" | "no-access" | null;
 
@@ -50,7 +53,11 @@ export type MeResponse = {
   /** Ordered; `roles[0]` is the home. Empty when the person has no role at all. */
   roles: ApiRole[];
   platformAdmin: boolean;
-  /** "/api/avatar/<id>?v=<ms>", fetched with the same bearer; null when there is no picture. */
+  /**
+   * "/api/avatar/<id>?v=<ms>"; null when there is no picture. The app cannot
+   * fetch it yet: /api/avatar stays behind the website's cookie check until
+   * Phase 6, so a request that carries only the bearer is sent to /login.
+   */
   avatarPath: string | null;
   /** Unread notifications. */
   unread: number;

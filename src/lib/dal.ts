@@ -20,7 +20,10 @@ import type { User } from "@/generated/prisma/client";
  */
 export const getCurrentUser = cache(async (): Promise<User | null> => {
   // The freshlog app sends a bearer token (src/lib/api/tokens.ts). A request that
-  // carries one is judged by it alone: a bad token never falls back to a cookie.
+  // carries an Authorization header of any kind is judged by its token alone and
+  // never falls back to the cookie: a token that is unknown, revoked or expired
+  // is nobody, and so is a header that isn't "Bearer <token>" (Basic, say), even
+  // with a valid cookie beside it.
   const bearer = bearerFrom((await headers()).get("authorization"));
   if (bearer !== undefined) return bearer ? userForToken(bearer) : null;
 

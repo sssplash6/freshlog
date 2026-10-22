@@ -72,7 +72,9 @@ function onboardingFor(
       return user.status === USER_STATUS.UNASSIGNED ? "unassigned" : null;
     case "admin":
       // An admin is created with a name, and their grants are somebody else's
-      // to give, so there is nothing for them to finish.
+      // to give, so there is nothing for them to finish. That makes it null
+      // whatever their status or name, so null does not mean ACTIVE: the app
+      // reads `status` too (see `Onboarding` in src/lib/api/v1/types.ts).
       return null;
   }
 }
