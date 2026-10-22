@@ -135,8 +135,10 @@ export default async function PartnerPage({
   ]);
 
   // The admin's own page, so a mentor with no name yet is their email — the
-  // public form hides such a mentor; here they have to be findable.
-  const mentorLabel = new Map(mentors.map((m) => [m.id, m.name ?? m.email]));
+  // public form hides such a mentor; here they have to be findable. Trimmed,
+  // as on settings, so a blank name is no name rather than an empty label.
+  const label = (m: { name: string | null; email: string }) => m.name?.trim() || m.email;
+  const mentorLabel = new Map(mentors.map((m) => [m.id, label(m)]));
   const filtered = activeFilterCount(query) > 0;
 
   const standing =
@@ -158,12 +160,14 @@ export default async function PartnerPage({
     { label: "Ratings", align: "right" },
     { label: "Average", align: "right", emphasis: "key" },
   ];
+  // Five columns, not seven. The kind is the first word of About, and the
+  // student's name sits over their email: at seven the table was ~950px of
+  // content in a 736px frame on a tablet, and the frame clips rather than
+  // scrolls, so the comments were cut off unseen.
   const feedbackColumns: Column[] = [
     { label: "Date" },
-    { label: "Kind" },
     { label: "About" },
-    { label: "Name" },
-    { label: "Email" },
+    { label: "Student" },
     { label: "Rating" },
     { label: "Feedback" },
   ];
@@ -195,8 +199,8 @@ export default async function PartnerPage({
             all: "All mentors",
             options: mentors.map((m) => ({
               value: m.id,
-              label: m.name ?? m.email,
-              hint: m.name ? m.email : undefined,
+              label: label(m),
+              hint: m.name?.trim() ? m.email : undefined,
             })),
           },
           {
@@ -286,23 +290,25 @@ export default async function PartnerPage({
                 <Td label="Date" tone="muted" className="whitespace-nowrap">
                   {formatDate(f.createdAt)}
                 </Td>
-                <Td label="Kind" tone="muted">
-                  {f.kind === "MENTOR" ? "Mentor" : "Session"}
-                </Td>
-                <Td label="About" className="whitespace-nowrap">
+                <Td label="About">
                   {f.kind === "MENTOR"
-                    ? ((f.mentorId && mentorLabel.get(f.mentorId)) ?? "—")
+                    ? `Mentor · ${(f.mentorId && mentorLabel.get(f.mentorId)) || "—"}`
                     : `Session ${f.sessionNumber}`}
                 </Td>
-                {/* Name and email keep to one line on a pointer: the comment column
-                    takes the slack (`FILL_CELL`), and an address broken into
-                    four pieces cannot be read back. Stacked on a phone, a long
-                    one may still break. */}
-                <Td label="Name" className="sm:whitespace-nowrap">
-                  {f.name ?? <span className="text-muted-fg">—</span>}
-                </Td>
-                <Td label="Email" tone="muted" className="wrap-anywhere sm:whitespace-nowrap">
-                  {f.studentEmail}
+                {/* Name over email; a mentor rating carries no name, so it is
+                    the email alone. The email may break: it is the one long
+                    unbroken word in the row, and the comment needs the width. */}
+                <Td label="Student" className="sm:max-w-56">
+                  {f.name && <span className="block">{f.name}</span>}
+                  <span
+                    className={
+                      f.name
+                        ? "block text-xs text-muted-fg wrap-anywhere"
+                        : "wrap-anywhere"
+                    }
+                  >
+                    {f.studentEmail}
+                  </span>
                 </Td>
                 <Td label="Rating">
                   <Rating value={f.rating} />
