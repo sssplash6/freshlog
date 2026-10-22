@@ -147,6 +147,16 @@ describe("submitPartnerFeedback", () => {
     expect(await prisma.partnerFeedback.count()).toBe(0);
   });
 
+  it("refuses a mentor still ticked but no longer active", async () => {
+    const p = await passed();
+    const m = await mentor();
+    await partnerMentor(p.id, m.id);
+    await prisma.user.update({ where: { id: m.id }, data: { status: "UNASSIGNED" } });
+    const result = await submitPartnerFeedback("khana", "MENTOR", null, mentorForm(m.id));
+    expect(result).toMatchObject({ ok: false, error: "Pick one of the listed mentors.", field: "mentorId" });
+    expect(await prisma.partnerFeedback.count()).toBe(0);
+  });
+
   it("refuses without a cookie", async () => {
     await passed();
     jar.clear();

@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 
 import type { ActionState } from "@/lib/actions/shared";
 import { normalizeEmail } from "@/lib/actions/shared";
+import { USER_STATUS } from "@/lib/constants";
 import {
   activePartner,
   normalizeSlug,
@@ -102,8 +103,15 @@ export async function submitPartnerFeedback(
   const input = parsed.value;
 
   if (input.kind === "MENTOR") {
-    const offered = await prisma.partnerMentor.findUnique({
-      where: { partnerId_mentorId: { partnerId: partner.id, mentorId: input.mentorId } },
+    // The same question the mentor page asks before it lists anybody: ticked
+    // AND active. A tick outlives a deactivation, so the tick alone would take
+    // a rating the dropdown no longer offers.
+    const offered = await prisma.partnerMentor.findFirst({
+      where: {
+        partnerId: partner.id,
+        mentorId: input.mentorId,
+        mentor: { status: USER_STATUS.ACTIVE },
+      },
     });
     if (!offered) {
       return { ok: false, error: "Pick one of the listed mentors.", field: "mentorId", values };
