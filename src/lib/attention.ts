@@ -24,6 +24,7 @@ import {
   mentorCaseload,
   studentLedger,
   studentsWithHours,
+  type CaseloadStudent,
 } from "@/lib/queries";
 import {
   aboutMe,
@@ -470,34 +471,7 @@ async function mentorAttention(user: User): Promise<Attention> {
       // /settings — not on the page other people read about them.
       s.type === "BOOKING_LINK_MISSING" ? { ...s, href: "/settings" } : s
     ),
-    ...students.flatMap((s) =>
-      studentStatuses(
-        {
-          id: s.profile.id,
-          name: s.profile.user.name,
-          email: s.profile.user.email,
-          accountStatus: s.profile.user.status,
-          telegramUsername: s.profile.telegramUsername,
-          // Deliberately this mentor's own numbers, not the student's total: a
-          // mentor is told about the hours THEY hold, because those are the
-          // ones they can spend. Someone else's expiring allocation is an
-          // admin's row.
-          allottedMinutes: s.allocated,
-          remainingMinutes: s.remaining,
-          forfeitedMinutes: s.expired
-            ? Math.max(0, s.allocated - s.completed - s.missed)
-            : 0,
-          // A bank is not unassigned time: every meeting draws it, whoever holds it.
-          poolMinutes: s.bank ? 0 : (s.pool ?? 0),
-          // Already one grant, so the pair is this row's own remaining and its
-          // own date — the aggregate confusion cannot arise here.
-          expiring: soonestExpiry([s], viewer.now),
-          mentorCount: 1,
-          program: { id: s.program.id, name: s.program.name },
-        },
-        viewer
-      ).map((row) => ({ ...row, href: `/students/${s.profile.id}` }))
-    ),
+    ...students.flatMap((s) => caseloadStatuses(s, viewer)),
     ...sent.flatMap((e) =>
       exchangeStatuses(
         {
@@ -525,6 +499,40 @@ async function mentorAttention(user: User): Promise<Attention> {
     dismissible: true,
   empty: "No active issues.",
   };
+}
+
+/**
+ * What is true of one caseload row, in a mentor's words: the rows
+ * `mentorAttention` lists for it above, and the statuses the freshlog app
+ * (src/lib/api/v1/mentor-home.ts) picks each row's most serious from.
+ */
+export function caseloadStatuses(s: CaseloadStudent, viewer: ViewerContext): Status[] {
+  return studentStatuses(
+    {
+      id: s.profile.id,
+      name: s.profile.user.name,
+      email: s.profile.user.email,
+      accountStatus: s.profile.user.status,
+      telegramUsername: s.profile.telegramUsername,
+      // Deliberately this mentor's own numbers, not the student's total: a
+      // mentor is told about the hours THEY hold, because those are the
+      // ones they can spend. Someone else's expiring allocation is an
+      // admin's row.
+      allottedMinutes: s.allocated,
+      remainingMinutes: s.remaining,
+      forfeitedMinutes: s.expired
+        ? Math.max(0, s.allocated - s.completed - s.missed)
+        : 0,
+      // A bank is not unassigned time: every meeting draws it, whoever holds it.
+      poolMinutes: s.bank ? 0 : (s.pool ?? 0),
+      // Already one grant, so the pair is this row's own remaining and its
+      // own date — the aggregate confusion cannot arise here.
+      expiring: soonestExpiry([s], viewer.now),
+      mentorCount: 1,
+      program: { id: s.program.id, name: s.program.name },
+    },
+    viewer
+  ).map((row) => ({ ...row, href: `/students/${s.profile.id}` }));
 }
 
 /** How long a measured meeting waits to be logged before it stops asking. */
