@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-22
+
+### New
+- **Partner schools can now leave feedback.** Admins set up a partner — Khana is the first — paste in its students' emails and pick its mentors; students open the partner's link, enter their email, and rate a mentor or a session. Every rating is on the partner's page, with filters.
+
 ## 2026-10-21
 
 ### New

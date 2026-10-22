@@ -126,6 +126,7 @@ export const FILTER_PARAMS: readonly string[] = [
   "attendance",
   "kind",
   "rating",
+  "session",
   "category",
   "period",
   "from",
@@ -255,6 +256,7 @@ export type SearchSurface =
   | "mentors"
   | "sessions"
   | "feedback"
+  | "partnerFeedback"
   | "notifications";
 
 /**
@@ -302,6 +304,16 @@ const FEEDBACK_SEARCH: SearchField<Prisma.MentorFeedbackWhereInput>[] = [
   { label: "mentor", where: (q) => ({ mentor: { name: { contains: q } } }) },
 ];
 
+/**
+ * A partner school's feedback names no account, only the address the student
+ * checked in with and, on a session rating, the name they typed. The email is
+ * stored lowercased, so the box's text is lowered to meet it.
+ */
+const PARTNER_FEEDBACK_SEARCH: SearchField<Prisma.PartnerFeedbackWhereInput>[] = [
+  { label: "email", where: (q) => ({ studentEmail: { contains: q.toLowerCase() } }) },
+  { label: "name", where: (q) => ({ name: { contains: q } }) },
+];
+
 const NOTIFICATION_SEARCH: SearchField<Prisma.NotificationWhereInput>[] = [
   { label: "message", where: (q) => ({ message: { contains: q } }) },
 ];
@@ -327,12 +339,24 @@ function searchWhere<W>(fields: SearchField<W>[], q: string): { OR: W[] } | unde
   return q ? { OR: fields.map((f) => f.where(q)) } : undefined;
 }
 
+/**
+ * The partner feedback search, for `partnerFeedbackWhere`. Exported because
+ * that builder lives with the partner queries, and the box's placeholder has
+ * to be generated from the fields it actually looks in.
+ */
+export function partnerFeedbackSearch(
+  q: string
+): { OR: Prisma.PartnerFeedbackWhereInput[] } | undefined {
+  return searchWhere(PARTNER_FEEDBACK_SEARCH, q);
+}
+
 /** What the box searches, in the reader's words, on the box itself. */
 export const SEARCH_PLACEHOLDER: Record<SearchSurface, string> = {
   students: fieldList(STUDENT_SEARCH),
   mentors: fieldList(MENTOR_SEARCH),
   sessions: fieldList(SESSION_SEARCH),
   feedback: fieldList(FEEDBACK_SEARCH),
+  partnerFeedback: fieldList(PARTNER_FEEDBACK_SEARCH),
   notifications: fieldList(NOTIFICATION_SEARCH),
 };
 
@@ -342,6 +366,7 @@ export const SEARCH_LABEL: Record<SearchSurface, string> = {
   mentors: "Find a mentor",
   sessions: "Find a session",
   feedback: "Find a comment",
+  partnerFeedback: "Find a student",
   notifications: "Find a notification",
 };
 
