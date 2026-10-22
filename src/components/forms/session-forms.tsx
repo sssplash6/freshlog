@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { DateField } from "@/components/ui/date-field";
 import { Select } from "@/components/select";
-import { Field, GrowingField, Input } from "@/components/ui/field";
+import { DurationField } from "@/components/ui/duration-field";
+import { Field, GrowingField } from "@/components/ui/field";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -96,7 +97,8 @@ export function SessionRowActions({
 
   function autosave(event: React.FormEvent<HTMLFormElement>) {
     const target = event.target as HTMLInputElement;
-    queueSave(target.name || null);
+    // The duration boxes post as one hidden `minutes`, and say so.
+    queueSave(target.dataset.autosaveField || target.name || null);
   }
 
   function queueSave(field: string | null) {
@@ -226,17 +228,12 @@ export function SessionRowActions({
             )}
 
             <div className="flex gap-2">
-              <Field label="Minutes" className="w-28 shrink-0">
-                <Input
-                  name="minutes"
-                  type="number"
-                  inputMode="numeric"
-                  min="1"
-                  step="1"
-                  required
-                   defaultValue={currentMinutes}
-                />
-              </Field>
+              {/* A div, not a `Field` (a <label>): a label around two boxes
+                  would send every click of the word to the first. */}
+              <div className="w-48 shrink-0 space-y-1.5">
+                <span className="block text-sm font-medium text-ink">How long</span>
+                <DurationField name="minutes" defaultValue={currentMinutes} />
+              </div>
               {/* A div, not a `Field` (a <label>): the date field's trigger is
                   a button, and a label around it would toggle the calendar on
                   every click of the word. Its value is a hidden input, which

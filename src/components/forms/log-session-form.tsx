@@ -11,7 +11,8 @@ import { TimeKindPicker } from "@/components/forms/time-kind-picker";
 import { AlertIcon } from "@/components/icons";
 import { Select, type SelectOption } from "@/components/select";
 import { DateField } from "@/components/ui/date-field";
-import { GrowingField, Input, inputClasses } from "@/components/ui/field";
+import { DurationField } from "@/components/ui/duration-field";
+import { GrowingField, Input } from "@/components/ui/field";
 import { Receipt } from "@/components/ui/receipt";
 import { SaveState, saveStateFrom } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -22,13 +23,6 @@ import { MAX_TASK_LENGTH, NEW_AGENDA_PREFIX, TASK_OTHER, TASK_PRESETS } from "@/
 import { programToday } from "@/lib/when";
 import { RequiredMark } from "@/components/ui/required-mark";
 
-/**
- * `min-h-11` for the same reason `Select` has it: 44px, and the two are
- * side by side. The select declares that height and an input derived its own
- * from padding and an inherited line-height, so the pair agreed only by
- * arithmetic that nobody was checking.
- */
-const inputClass = inputClasses;
 /**
  * Label above control, and the ONE gap between them.
  *
@@ -501,41 +495,21 @@ export function LogSessionForm({
   const minutesField = (
     <div className="block min-w-0 text-sm">
       <label htmlFor={minutesId} className={labelClass}>
-        Minutes
+        How long
         <RequiredMark />
       </label>
-      <div className="relative">
-        {/* Text with a numeric keypad, not `type="number"`: the number input
-            drew spinner arrows on focus and took a scroll-wheel nudge as an
-            edit. The unit sits in the box, so "90" can only mean minutes. */}
-        <input
-          id={minutesId}
-          name="minutes"
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          // No placeholder. A grey "90" in the box read as a value already
-          // given, and the mentor submitted a form that was then refused.
-          value={minutes}
-          onChange={(event) => setMinutes(event.target.value.replace(/\D/g, ""))}
-          // A pasted "1.5" used to lose its point and become 15 minutes — ten
-          // times what was meant. Anything that is not whole minutes is refused
-          // at the paste instead of being quietly reshaped into a different
-          // number.
-          onPaste={(event) => {
-            const pasted = event.clipboardData.getData("text").trim();
-            if (!/^\d+$/.test(pasted)) event.preventDefault();
-          }}
-          aria-invalid={Boolean(fieldErrors.minutes) || undefined}
-          className={cn(inputClass, "pr-12", fieldErrors.minutes && badInputClass)}
-        />
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-muted-fg"
-        >
-          min
-        </span>
-      </div>
+      {/* Hours and minutes, posted as one total in minutes. Either box may be
+          left empty, so "90" in Minutes alone still means 90. */}
+      <DurationField
+        id={minutesId}
+        name="minutes"
+        value={minutes}
+        onChange={(total) => {
+          setMinutes(total);
+          touched({ minutes: total });
+        }}
+        invalid={Boolean(fieldErrors.minutes)}
+      />
       {/* The lengths a mentor actually logs, one tap each. Most sessions are
           one of these four, and typing them on a phone keypad every week is
           the slowest part of the form. */}
@@ -818,6 +792,9 @@ export function LogSessionForm({
       onChange={(event) => {
         const target = event.target as unknown as HTMLInputElement;
         if (target.name === "timeKind") setKind(target.value);
+        // The duration boxes report their own total, which the DOM has not
+        // rendered yet; a draft read now would save the previous one.
+        if (target.dataset?.autosaveField) return;
         touched();
       }}
       // Both shapes sit on a white card. The fields are grey fills, and grey
@@ -908,7 +885,7 @@ function FieldError({ message }: { message?: string }) {
 
 type FieldErrors = Partial<Record<string, string>>;
 
-/** The lengths offered as one-tap answers under Minutes. */
+/** The lengths offered as one-tap answers under How long. */
 const MINUTE_PRESETS = [30, 45, 60, 90] as const;
 
 
@@ -927,7 +904,7 @@ function checkFields(data: FormData): FieldErrors {
   const minutes = text("minutes");
   if (!minutes) errors.minutes = "Enter how long it took.";
   else if (!/^\d+$/.test(minutes) || Number(minutes) < 1) {
-    errors.minutes = "Enter a whole number of minutes, 1 or more.";
+    errors.minutes = "Enter how long it took, 1 minute or more.";
   } else if (Number(minutes) > MAX_SESSION_MINUTES) {
     errors.minutes = `A session is at most ${MAX_SESSION_MINUTES} minutes (24 hours).`;
   }

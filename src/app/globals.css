@@ -927,7 +927,7 @@ body {
 }
 
 /* Only the control that triggered an autosave acknowledges the request. */
-.autosave-editor[data-saving-field="minutes"] input[name="minutes"],
+.autosave-editor[data-saving-field="minutes"] input[data-autosave-field="minutes"],
 .autosave-editor[data-saving-field="date"] input[name="date"],
 .autosave-editor[data-saving-field="note"] textarea[name="note"],
 .autosave-editor[data-saving-field="assignmentId"] select,
