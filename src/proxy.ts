@@ -33,6 +33,7 @@ import { NextRequest, NextResponse } from "next/server";
 // getCurrentUser, except the sign-in routes themselves, auth/token and
 // auth/signout, which say so in their own first-line comments, and auth/dev,
 // whose first line is the dev-login guard (devLoginEnabled).
+// src/app/api/v1/gates.test.ts holds every route there to this.
 const PUBLIC_PATHS = [
   "/login",
   "/unsubscribe",
