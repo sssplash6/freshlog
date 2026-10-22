@@ -12,8 +12,11 @@ const PRINTABLE_ASCII = /^[\x21-\x7e]+$/;
 
 /**
  * The app's own scheme is always allowed. `exp://` is Expo Go's, which is how the
- * app is run against a local server while it is being built: it is allowed only
- * while `API_ALLOW_EXPO_REDIRECTS` is exactly `1`, and nothing deployed sets it.
+ * app is run while it is being built: it is allowed only while
+ * `API_ALLOW_EXPO_REDIRECTS` is exactly `1`, which is set locally, and on
+ * staging only while staging holds sample data; never in production. Expo Go
+ * hands an `exp://` sign-in to whichever project opened the sheet, so no list of
+ * allowed addresses makes it safe: a server that allows it must hold nothing real.
  * Nothing on the web is ever allowed.
  *
  * The address ends up in a `Location` header as it is written, so one with a
