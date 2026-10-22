@@ -22,12 +22,17 @@ import { NextRequest, NextResponse } from "next/server";
 // authorizes on the X-Telegram-Bot-Api-Secret-Token header instead (see its
 // route). Telegram does not follow redirects, so a bounce to /login would
 // silently drop every message from the group.
+//
+// /f is a partner school's feedback form, opened from a Telegram link by
+// students who have no account here; its pages authorize on a signed pass
+// cookie for a listed email instead (src/lib/partner-feedback.ts).
 const PUBLIC_PATHS = [
   "/login",
   "/unsubscribe",
   "/api/email",
   "/api/dev-login",
   "/api/telegram",
+  "/f",
 ];
 
 export default function proxy(req: NextRequest) {

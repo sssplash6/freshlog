@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-22
+
+### New
+- **Feedback from partner schools.** Students of a partner school can leave feedback from a link: they enter their email, and if it is on the school's list they rate a mentor or a class session.
+
 ## 2026-10-21
 
 ### New
