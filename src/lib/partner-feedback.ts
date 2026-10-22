@@ -3,6 +3,7 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { EMAIL_RE, normalizeEmail } from "@/lib/actions/shared";
+import { prisma } from "@/lib/prisma";
 
 /**
  * The pass a partner school's student holds after the email step of a public
@@ -131,4 +132,17 @@ export function parseEmailList(raw: string): { emails: string[]; invalid: string
     (EMAIL_RE.test(email) ? emails : invalid).push(email);
   }
   return { emails, invalid };
+}
+
+/**
+ * The open partner behind a link, or null. An unknown slug and a switched-off
+ * partner are the same answer on purpose: the link does not reveal which exist.
+ * Everything signed or compared afterwards uses the row's slug, not the one
+ * typed in the URL — only stored slugs are guaranteed free of the ":" the MAC
+ * joins on.
+ */
+export async function activePartner(rawSlug: string) {
+  const slug = normalizeSlug(rawSlug);
+  if (!slug) return null;
+  return prisma.feedbackPartner.findFirst({ where: { slug, active: true } });
 }
