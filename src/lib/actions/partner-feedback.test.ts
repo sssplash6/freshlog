@@ -215,3 +215,26 @@ describe("forgetPartnerEmail", () => {
     expect(jar.has("pf_khana")).toBe(false);
   });
 });
+
+describe("submitPartnerFeedback with a kind the browser made up", () => {
+  it("refuses it and writes nothing", async () => {
+    await passed();
+    const result = await submitPartnerFeedback("khana", "X" as "MENTOR", null, sessionForm());
+    expect(result).toEqual(NOT_OPEN);
+    expect(await prisma.partnerFeedback.count()).toBe(0);
+  });
+});
+
+describe("deleting a ticked mentor", () => {
+  it("succeeds and removes the tick, keeping the feedback it rated", async () => {
+    const p = await passed();
+    const m = await mentor();
+    await partnerMentor(p.id, m.id);
+    await submitPartnerFeedback("khana", "MENTOR", null, mentorForm(m.id));
+
+    await prisma.user.delete({ where: { id: m.id } });
+
+    expect(await prisma.partnerMentor.count({ where: { partnerId: p.id } })).toBe(0);
+    expect(await prisma.partnerFeedback.count()).toBe(1);
+  });
+});

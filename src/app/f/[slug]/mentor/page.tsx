@@ -1,4 +1,5 @@
 import { PartnerMentorForm } from "@/components/forms/partner-feedback-forms";
+import { USER_STATUS } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 
 import { BackToChoice } from "../back";
@@ -11,7 +12,7 @@ export default async function PartnerMentorPage({ params }: { params: Promise<{ 
   if (!email) return <EmailStep partner={partner} />;
 
   const ticked = await prisma.partnerMentor.findMany({
-    where: { partnerId: partner.id },
+    where: { partnerId: partner.id, mentor: { status: USER_STATUS.ACTIVE } },
     select: { mentor: { select: { id: true, name: true } } },
   });
   // By name only, and a mentor with none is left out. Not the app's usual

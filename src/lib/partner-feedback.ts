@@ -7,8 +7,9 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * The pass a partner school's student holds after the email step of a public
- * feedback form, and the parsing of what they submit. Pure: no database, no
- * cookies() — the pages and actions own those, so this can be tested alone.
+ * feedback form, and the parsing of what they submit. The pass and the parsing
+ * are pure; the one database read here is `activePartner`. No cookies() — the
+ * pages and actions own those, so the rest can be tested alone.
  *
  * The pass is a cookie, not a session. These students have no account here, so
  * the cookie just remembers "this address was on the list a moment ago". It is
@@ -85,6 +86,8 @@ function fail(field: string, error: string): Parsed {
  * it needs the database — so an unknown id passes here and is refused there.
  */
 export function parseFeedback(kind: "MENTOR" | "SESSION", form: FormData): Parsed {
+  // Fails closed: every check below is guarded by kind, so an unknown one would skip them all.
+  if (kind !== "MENTOR" && kind !== "SESSION") return fail("kind", "This form isn't open.");
   const text = (name: string) => String(form.get(name) ?? "").trim();
 
   const mentorId = text("mentorId");

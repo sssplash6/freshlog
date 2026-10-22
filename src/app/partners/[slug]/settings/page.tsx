@@ -8,7 +8,7 @@ import {
 } from "@/components/forms/partner-settings-forms";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
-import { canActAsMentor, ROLES } from "@/lib/constants";
+import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { requirePlatformAdmin } from "@/lib/dal";
 import { appUrl } from "@/lib/email/send";
 import { normalizeSlug } from "@/lib/partner-feedback";
@@ -49,25 +49,19 @@ export default async function PartnerSettingsPage({
 
   const ticked = new Set(partner.mentors.map((m) => m.mentorId));
 
-  // Every active user who may act as a mentor, plus anyone ticked now who no
-  // longer is — left off the list, a save would untick them without anybody
-  // having chosen to. The role read is wider than `canActAsMentor` so the
-  // flag check stays in one place, the filter below.
+  // Only active users who may act as a mentor: what is listed is what a save
+  // keeps. The role read is wider than `canActAsMentor` so the flag check stays
+  // in one place, the filter below.
   const candidates = await prisma.user.findMany({
     where: {
-      OR: [
-        {
-          status: "ACTIVE",
-          role: { in: [ROLES.MENTOR, ROLES.ADMIN, ROLES.STUDENT] },
-        },
-        { id: { in: [...ticked] } },
-      ],
+      status: USER_STATUS.ACTIVE,
+      role: { in: [ROLES.MENTOR, ROLES.ADMIN, ROLES.STUDENT] },
     },
     orderBy: [{ name: "asc" }, { email: "asc" }],
     select: { id: true, name: true, email: true, role: true, isMentor: true },
   });
   const mentors = candidates
-    .filter((u) => ticked.has(u.id) || canActAsMentor(u))
+    .filter(canActAsMentor)
     .map((u) => ({
       id: u.id,
       // Trimmed the way the public dropdown trims it, so "no name" here means

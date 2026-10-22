@@ -23,7 +23,7 @@ CREATE TABLE "PartnerMentor" (
 
     PRIMARY KEY ("partnerId", "mentorId"),
     CONSTRAINT "PartnerMentor_partnerId_fkey" FOREIGN KEY ("partnerId") REFERENCES "FeedbackPartner" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "PartnerMentor_mentorId_fkey" FOREIGN KEY ("mentorId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "PartnerMentor_mentorId_fkey" FOREIGN KEY ("mentorId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable

@@ -90,6 +90,10 @@ describe("parseFeedback", () => {
   ] as const)("%s %o refuses on %s", (kind, fields, field) => {
     expect(parseFeedback(kind, form(fields))).toMatchObject({ ok: false, field });
   });
+  it("fails closed on a kind it does not know", () => {
+    const fields = { mentorId: "m", sessionNumber: "1", name: "A", rating: "4", comment: "x" };
+    expect(parseFeedback("X" as "MENTOR", form(fields))).toMatchObject({ ok: false });
+  });
   it("uses the spec copy for a missing mentor", () => {
     expect(parseFeedback("MENTOR", form({ rating: "4", comment: "x" }))).toEqual({
       ok: false,

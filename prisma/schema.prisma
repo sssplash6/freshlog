@@ -1342,7 +1342,7 @@ model PartnerMentor {
   mentorId  String
 
   partner FeedbackPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  mentor  User            @relation(fields: [mentorId], references: [id])
+  mentor  User            @relation(fields: [mentorId], references: [id], onDelete: Cascade)
 
   @@id([partnerId, mentorId])
 }

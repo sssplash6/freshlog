@@ -74,6 +74,8 @@ export async function submitPartnerFeedback(
   _prev: ActionState,
   form: FormData
 ): Promise<ActionState> {
+  // `kind` is bound in the browser, so it is the caller's word, not ours.
+  if (kind !== "MENTOR" && kind !== "SESSION") return { ok: false, error: NOT_OPEN };
   const partner = await activePartner(slug);
   if (!partner) return { ok: false, error: NOT_OPEN };
 
