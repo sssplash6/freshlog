@@ -17,4 +17,12 @@ describe("proxy", () => {
     const res = signedOut("/bugs/triage");
     expect(res.headers.get("location")).toBe("https://www.freshlog.net/login");
   });
+
+  it("lets the app's API through without a cookie", () => {
+    expect(signedOut("/api/v1/me").headers.get("location")).toBeNull();
+  });
+
+  it("still sends a look-alike path to the login page", () => {
+    expect(signedOut("/api/v1x").headers.get("location")).toBe("https://www.freshlog.net/login");
+  });
 });

@@ -22,12 +22,17 @@ import { NextRequest, NextResponse } from "next/server";
 // authorizes on the X-Telegram-Bot-Api-Secret-Token header instead (see its
 // route). Telegram does not follow redirects, so a bounce to /login would
 // silently drop every message from the group.
+//
+// /api/v1 is the freshlog app's API. The app carries a bearer token, never a
+// cookie, and every handler checks it on its first line (getCurrentUser), so
+// bouncing it to /login would answer a phone with an HTML page.
 const PUBLIC_PATHS = [
   "/login",
   "/unsubscribe",
   "/api/email",
   "/api/dev-login",
   "/api/telegram",
+  "/api/v1",
 ];
 
 export default function proxy(req: NextRequest) {
