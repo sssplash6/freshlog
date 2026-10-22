@@ -1,4 +1,5 @@
 import type { ActionState } from "@/lib/actions/shared";
+import type { WriteResult } from "@/lib/api/v1/types";
 
 /**
  * The answers /api/v1 gives the freshlog app. Every one is JSON, bar the 204
@@ -61,11 +62,18 @@ export function inactive(): Response {
 }
 
 /**
- * An action's result as the answer. A success is the state, unchanged, so the
- * app shows the sentence the website shows. A refusal is a 400 with its `error`
- * and `field` and nothing else: the `values` it carries are for a web form to
- * refill itself from (`logSession` echoes everything typed, the note included),
- * and the app keeps its own form, so that echo stays on the server.
+ * An action's result as the answer. A success is the contract's `WriteResult`
+ * and nothing more: its `ok`, its `message` (so the app shows the sentence the
+ * website shows) and its `receipt`. Whatever else an action adds is for the
+ * website and stays on the server. `editSession` echoes back the session it
+ * saved, the mentor's note included, and that note is not for everyone who may
+ * edit: the student it is about, even one who also administers the program, is
+ * never shown it. So no route can send an action's echo, whoever calls it.
+ *
+ * A refusal is a 400 with its `error` and `field` and nothing else, for the same
+ * reason: the `values` it carries are for a web form to refill itself from
+ * (`logSession` echoes everything typed, the note included), and the app keeps
+ * its own form.
  *
  * `null` is the state before anything was submitted (see `ActionState`). An
  * action that finishes with it has not said what happened, which is the
@@ -76,5 +84,6 @@ export function fromAction(state: ActionState): Response {
     return json({ ok: false, error: "Something went wrong. Try again." }, 500);
   }
   if (!state.ok) return refused(state.error, 400, { field: state.field });
-  return json(state, 200);
+  const { message, receipt } = state;
+  return json({ ok: true, message, receipt } satisfies WriteResult, 200);
 }

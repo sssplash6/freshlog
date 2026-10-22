@@ -44,9 +44,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
  * A note the body leaves out is kept from the row itself, never from what the
  * person was shown: a student who also administers the program may edit their
  * own session and is shown no note, so filling it from that would erase the
- * mentor's. The stored note goes to the action and no further: the answer is the
- * action's sentence alone, because the session the action echoes back carries
- * the note it saved.
+ * mentor's. The stored note goes to the action and no further: `fromAction`
+ * answers the action's sentence alone, and the session the action echoes back,
+ * which carries the note it saved, is not sent.
  */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
@@ -60,6 +60,5 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const asked = editOf(body);
   if ("field" in asked) return refused("That isn't a valid value.", 400, { field: asked.field });
   const row = await prisma.session.findUnique({ where: { id: session.id }, select: { note: true } });
-  const state = await editSession(null, editForm(session, asked.edit, row?.note ?? null));
-  return fromAction(state?.ok ? { ok: true, message: state.message } : state);
+  return fromAction(await editSession(null, editForm(session, asked.edit, row?.note ?? null)));
 }
