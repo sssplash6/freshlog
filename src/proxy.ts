@@ -40,9 +40,9 @@ const PUBLIC_PATHS = [
  * way it is stored. Or null when `pathname` is already that spelling, or is
  * not a partner link.
  *
- * The pages would render /f/KHANA anyway (activePartner normalises), but the
- * pass cookie is set on path /f/khana and browsers match cookie paths
- * case-sensitively. A student on /f/KHANA would check in, never send the
+ * The pages would render /f/CANA anyway (activePartner normalises), but the
+ * pass cookie is set on path /f/cana and browsers match cookie paths
+ * case-sensitively. A student on /f/CANA would check in, never send the
  * cookie back, and be shown the email step forever. Done here rather than in
  * the page so it is a real 307: under the root loading boundary, a page's
  * redirect() arrives after the 200 has been sent.

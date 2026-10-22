@@ -34,7 +34,7 @@ export function passCookieName(slug: string): string {
 
 /**
  * The slug is inside the MAC, not only the cookie name: a cookie copied from
- * `pf_khana` to `pf_other` carries a signature made for the wrong slug and is
+ * `pf_cana` to `pf_other` carries a signature made for the wrong slug and is
  * refused. Without it the name would be the only thing keeping partners apart.
  */
 function mac(slug: string, email: string, expiresAtMs: number): string {

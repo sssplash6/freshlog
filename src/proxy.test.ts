@@ -14,8 +14,8 @@ describe("proxy", () => {
   });
 
   it("lets a partner's student reach the feedback form without a session", () => {
-    expect(signedOut("/f/khana").headers.get("location")).toBeNull();
-    expect(signedOut("/f/khana/mentor").headers.get("location")).toBeNull();
+    expect(signedOut("/f/cana").headers.get("location")).toBeNull();
+    expect(signedOut("/f/cana/mentor").headers.get("location")).toBeNull();
   });
 
   // The prefix is "/f" exactly or "/f/…" — not every path that starts with an f.
@@ -27,13 +27,13 @@ describe("proxy", () => {
   // The pass cookie's path is the stored, lowercase slug; any other spelling
   // of the link would never get it back.
   it("sends a partner link spelt any other way to its stored spelling", () => {
-    expect(signedOut("/f/KHANA/mentor").headers.get("location")).toBe(
-      "https://www.freshlog.net/f/khana/mentor"
+    expect(signedOut("/f/CANA/mentor").headers.get("location")).toBe(
+      "https://www.freshlog.net/f/cana/mentor"
     );
-    expect(signedOut("/f/%20Khana").headers.get("location")).toBe(
-      "https://www.freshlog.net/f/khana"
+    expect(signedOut("/f/%20Cana").headers.get("location")).toBe(
+      "https://www.freshlog.net/f/cana"
     );
-    expect(signedOut("/f/khana/session").headers.get("location")).toBeNull();
+    expect(signedOut("/f/cana/session").headers.get("location")).toBeNull();
   });
 
   it("still sends a signed-out visitor to /login", () => {

@@ -4,18 +4,18 @@ Date: 2026-10-22.
 
 ## Why
 
-Freshman Academy teaches SAT classes together with Khana, a partner school.
-Khana's students are not Freshform users — no account, no enrollment, no hours —
+Freshman Academy teaches SAT classes together with Cana, a partner school.
+Cana's students are not Freshform users — no account, no enrollment, no hours —
 but the school wants their feedback on the mentors who teach them and on each
 class session, and wants to read it in Freshform next to everything else.
 
-Khana is the first such partner, not the last, so the feature is generic: a
+Cana is the first such partner, not the last, so the feature is generic: a
 **partner** is a named, slugged form with its own email list, its own mentors and
-its own feedback. Khana is `/f/khana`.
+its own feedback. Cana is `/f/cana`.
 
 ## Goal
 
-A Khana student opens a link they were sent, types their email, and — if it is
+A Cana student opens a link they were sent, types their email, and — if it is
 on the list — rates a mentor or a session in under a minute, without signing in.
 A platform admin reads every rating in one place, filtered any way they need.
 
@@ -24,7 +24,7 @@ A platform admin reads every rating in one place, filtered any way they need.
 | Question | Decision |
 |---|---|
 | Who the students are | **Outsiders known only by email.** An allow-list per partner, pasted in by an admin. Not `User`, not `StudentProfile`. |
-| Khana-only or generic | **Generic partners.** Khana is one row. |
+| Cana-only or generic | **Generic partners.** Cana is one row. |
 | How students reach it | **A deep link** on the existing domain: `/f/[slug]`, plus `/f/[slug]/mentor` and `/f/[slug]/session` that skip the choice. No subdomain, nothing in the sidebar or any nav. |
 | How the email is checked | **Match only.** No emailed code. The page never reveals whether *other* emails exist beyond answering for the one typed, and never shows past feedback. |
 | Mentor-wise: which mentors | **Freshform mentor accounts an admin picks per partner.** |
@@ -44,7 +44,7 @@ feedback in the AGENTS.md sense.
 model FeedbackPartner {
   id        String   @id @default(cuid())
   slug      String   @unique // the deep link: /f/<slug>; lowercase a–z, 0–9, "-"
-  name      String           // "Khana"
+  name      String           // "Cana"
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
@@ -104,7 +104,7 @@ probed for "exists but off".
 
 1. **Email.** One field, "Your email". On submit the server action normalises it
    and looks it up in that partner's list.
-   - Not on the list: "This email isn't on the list for Khana. Check the address,
+   - Not on the list: "This email isn't on the list for Cana. Check the address,
      or ask your coordinator to add it." The form stays filled.
    - On the list: a cookie `pf_<slug>` is set, holding the email and an expiry
      (12 hours), HMAC-signed with the app secret the way unsubscribe tokens are
@@ -173,9 +173,9 @@ Action tests (the existing `src/test/db.ts` harness):
 - a valid submission stores exactly one row with the right partner;
 - every admin action and page refuses a non-platform-admin.
 
-Then `/verify`: create Khana, paste emails, tick a mentor, submit both kinds on
-a phone-width viewport, read and filter them on `/partners/khana`.
+Then `/verify`: create Cana, paste emails, tick a mentor, submit both kinds on
+a phone-width viewport, read and filter them on `/partners/cana`.
 
 ## Changelog
 
-One `### New` entry for admins: partner feedback forms, starting with Khana.
+One `### New` entry for admins: partner feedback forms, starting with Cana.

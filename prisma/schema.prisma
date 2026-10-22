@@ -1312,7 +1312,7 @@ model MeetDraft {
 model FeedbackPartner {
   id        String   @id @default(cuid())
   slug      String   @unique // the deep link: /f/<slug>; lowercase a-z, 0-9, "-"
-  name      String // "Khana"
+  name      String // "Cana"
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 

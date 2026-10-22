@@ -56,7 +56,7 @@ export function NewPartnerForm() {
             name="name"
             required
             maxLength={80}
-            placeholder="Khana"
+            placeholder="Cana"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -71,7 +71,7 @@ export function NewPartnerForm() {
             name="slug"
             required
             maxLength={40}
-            placeholder="khana"
+            placeholder="cana"
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
             autoCapitalize="none"

@@ -395,8 +395,8 @@ export async function partner(
 ) {
   return prisma.feedbackPartner.create({
     data: {
-      slug: opts.slug ?? `khana-${++seq}`,
-      name: opts.name ?? "Khana",
+      slug: opts.slug ?? `cana-${++seq}`,
+      name: opts.name ?? "Cana",
       active: opts.active ?? true,
     },
   });

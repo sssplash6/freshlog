@@ -7,7 +7,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-22
 
 ### New
-- **Partner schools can now leave feedback.** Admins set up a partner — Khana is the first — paste in its students' emails and pick its mentors; students open the partner's link, enter their email, and rate a mentor or a session. Every rating is on the partner's page, with filters.
+- **Partner schools can now leave feedback.** Admins set up a partner — Cana is the first — paste in its students' emails and pick its mentors; students open the partner's link, enter their email, and rate a mentor or a session. Every rating is on the partner's page, with filters.
 - **Log time in hours and minutes.** When you log or edit a session, How long now has an Hours box and a Minutes box, so 1 h 30 min no longer has to be worked out as 90. Typing minutes alone still works.
 
 ## 2026-10-21

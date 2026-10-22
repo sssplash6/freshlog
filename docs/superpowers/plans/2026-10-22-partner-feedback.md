@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Students of a partner school (Khana first) open `/f/<slug>`, pass an email allow-list, and rate a mentor or a session; platform admins read, filter and configure it under `/partners`.
+**Goal:** Students of a partner school (Cana first) open `/f/<slug>`, pass an email allow-list, and rate a mentor or a session; platform admins read, filter and configure it under `/partners`.
 
 **Architecture:** Four new Prisma tables (`FeedbackPartner`, `PartnerStudent`, `PartnerMentor`, `PartnerFeedback`) with no tie to the ledger or `StudentProfile`. A pure module holds the signed-pass cookie and field parsing; server actions sit on top; public pages under `/f` carry no `AppShell`; admin pages under `/partners` use `AppShell` and `requirePlatformAdmin` on every page and action.
 
@@ -25,11 +25,11 @@
 
 ## Review Focus
 
-1. **A pass for one partner replayed on another** (cookie copied from `pf_khana` to `pf_other`) → refused, because the slug is inside the HMAC. Test in Task 2.
+1. **A pass for one partner replayed on another** (cookie copied from `pf_cana` to `pf_other`) → refused, because the slug is inside the HMAC. Test in Task 2.
 2. **Partner switched off, or the email removed, while a student's 12-hour pass is live** → next submit refused and the student sent back to the email step. Test in Task 3.
 3. **A mentor unticked between page load and submit** (stale dropdown) → `"Pick one of the listed mentors."`, no row. Test in Task 3.
 4. **Messy pasted email lists** — mixed case, duplicates within the paste, ones already listed, blank lines, commas and semicolons, garbage like `bob@` → counts reported exactly (added / already there / invalid), nothing invalid stored. Test in Task 4.
-5. **Slug typed with spaces or capitals, or already taken** (`" Khana "`, `"khana"` twice) → normalized or `"That link is already used."`. Test in Task 4.
+5. **Slug typed with spaces or capitals, or already taken** (`" Cana "`, `"cana"` twice) → normalized or `"That link is already used."`. Test in Task 4.
 
 ---
 
@@ -44,7 +44,7 @@
 - Produces: Prisma models `feedbackPartner`, `partnerStudent`, `partnerMentor`, `partnerFeedback`; enum `PartnerFeedbackKind { MENTOR, SESSION }`; fixtures `partner(opts?: { slug?: string; name?: string; active?: boolean }): Promise<FeedbackPartner>`, `partnerEmail(partnerId: string, email: string): Promise<PartnerStudent>`, `partnerMentor(partnerId: string, mentorId: string): Promise<PartnerMentor>`.
 
 - [ ] **Step 1:** Edit the schema; generate the migration with `npx prisma migrate dev --name partner_feedback --create-only` and rename its folder to `20261022120000_partner_feedback` (later than `20261021090000_bug_report_diagnostics`). Read the SQL: four `CREATE TABLE`, the unique on `(partnerId, email)`, the index on `(partnerId, createdAt)`, nothing else.
-- [ ] **Step 2:** In `resetDb()`, delete `partnerFeedback`, `partnerMentor`, `partnerStudent`, `feedbackPartner` (in that order) before `user.deleteMany()`. Add the three fixtures; `partner()` defaults slug `khana-<seq>`, name `"Khana"`, active `true`.
+- [ ] **Step 2:** In `resetDb()`, delete `partnerFeedback`, `partnerMentor`, `partnerStudent`, `feedbackPartner` (in that order) before `user.deleteMany()`. Add the three fixtures; `partner()` defaults slug `cana-<seq>`, name `"Cana"`, active `true`.
 - [ ] **Step 3:** Run `npx prisma migrate dev` then `npm test`. Expected: all existing tests PASS.
 - [ ] **Step 4:** Commit `"Add partner feedback tables"`.
 
@@ -70,23 +70,23 @@
 ```ts
 describe("readPass", () => {
   it("returns the email for a fresh pass", () => {
-    const { value } = signPass("khana", "a@b.uz", NOW);
-    expect(readPass("khana", value, NOW)).toBe("a@b.uz");
+    const { value } = signPass("cana", "a@b.uz", NOW);
+    expect(readPass("cana", value, NOW)).toBe("a@b.uz");
   });
   it("refuses another partner's pass", () => {
-    expect(readPass("other", signPass("khana", "a@b.uz", NOW).value, NOW)).toBeNull();
+    expect(readPass("other", signPass("cana", "a@b.uz", NOW).value, NOW)).toBeNull();
   });
   it("refuses a pass 12 hours and one second old", () => {
-    const { value } = signPass("khana", "a@b.uz", NOW);
-    expect(readPass("khana", value, new Date(NOW.getTime() + 12 * 3600e3 + 1000))).toBeNull();
+    const { value } = signPass("cana", "a@b.uz", NOW);
+    expect(readPass("cana", value, new Date(NOW.getTime() + 12 * 3600e3 + 1000))).toBeNull();
   });
   it("refuses a pass whose email was swapped", () => {
-    const [, exp, mac] = signPass("khana", "a@b.uz", NOW).value.split(".");
+    const [, exp, mac] = signPass("cana", "a@b.uz", NOW).value.split(".");
     const forged = `${Buffer.from("c@d.uz").toString("base64url")}.${exp}.${mac}`;
-    expect(readPass("khana", forged, NOW)).toBeNull();
+    expect(readPass("cana", forged, NOW)).toBeNull();
   });
   it.each([undefined, "", "garbage", "a.b", "a.b.c.d"])("refuses %s", (v) => {
-    expect(readPass("khana", v, NOW)).toBeNull();
+    expect(readPass("cana", v, NOW)).toBeNull();
   });
 });
 
@@ -123,7 +123,7 @@ describe("parseEmailList", () => {
 });
 
 describe("normalizeSlug", () => {
-  it.each([[" Khana ", "khana"], ["sat-2026", "sat-2026"], ["a", null], ["kh ana", null], ["-k", null], ["k".repeat(41), null]])(
+  it.each([[" Cana ", "cana"], ["sat-2026", "sat-2026"], ["a", null], ["kh ana", null], ["-k", null], ["k".repeat(41), null]])(
     "%s → %s", (raw, out) => expect(normalizeSlug(raw)).toBe(out));
 });
 ```
@@ -148,7 +148,7 @@ describe("normalizeSlug", () => {
 
 - [ ] **Step 1: Write the failing tests.** Mock `next/headers` with an in-memory jar (`cookies: async () => ({ get: k => jar.get(k) && { value: jar.get(k) }, set: (k, v) => jar.set(k, v), delete: k => jar.delete(k) })`) and `next/cache` as `bugs.test.ts` does. Cases:
   - `checkPartnerEmail` with `" A@X.uz "` when `a@x.uz` is listed → `{ ok: true }`, `jar` holds `pf_<slug>` and `readPass` of it is `"a@x.uz"`.
-  - unlisted email → `{ ok: false, error: "This email isn't on the list for Khana. Check the address, or ask your coordinator to add it.", field: "email" }`, jar empty.
+  - unlisted email → `{ ok: false, error: "This email isn't on the list for Cana. Check the address, or ask your coordinator to add it.", field: "email" }`, jar empty.
   - inactive partner, unknown slug → both `{ ok: false, error: "This form isn't open." }`.
   - `submitPartnerFeedback` MENTOR with a listed mentor → exactly one `partnerFeedback` row: right `partnerId`, `studentEmail`, `mentorId`, `rating`, `comment`, null `sessionNumber`/`name`.
   - SESSION valid → one row with `sessionNumber`, `name`, null `mentorId`.
@@ -178,7 +178,7 @@ describe("normalizeSlug", () => {
 
 - [ ] **Step 1: Write the failing tests:**
   - every action with a plain `admin()` and with `null` actor → `"Not allowed."`, no write.
-  - `createPartner` with slug `" Khana "` → row with slug `khana`; again with `khana` → `field: "slug"`.
+  - `createPartner` with slug `" Cana "` → row with slug `cana`; again with `cana` → `field: "slug"`.
   - `addPartnerEmails` with `a@x.uz` already listed and paste `"A@x.uz\nb@x.uz, b@x.uz;bob@"` → message `"Added 1. 1 already listed. 1 not valid: bob@."`; rows are exactly `a@x.uz`, `b@x.uz`.
   - `setPartnerMentors` with a mentor id and a student id → only the mentor is stored; a second call with an empty set removes it.
 - [ ] **Step 2:** Run — FAIL. **Step 3:** Implement (`createMany` of new emails after reading existing ones). **Step 4:** Run — PASS. Commit `"Let platform admins set up partner feedback"`.
@@ -241,7 +241,7 @@ Page logic (each page): `activePartner(slug)` or `notFound()`; read the pass fro
 
 - [ ] **Step 1:** Implement the pages and forms; every page's first line is `await requirePlatformAdmin();`.
 - [ ] **Step 2:** Add a test to `src/lib/dal.test.ts`-style or a page test (as `src/app/bugs/page.test.ts`) that `/partners` and `/partners/[slug]` render `notFound` for a plain admin.
-- [ ] **Step 3:** Replace Task 6's `CHANGELOG.md` entry with: "Partner schools can now leave feedback. Admins set up a partner — Khana is the first — paste in its students' emails and pick its mentors; students open the partner's link, enter their email, and rate a mentor or a session. Every rating is on the partner's page, with filters."
+- [ ] **Step 3:** Replace Task 6's `CHANGELOG.md` entry with: "Partner schools can now leave feedback. Admins set up a partner — Cana is the first — paste in its students' emails and pick its mentors; students open the partner's link, enter their email, and rate a mentor or a session. Every rating is on the partner's page, with filters."
 - [ ] **Step 4:** `npm test && npm run lint && npx tsc --noEmit` — all PASS.
-- [ ] **Step 5:** Run `/verify`: sign in as a platform admin, create Khana, paste emails, tick a mentor, open `/f/khana/mentor` and `/f/khana/session` at phone width in a signed-out tab, submit one of each, then filter them on `/partners/khana` by kind, mentor and session.
+- [ ] **Step 5:** Run `/verify`: sign in as a platform admin, create Cana, paste emails, tick a mentor, open `/f/cana/mentor` and `/f/cana/session` at phone width in a signed-out tab, submit one of each, then filter them on `/partners/cana` by kind, mentor and session.
 - [ ] **Step 6:** Commit `"Give platform admins a partner feedback view"` with the changelog entry.
