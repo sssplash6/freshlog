@@ -24,6 +24,18 @@ describe("proxy", () => {
     expect(res.headers.get("location")).toBe("https://www.freshlog.net/login");
   });
 
+  // The pass cookie's path is the stored, lowercase slug; any other spelling
+  // of the link would never get it back.
+  it("sends a partner link spelt any other way to its stored spelling", () => {
+    expect(signedOut("/f/KHANA/mentor").headers.get("location")).toBe(
+      "https://www.freshlog.net/f/khana/mentor"
+    );
+    expect(signedOut("/f/%20Khana").headers.get("location")).toBe(
+      "https://www.freshlog.net/f/khana"
+    );
+    expect(signedOut("/f/khana/session").headers.get("location")).toBeNull();
+  });
+
   it("still sends a signed-out visitor to /login", () => {
     const res = signedOut("/bugs/triage");
     expect(res.headers.get("location")).toBe("https://www.freshlog.net/login");

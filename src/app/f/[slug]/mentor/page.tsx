@@ -12,12 +12,17 @@ export default async function PartnerMentorPage({ params }: { params: Promise<{ 
 
   const ticked = await prisma.partnerMentor.findMany({
     where: { partnerId: partner.id },
-    select: { mentor: { select: { id: true, name: true, email: true } } },
+    select: { mentor: { select: { id: true, name: true } } },
   });
-  // The name the rest of the app prints for a mentor, the email where they
-  // never gave one.
+  // By name only, and a mentor with none is left out. Not the app's usual
+  // `name ?? email`: this page is public, and a staff address has no place on
+  // it. A blank Google name is stored as null, and an invited mentor who never
+  // signed in may have none.
   const mentors = ticked
-    .map(({ mentor }) => ({ id: mentor.id, label: mentor.name ?? mentor.email }))
+    .flatMap(({ mentor }) => {
+      const label = mentor.name?.trim();
+      return label ? [{ id: mentor.id, label }] : [];
+    })
     .sort((a, b) => a.label.localeCompare(b.label));
 
   return (

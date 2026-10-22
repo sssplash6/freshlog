@@ -35,8 +35,41 @@ const PUBLIC_PATHS = [
   "/f",
 ];
 
+/**
+ * The one spelling of a partner's link: its slug trimmed and lowercased, the
+ * way it is stored. Or null when `pathname` is already that spelling, or is
+ * not a partner link.
+ *
+ * The pages would render /f/KHANA anyway (activePartner normalises), but the
+ * pass cookie is set on path /f/khana and browsers match cookie paths
+ * case-sensitively. A student on /f/KHANA would check in, never send the
+ * cookie back, and be shown the email step forever. Done here rather than in
+ * the page so it is a real 307: under the root loading boundary, a page's
+ * redirect() arrives after the 200 has been sent.
+ */
+function canonicalPartnerPath(pathname: string): string | null {
+  const link = /^\/f\/([^/]+)(\/.*)?$/.exec(pathname);
+  if (!link) return null;
+  const [, raw, rest = ""] = link;
+  let slug: string;
+  try {
+    slug = encodeURIComponent(decodeURIComponent(raw).trim().toLowerCase());
+  } catch {
+    return null; // A malformed escape is the page's 404 to give, not ours.
+  }
+  return slug && slug !== raw ? `/f/${slug}${rest}` : null;
+}
+
 export default function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  const canonical = canonicalPartnerPath(pathname);
+  if (canonical) {
+    const url = req.nextUrl.clone();
+    url.pathname = canonical;
+    return NextResponse.redirect(url);
+  }
+
   const hasSessionCookie =
     req.cookies.has("authjs.session-token") ||
     req.cookies.has("__Secure-authjs.session-token");
