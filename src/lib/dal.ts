@@ -1,8 +1,10 @@
 import "server-only";
 
 import { cache } from "react";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
+import { bearerFrom, userForToken } from "@/lib/api/tokens";
 import { auth } from "@/lib/auth";
 import { adminScope, scopeCovers, scopeIsEmpty } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -17,6 +19,11 @@ import type { User } from "@/generated/prisma/client";
  * immediately.
  */
 export const getCurrentUser = cache(async (): Promise<User | null> => {
+  // The freshlog app sends a bearer token (src/lib/api/tokens.ts). A request that
+  // carries one is judged by it alone: a bad token never falls back to a cookie.
+  const bearer = bearerFrom((await headers()).get("authorization"));
+  if (bearer !== undefined) return bearer ? userForToken(bearer) : null;
+
   const session = await auth();
   const id = session?.user?.id;
   if (!id) return null;
