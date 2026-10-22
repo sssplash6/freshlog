@@ -89,3 +89,209 @@ export type SampleAccount = { email: string; name: string | null; role: string; 
  * (the account is not ACTIVE yet).
  */
 export type ApiRefusal = { ok: false; error: string; field?: string; code?: string };
+
+/** A person as a row names them: `name` is their name, or their email when they have none. */
+export type PersonRef = { id: string; name: string };
+/** A student: `id` is the StudentProfile.id, which is how every form addresses them; `userId` is the User.id. */
+export type StudentRef = { id: string; userId: string; name: string };
+/** `colorIndex` is the program's dot. */
+export type ProgramRef = { id: string; name: string; colorIndex: number };
+export type Attendance = "ATTENDED" | "LATE" | "ABSENT" | "RESCHEDULED";
+/** PLAN draws the student's hours down; EXTRA is given on top and charges nothing. */
+export type TimeKind = "PLAN" | "EXTRA";
+export type SessionState = "ACTIVE" | "VOIDED" | "RESCHEDULED";
+export type StudentAnswer = "CONFIRMED" | "DISPUTED";
+
+/** One session, as the person reading it may see it. Lists and the single read answer the same shape. */
+export type ApiSession = {
+  id: string;
+  /** "YYYY-MM-DD", the Tashkent day it was logged for. */
+  day: string;
+  minutes: number;
+  attendance: Attendance;
+  kind: TimeKind;
+  state: SessionState;
+  /** It draws the student's hours down: ACTIVE and in the plan (no-shows included). */
+  charged: boolean;
+  /** What the student said; null while they haven't answered. */
+  answer: StudentAnswer | null;
+  /** The student's words: to the student, always; to anyone else, only on a dispute. */
+  answerNote: string | null;
+  /** The student is being asked to confirm it: ACTIVE, in the plan, unanswered, at most 30 days old. */
+  needsAnswer: boolean;
+  student: StudentRef;
+  mentor: PersonRef;
+  program: ProgramRef;
+  /** The plan item it went toward. */
+  task: { id: string; purpose: string } | null;
+  /** What the mentor wrote. Always null for the student. */
+  note: string | null;
+  /** What the reader may do with it, by the same rules the actions enforce. */
+  can: { edit: boolean; void: boolean; restore: boolean; answer: boolean };
+};
+
+/** GET /api/v1/sessions: the query, every field optional. */
+export type SessionsQuery = {
+  /** `nextCursor` from the page before. */
+  cursor?: string;
+  /** 1 to 100; 25 when left out or out of range. */
+  limit?: string;
+  /** A mentor's list only: one student (StudentProfile.id). */
+  student?: string;
+  program?: string;
+  /** `week` is the Tashkent week from Monday. */
+  period?: "week" | "30d" | "90d" | "year";
+  status?: "active" | "voided";
+  /** `needed`: the student is being asked to confirm it. `disputed`: the student disputed it, and it isn't voided. */
+  answer?: "needed" | "disputed";
+  /** A mentor's list only: the note, the plan item, the student's name. */
+  q?: string;
+};
+
+/** A page of the reader's sessions, newest first, with figures for the whole filter. */
+export type SessionsPage = {
+  items: ApiSession[];
+  /** null on the last page. */
+  nextCursor: string | null;
+  /** Minutes, over every session the filter matches. */
+  totals: { count: number; charged: number; missed: number; extra: number; voided: number };
+  /** The status chips: the filter without its period, status and answer. */
+  counts: { disputed: number; voided: number };
+  /** The programs the reader's sessions are in, for a program filter. */
+  programs: ProgramRef[];
+};
+
+/** PATCH /api/v1/sessions/:id: only what changes. Anything left out keeps its value. */
+export type SessionEdit = {
+  day?: string;
+  minutes?: number;
+  attendance?: Attendance;
+  kind?: TimeKind;
+  /** null or "" clears it. */
+  note?: string | null;
+  /** A plan item. One a session already has can't be taken off it. */
+  assignmentId?: string;
+};
+/** POST /api/v1/sessions/:id/answer. A dispute needs a note. */
+export type SessionAnswerRequest = { answer: StudentAnswer; note?: string };
+/** What a write answers when it worked: the website's own sentence, and for a log, the session it made (`receipt.id`). */
+export type WriteResult = { ok: true; message?: string; receipt?: { id: string; headline: string; notes: string[] } };
+
+/** GET /api/v1/log-options: who the signed-in mentor can log a session for, and how their hours stand. */
+export type LogOptions = {
+  /** Today in Tashkent: the log sheet's default day, and the latest it allows. */
+  today: string;
+  /** In freshform's order: students with hours left first. */
+  students: LogStudent[];
+  /** The mentor's latest sessions, newest first, one per student and program, at most 8: the quick picks and the usual length. */
+  recent: { studentProfileId: string; programId: string; minutes: number }[];
+};
+export type LogStudent = { id: string; name: string; programs: LogProgram[] };
+export type LogProgram = {
+  program: ProgramRef;
+  /** ready: hours left. none: no hours with this mentor. overdrawn or expired: a log still counts, so the sheet asks first. */
+  state: "ready" | "none" | "overdrawn" | "expired";
+  /** Minutes left with this mentor here, negative when over; null when they hold none. */
+  remaining: number | null;
+  /** Minutes this mentor was given here; null when none. */
+  allocated: number | null;
+  useBy: string | null;
+  /** Plan items this session can go toward. */
+  goals: { id: string; label: string }[];
+};
+/** POST /api/v1/sessions: a session the signed-in mentor held. */
+export type LogSessionRequest = {
+  studentProfileId: string;
+  /** Needed when the student is in more than one of the mentor's programs. */
+  programId?: string;
+  /** "YYYY-MM-DD", today in Tashkent or earlier. */
+  day: string;
+  minutes: number;
+  /** ATTENDED when left out. */
+  attendance?: Attendance;
+  /** PLAN when left out. */
+  kind?: TimeKind;
+  note?: string;
+  /** A plan item from `LogProgram.goals`. */
+  assignmentId?: string;
+};
+
+/** One row of To do: one of freshform's statuses, already in the reader's words. */
+export type TodoRow = {
+  /** Stable across loads: the status type and its subject. */
+  key: string;
+  /** freshform's StatusType. */
+  type: string;
+  severity: "neutral" | "ok" | "attention" | "problem";
+  /** At most four words. */
+  label: string;
+  /** At most twelve words: what to do about it. */
+  explanation: string | null;
+  subject: { kind: "student" | "mentor" | "program" | "task"; id: string; name: string } | null;
+  program: ProgramRef | null;
+  /** How many rows were rolled into this one; null for a single row. */
+  count: number | null;
+  /** The website's page for it. The app opens only its own screens. */
+  href: string | null;
+  /** A session to confirm (SESSION_UNCONFIRMED). */
+  sessionId: string | null;
+  /** A session to log, prefilled (ALLOCATION_EXPIRING, MEETING_TO_LOG). */
+  log: { studentProfileId: string; programId: string | null; minutes: number | null; day: string | null; attendance: Attendance | null } | null;
+};
+/** One student, in one program, that the mentor holds time with, has met, or plans with. freshform's order. */
+export type CaseloadRow = {
+  student: StudentRef;
+  program: ProgramRef;
+  /** Minutes this mentor was given; 0 when none. */
+  allocated: number;
+  /** Minutes left with this mentor, negative when over. */
+  remaining: number;
+  useBy: string | null;
+  /** Days until `useBy`, from today in Tashkent; null without one. */
+  daysLeft: number | null;
+  expired: boolean;
+  /** Unassigned minutes they hold, when this mentor has no grant of their own. */
+  pool: number | null;
+  approved: boolean;
+  /** The most serious of freshform's statuses for this row; null when there is none. */
+  status: { type: string; severity: TodoRow["severity"] } | null;
+  /** How to reach them. */
+  telegram: string | null;
+  email: string;
+};
+/** GET /api/v1/mentor/home. */
+export type MentorHome = {
+  /** `remaining` nets overdraws, as every freshform page sums a balance. `expiring` counts rows whose status is ALLOCATION_EXPIRING. `disputed` counts their sessions a student disputed that aren't voided. */
+  summary: { remaining: number; students: number; expiring: number; disputed: number };
+  todo: TodoRow[];
+  students: CaseloadRow[];
+};
+
+/** One mentor's hours in one program, or the student's hour bank there. */
+export type StudentGrant = {
+  /** null for the hour bank, which every meeting draws. */
+  mentor: PersonRef | null;
+  program: ProgramRef;
+  allocated: number;
+  /** Minutes left, negative when over. */
+  remaining: number;
+  /** Minutes lost when the use-by passed. */
+  forfeited: number;
+  expired: boolean;
+  useBy: string | null;
+  daysLeft: number | null;
+  /** The mentor's booking page for this program, when they have one. */
+  bookingUrl: string | null;
+};
+/** GET /api/v1/student/home. */
+export type StudentHome = {
+  /** Minutes over every grant: given, used, left, lost to expiry, and given on top of the plan. */
+  hours: { allotted: number; used: number; remaining: number; forfeited: number; extra: number };
+  /** The soonest live grant to expire, with only the minutes that expire then. */
+  expiring: { minutes: number; day: string } | null;
+  grants: StudentGrant[];
+  /** freshform's "things to check", in its order. A session to confirm carries its id. */
+  todo: TodoRow[];
+  /** Sessions waiting for their answer. */
+  toConfirm: number;
+};
