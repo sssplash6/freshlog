@@ -13,9 +13,18 @@ import { describe, expect, it } from "vitest";
  * would answer anybody. This reads each route the way the compiler does and
  * holds every exported handler to one of three openings:
  *
- * - `const user = await getCurrentUser();`
+ * - the user gate, which is three statements, exactly:
+ *     const user = await getCurrentUser();
+ *     if (!user) return signInAgain();
+ *     if (user.status !== "ACTIVE") return inactive();
  * - `if (!devLoginEnabled(request)) return …`, about the handler's own request
  * - a place on UNGATED below, under the comment that says why
+ *
+ * The third statement is what keeps an account that isn't active yet out. A
+ * PENDING student and an UNASSIGNED mentor sign in like anyone, `getCurrentUser`
+ * finds them by their token, and no gate in src/lib/dal.ts looks at `status`. A
+ * handler that serves them on purpose opens with the first statement alone and
+ * goes on ANY_STATUS below, with the reason.
  *
  * A handler is written `export async function GET(…)`. One exported any other
  * way (`export const GET = …`, `export { get as GET }`) cannot be read here, so
@@ -34,6 +43,17 @@ const METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIO
 const UNGATED: Record<string, string> = {
   "auth/token POST": "This route is the sign-in itself",
   "auth/signout POST": "This ends a sign-in",
+};
+
+/**
+ * Handlers that open with the user gate but serve accounts that aren't active
+ * yet, and why. The check asks only that they open with `const user = await
+ * getCurrentUser();`; what follows is theirs (auth/start sends a signed-out
+ * request to Google, not back to sign in again).
+ */
+const ANY_STATUS: Record<string, string> = {
+  "me GET": "how a person who isn't active yet learns what they are waiting for",
+  "auth/start GET": "the sign-in itself, which an account that isn't active yet still goes through",
 };
 
 const isExported = (node: ts.HasModifiers) =>
@@ -83,6 +103,51 @@ function isDevGate(statement: ts.Statement, handler: ts.FunctionDeclaration): bo
   );
 }
 
+/** `user`, the name the user gate gives the account. */
+const isUser = (node: ts.Node) => ts.isIdentifier(node) && node.text === "user";
+
+/** `return name();`: that call, with no arguments, and returned. */
+function returnsCall(statement: ts.Statement, name: string): boolean {
+  return (
+    ts.isReturnStatement(statement) &&
+    statement.expression !== undefined &&
+    ts.isCallExpression(statement.expression) &&
+    ts.isIdentifier(statement.expression.expression) &&
+    statement.expression.expression.text === name &&
+    statement.expression.arguments.length === 0
+  );
+}
+
+/** `if (!user) return signInAgain();`, with no else. */
+function isSignedOutGate(statement: ts.Statement): boolean {
+  if (!ts.isIfStatement(statement) || statement.elseStatement) return false;
+  const { expression: test, thenStatement } = statement;
+  return (
+    ts.isPrefixUnaryExpression(test) &&
+    test.operator === ts.SyntaxKind.ExclamationToken &&
+    isUser(test.operand) &&
+    returnsCall(thenStatement, "signInAgain")
+  );
+}
+
+/** `if (user.status !== "ACTIVE") return inactive();`, with no else. */
+function isInactiveGate(statement: ts.Statement): boolean {
+  if (!ts.isIfStatement(statement) || statement.elseStatement) return false;
+  const { expression: test, thenStatement } = statement;
+  return (
+    ts.isBinaryExpression(test) &&
+    test.operatorToken.kind === ts.SyntaxKind.ExclamationEqualsEqualsToken &&
+    ts.isPropertyAccessExpression(test.left) &&
+    // Not `user?.status`: it means the same here, but it is not the line every handler has.
+    test.left.questionDotToken === undefined &&
+    isUser(test.left.expression) &&
+    test.left.name.text === "status" &&
+    ts.isStringLiteral(test.right) &&
+    test.right.text === "ACTIVE" &&
+    returnsCall(thenStatement, "inactive")
+  );
+}
+
 /** The comment right above `node`, without its `//` marks. */
 const commentAbove = (node: ts.Node, source: ts.SourceFile) =>
   (ts.getLeadingCommentRanges(source.text, node.pos) ?? [])
@@ -92,7 +157,8 @@ const commentAbove = (node: ts.Node, source: ts.SourceFile) =>
 /**
  * The handlers that `text`, the route at `where`, exports, and what is wrong
  * with them: a handler exported other than as a function declaration, or one
- * that does not open with a gate.
+ * that does not open with a gate. A user gate that is not on ANY_STATUS must be
+ * followed by the other two statements, in order.
  */
 function check(where: string, text: string): { handlers: string[]; problems: string[] } {
   const source = ts.createSourceFile(`${where}/route.ts`, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
@@ -100,20 +166,32 @@ function check(where: string, text: string): { handlers: string[]; problems: str
   const problems: string[] = [];
   const refuse = (problem: string) => problems.push(`${where}: ${problem}`);
   const declareIt = (name: string) => `write it as \`export async function ${name}(…)\``;
+  const said = (statement: ts.Statement) => statement.getText(source).split("\n")[0];
 
   for (const statement of source.statements) {
     if (ts.isFunctionDeclaration(statement) && statement.name && METHODS.has(statement.name.text) && isExported(statement)) {
       const name = statement.name.text;
       const label = `${where} ${name}`;
       handlers.push(label);
-      const first = statement.body?.statements[0];
+      const body = statement.body?.statements;
+      const first = body?.[0];
       const why = UNGATED[label];
       if (why !== undefined) {
         if (!first || !commentAbove(first, source).startsWith(why)) {
           refuse(`${name} is on UNGATED, so it must open under a comment that starts "${why}"`);
         }
       } else if (!first || !(isUserGate(first) || isDevGate(first, statement))) {
-        refuse(`${name} does not open with a gate: ${first ? first.getText(source).split("\n")[0] : "it is empty"}`);
+        refuse(`${name} does not open with a gate: ${first ? said(first) : "it is empty"}`);
+      } else if (isUserGate(first) && ANY_STATUS[label] === undefined) {
+        const second = body?.[1];
+        const third = body?.[2];
+        if (!second || !isSignedOutGate(second)) {
+          refuse(`${name} must follow the user gate with \`if (!user) return signInAgain();\`, and has: ${second ? said(second) : "nothing"}`);
+        } else if (!third || !isInactiveGate(third)) {
+          refuse(
+            `${name} must follow that with \`if (user.status !== "ACTIVE") return inactive();\`, or be on ANY_STATUS, and has: ${third ? said(third) : "nothing"}`
+          );
+        }
       }
     } else if (ts.isVariableStatement(statement) && isExported(statement)) {
       for (const name of statement.declarationList.declarations.flatMap((declaration) => namesIn(declaration.name))) {
@@ -162,11 +240,17 @@ describe("/api/v1", () => {
   it("lists on UNGATED only handlers that are there", () => {
     expect(Object.keys(UNGATED).filter((label) => !handlers.includes(label))).toEqual([]);
   });
+
+  it("lists on ANY_STATUS only handlers that are there", () => {
+    expect(Object.keys(ANY_STATUS).filter((label) => !handlers.includes(label))).toEqual([]);
+  });
 });
 
 describe("the check itself", () => {
+  const GATE = 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status !== "ACTIVE") return inactive();';
+
   it.each([
-    ["the getCurrentUser gate", "x GET", "export async function GET() {\n  const user = await getCurrentUser();\n  return ok(user);\n}"],
+    ["the full three-statement gate", "x GET", `export async function GET() {\n  ${GATE}\n  return ok(1);\n}`],
     [
       "the dev-login guard",
       "x POST",
@@ -191,6 +275,24 @@ describe("the check itself", () => {
   ])("refuses %s", (_, text) => {
     expect(check("x", text).problems).not.toEqual([]);
   });
+
+  it.each([
+    ["no status check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  return ok(user);'],
+    ["the status check first", 'const user = await getCurrentUser();\n  if (user?.status !== "ACTIVE") return inactive();\n  if (!user) return signInAgain();'],
+    ["another status", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status !== "PENDING") return inactive();'],
+    ["another answer", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status !== "ACTIVE") return ok(null);'],
+    ["another answer to a signed-out request", 'const user = await getCurrentUser();\n  if (!user) return inactive();\n  if (user.status !== "ACTIVE") return inactive();'],
+    ["an answer that is not returned", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status !== "ACTIVE") inactive();'],
+    ["an optional chain in the status check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user?.status !== "ACTIVE") return inactive();'],
+  ])("refuses a user gate with %s", (_, body) => {
+    expect(check("x", `export async function GET() {\n  ${body}\n}`).problems).not.toEqual([]);
+  });
+
+  it("lets an ANY_STATUS handler open with the user gate alone", () =>
+    expect(check("me", "export async function GET() {\n  const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  return ok(user);\n}").problems).toEqual([]));
+
+  it("leaves what follows the user gate to an ANY_STATUS handler, as auth/start needs", () =>
+    expect(check("auth/start", "export async function GET(request: Request) {\n  const user = await getCurrentUser();\n  const url = new URL(request.url);\n  return ok(url);\n}").problems).toEqual([]));
 
   it("lets an ungated handler through only under the comment that says why", () => {
     const token = (comment: string) =>

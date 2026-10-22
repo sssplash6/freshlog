@@ -50,6 +50,24 @@ describe("bearer tokens", () => {
     expect(row.expiresAt).toEqual(at(92 * DAY));
   });
 
+  it("issuing a token clears the tokens that have expired or been ended, and keeps live ones", async () => {
+    const m = await mentor();
+    await issueToken(m.id, null, T0);                                    // expires at 90 days
+    const ended = await issueToken(m.id, null, at(DAY));
+    await revokeToken(ended.token);
+    const live = await issueToken(m.id, null, at(2 * DAY));              // expires at 92 days
+    await issueToken(m.id, null, at(91 * DAY));
+    expect(await prisma.apiToken.count()).toBe(2);
+    expect(await userForToken(live.token, at(91 * DAY))).not.toBeNull();
+  });
+
+  it("issuing a token clears other people's finished tokens too", async () => {
+    const [a, b] = [await mentor(), await mentor()];
+    await issueToken(a.id, null, T0);
+    await issueToken(b.id, null, at(91 * DAY));
+    expect((await prisma.apiToken.findMany()).map((row) => row.userId)).toEqual([b.id]);
+  });
+
   it("reads only a well-formed Bearer header", () => {
     expect(bearerFrom(null)).toBeUndefined();
     expect(bearerFrom("Bearer abc123")).toBe("abc123");
@@ -83,5 +101,21 @@ describe("sign-in codes", () => {
     const m = await mentor();
     const code = await issueSignInCode(m.id, CHALLENGE, APP, T0);
     expect(await redeemSignInCode({ code, verifier: VERIFIER, redirectUri: "freshlog://other" }, T0)).toEqual({ error: CODE_FAILED });
+  });
+
+  it("issuing a code clears the codes that have expired, and only those", async () => {
+    const m = await mentor();
+    await issueSignInCode(m.id, CHALLENGE, APP, T0);                      // expires at 120 s
+    const live = await issueSignInCode(m.id, CHALLENGE, APP, at(60_000)); // expires at 180 s
+    await issueSignInCode(m.id, CHALLENGE, APP, at(150_000));
+    expect(await prisma.apiSignInCode.count()).toBe(2);
+    expect(await redeemSignInCode({ code: live, verifier: VERIFIER, redirectUri: APP }, at(150_000))).toEqual({ userId: m.id });
+  });
+
+  it("issuing a code clears other people's expired codes too", async () => {
+    const [a, b] = [await mentor(), await mentor()];
+    await issueSignInCode(a.id, CHALLENGE, APP, T0);
+    await issueSignInCode(b.id, CHALLENGE, APP, at(150_000));
+    expect((await prisma.apiSignInCode.findMany()).map((row) => row.userId)).toEqual([b.id]);
   });
 });

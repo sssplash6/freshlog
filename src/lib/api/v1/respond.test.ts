@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fromAction, noContent, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, noContent, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 
 describe("respond", () => {
   it("signInAgain is a 401 the app recognises", async () => {
@@ -9,10 +9,21 @@ describe("respond", () => {
     expect(await res.json()).toEqual({ ok: false, error: "Sign in again.", code: "unauthenticated" });
   });
 
+  it("inactive is a 403 the app recognises", async () => {
+    const res = inactive();
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ ok: false, error: "Your account isn't active yet.", code: "inactive" });
+  });
+
   it("fromAction answers an action's refusal with 400 and its own words", async () => {
     const res = fromAction({ ok: false, error: "Student not found.", field: "studentProfileId" });
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ ok: false, error: "Student not found.", field: "studentProfileId" });
+  });
+
+  it("fromAction keeps a refusal's words and field, and not the values it echoed", async () => {
+    const res = fromAction({ ok: false, error: "Pick a valid date.", field: "date", values: { note: "private" } });
+    expect(await res.json()).toEqual({ ok: false, error: "Pick a valid date.", field: "date" });
   });
 
   it("fromAction answers success with 200 and the state unchanged", async () => {
@@ -56,9 +67,9 @@ describe("respond", () => {
   });
 
   it("refused answers with the status, the words, and only the field or code it was given", async () => {
-    const inactive = refused("This account isn't active.", 403, { code: "inactive" });
-    expect(inactive.status).toBe(403);
-    expect(await inactive.json()).toEqual({ ok: false, error: "This account isn't active.", code: "inactive" });
+    const forbidden = refused("This account isn't active.", 403, { code: "inactive" });
+    expect(forbidden.status).toBe(403);
+    expect(await forbidden.json()).toEqual({ ok: false, error: "This account isn't active.", code: "inactive" });
 
     const bad = refused("Pick a date.", 400, { field: "date" });
     expect(bad.status).toBe(400);
@@ -78,6 +89,7 @@ describe("respond", () => {
       noContent(),
       refused("No.", 400),
       signInAgain(),
+      inactive(),
       fromAction({ ok: true }),
       fromAction({ ok: false, error: "No." }),
       fromAction(null),

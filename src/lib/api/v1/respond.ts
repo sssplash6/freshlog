@@ -48,9 +48,24 @@ export function signInAgain(): Response {
   return json({ ok: false, error: "Sign in again.", code: "unauthenticated" }, 401);
 }
 
+/** The words a PENDING or UNASSIGNED account is given; see `inactive`. */
+export const INACTIVE = "Your account isn't active yet.";
+
 /**
- * An action's result as the answer. The state is the body, unchanged, so the app
- * shows the sentence the website shows; a refusal is a 400.
+ * 403 `{ ok: false, error: INACTIVE, code: "inactive" }`: the account is PENDING
+ * or UNASSIGNED. The app asks /me again and shows the waiting screen, so its
+ * `code` is part of the contract with it.
+ */
+export function inactive(): Response {
+  return refused(INACTIVE, 403, { code: "inactive" });
+}
+
+/**
+ * An action's result as the answer. A success is the state, unchanged, so the
+ * app shows the sentence the website shows. A refusal is a 400 with its `error`
+ * and `field` and nothing else: the `values` it carries are for a web form to
+ * refill itself from (`logSession` echoes everything typed, the note included),
+ * and the app keeps its own form, so that echo stays on the server.
  *
  * `null` is the state before anything was submitted (see `ActionState`). An
  * action that finishes with it has not said what happened, which is the
@@ -60,5 +75,6 @@ export function fromAction(state: ActionState): Response {
   if (state === null) {
     return json({ ok: false, error: "Something went wrong. Try again." }, 500);
   }
-  return json(state, state.ok ? 200 : 400);
+  if (!state.ok) return refused(state.error, 400, { field: state.field });
+  return json(state, 200);
 }

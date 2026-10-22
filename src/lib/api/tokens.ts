@@ -48,12 +48,22 @@ export function bearerFrom(header: string | null): string | null | undefined {
   return /^Bearer +(\S+)$/i.exec(header)?.[1] ?? null;
 }
 
-/** A new token for `userId`. Its plain text is in this return value and nowhere else. */
+/**
+ * A new token for `userId`. Its plain text is in this return value and nowhere else.
+ *
+ * Every token that has expired or been ended, whoever's it was, is deleted first.
+ * `userForToken` refuses such a row from that moment, and nothing else would ever
+ * remove it.
+ */
 export async function issueToken(
   userId: string,
   deviceName: string | null,
   now: Date = new Date()
 ): Promise<{ token: string; expiresAt: Date }> {
+  await prisma.apiToken.deleteMany({
+    where: { OR: [{ expiresAt: { lte: now } }, { revokedAt: { not: null } }] },
+  });
+
   const token = newSecret();
   const expiresAt = addDays(now, TOKEN_TTL_DAYS);
   // The clock is the caller's, so the three dates are written here and not left
@@ -110,6 +120,10 @@ export async function revokeToken(token: string): Promise<void> {
 /**
  * A one-time code for `userId`, good for two minutes, and only for the app that
  * sent `challenge` and is waiting at `redirectUri`.
+ *
+ * Every code that has expired, whoever's it was, is deleted first. The Continue
+ * page makes one per view and most are never redeemed, so nothing else would
+ * ever remove them; `redeemSignInCode` refuses such a row from that moment.
  */
 export async function issueSignInCode(
   userId: string,
@@ -117,6 +131,8 @@ export async function issueSignInCode(
   redirectUri: string,
   now: Date = new Date()
 ): Promise<string> {
+  await prisma.apiSignInCode.deleteMany({ where: { expiresAt: { lte: now } } });
+
   const code = newSecret();
   await prisma.apiSignInCode.create({
     data: {
