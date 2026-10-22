@@ -7,7 +7,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-22
 
 ### New
-- **Feedback from partner schools.** Students of a partner school can leave feedback from a link: they enter their email, and if it is on the school's list they rate a mentor or a class session.
+- **Partner schools can now leave feedback.** Admins set up a partner — Khana is the first — paste in its students' emails and pick its mentors; students open the partner's link, enter their email, and rate a mentor or a session. Every rating is on the partner's page, with filters.
 
 ## 2026-10-21
 

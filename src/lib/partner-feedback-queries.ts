@@ -1,6 +1,11 @@
 import "server-only";
 
-import { readDateWindow, readParam, type SearchParams } from "@/lib/filters";
+import {
+  partnerFeedbackSearch,
+  readDateWindow,
+  readParam,
+  type SearchParams,
+} from "@/lib/filters";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -47,8 +52,8 @@ export function readPartnerFilters(
 
 /**
  * Always scoped to one partner. `q` is matched against the stored lowercase
- * email and the session name; SQLite's LIKE (what Prisma's `contains` becomes)
- * ignores ASCII case, and the lowercased `q` covers the email regardless.
+ * email and the session name, through the same field list the search box's
+ * placeholder is generated from (`partnerFeedbackSearch` in lib/filters.ts).
  */
 export function partnerFeedbackWhere(
   partnerId: string,
@@ -65,12 +70,8 @@ export function partnerFeedbackWhere(
       ...(f.to ? { lte: f.to } : {}),
     };
   }
-  if (f.q) {
-    where.OR = [
-      { studentEmail: { contains: f.q.toLowerCase() } },
-      { name: { contains: f.q } },
-    ];
-  }
+  const search = f.q ? partnerFeedbackSearch(f.q) : undefined;
+  if (search) where.OR = search.OR;
   return where;
 }
 
