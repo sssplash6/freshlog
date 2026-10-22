@@ -36,6 +36,10 @@ export async function resetDb() {
   await prisma.telegramMessage.deleteMany();
   await prisma.bugReportImage.deleteMany();
   await prisma.bugReport.deleteMany();
+  await prisma.partnerFeedback.deleteMany();
+  await prisma.partnerMentor.deleteMany();
+  await prisma.partnerStudent.deleteMany();
+  await prisma.feedbackPartner.deleteMany();
   await prisma.user.deleteMany();
   await prisma.cohort.deleteMany();
   await prisma.programLevel.deleteMany();
@@ -384,4 +388,24 @@ export async function bugReport(
         : {}),
     },
   });
+}
+
+export async function partner(
+  opts: { slug?: string; name?: string; active?: boolean } = {}
+) {
+  return prisma.feedbackPartner.create({
+    data: {
+      slug: opts.slug ?? `khana-${++seq}`,
+      name: opts.name ?? "Khana",
+      active: opts.active ?? true,
+    },
+  });
+}
+
+export async function partnerEmail(partnerId: string, email: string) {
+  return prisma.partnerStudent.create({ data: { partnerId, email } });
+}
+
+export async function partnerMentor(partnerId: string, mentorId: string) {
+  return prisma.partnerMentor.create({ data: { partnerId, mentorId } });
 }
