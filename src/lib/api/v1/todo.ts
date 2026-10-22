@@ -50,9 +50,11 @@ export async function programColors(rows: readonly Pick<Status, "program">[]): P
 export function toTodoRow(status: Status & { sessionId?: string }, colors: ProgramColors = new Map()): TodoRow {
   const { subject, program } = status;
   return {
-    // The way a dismissal is keyed (`dismissalKey`), and a rolled-up row, which
-    // has no subject, is told apart by its program.
-    key: `${status.type}:${subject?.id ?? program?.id ?? ""}`,
+    // The app keys its list on this, so no two rows of one answer may share it.
+    // A student whose time runs out in two programs is two rows about one
+    // subject, and a rolled-up row, which has no subject, is told apart by its
+    // program: so the type, the subject and the program, each blank when absent.
+    key: `${status.type}:${subject?.id ?? ""}:${program?.id ?? ""}`,
     type: status.type,
     severity: status.severity,
     label: status.label,

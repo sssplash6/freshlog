@@ -74,8 +74,8 @@ describe("toTodoRow: what the app may do about a row", () => {
     const row = toTodoRow(meeting);
     expect(row.subject).toEqual({ kind: "student", id: "draft1", name: "Aziz" });
     expect(row.log?.studentProfileId).toBe("p1");
-    // The draft is what a dismissal is keyed on, so it is what the row is keyed on.
-    expect(row.key).toBe("MEETING_TO_LOG:draft1");
+    // The draft is the subject, so it is what tells this meeting from the next.
+    expect(row.key).toBe("MEETING_TO_LOG:draft1:");
   });
 
   it("reads a meeting's link for what it holds and no more", () => {
@@ -111,8 +111,8 @@ describe("toTodoRow: what the app may do about a row", () => {
       program: { id: "g1", name: "Global Admissions" },
     });
     expect(row).toMatchObject({ count: 5, subject: null, log: null, sessionId: null });
-    // No subject to name it by, so the program does.
-    expect(row.key).toBe("ALLOCATION_EXPIRING:g1");
+    // No subject, so only the program tells it from the same count in another program.
+    expect(row.key).toBe("ALLOCATION_EXPIRING::g1");
   });
 
   it("gives a row about a session the session to confirm", () => {
@@ -128,18 +128,32 @@ describe("toTodoRow: what the app may do about a row", () => {
 });
 
 describe("toTodoRow: how a row is told apart", () => {
-  it("names a row by its type and its subject, else its program, else nothing", () => {
+  it("names a row by its type, its subject and its program, each left blank when it has none", () => {
     const bare: Status = { type: "GOOGLE_RECONNECT", severity: "attention", kind: "actionable", label: "Google disconnected" };
-    expect(toTodoRow(expiring).key).toBe("ALLOCATION_EXPIRING:p1");
-    expect(toTodoRow({ ...expiring, subject: undefined }).key).toBe("ALLOCATION_EXPIRING:g1");
-    expect(toTodoRow(bare).key).toBe("GOOGLE_RECONNECT:");
+    expect(toTodoRow(expiring).key).toBe("ALLOCATION_EXPIRING:p1:g1");
+    expect(toTodoRow({ ...expiring, subject: undefined }).key).toBe("ALLOCATION_EXPIRING::g1");
+    expect(toTodoRow({ ...expiring, program: undefined }).key).toBe("ALLOCATION_EXPIRING:p1:");
+    expect(toTodoRow(bare).key).toBe("GOOGLE_RECONNECT::");
+  });
+
+  it("two rows about one student in two programs get different keys", () => {
+    // The app keys its list on this, so two rows must never share one. A mentor who
+    // holds time with a student in Global Admissions and in the Master's Program has a
+    // caseload row, and so a row here, for each.
+    const inG1 = toTodoRow({ ...expiring, program: { id: "g1", name: "Global Admissions" } });
+    const inG2 = toTodoRow({ ...expiring, program: { id: "g2", name: "Master's Program" } });
+    expect(inG1.subject).toEqual(inG2.subject);
+    expect(inG1.type).toBe(inG2.type);
+    expect(inG1.key).not.toBe(inG2.key);
+    expect(inG1.key).toBe("ALLOCATION_EXPIRING:p1:g1");
+    expect(inG2.key).toBe("ALLOCATION_EXPIRING:p1:g2");
   });
 });
 
 describe("toTodoRow: what is carried over", () => {
   it("carries freshform's words and nothing that is not in the contract", () => {
     expect(toTodoRow(expiring)).toEqual({
-      key: "ALLOCATION_EXPIRING:p1",
+      key: "ALLOCATION_EXPIRING:p1:g1",
       type: "ALLOCATION_EXPIRING",
       severity: "attention",
       label: "1h expires Oct 26",

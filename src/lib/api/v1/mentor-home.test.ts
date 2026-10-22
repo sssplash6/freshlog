@@ -216,7 +216,7 @@ describe("mentorHomeFor: To do", () => {
     expect(home.todo.map((row) => row.type)).toEqual(theirs.statuses.map((status) => status.type));
 
     expect(home.todo.find((row) => row.type === "ALLOCATION_EXPIRING")).toEqual({
-      key: `ALLOCATION_EXPIRING:${soon.id}`,
+      key: `ALLOCATION_EXPIRING:${soon.id}:${w.p.id}`,
       type: "ALLOCATION_EXPIRING",
       severity: "attention",
       label: expect.stringMatching(/expires/),
@@ -228,6 +228,24 @@ describe("mentorHomeFor: To do", () => {
       sessionId: null,
       log: { studentProfileId: soon.id, programId: w.p.id, minutes: null, day: null, attendance: null },
     });
+  });
+
+  it("gives a student whose time is running out in two programs a row for each, under keys of their own", async () => {
+    const w = await atWork();
+    const other = await program("Master's Program");
+    await pairedWith(w.m, other);
+    const st = await holding(w, { name: "Aziz Tursunov", minutes: 300, endsInDays: 3 });
+    await enroll({ studentId: st.id, programId: other.id });
+    await prisma.hourAllocation.create({
+      data: { studentId: st.id, programId: other.id, mentorId: w.m.id, minutes: 200, deadline: dayIn(2) },
+    });
+
+    const { todo } = await mentorHomeFor(w.m, NOW);
+    const expiring = todo.filter((row) => row.type === "ALLOCATION_EXPIRING");
+    expect(expiring.map((row) => row.subject?.id)).toEqual([st.id, st.id]);
+    expect(expiring.map((row) => row.program?.id).sort()).toEqual([w.p.id, other.id].sort());
+    // The app keys its list on this: no two rows of one answer may share one.
+    expect(new Set(todo.map((row) => row.key)).size).toBe(todo.length);
   });
 
   it("a mentor who also administers gets the mentor's To do, not the staff's", async () => {
