@@ -12,7 +12,8 @@ const CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
  * `start` is where the app's sign-in begins and where Google sends the person
  * back to. A code leaves it only for a person the website has signed in (a
  * request that carries an Authorization header is not one), only for an address
- * on the list, only when the request is whole, and only inside a page the person
+ * on the list, only when the request is whole, only to a browser opening a page
+ * (never to a fetch, a frame or an image), and only inside a page the person
  * taps: it never rides a redirect.
  *
  * `getCurrentUser` is replaced by one that finds whoever `actor` names, however
@@ -65,7 +66,14 @@ const signInAs = async () => {
 const startWithHeader = (authorization: string) =>
   GET(new Request(`http://test/api/v1/auth/start?${QUERY}`, { headers: { authorization } }));
 
-/** What the Continue page must send, written out so a change to the route's headers has to change a test. */
+/** `start()` as a browser sends it, saying what the request is for, or not saying when `dest` is null. */
+const startAs = (dest: string | null) =>
+  GET(new Request(`http://test/api/v1/auth/start?${QUERY}`, { headers: dest === null ? {} : { "sec-fetch-dest": dest } }));
+
+/**
+ * What the Continue page must send, and all it may send, written out so a change
+ * to the route's headers has to change a test.
+ */
 const PAGE_HEADERS = {
   "content-type": "text/html; charset=utf-8",
   "cache-control": "no-store",
@@ -73,7 +81,14 @@ const PAGE_HEADERS = {
     "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
   "x-frame-options": "DENY",
   "referrer-policy": "no-referrer",
+  "cross-origin-opener-policy": "same-origin",
 };
+
+/** Every header an answer carries, by its lowercase name. */
+const headersOf = (res: Response) => Object.fromEntries(res.headers);
+
+/** Status, headers and body: all there is to an answer. */
+const answerOf = async (res: Response) => ({ status: res.status, headers: headersOf(res), body: await res.text() });
 
 const NAMED_REFERENCES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 
@@ -107,7 +122,7 @@ const count = (text: string, part: string) => text.split(part).length - 1;
  */
 async function continuePage(res: Response) {
   expect(res.status).toBe(200);
-  for (const [name, value] of Object.entries(PAGE_HEADERS)) expect(res.headers.get(name), name).toBe(value);
+  expect(headersOf(res), "the page's headers, and no others").toEqual(PAGE_HEADERS);
   const html = await res.text();
   const written = hrefs(html);
   expect(written, "the links on the page").toHaveLength(1);
@@ -118,6 +133,7 @@ describe("GET /api/v1/auth/start", () => {
   it("refuses a redirect that isn't the app's", async () => {
     const res = await start(QUERY.replace(encodeURIComponent("freshlog://auth"), encodeURIComponent("https://evil.example")));
     expect(res.status).toBe(400);
+    expect(headersOf(res)).toEqual({ "cache-control": "no-store", "content-type": "text/plain; charset=utf-8" });
     expect(await res.text()).toBe("This sign-in link isn't for freshlog.");
   });
 
@@ -435,6 +451,21 @@ describe("the page a signed-in person is shown", () => {
     expect(html.indexOf(note)).toBeGreaterThan(html.indexOf("Continue</a>"));
   });
 
+  it("is sent with these six headers and no other, so nothing can move it on (Refresh, Location) or load into it (Link)", async () => {
+    await signInAs();
+    const res = await start();
+    expect(Object.keys(headersOf(res)).sort()).toEqual([
+      "cache-control",
+      "content-security-policy",
+      "content-type",
+      "cross-origin-opener-policy",
+      "referrer-policy",
+      "x-frame-options",
+    ]);
+    expect(headersOf(res)).toEqual(PAGE_HEADERS);
+    for (const name of ["refresh", "location", "link"]) expect(res.headers.has(name), name).toBe(false);
+  });
+
   it("is laid out for a phone's width and read as UTF-8", async () => {
     await signInAs();
     const { html } = await continuePage(await start());
@@ -480,6 +511,32 @@ describe("the page a signed-in person is shown", () => {
     // The code is in the one link and nowhere else on the page.
     expect(count(html, "code=")).toBe(1);
     expect(count(html, "freshlog://")).toBe(1);
+  });
+});
+
+describe("a request the browser says is not for a page", () => {
+  // The code sits in the page's HTML, where script on this site could read it. Script cannot
+  // set Sec-Fetch-Dest, and only a page the browser opens as a page says `document`.
+  it.each(["empty", "iframe", "image"])(
+    "is answered like a link that isn't the app's when it says %s, and no code is made",
+    async (dest) => {
+      await signInAs();
+      const refusedLink = await answerOf(await startWith("redirect_uri", "https://evil.example"));
+      expect(refusedLink.status).toBe(400);
+      expect(await answerOf(await startAs(dest))).toEqual(refusedLink);
+      expect(await prisma.apiSignInCode.count()).toBe(0);
+      expect(signedIn.calls).toEqual([]);
+    }
+  );
+
+  it.each([
+    ["says it is for a page", "document"],
+    ["does not say what it is for, as an older browser does not", null],
+  ])("gets the page and one code when it %s", async (_, dest) => {
+    await signInAs();
+    const { link } = await continuePage(await startAs(dest));
+    expect(link).toMatch(/^freshlog:\/\/auth\?code=[\w-]+&state=s1$/);
+    expect(await prisma.apiSignInCode.count()).toBe(1);
   });
 });
 

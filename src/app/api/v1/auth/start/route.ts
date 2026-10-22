@@ -17,6 +17,8 @@ const NO_STORE = { "Cache-Control": "no-store" };
  * another page (a tap meant for something else would hand over a code). Its
  * policy lets it style itself and nothing more: it loads, runs and submits
  * nothing, and its one link is a navigation, which a policy does not govern.
+ * It is also cut off from whatever window opened it, so script on this site
+ * that opened it cannot read the code off it (see GET, "Why only a page").
  */
 const PAGE_HEADERS = {
   "Content-Type": "text/html; charset=utf-8",
@@ -25,7 +27,18 @@ const PAGE_HEADERS = {
     "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "no-referrer",
+  "Cross-Origin-Opener-Policy": "same-origin",
 };
+
+/**
+ * The answer to a request that is not one the app's sign-in would make: a 400
+ * as plain text, with nothing in it for anyone to act on.
+ */
+const notForFreshlog = () =>
+  new Response("This sign-in link isn't for freshlog.", {
+    status: 400,
+    headers: { ...NO_STORE, "Content-Type": "text/plain; charset=utf-8" },
+  });
 
 /**
  * `uri` with `params` added to its query: after a `?`, or after an `&` when it
@@ -102,7 +115,9 @@ h1{font-size:1.5rem}.who{margin:1.5rem 0;padding:.75rem 0;border-top:1px solid #
  *    challenge, and a state of up to 200 characters) is answered with an error
  *    in the redirect, the way OAuth does, so the sheet closes with a reason.
  *    This comes before Google, so a request that cannot work never leaves.
- * 3. Then the Continue page, or Google.
+ * 3. Then the Continue page, or Google. A signed-in request that the browser
+ *    says is for anything but a page gets the 400 of step 1 instead, and no
+ *    code is made.
  *
  * Why a page and not a redirect. Any app on the phone can claim `freshlog://`,
  * and the challenge is whatever the request carries, so PKCE protects only a
@@ -111,6 +126,23 @@ h1{font-size:1.5rem}.who{margin:1.5rem 0;padding:.75rem 0;border-top:1px solid #
  * unseen. So the code waits for a person who sees which account it is and chooses
  * to go on. RFC 8252 §8.6 asks for that: a request is not processed without the
  * user unless the client's identity can be assured, and a custom scheme cannot.
+ *
+ * Why only a page. The code sits in the page's HTML, on this site's own origin,
+ * where script on the site could read it: fetch this address and read the body,
+ * or open it in a window and read that window. A redirect never showed the
+ * code to anything but the app; the page has to be kept from script by these
+ * two things together:
+ *
+ * - The browser's Sec-Fetch-Dest, which script cannot set. A fetch says
+ *   `empty`, a frame `iframe`, an image `image`, and only a page the browser
+ *   opens as a page says `document`. A request that says anything else is
+ *   refused like a link that isn't the app's, before a code is made. A browser
+ *   too old to send the header is let through, as before.
+ * - Cross-Origin-Opener-Policy: same-origin on the page. Opening a window is a
+ *   navigation, so it says `document` too. The policy puts the page in a
+ *   browsing context group of its own, so the window that opened it loses any
+ *   hold on it. That holds while the opener does not send the same policy, and
+ *   no other page on this site sends one: a page that did would keep its hold.
  *
  * Why an Authorization header is not a session. Signed in means the website's
  * cookie, and the sign-in sheet never sends an Authorization header. A token is
@@ -127,12 +159,7 @@ export async function GET(request: Request) {
   const challenge = url.searchParams.get("code_challenge") ?? "";
   const state = url.searchParams.get("state") ?? "";
 
-  if (!allowedRedirect(redirectUri)) {
-    return new Response("This sign-in link isn't for freshlog.", {
-      status: 400,
-      headers: { ...NO_STORE, "Content-Type": "text/plain; charset=utf-8" },
-    });
-  }
+  if (!allowedRedirect(redirectUri)) return notForFreshlog();
 
   // The state is the app's own check that this answer is to its question, so it
   // is handed back whole or not at all: one that is missing, or too long to
@@ -152,6 +179,10 @@ export async function GET(request: Request) {
   // token is not a website session: only a request with no Authorization header
   // at all counts as signed in here.
   if (user && !request.headers.has("authorization")) {
+    // A page, or a browser that does not say: see "Why only a page" above.
+    const dest = request.headers.get("sec-fetch-dest");
+    if (dest !== null && dest !== "document") return notForFreshlog();
+
     const code = await issueSignInCode(user.id, challenge, redirectUri);
     return continuePage(user, withParams(redirectUri, { code, state }));
   }
