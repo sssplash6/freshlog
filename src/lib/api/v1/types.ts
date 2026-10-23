@@ -223,9 +223,13 @@ export type LogSessionRequest = {
 /** One row of To do: one of freshform's statuses, already in the reader's words. */
 export type TodoRow = {
   /**
-   * Stable across loads and unique in one answer: the status type, its subject
-   * and its program, and for a session to confirm its session as well, since
-   * one mentor may have logged several.
+   * Unique in one answer: the status type, its subject and its program, and for
+   * a session to confirm its session as well, since one mentor may have logged
+   * several, so a row keeps its key from one load to the next. Rows that share
+   * all of that (a student sent to one host program from two of the mentor's
+   * programs) are told apart by a tail, `#2`, `#3` and on, in the list's order:
+   * unique in the answer, but which of them carries which key can change
+   * between loads.
    */
   key: string;
   /** freshform's StatusType. */
@@ -282,9 +286,15 @@ export type MentorHome = {
   students: CaseloadRow[];
 };
 
-/** One mentor's hours in one program, or the student's hour bank there. */
+/**
+ * One mentor's hours in one program, or time there that no mentor holds: the
+ * student's hour bank, or time nobody has been chosen for yet.
+ */
 export type StudentGrant = {
-  /** null for the hour bank, which every meeting draws. */
+  /**
+   * null for time no mentor holds: the hour bank, which every meeting draws, and
+   * time nobody has been chosen for yet. `bank` says which.
+   */
   mentor: PersonRef | null;
   /** The student's hour bank. With no `mentor`, false is time nobody has been chosen for yet. */
   bank: boolean;
@@ -311,7 +321,14 @@ export type StudentHome = {
   /** The soonest live grant to expire, with only the minutes that expire then. */
   expiring: { minutes: number; day: string } | null;
   grants: StudentGrant[];
-  /** freshform's "things to check", in its order. A session to confirm carries its id. */
+  /**
+   * freshform's "things to check" in its order, all of them: the whole list
+   * `studentRows` makes. The website's page thins it before drawing it: it
+   * leaves out an overdue task or agenda item, which it draws in a list of its
+   * own, and the use-by row once the balance shows the date, and it folds every
+   * mentor with no booking link into one row. A session to confirm carries its
+   * id.
+   */
   todo: TodoRow[];
   /** Sessions waiting for their answer. */
   toConfirm: number;
