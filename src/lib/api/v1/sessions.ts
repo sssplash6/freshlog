@@ -82,8 +82,11 @@ export function canRead(reader: Reader, row: Pick<Session, "studentId" | "mentor
   return isStudentOf(reader, row) || row.mentorId === reader.user.id || scopeCovers(reader.read, row.programId);
 }
 
-/** A person as a row names them: their name, or their email when they have none. */
-const nameOf = (person: { name: string | null; email: string }) => person.name ?? person.email;
+/**
+ * A person as a row names them: their name, or their email when they have none.
+ * The contract's naming rule (`PersonRef`), for every answer that names somebody.
+ */
+export const nameOf = (person: { name: string | null; email: string }) => person.name ?? person.email;
 
 /**
  * One session in the contract's shape, as `reader` may be told it.

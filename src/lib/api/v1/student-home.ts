@@ -1,5 +1,6 @@
 import "server-only";
 
+import { nameOf } from "@/lib/api/v1/sessions";
 import { toTodoRows } from "@/lib/api/v1/todo";
 import type { StudentGrant, StudentHome } from "@/lib/api/v1/types";
 import { studentRows } from "@/lib/attention";
@@ -76,9 +77,6 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
     toConfirm: ledger.sessions.filter((session) => isAwaitingAnswer(session, viewer)).length,
   };
 }
-
-/** A person as a row names them: their name, or their email when they have none. */
-const nameOf = (person: { name: string | null; email: string }) => person.name ?? person.email;
 
 /** One mentor in one program. The program is part of it: the same mentor may hold separate time, and a separate link, in two. */
 const pairKey = (programId: string, mentorId: string) => `${programId}:${mentorId}`;

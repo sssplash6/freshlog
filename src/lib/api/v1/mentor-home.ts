@@ -1,6 +1,6 @@
 import "server-only";
 
-import { DISPUTED } from "@/lib/api/v1/sessions";
+import { DISPUTED, nameOf } from "@/lib/api/v1/sessions";
 import { toTodoRows } from "@/lib/api/v1/todo";
 import type { CaseloadRow, MentorHome } from "@/lib/api/v1/types";
 import { attentionFor, caseloadStatuses } from "@/lib/attention";
@@ -68,9 +68,6 @@ export async function mentorHomeFor(user: User, now: Date = new Date()): Promise
     students: rows,
   };
 }
-
-/** A person as a row names them: their name, or their email when they have none. */
-const nameOf = (person: { name: string | null; email: string }) => person.name ?? person.email;
 
 /** One (student, program) row of the caseload, in the contract's words. */
 function toCaseloadRow(s: CaseloadStudent, viewer: ViewerContext): CaseloadRow {
