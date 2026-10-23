@@ -90,6 +90,9 @@ function toCaseloadRow(s: CaseloadStudent, viewer: ViewerContext): CaseloadRow {
     // Unassigned time, which a meeting claims. A bank is not that: every meeting
     // draws it, whoever holds it, so it is not "time to claim".
     pool: s.bank ? null : (s.pool ?? null),
+    // What is left in the bank, which the website's caseload reads from the same
+    // `pool` when the row is a bank.
+    bankLeft: s.bank ? (s.pool ?? 0) : null,
     approved: s.approved,
     status: mostSerious(caseloadStatuses(s, viewer)),
     telegram: profile.telegramUsername,

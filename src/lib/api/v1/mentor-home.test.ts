@@ -134,6 +134,7 @@ describe("mentorHomeFor: the caseload", () => {
         daysLeft: 10,
         expired: false,
         pool: null,
+        bankLeft: null,
         approved: true,
         status: null,
         telegram: "aziz",
@@ -201,6 +202,32 @@ describe("mentorHomeFor: the caseload", () => {
     expect(poolOf(pooled.id)).toBe(90);
     // Every meeting draws a bank, whoever holds it: it is not unassigned.
     expect(poolOf(banked.id)).toBeNull();
+  });
+
+  it("says what an hour bank holds on the bank's own row, and nothing on any other", async () => {
+    const w = await atWork();
+    const granted = await holding(w, { name: "Aziz Tursunov", minutes: 300 });
+    const pooled = await student({ programId: w.p.id, name: "Malika Rahimova" });
+    const banked = await student({ programId: w.p.id, name: "Dilnoza Yusupova" });
+    const overdrawn = await student({ programId: w.p.id, name: "Nigora Qodirova" });
+    const unassigned = (studentId: string, minutes: number, isBank: boolean) =>
+      prisma.hourAllocation.create({
+        data: { studentId, programId: w.p.id, mentorId: null, minutes, deadline: dayIn(60), isBank },
+      });
+    await unassigned(pooled.id, 90, false);
+    await unassigned(banked.id, 120, true);
+    await unassigned(overdrawn.id, 60, true);
+    // Every meeting draws a bank, whoever holds it: 30 of 120, and 90 of 60.
+    await session({ studentId: banked.id, programId: w.p.id, mentorId: w.m.id, minutes: 30, fromBank: true });
+    await session({ studentId: overdrawn.id, programId: w.p.id, mentorId: w.m.id, minutes: 90, fromBank: true });
+
+    const home = await mentorHomeFor(w.m, NOW);
+    const rowOf = (id: string) => home.students.find((row) => row.student.id === id);
+    // The figure the website's caseload shows "in their bank": none of it is this mentor's grant.
+    expect(rowOf(banked.id)).toMatchObject({ bankLeft: 90, allocated: 0, remaining: 0, pool: null });
+    expect(rowOf(overdrawn.id)).toMatchObject({ bankLeft: -30, allocated: 0, remaining: 0, pool: null });
+    expect(rowOf(pooled.id)).toMatchObject({ bankLeft: null, pool: 90 });
+    expect(rowOf(granted.id)).toMatchObject({ bankLeft: null, allocated: 300, remaining: 300 });
   });
 });
 

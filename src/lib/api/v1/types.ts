@@ -260,6 +260,13 @@ export type CaseloadRow = {
   expired: boolean;
   /** Unassigned minutes they hold, when this mentor has no grant of their own. */
   pool: number | null;
+  /**
+   * The minutes left in the student's hour bank, negative when overdrawn, when
+   * this row is the bank; null on any other row. Every meeting draws a bank,
+   * whoever holds it, so a bank row's `allocated` and `remaining` are 0 and its
+   * `pool` is null: none of it is this mentor's grant, and none is unassigned.
+   */
+  bankLeft: number | null;
   approved: boolean;
   /** The most serious of freshform's statuses for this row; null when there is none. */
   status: { type: string; severity: TodoRow["severity"] } | null;
