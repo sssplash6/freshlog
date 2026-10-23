@@ -7,7 +7,10 @@ import { prisma } from "@/lib/prisma";
 // Reads the database and the environment on every request; never prerender.
 export const dynamic = "force-dynamic";
 
-const COOKIE = "authjs.session-token";
+// Auth.js names the cookie (and salts the token with that name) __Secure-… when
+// the site URL is https, so a public demo needs the same name or auth() misses it.
+const SECURE = (process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "").startsWith("https:");
+const COOKIE = `${SECURE ? "__Secure-" : ""}authjs.session-token`;
 const MAX_AGE = 60 * 60 * 8;
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
 
@@ -37,6 +40,8 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
  * anywhere is let in only when it carries `?key=<that value>`. The key rides
  * every link on the list page, so a friend given one URL can move between
  * accounts. Without the variable, the localhost rule above is the only door.
+ * The public demo (fictional data only) is this case with its proxy adding the
+ * key to every request, so a visitor needs no link at all.
  */
 export async function GET(request: Request) {
   if (!enabled(request)) {
@@ -73,7 +78,7 @@ export async function GET(request: Request) {
   const headers = new Headers({ Location: "/", "Cache-Control": "no-store" });
   headers.append(
     "Set-Cookie",
-    `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${MAX_AGE}`
+    `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${MAX_AGE}${SECURE ? "; Secure" : ""}`
   );
   return new Response(null, { status: 303, headers });
 }
@@ -125,5 +130,7 @@ function page(
 <style>body{font:15px/1.5 -apple-system,system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;color:#1a2733}
 h1{font-size:1.5rem}ul{list-style:none;padding:0}li{padding:.5rem 0;border-bottom:1px solid #e5e6e8}
 a{color:#124b84;font-weight:600;text-decoration:none}span{display:block;color:#6b7480;font-size:13px}</style>
-<h1>Sign in as…</h1><p>Local only. Every page still checks this account's real role.</p><ul>${rows}</ul>`;
+<h1>Sign in as…</h1><p>${
+    key ? "Demo accounts, fictional data." : "Local only."
+  } Every page still checks this account's real role.</p><ul>${rows}</ul>`;
 }
