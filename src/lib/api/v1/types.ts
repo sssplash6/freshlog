@@ -153,7 +153,7 @@ export type SessionsPage = {
   items: ApiSession[];
   /** null on the last page. */
   nextCursor: string | null;
-  /** Minutes, over every session the filter matches. */
+  /** Over every session the filter matches: `count` is sessions; the rest are minutes. */
   totals: { count: number; charged: number; missed: number; extra: number; voided: number };
   /** The status chips: the filter without its period, status and answer. */
   counts: { disputed: number; voided: number };

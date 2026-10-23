@@ -251,6 +251,27 @@ describe("sessionsPage: the filters", () => {
     expect(idsOf(await pageOf(reader, { q: "nothing like this" }))).toEqual([]);
   });
 
+  it("a mentor's search never matches their own name", async () => {
+    const { p, aziz, akmal } = await cast();
+    const malika = await pupil(p.id, "Malika Rahimova");
+    const base = { mentorId: akmal.id, programId: p.id };
+    const forAziz = await held({ ...base, studentId: aziz.profile.id, note: "Budget.", date: day("2026-10-20") });
+    const forMalika = await held({ ...base, studentId: malika.profile.id, note: "Visa.", date: day("2026-10-19") });
+
+    const reader = await readerFor(akmal);
+    // Every session on this list has this mentor, so a search that looked at their name would match all of them.
+    for (const q of ["akm", "Akmal", "karimov"]) {
+      const page = await pageOf(reader, { q });
+      expect(idsOf(page), q).toEqual([]);
+      // The figures are for the same search, not for the whole list.
+      expect(page.totals.count, q).toBe(0);
+    }
+    // The student's name is still a way in.
+    expect(idsOf(await pageOf(reader, { q: "aziz" }))).toEqual([forAziz.id]);
+    // And a box with nothing but spaces in it is no search at all.
+    expect(idsOf(await pageOf(reader, { q: "   " }))).toEqual([forAziz.id, forMalika.id]);
+  });
+
   it("narrows by program, in the reader's own sessions only", async () => {
     const ga = await program("Global Admissions");
     const ms = await program("Master's");

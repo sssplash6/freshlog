@@ -20,7 +20,7 @@ import {
   timeKindOf,
   USER_STATUS,
 } from "@/lib/constants";
-import { sessionsWhere, type FilterScope, type SearchParams } from "@/lib/filters";
+import { readParam, sessionsWhere, type FilterScope, type SearchParams } from "@/lib/filters";
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { sessionStatuses } from "@/lib/status";
@@ -269,6 +269,31 @@ const DISPUTED: Prisma.SessionWhereInput = {
   status: { not: SESSION_STATUS.VOIDED },
 };
 
+/**
+ * A mentor's search box over their own list: the note, the plan item and the
+ * student's name. That is the website's `SESSION_SEARCH` (filters.ts) without
+ * its "mentor" field, and the field is left out on purpose.
+ *
+ * Every session on this list is the reader's own, so their name is on all of
+ * them, and a search that looked there would match every row for any text
+ * inside it ("akm" in Akmal Karimov) and the box would not narrow at all. The
+ * website keeps the field, for the people who read everybody's sessions and do
+ * look one mentor up by name. `sessionsWhere` can't be asked to leave one field
+ * out, and filters.ts is the website's search, so the clause is built here. It
+ * is `contains` with no `mode`, as there: SQLite's LIKE is already
+ * case-insensitive for ASCII, and Prisma throws if asked for `mode` on SQLite.
+ */
+const mentorSearch = (q: string): Prisma.SessionWhereInput | null =>
+  q
+    ? {
+        OR: [
+          { note: { contains: q } },
+          { assignment: { purpose: { contains: q } } },
+          { student: { user: { name: { contains: q } } } },
+        ],
+      }
+    : null;
+
 /** One row of the `groupBy` the totals come from. */
 type Group = {
   status: string;
@@ -348,16 +373,18 @@ export async function sessionsPage(
   // `q` searches the mentor's notes, and a student must not learn what those
   // say from what a search matches, so a student's is dropped. `student` is a
   // mentor's way of picking one of theirs; a student has only themselves.
-  const filters: SearchParams = {
-    program: query.program,
-    ...(scope.mentorId !== undefined ? { student: query.student, q: query.q } : {}),
-  };
+  const asMentor = scope.mentorId !== undefined;
+  const filters: SearchParams = { program: query.program, ...(asMentor ? { student: query.student } : {}) };
+  // `readParam` reads the box as the website does: trimmed, at most 200
+  // characters, and nothing at all when it is blank.
+  const search = asMentor ? mentorSearch(readParam({ q: query.q }, "q")) : null;
+  const searched = search ? [search] : [];
   const answer =
     query.answer === "needed" ? awaitingAnswer(now) : query.answer === "disputed" ? DISPUTED : null;
   const narrowed = sessionsWhere({ ...filters, period: query.period, status: query.status }, scope, now);
-  const where: Prisma.SessionWhereInput = { AND: answer ? [narrowed, answer] : [narrowed] };
+  const where: Prisma.SessionWhereInput = { AND: [narrowed, ...searched, ...(answer ? [answer] : [])] };
   // The chips on the status row: the filter without its period, status and answer.
-  const chips = sessionsWhere(filters, scope, now);
+  const chips: Prisma.SessionWhereInput = { AND: [sessionsWhere(filters, scope, now), ...searched] };
 
   const [rows, groups, disputed, voided, programs] = await Promise.all([
     prisma.session.findMany({
