@@ -4,6 +4,7 @@ import { logForm, logOptionsFor } from "@/lib/api/v1/log";
 import { SESSION_STATUS } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { logSessionOptions, mentorCaseload } from "@/lib/queries";
 import { allocation, assignment, DAY, enroll, inDays, mentor, pairing, program, session, student } from "@/test/db";
 
 /**
@@ -60,6 +61,23 @@ describe("logOptionsFor: students", () => {
         ],
       },
     ]);
+  });
+
+  it("lists a student with hours left first, ahead of one with no time whose name comes first, in freshform's order", async () => {
+    const p = await program("Global Admissions");
+    const m = await mentor("Akmal Karimov");
+    await pairing({ mentorId: m.id, programId: p.id });
+    const aziz = await student({ programId: p.id, name: "Aziz Tursunov" });
+    const malika = await student({ programId: p.id, name: "Malika Rahimova" });
+    await allocation({ studentId: malika.id, mentorId: m.id, minutes: 300 });
+
+    const { students } = await logOptionsFor(m);
+    expect(students.map((s) => [s.id, s.programs[0].state])).toEqual([
+      [malika.id, "ready"],
+      [aziz.id, "none"],
+    ]);
+    // The order is the website's picker's, and not one of the app's own.
+    expect(students.map((s) => s.id)).toEqual(logSessionOptions(await mentorCaseload(m.id)).map((o) => o.profileId));
   });
 
   it("leaves out a student nobody has approved", async () => {
