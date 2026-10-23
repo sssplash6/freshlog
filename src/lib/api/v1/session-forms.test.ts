@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { answerForm, answerOf, editForm, editOf } from "@/lib/api/v1/session-forms";
-import type { ApiSession } from "@/lib/api/v1/types";
+import { answerForm, answerOf, editForm, editOf, isMinutes, isOneOf, isText } from "@/lib/api/v1/session-forms";
+import type { ApiSession, TimeKind } from "@/lib/api/v1/types";
 
 /**
  * The actions read every field as `String(formData.get(name) ?? "")`, so what a
@@ -176,6 +176,30 @@ describe("answerForm", () => {
     const form = answerForm("s1", { answer: "CONFIRMED", note: undefined });
     expect([...form.values()]).not.toContain("undefined");
     expect([...form.values()]).not.toContain("null");
+  });
+});
+
+/** The checks every body is held to, an edit's here and a log's in log.ts. */
+describe("the field checks", () => {
+  const values = ["PLAN", "plan", "", 45, 1e999, Number.NaN, null, undefined, ["PLAN"]];
+
+  it("isText takes text, an empty one too, and nothing else", () =>
+    expect(values.map((value) => isText(value))).toEqual([true, true, true, false, false, false, false, false, false]));
+
+  it("isMinutes takes a finite number, and leaves its range to the action", () =>
+    expect(values.map((value) => isMinutes(value))).toEqual([false, false, false, true, false, false, false, false, false]));
+
+  it("isOneOf takes a choice only as the contract spells it", () =>
+    expect(values.map((value) => isOneOf<TimeKind>(["PLAN", "EXTRA"])(value))).toEqual([
+      true, false, false, false, false, false, false, false, false,
+    ]));
+
+  // `tsc` holds these two: an @ts-expect-error with nothing to expect is itself an error.
+  it("isOneOf is typed from the contract: each call names its type, and takes only that type's choices", () => {
+    // @ts-expect-error -- "BONUS" is no TimeKind, so it can't be one of the choices.
+    isOneOf<TimeKind>(["PLAN", "BONUS"]);
+    // @ts-expect-error -- a call that names no type has no choices to take.
+    isOneOf(["PLAN", "EXTRA"]);
   });
 });
 

@@ -1,6 +1,14 @@
 import "server-only";
 
-import type { LogOptions, LogProgram, LogSessionRequest, LogStudent } from "@/lib/api/v1/types";
+import { isMinutes, isOneOf, isText } from "@/lib/api/v1/session-forms";
+import type {
+  Attendance,
+  LogOptions,
+  LogProgram,
+  LogSessionRequest,
+  LogStudent,
+  TimeKind,
+} from "@/lib/api/v1/types";
 import { ATTENDANCE, SESSION_STATUS, TIME_KIND } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -127,20 +135,20 @@ function recentOf(sessions: { studentId: string; programId: string; minutes: num
   return recent;
 }
 
-/** A field of the request, the name `logSession` reads it by, and whether a value of it is the right type. */
+/**
+ * A field of the request, the name `logSession` reads it by, and whether a value
+ * of it is the right type. The checks are the ones an edit's fields pass
+ * (session-forms.ts).
+ */
 type Field = readonly [request: keyof LogSessionRequest, form: string, accepts: (value: unknown) => boolean];
-
-const isText = (value: unknown) => typeof value === "string";
-const isMinutes = (value: unknown) => typeof value === "number" && Number.isFinite(value);
-const oneOf = (values: readonly string[]) => (value: unknown) => typeof value === "string" && values.includes(value);
 
 const FIELDS: readonly Field[] = [
   ["studentProfileId", "studentProfileId", isText],
   ["programId", "programId", isText],
   ["day", "date", isText],
   ["minutes", "minutes", isMinutes],
-  ["attendance", "attendance", oneOf(Object.values(ATTENDANCE))],
-  ["kind", "timeKind", oneOf(Object.values(TIME_KIND))],
+  ["attendance", "attendance", isOneOf<Attendance>(Object.values(ATTENDANCE))],
+  ["kind", "timeKind", isOneOf<TimeKind>(Object.values(TIME_KIND))],
   ["note", "note", isText],
   ["assignmentId", "assignmentId", isText],
 ];

@@ -1,5 +1,12 @@
 import { ATTENDANCE, SESSION_ANSWER, TIME_KIND } from "@/lib/constants";
-import type { ApiSession, SessionAnswerRequest, SessionEdit, StudentAnswer } from "@/lib/api/v1/types";
+import type {
+  ApiSession,
+  Attendance,
+  SessionAnswerRequest,
+  SessionEdit,
+  StudentAnswer,
+  TimeKind,
+} from "@/lib/api/v1/types";
 
 /**
  * A JSON body as the FormData the session actions take.
@@ -12,12 +19,28 @@ import type { ApiSession, SessionAnswerRequest, SessionEdit, StudentAnswer } fro
  * in the address decides whose it is.
  */
 
-/** True for a text. */
-const isText = (value: unknown): value is string => typeof value === "string";
+/*
+ * The checks a body's fields are held to, here and in `logForm` (log.ts): one
+ * set, so every body the app sends a session action is judged alike.
+ */
 
-/** True for one of `choices`, exactly as the contract spells it. */
-const isOneOf =
-  <T extends string>(choices: readonly T[]) =>
+/** True for a text. */
+export const isText = (value: unknown): value is string => typeof value === "string";
+
+/** True for a finite number. JSON has no Infinity, but a number too large for a double parses to one. */
+export const isMinutes = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
+
+/**
+ * True for one of `choices`, exactly as the contract spells it.
+ *
+ * `T` is never taken from the choices (`NoInfer`): it is the contract's type for
+ * the field (`Attendance`, `TimeKind`, `StudentAnswer`), named at the call.
+ * Without one it is `never` and no choice compiles; with one, a choice the
+ * contract doesn't have doesn't compile either, so a value added to
+ * constants.ts and not to the contract is caught here.
+ */
+export const isOneOf =
+  <T extends string = never>(choices: readonly NoInfer<T>[]) =>
   (value: unknown): value is T =>
     isText(value) && (choices as readonly string[]).includes(value);
 
@@ -37,10 +60,9 @@ const isAnswer = isOneOf<StudentAnswer>(Object.values(SESSION_ANSWER));
  */
 const EDIT_FIELDS: { [Field in keyof SessionEdit]-?: (value: unknown) => boolean } = {
   day: isText,
-  // JSON has no Infinity, but a number too large for a double parses to one.
-  minutes: (value) => typeof value === "number" && Number.isFinite(value),
-  attendance: isOneOf(Object.values(ATTENDANCE)),
-  kind: isOneOf(Object.values(TIME_KIND)),
+  minutes: isMinutes,
+  attendance: isOneOf<Attendance>(Object.values(ATTENDANCE)),
+  kind: isOneOf<TimeKind>(Object.values(TIME_KIND)),
   note: (value) => value === null || isText(value),
   assignmentId: isText,
 };
