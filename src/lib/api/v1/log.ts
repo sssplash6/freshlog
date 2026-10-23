@@ -32,8 +32,7 @@ const RECENT_KEPT = 8;
 
 /**
  * Who `user` can log a session for, how many minutes each has to draw on, and
- * their latest sessions by the day they were held, one for each student and
- * program.
+ * their latest sessions by the day they were held, one per student and program.
  *
  * `user` is the mentor, and logging for someone else is Phase 4: the caseload
  * is read as the mentor's own. The route has already asked whether they can act

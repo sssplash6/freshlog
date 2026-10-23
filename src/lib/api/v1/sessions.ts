@@ -93,7 +93,8 @@ export function canRead(reader: Reader, row: Pick<Session, "studentId" | "mentor
 
 /**
  * A person as a row names them: their name, or their email when they have none.
- * The contract's naming rule (`PersonRef`), for every answer that names somebody.
+ * The contract's naming rule (`PersonRef`), by which the session reads and both
+ * homes name people.
  */
 export const nameOf = (person: { name: string | null; email: string }) => person.name ?? person.email;
 
@@ -143,9 +144,10 @@ export function toApiSession(reader: Reader, row: SessionRow, now: Date): ApiSes
     can: {
       edit: corrects && !voided,
       void: corrects && !voided,
-      // And, as `restoreSession` asks, only while the student is still in the
-      // session's own program: voiding is how a student is cleared off one, so a
-      // voided session can outlive the membership it was logged under.
+      // By the same people, and, as `restoreSession` asks, only while the student
+      // is still in the session's own program: voiding is how a student is
+      // cleared off one, so a voided session can outlive the membership it was
+      // logged under.
       restore: corrects && voided && row.student.enrollments.some((e) => e.programId === row.programId),
       // `answerSession`: the student, about a session that still stands.
       answer: isStudent && row.status === SESSION_STATUS.ACTIVE,

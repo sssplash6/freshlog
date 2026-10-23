@@ -26,9 +26,9 @@ async function held() {
 }
 
 /**
- * `daysAgo` days before October 22, 2026: a fixed day, where the fixtures in
- * `@/test/db` count from today, since these tests are about which session is
- * newer and not about how old one is.
+ * `daysAgo` days before October 22, 2026. A fixed day, unlike the fixtures in
+ * `@/test/db`, which count from today: these tests are about which session is
+ * newer, not about how old one is.
  */
 const day = (daysAgo: number) => new Date(Date.UTC(2026, 9, 22) - daysAgo * DAY);
 
