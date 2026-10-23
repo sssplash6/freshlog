@@ -47,7 +47,7 @@ describe("ending a sign-in", () => {
     expect(await userForToken(stranger.token)).not.toBeNull();
   });
 
-  it("keeps the row, with the time it ended, so the sign-in can still be told apart from one that never was", async () => {
+  it("marks the row with the time it ended rather than deleting it, which the next token issued does", async () => {
     const m = await mentor();
     const { token } = await issueToken(m.id, "iPhone");
     await signOut(`Bearer ${token}`);
