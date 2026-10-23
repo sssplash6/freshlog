@@ -113,8 +113,9 @@ describe("POST /api/v1/sessions/:id/restore", () => {
     expect((await stored(s.id)).status).toBe("VOIDED");
   });
 
-  // `can.restore` cannot know this one: voiding is how a student is cleared off
-  // a program, so a voided session can outlive the membership it was logged under.
+  // Voiding is how a student is cleared off a program, so a voided session can
+  // outlive the membership it was logged under. `can.restore` is false for it
+  // (sessions.test.ts), and a restore sent anyway is the action's to refuse.
   it("refuses, in the action's words, a session whose student has left the program", async () => {
     const { st, m, s } = await voided();
     await prisma.studentEnrollment.deleteMany({ where: { studentId: st.id } });

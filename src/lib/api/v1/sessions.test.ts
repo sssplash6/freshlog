@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { User } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { admin, assignment, DAY, grant, mentor, pairing, program, session, student } from "@/test/db";
+import { admin, assignment, DAY, enroll, grant, mentor, pairing, program, session, student } from "@/test/db";
 
 /**
  * Who may read one session, and what each of them is told about it.
@@ -219,6 +219,29 @@ describe("sessionFor: can", () => {
     expect(await editSession(null, form({ sessionId: s.id, minutes: "45", date: "2026-10-22" }))).toMatchObject({
       ok: true,
     });
+  });
+
+  // Voiding is how a student is cleared off a program, so a voided session can
+  // outlive the membership it was logged under, and `restoreSession` refuses it then.
+  it("offers no restore once the student has left the session's program, as the action then refuses", async () => {
+    const { p, st, mentorUser, adminUser, s } = await world();
+    await enroll({ studentId: st.id, programId: (await program("Master's Program")).id });
+    await prisma.session.update({ where: { id: s.id }, data: { status: "VOIDED" } });
+    const restoreFor = async (reader: User) => (await sessionFor(await readerFor(reader), s.id))?.can.restore;
+    expect(await restoreFor(mentorUser)).toBe(true);
+    expect(await restoreFor(adminUser)).toBe(true);
+
+    // Taken off Global Admissions, where it was logged, and still in the Master's Program: the session's
+    // own program is the one asked about, not whether the student is in any.
+    await prisma.studentEnrollment.deleteMany({ where: { studentId: st.id, programId: p.id } });
+    for (const reader of [mentorUser, adminUser]) {
+      expect(await restoreFor(reader)).toBe(false);
+      actor.value = { id: reader.id };
+      expect(await restoreSession(null, form({ sessionId: s.id }))).toMatchObject({
+        ok: false,
+        error: "The student is no longer in the program this session was logged in, so it can't be restored.",
+      });
+    }
   });
 
   it("the mentor who logged it, once they no longer mentor, still reads it and can't change it", async () => {

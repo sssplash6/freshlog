@@ -52,10 +52,19 @@ export async function readerFor(user: User): Promise<Reader> {
 
 /**
  * The include every session read uses. Each relation selects only what the
- * contract names, so nothing else of a person is ever loaded to be mapped away.
+ * contract names, and the programs the student is in, which `can.restore` is
+ * decided from and which are never sent; so nothing else of a person is ever
+ * loaded to be mapped away.
  */
 export const SESSION_INCLUDE = {
-  student: { select: { id: true, userId: true, user: { select: { name: true, email: true } } } },
+  student: {
+    select: {
+      id: true,
+      userId: true,
+      user: { select: { name: true, email: true } },
+      enrollments: { select: { programId: true } },
+    },
+  },
   mentor: { select: { id: true, name: true, email: true } },
   program: { select: { id: true, name: true, colorIndex: true } },
   assignment: { select: { id: true, purpose: true } },
@@ -134,9 +143,10 @@ export function toApiSession(reader: Reader, row: SessionRow, now: Date): ApiSes
     can: {
       edit: corrects && !voided,
       void: corrects && !voided,
-      // `restoreSession` also refuses a session whose student has since left
-      // its program. That is the action's to say when it is tried, in its words.
-      restore: corrects && voided,
+      // And, as `restoreSession` asks, only while the student is still in the
+      // session's own program: voiding is how a student is cleared off one, so a
+      // voided session can outlive the membership it was logged under.
+      restore: corrects && voided && row.student.enrollments.some((e) => e.programId === row.programId),
       // `answerSession`: the student, about a session that still stands.
       answer: isStudent && row.status === SESSION_STATUS.ACTIVE,
     },

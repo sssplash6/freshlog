@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
  * Puts a voided session back: it counts again and its hours are charged again.
  * It is `restoreSession`, the action the website calls, which decides who may
  * and refuses everyone else in its words, as a 400. That includes a session
- * whose student has since left its program, which `can.restore` cannot tell.
+ * whose student has since left its program, for which `can.restore` is false
+ * as well.
  *
  * A session the person may not see is answered like one that was never made.
  * The request has no body to read.
