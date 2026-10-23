@@ -68,7 +68,12 @@ describe("POST /api/v1/sessions", () => {
     const res = await post(body);
     expect(res.status).toBe(200);
     const sent = await res.json();
-    expect(sent).toMatchObject({ ok: true, receipt: { headline: "Logged 1h with Aziz Tursunov." } });
+    // The contract's receipt, key for key: not the `subject` logSession adds for the website's.
+    expect(sent).toEqual({
+      ok: true,
+      message: expect.stringMatching(/^Logged 1h with Aziz Tursunov\. /),
+      receipt: { id: expect.any(String), headline: "Logged 1h with Aziz Tursunov.", notes: [expect.any(String)] },
+    });
     expect(await readBack(m, sent.receipt.id)).toMatchObject({
       day: "2026-10-22",
       minutes: 60,

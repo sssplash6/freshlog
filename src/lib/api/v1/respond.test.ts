@@ -71,7 +71,7 @@ describe("respond", () => {
     expect(ok({ a: 1 }).headers.get("cache-control")).toBe("no-store");
   });
 
-  it("fromAction passes a receipt through untouched, and answers it with 200", async () => {
+  it("fromAction answers a receipt of the contract's three fields with 200, as it is", async () => {
     const state = {
       ok: true as const,
       message: "Logged 90 min with Aziza.",
@@ -80,6 +80,28 @@ describe("respond", () => {
     const res = fromAction(state);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(state);
+  });
+
+  // `logSession`'s receipt also names the student it logged for (`subject`), for
+  // the website's receipt. The contract's receipt is `{ id, headline, notes }`.
+  it("fromAction answers a receipt with the contract's three fields, and not the subject an action adds", async () => {
+    const res = fromAction({
+      ok: true,
+      message: "Logged 90 min with Aziza.",
+      receipt: {
+        id: "s1",
+        headline: "Logged 90 min with Aziza.",
+        notes: ["2 h remaining."],
+        subject: { kind: "student", id: "p1", name: "Aziza Karimova" },
+      },
+    });
+    const sent = await res.json();
+    expect(Object.keys(sent.receipt).sort()).toEqual(["headline", "id", "notes"]);
+    expect(sent).toEqual({
+      ok: true,
+      message: "Logged 90 min with Aziza.",
+      receipt: { id: "s1", headline: "Logged 90 min with Aziza.", notes: ["2 h remaining."] },
+    });
   });
 
   it("fromAction answers an action that returned nothing with 500 and a plain apology", async () => {

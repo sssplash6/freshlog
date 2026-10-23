@@ -64,7 +64,9 @@ export function inactive(): Response {
 /**
  * An action's result as the answer. A success is the contract's `WriteResult`
  * and nothing more: its `ok`, its `message` (so the app shows the sentence the
- * website shows) and its `receipt`. Whatever else an action adds is for the
+ * website shows) and its `receipt`, of which only the contract's `id`,
+ * `headline` and `notes`. Whatever else an action adds, to its result or to its
+ * receipt (`logSession`'s names the student, for the website's), is for the
  * website and stays on the server. `editSession` echoes back the session it
  * saved, the mentor's note included, and that note is not for everyone who may
  * edit: the student it is about, even one who also administers the program, is
@@ -85,5 +87,12 @@ export function fromAction(state: ActionState): Response {
   }
   if (!state.ok) return refused(state.error, 400, { field: state.field });
   const { message, receipt } = state;
-  return json({ ok: true, message, receipt } satisfies WriteResult, 200);
+  return json(
+    {
+      ok: true,
+      message,
+      receipt: receipt && { id: receipt.id, headline: receipt.headline, notes: receipt.notes },
+    } satisfies WriteResult,
+    200
+  );
 }
