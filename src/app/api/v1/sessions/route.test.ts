@@ -144,6 +144,54 @@ describe("GET /api/v1/sessions", () => {
     expect(page.items.map((item) => item.note)).toEqual([null, null, null]);
   });
 
+  // `/me` lists a student who also mentors as ["student", "mentor"], and the app's
+  // mentor side asks for its list with as=mentor.
+  it("gives a student who also mentors their own sessions, and the ones they logged with as=mentor", async () => {
+    const { p, aziz, rows } = await ledger();
+    await prisma.user.update({ where: { id: aziz.userId }, data: { isMentor: true } });
+    const malika = await student({ programId: p.id, name: "Malika Rahimova" });
+    const logged = await prisma.session.create({
+      data: {
+        studentId: malika.id,
+        mentorId: aziz.userId,
+        programId: p.id,
+        minutes: 45,
+        date: new Date("2026-10-21T00:00:00.000Z"),
+        note: "Mock interview.",
+      },
+    });
+    actor.value = { id: aziz.userId };
+
+    const own = await pageFrom(await get());
+    expect(idsOf(own)).toEqual(rows.map((row) => row.id));
+    expect(own.items.map((item) => item.note)).toEqual([null, null, null]);
+
+    const res = await get("?as=mentor");
+    expect(res.status).toBe(200);
+    const theirs = await pageFrom(res);
+    expect(idsOf(theirs)).toEqual([logged.id]);
+    // Theirs as the mentor who logged it: their own note, and theirs to correct.
+    expect(theirs.items[0]).toMatchObject({ note: "Mock interview.", can: { edit: true } });
+    expect(theirs.totals).toEqual({ count: 1, charged: 45, missed: 0, extra: 0, voided: 0 });
+  });
+
+  it("answers 404 to a student who doesn't mentor and asks for as=mentor, as it answers anyone with no ledger", async () => {
+    const { aziz } = await ledger();
+    actor.value = { id: aziz.userId };
+    expect((await get()).status).toBe(200);
+    const res = await get("?as=mentor");
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ ok: false, error: "Not found." });
+  });
+
+  it("answers a mentor with as=mentor what it answers them without it", async () => {
+    const { akmal } = await ledger();
+    actor.value = { id: akmal.id };
+    const asked = await get("?as=mentor&limit=2");
+    expect(asked.status).toBe(200);
+    expect(await asked.json()).toEqual(await (await get("?limit=2")).json());
+  });
+
   it("never lists another mentor's sessions, or another student's", async () => {
     const { p } = await ledger();
     const umid = await mentor("Umid Rashidov");

@@ -146,6 +146,15 @@ export type SessionsQuery = {
   answer?: "needed" | "disputed";
   /** A mentor's list only: the note, the plan item, the student's name. */
   q?: string;
+  /**
+   * Whose list, for a reader who has two. Left out, it is a student's own
+   * sessions (a student who also mentors included, as `/me` lists them a
+   * student first), else the ones a mentor logged. `mentor` is the app's mentor
+   * side asking for the ones the reader logged, whatever else they are; to
+   * anyone who can't act as a mentor it is a 404, as it is to every reader with
+   * no list.
+   */
+  as?: "mentor";
 };
 
 /** A page of the reader's sessions, newest first, with figures for the whole filter. */

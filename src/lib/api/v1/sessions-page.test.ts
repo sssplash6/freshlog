@@ -134,6 +134,21 @@ describe("ledgerScope: whose sessions a list holds", () => {
     expect(ledgerScope(await readerFor(both))).toEqual({ studentId: aziz.profile.id });
   });
 
+  it("as mentor, gives whoever can act as a mentor the ones they logged, and nobody else anything", async () => {
+    const { p, aziz, akmal } = await cast();
+    const both = await prisma.user.update({ where: { id: aziz.user.id }, data: { isMentor: true } });
+    const nodira = await prisma.user.update({
+      where: { id: (await admin("Nodira Aliyeva")).id },
+      data: { isMentor: true },
+    });
+    expect(ledgerScope(await readerFor(both), "mentor")).toEqual({ mentorId: both.id });
+    expect(ledgerScope(await readerFor(akmal), "mentor")).toEqual({ mentorId: akmal.id });
+    expect(ledgerScope(await readerFor(nodira), "mentor")).toEqual({ mentorId: nodira.id });
+    // A student who doesn't mentor, and an admin who doesn't: no list of the sessions they logged.
+    expect(ledgerScope(await readerFor((await pupil(p.id, "Malika Rahimova")).user), "mentor")).toBeNull();
+    expect(ledgerScope(await readerFor(await admin("Dilnoza Yusupova")), "mentor")).toBeNull();
+  });
+
   it("gives a mentor who was once a student the ones they logged, and not their old record", async () => {
     const aziz = await pupil((await program()).id, "Aziz Tursunov");
     const grown = await prisma.user.update({ where: { id: aziz.user.id }, data: { role: "MENTOR" } });
@@ -679,10 +694,10 @@ describe("sessionsPage: programs", () => {
 });
 
 describe("sessionsQueryFrom: the URL as a query", () => {
-  it("reads the eight things a list may be asked", () => {
+  it("reads the nine things a list may be asked", () => {
     const query = sessionsQueryFrom(
       new URL(
-        "http://test/api/v1/sessions?cursor=abc&limit=7&student=s1&program=p1&period=30d&status=voided&answer=disputed&q=essay"
+        "http://test/api/v1/sessions?cursor=abc&limit=7&student=s1&program=p1&period=30d&status=voided&answer=disputed&q=essay&as=mentor"
       ).searchParams
     );
     expect(query).toEqual({
@@ -694,13 +709,15 @@ describe("sessionsQueryFrom: the URL as a query", () => {
       status: "voided",
       answer: "disputed",
       q: "essay",
+      as: "mentor",
     });
   });
 
   it("leaves out what is not asked, what is not one of the words, and every filter the contract doesn't have", () => {
     const query = sessionsQueryFrom(
       new URL(
-        "http://test/api/v1/sessions?period=forever&status=rescheduled&answer=all&mentor=me&attendance=absent&kind=extra&from=2026-01-01&to=2026-02-01&page=2"
+        // `as=admin` is Phase 4's, and not a word yet.
+        "http://test/api/v1/sessions?period=forever&status=rescheduled&answer=all&as=admin&mentor=me&attendance=absent&kind=extra&from=2026-01-01&to=2026-02-01&page=2"
       ).searchParams
     );
     expect(query).toEqual({});
@@ -708,7 +725,9 @@ describe("sessionsQueryFrom: the URL as a query", () => {
   });
 
   it("takes no name that every object has for a word", () =>
-    expect(sessionsQueryFrom(new URLSearchParams("period=toString&status=constructor&answer=__proto__"))).toEqual({}));
+    expect(
+      sessionsQueryFrom(new URLSearchParams("period=toString&status=constructor&answer=__proto__&as=valueOf"))
+    ).toEqual({}));
 
   it("takes the first of a repeated key, as the website's filters do", () => {
     expect(sessionsQueryFrom(new URLSearchParams("q=first&q=second&status=active&status=voided"))).toEqual({

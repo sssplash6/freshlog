@@ -189,19 +189,25 @@ const MAX_LIMIT = 100;
  * mentor who was once a student still has. A student who also mentors reads
  * their own here, for the same reason `roles` lists them first.
  *
+ * `as` is the side of the app asking. `"mentor"` is its mentor side, and is
+ * answered with the ones the reader logged whatever else they are, which is how
+ * a student who also mentors reads those; somebody who can't act as a mentor
+ * has no such list.
+ *
  * A program's sessions, as its admin reads them, are Phase 4's (`?as=admin`).
  * Until then an admin who does not mentor has no ledger, however many programs
  * they run.
  */
-export function ledgerScope(reader: Reader): FilterScope | null {
+export function ledgerScope(reader: Reader, as?: SessionsQuery["as"]): FilterScope | null {
   const { user, studentProfileId } = reader;
+  if (as === "mentor") return canActAsMentor(user) ? { mentorId: user.id } : null;
   if (user.role === ROLES.STUDENT && studentProfileId !== null) return { studentId: studentProfileId };
   if (canActAsMentor(user)) return { mentorId: user.id };
   return null;
 }
 
 /** The fields of the query that take one of a few words, rather than any text. */
-type Choice = "period" | "status" | "answer";
+type Choice = "period" | "status" | "answer" | "as";
 
 /**
  * The words each of them takes, keyed by the contract's own union: a word added
@@ -212,6 +218,7 @@ const WORDS: { [Key in Choice]: Record<NonNullable<SessionsQuery[Key]>, true> } 
   period: { week: true, "30d": true, "90d": true, year: true },
   status: { active: true, voided: true },
   answer: { needed: true, disputed: true },
+  as: { mentor: true },
 };
 
 /**
@@ -237,6 +244,7 @@ export function sessionsQueryFrom(params: URLSearchParams): SessionsQuery {
     status: word("status"),
     answer: word("answer"),
     q: text("q"),
+    as: word("as"),
   };
 }
 
@@ -397,7 +405,7 @@ export async function sessionsPage(
   query: SessionsQuery,
   now: Date = new Date()
 ): Promise<SessionsPage | { refused: string; field: string }> {
-  const scope = ledgerScope(reader);
+  const scope = ledgerScope(reader, query.as);
   // The route answers 404 before it asks, so this is for any other caller: a
   // reader with no ledger holds no sessions, and never anybody else's.
   if (!scope) {
