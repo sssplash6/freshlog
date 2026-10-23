@@ -191,7 +191,9 @@ describe("PATCH /api/v1/sessions/:id", () => {
   });
 
   // The action would turn an attendance or a kind it doesn't know into Attended
-  // and Plan, and save it: a typo would rewrite a session without a word.
+  // and Plan, and save it: a typo would rewrite a session without a word. "late"
+  // it would read as Late, since it upper-cases what it is sent, so that one is
+  // refused for its spelling, which is not the contract's.
   it.each([
     ["attendance", "SKIPPED"],
     ["attendance", "late"],

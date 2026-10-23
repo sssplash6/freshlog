@@ -134,8 +134,10 @@ describe("editOf", () => {
 
   // Wording and range are the action's to judge ("Minutes must be whole
   // minutes", "Pick a valid date."); only a value of the wrong type is refused
-  // here, and an attendance or a kind that is none of its values, because the
-  // action would quietly turn those into Attended and Plan.
+  // here, and an attendance or a kind not spelled as the contract spells one of
+  // its values. The action would quietly turn an unknown one into Attended or
+  // Plan. "late" it would read as Late, since it upper-cases what it is sent, so
+  // that one is refused for its spelling alone.
   it.each([
     ["day", 20261021],
     ["day", null],

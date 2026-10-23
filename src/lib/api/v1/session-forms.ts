@@ -49,7 +49,7 @@ const isAnswer = isOneOf<StudentAnswer>(Object.values(SESSION_ANSWER));
 /**
  * What each field of an edit has to be, in the order the contract lists them.
  *
- * The type and, for the three that are a choice, the choice. The action reads
+ * The type and, for the two that are a choice, the choice. The action reads
  * an attendance or a kind it doesn't know as Attended or Plan and saves that, so
  * a typo here would rewrite a session without a word. Everything else is the
  * action's to judge, in the website's words: how long a session may be, which

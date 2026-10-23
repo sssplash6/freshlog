@@ -25,7 +25,7 @@ beforeEach(() => {
   actor.value = null;
 });
 
-/** A request to log, from a body that is JSON, or from `raw` text. */
+/** A request to log: `body` as JSON, or as it is when it is a string. */
 const post = (body: unknown) =>
   POST(
     new Request("http://test/api/v1/sessions", {

@@ -25,7 +25,11 @@ async function held() {
   return { p, m, st, a };
 }
 
-/** `daysAgo` days before October 22, the day the fixtures are pinned to. */
+/**
+ * `daysAgo` days before October 22, 2026: a fixed day, where the fixtures in
+ * `@/test/db` count from today, since these tests are about which session is
+ * newer and not about how old one is.
+ */
 const day = (daysAgo: number) => new Date(Date.UTC(2026, 9, 22) - daysAgo * DAY);
 
 type Meeting = { studentId: string; programId: string; mentorId: string };
