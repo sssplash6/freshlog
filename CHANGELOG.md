@@ -7,6 +7,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-23
 
 ### New
+- **Meeting ratings on the Feedback page.** The stars and comments students leave on a single meeting now appear on Feedback, under Meeting ratings, for the programs you lead or administer. They follow the same filters as mentor ratings. Mentor ratings stay anonymous, and you never see the ratings of your own meetings.
 - **Grant time in hours and minutes, and confirm it.** Correcting a mentor's allocation now has an Hours box and a Minutes box, so 3 h no longer has to be typed as 180. A Confirm button saves it at once and shows the time it was saved; leaving the menu still saves as before.
 
 ### Fixed

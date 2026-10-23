@@ -314,6 +314,12 @@ const PARTNER_FEEDBACK_SEARCH: SearchField<Prisma.PartnerFeedbackWhereInput>[] =
   { label: "name", where: (q) => ({ name: { contains: q } }) },
 ];
 
+/** The same box as `FEEDBACK_SEARCH`, asked of a meeting's rating. */
+const MEETING_RATING_SEARCH: SearchField<Prisma.SessionWhereInput>[] = [
+  { label: "comment", where: (q) => ({ studentNote: { contains: q } }) },
+  { label: "mentor", where: (q) => ({ mentor: { name: { contains: q } } }) },
+];
+
 const NOTIFICATION_SEARCH: SearchField<Prisma.NotificationWhereInput>[] = [
   { label: "message", where: (q) => ({ message: { contains: q } }) },
 ];
@@ -1023,6 +1029,50 @@ export function feedbackWhere(
   if (search) and.push(search);
 
   return and.length > 0 ? { AND: and } : {};
+}
+
+/**
+ * The meetings a student has rated, through the same filter bar as
+ * `feedbackWhere`, so one set of controls answers both lists on `/feedback`.
+ *
+ * Unlike a `MentorFeedback` row, a session names its program, so the scope
+ * and the program filter ask the ROW (`programId`) rather than the student's
+ * enrollments — a student in two programs rates each program's meetings, and
+ * an admin of one reads only that one's. Only ACTIVE meetings: a voided or
+ * rescheduled row is not a meeting that happened. The date window is when the
+ * student answered, which is when the rating was given.
+ */
+export function meetingRatingsWhere(
+  params: SearchParams,
+  scope: FilterScope,
+  now: Date
+): Prisma.SessionWhereInput {
+  const and: Prisma.SessionWhereInput[] = [
+    { studentRating: { not: null } },
+    { status: SESSION_STATUS.ACTIVE },
+  ];
+
+  if (scope.programIds) and.push({ programId: { in: [...scope.programIds] } });
+  if (scope.mentorId) and.push({ mentorId: scope.mentorId });
+  if (scope.studentId) and.push({ studentId: scope.studentId });
+
+  const mentor = readPerson(params, "mentor", scope);
+  if (mentor) and.push({ mentorId: mentor });
+  const program = readParam(params, "program");
+  if (program) and.push({ programId: program });
+
+  const rating = Number(readParam(params, "rating"));
+  if (Number.isInteger(rating) && rating >= 1 && rating <= 5) {
+    and.push({ studentRating: { lte: rating } });
+  }
+
+  const date = dateWhere(readDateWindow(params, now));
+  if (date) and.push({ studentAnsweredAt: date });
+
+  const search = searchWhere(MEETING_RATING_SEARCH, readParam(params, "q"));
+  if (search) and.push(search);
+
+  return { AND: and };
 }
 
 /**

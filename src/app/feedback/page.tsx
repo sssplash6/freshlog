@@ -22,6 +22,7 @@ import {
   activeFilterCount,
   feedbackWhere,
   filterSummary,
+  meetingRatingsWhere,
   readDateWindow,
   readParam,
   type SearchParams,
@@ -78,6 +79,9 @@ const LOW_RATING = 2;
 
 /** What "recent" means, in the column and in the chip. */
 const RECENT_DAYS = 30;
+
+/** The page-number key for meeting ratings, which paginate beside the others. */
+const MEETING_PAGE = "meetings";
 
 /** Mentors open before the tail folds away — the tail is the settled subset. */
 const WORST_SHOWN = 8;
@@ -301,6 +305,21 @@ async function AllRatings({
   const since = new Date(now.getTime() - RECENT_DAYS * 24 * 60 * 60 * 1000);
   const recentWhere = { AND: [where, { createdAt: { gte: since } }] };
 
+  // Ratings of single meetings, through the same filters. They are not
+  // anonymous — the student rated one meeting so its mentor's program could act
+  // on it — so the writer is named. Never the reader's own meetings, though:
+  // a mentor is not shown what students thought of them (`/mentors/[id]`
+  // drops it for `isSelf`, `/sessions` for the mentor audience), and holding
+  // an admin grant does not change that here.
+  const notMine = { mentorId: { not: user.id } };
+  const meetingWhere = {
+    AND: [meetingRatingsWhere(params, scope, now), notMine],
+  };
+  const meetingInReach = {
+    AND: [meetingRatingsWhere({}, scope, now), notMine],
+  };
+  const meetingPage = parsePage(readParam(params, MEETING_PAGE));
+
   const [
     stats,
     byMentor,
@@ -309,6 +328,8 @@ async function AllRatings({
     rated,
     programs,
     writeScope,
+    meetingStats,
+    meetingRows,
   ] = await Promise.all([
     prisma.mentorFeedback.aggregate({
       where,
@@ -357,7 +378,12 @@ async function AllRatings({
     // lookup for the table above, since every mentor in a filtered group is
     // also a mentor in reach.
     prisma.user.findMany({
-      where: { mentorFeedback: { some: inReach } },
+      where: {
+        OR: [
+          { mentorFeedback: { some: inReach } },
+          { mentorSessions: { some: meetingInReach } },
+        ],
+      },
       orderBy: { name: "asc" },
       select: PERSON,
     }),
@@ -369,6 +395,26 @@ async function AllRatings({
     // ADMIN-level grants — the "admin" the name is open to. A LEADER reads
     // every row in reach and names none of them.
     adminWriteScope(user),
+    prisma.session.aggregate({
+      where: meetingWhere,
+      _avg: { studentRating: true },
+      _count: true,
+    }),
+    prisma.session.findMany({
+      where: meetingWhere,
+      orderBy: [{ studentAnsweredAt: "desc" }, { date: "desc" }],
+      skip: (meetingPage - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      select: {
+        id: true,
+        date: true,
+        studentRating: true,
+        studentNote: true,
+        mentor: { select: PERSON },
+        student: { select: { user: { select: PERSON } } },
+        program: { select: { name: true } },
+      },
+    }),
   ]);
 
   const person = new Map(rated.map((m) => [m.id, m]));
@@ -575,6 +621,69 @@ async function AllRatings({
         page={page}
         total={stats._count}
         unit="ratings"
+        className="px-1"
+      />
+
+      <Section
+        title="Meeting ratings"
+        count={meetingStats._count}
+        caption={
+          meetingStats._avg.studentRating === null
+            ? undefined
+            : `${meetingStats._avg.studentRating.toFixed(1)} average · one meeting each`
+        }
+      >
+        {meetingRows.length === 0 ? (
+          filtered ? (
+            <EmptyState framed={false} variant="no-results">
+              No meeting ratings match these filters.
+            </EmptyState>
+          ) : (
+            <EmptyState framed={false} title="No meeting ratings">
+              A student rates a meeting when they confirm it happened.
+            </EmptyState>
+          )
+        ) : (
+          <ul className="divide-y divide-line">
+            {meetingRows.map((s) => (
+              <li key={s.id} className="px-4 py-3 sm:px-5">
+                <div className="flex items-center justify-between gap-3">
+                  <PersonChip
+                    person={s.mentor}
+                    size="sm"
+                    href={`/mentors/${s.mentor.id}`}
+                  />
+                  {s.studentRating !== null && <Rating value={s.studentRating} />}
+                </div>
+                {s.studentNote && (
+                  <div className="mt-1 text-body">
+                    <ExpandableText
+                      text={s.studentNote}
+                      lines={2}
+                      className="text-ink"
+                    />
+                  </div>
+                )}
+                <p className="mt-0.5 text-xs text-muted-fg">
+                  {s.student.user.name ?? s.student.user.email}
+                  {" · "}
+                  {s.program.name}
+                  {" · meeting on "}
+                  {formatDate(s.date)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      <Pagination
+        basePath="/feedback"
+        params={params}
+        page={meetingPage}
+        total={meetingStats._count}
+        unit="meeting ratings"
+        param={MEETING_PAGE}
         className="px-1"
       />
     </div>
