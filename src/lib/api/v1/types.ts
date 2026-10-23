@@ -191,10 +191,14 @@ export type LogProgram = {
   program: ProgramRef;
   /** ready: hours left. none: no hours with this mentor. overdrawn or expired: a log still counts, so the sheet asks first. */
   state: "ready" | "none" | "overdrawn" | "expired";
-  /** Minutes left with this mentor here, negative when over; null when they hold none. */
+  /**
+   * The figure `state` was decided from, in minutes, negative when over: what the student's unassigned pool or hour
+   * bank holds when the hours are in one, otherwise what is left of this mentor's own grant. null when `state` is none.
+   */
   remaining: number | null;
-  /** Minutes this mentor was given here; null when none. */
+  /** Minutes this mentor's own grant gave them here; null when they hold none, as with a pool or an hour bank. */
   allocated: number | null;
+  /** "YYYY-MM-DD", the use-by day of whatever `remaining` comes from; null when `remaining` is. */
   useBy: string | null;
   /** Plan items this session can go toward. */
   goals: { id: string; label: string }[];
