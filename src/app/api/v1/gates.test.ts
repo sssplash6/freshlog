@@ -284,6 +284,14 @@ describe("the check itself", () => {
     ["another answer to a signed-out request", 'const user = await getCurrentUser();\n  if (!user) return inactive();\n  if (user.status !== "ACTIVE") return inactive();'],
     ["an answer that is not returned", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status !== "ACTIVE") inactive();'],
     ["an optional chain in the status check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user?.status !== "ACTIVE") return inactive();'],
+    // Each of these is the gate with one thing changed, so each holds one condition of the check.
+    ["the status check turned round", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status === "ACTIVE") return inactive();'],
+    ["another name in the signed-out check", 'const user = await getCurrentUser();\n  if (!account) return signInAgain();\n  if (user.status !== "ACTIVE") return inactive();'],
+    ["another name in the status check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (account.status !== "ACTIVE") return inactive();'],
+    ["an else on the signed-out check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  else log(user);\n  if (user.status !== "ACTIVE") return inactive();'],
+    ["an else on the status check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status !== "ACTIVE") return inactive();\n  else log(user);'],
+    ["an argument to signInAgain", 'const user = await getCurrentUser();\n  if (!user) return signInAgain(user);\n  if (user.status !== "ACTIVE") return inactive();'],
+    ["an argument to inactive", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status !== "ACTIVE") return inactive(user);'],
   ])("refuses a user gate with %s", (_, body) => {
     expect(check("x", `export async function GET() {\n  ${body}\n}`).problems).not.toEqual([]);
   });
