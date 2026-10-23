@@ -4,7 +4,7 @@ import { logForm, logOptionsFor } from "@/lib/api/v1/log";
 import { SESSION_STATUS } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { allocation, assignment, DAY, enroll, mentor, pairing, program, session, student } from "@/test/db";
+import { allocation, assignment, DAY, enroll, inDays, mentor, pairing, program, session, student } from "@/test/db";
 
 /**
  * Who a mentor can log a session for, and the form the log goes in by.
@@ -91,6 +91,70 @@ describe("logOptionsFor: students", () => {
           },
         ],
       },
+    ]);
+  });
+
+  /**
+   * `remaining` is the figure `state` was decided from, so the two never disagree: what is left
+   * in an unassigned pool or an hour bank where the hours are in one, else what is left of the
+   * mentor's own grant, and nothing when `state` is none. `allocated` is only the mentor's own
+   * grant. The next four are the rows that are not a grant of the mentor's.
+   */
+  it("reads a student whose hours are in an unassigned pool by what the pool holds", async () => {
+    const p = await program("Global Admissions");
+    const m = await mentor("Akmal Karimov");
+    await pairing({ mentorId: m.id, programId: p.id });
+    const st = await student({ programId: p.id, name: "Aziz Tursunov" });
+    const pool = await allocation({ studentId: st.id, mentorId: null, minutes: 300 });
+
+    expect((await logOptionsFor(m)).students[0].programs).toMatchObject([
+      // The pool is not this mentor's grant, but a log claims what it needs from it.
+      { state: "ready", remaining: 300, allocated: null, useBy: toDateInputValue(pool.deadline) },
+    ]);
+  });
+
+  it("reads an overdrawn hour bank by how far over it is", async () => {
+    const p = await program("Global Admissions");
+    const m = await mentor("Akmal Karimov");
+    await pairing({ mentorId: m.id, programId: p.id });
+    const st = await student({ programId: p.id, name: "Aziz Tursunov" });
+    const bank = await prisma.hourAllocation.create({
+      data: { studentId: st.id, programId: p.id, mentorId: null, minutes: 60, deadline: inDays(20), isBank: true },
+    });
+    // Every meeting draws the bank, whoever holds it: 120 minutes against 60.
+    await prisma.session.create({
+      data: { studentId: st.id, programId: p.id, mentorId: m.id, minutes: 120, date: day(2), fromBank: true },
+    });
+
+    expect((await logOptionsFor(m)).students[0].programs).toMatchObject([
+      { state: "overdrawn", remaining: -60, allocated: null, useBy: toDateInputValue(bank.deadline) },
+    ]);
+  });
+
+  it("gives a student the mentor has met with nothing allotted no figures", async () => {
+    const p = await program("Global Admissions");
+    const m = await mentor("Akmal Karimov");
+    await pairing({ mentorId: m.id, programId: p.id });
+    const st = await student({ programId: p.id, name: "Aziz Tursunov" });
+    // Charged against nothing, which the caseload counts as 90 over; the picker calls it no time.
+    await session({ studentId: st.id, mentorId: m.id, minutes: 90 });
+
+    expect((await logOptionsFor(m)).students[0].programs).toMatchObject([
+      { state: "none", remaining: null, allocated: null, useBy: null },
+    ]);
+  });
+
+  it("reads a grant that was set down to nothing as no grant at all", async () => {
+    const p = await program("Global Admissions");
+    const m = await mentor("Akmal Karimov");
+    await pairing({ mentorId: m.id, programId: p.id });
+    const st = await student({ programId: p.id, name: "Aziz Tursunov" });
+    // The allocation form accepts 0. The row stays, with its use-by, but holds no time.
+    await allocation({ studentId: st.id, mentorId: m.id, minutes: 0 });
+    await session({ studentId: st.id, mentorId: m.id, minutes: 30 });
+
+    expect((await logOptionsFor(m)).students[0].programs).toMatchObject([
+      { state: "none", remaining: null, allocated: null, useBy: null },
     ]);
   });
 

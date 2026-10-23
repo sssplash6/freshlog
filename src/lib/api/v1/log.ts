@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { LogOptions, LogSessionRequest, LogStudent } from "@/lib/api/v1/types";
+import type { LogOptions, LogProgram, LogSessionRequest, LogStudent } from "@/lib/api/v1/types";
 import { ATTENDANCE, SESSION_STATUS, TIME_KIND } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -23,8 +23,8 @@ const RECENT_READ = 50;
 const RECENT_KEPT = 8;
 
 /**
- * Who `user` can log a session for, how many minutes each has left with them,
- * and what they logged last.
+ * Who `user` can log a session for, how many minutes each has to draw on, and
+ * what they logged last.
  *
  * `user` is the mentor, and logging for someone else is Phase 4: the caseload
  * is read as the mentor's own. The route has already asked whether they can act
@@ -45,13 +45,12 @@ export async function logOptionsFor(user: User, now: Date = new Date()): Promise
 
 /**
  * The students `logSessionOptions` lists, in its order, with the figures from
- * the caseload row for the same student and program.
+ * the caseload row for the same student and program (`figuresOf`).
  *
  * The row is found by both: a student held in two programs is two rows with two
  * balances and two deadlines, and a key without the program would spend one
  * program's hours out of the other's grant (AGENTS.md, "A student's program is a
- * set"). A student the mentor merely shares a program with has no row, so no
- * figures. Its English `balance` and `hint` are left out: the app says its own,
+ * set"). Its English `balance` and `hint` are left out: the app says its own,
  * from the figures.
  */
 function studentsOf(caseload: MentorCaseload): LogStudent[] {
@@ -69,18 +68,42 @@ function studentsOf(caseload: MentorCaseload): LogStudent[] {
   return logSessionOptions(caseload).map((option) => ({
     id: option.profileId,
     name: option.label,
-    programs: option.programs.map((choice) => {
-      const row = rows.get(`${option.profileId}:${choice.value}`);
-      return {
-        program: { id: choice.value, name: choice.label, colorIndex: dots.get(choice.value) ?? 0 },
-        state: choice.state,
-        remaining: row?.remaining ?? null,
-        allocated: row?.allocated ?? null,
-        useBy: row?.deadline ? toDateInputValue(row.deadline) : null,
-        goals: choice.goals.map(({ value, label }) => ({ id: value, label })),
-      };
-    }),
+    programs: option.programs.map((choice) => ({
+      program: { id: choice.value, name: choice.label, colorIndex: dots.get(choice.value) ?? 0 },
+      state: choice.state,
+      ...figuresOf(rows.get(`${option.profileId}:${choice.value}`), choice.state),
+      goals: choice.goals.map(({ value, label }) => ({ id: value, label })),
+    })),
   }));
+}
+
+/**
+ * `remaining`, `allocated` and `useBy` of one program choice: the caseload row
+ * for the student and program (none for a student the mentor merely shares a
+ * program with) and the `state` `logSessionOptions` gave it.
+ *
+ * `remaining` is the figure `state` was decided from, so the two cannot
+ * disagree. Where the student's hours are in an unassigned pool or an hour bank,
+ * that is what the pool or bank holds (`row.pool`, negative for an overdrawn
+ * bank): a log claims it from the pool or draws the bank, whoever holds the
+ * meeting. Otherwise it is what is left of the mentor's own grant. When `state`
+ * is none it is null, which also covers a grant set down to nothing: the picker
+ * calls that no time, whatever was charged against it before.
+ *
+ * `allocated` is only the mentor's own grant, so it is null for a pool or a
+ * bank (their rows carry none) and for a grant of nothing. `useBy` is the use-by
+ * day of the hours `remaining` counts.
+ */
+function figuresOf(
+  row: CaseloadStudent | undefined,
+  state: LogProgram["state"]
+): Pick<LogProgram, "remaining" | "allocated" | "useBy"> {
+  if (!row || state === "none") return { remaining: null, allocated: null, useBy: null };
+  return {
+    remaining: row.pool ?? row.remaining,
+    allocated: row.allocated > 0 ? row.allocated : null,
+    useBy: row.deadline ? toDateInputValue(row.deadline) : null,
+  };
 }
 
 /**
