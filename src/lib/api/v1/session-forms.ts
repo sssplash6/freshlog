@@ -86,6 +86,16 @@ export function editOf(body: Record<string, unknown>): { edit: SessionEdit } | {
 }
 
 /**
+ * The FormData of an action that takes nothing but the session (`voidSession`,
+ * `restoreSession`), which every other form here starts from.
+ */
+export function sessionForm(sessionId: string): FormData {
+  const form = new FormData();
+  form.set("sessionId", sessionId);
+  return form;
+}
+
+/**
  * `editSession`'s FormData. It replaces every field, so each one the edit leaves
  * out is sent as the session has it now.
  *
@@ -104,8 +114,7 @@ export function editOf(body: Record<string, unknown>): { edit: SessionEdit } | {
  *   is sent no field at all.
  */
 export function editForm(current: ApiSession, edit: SessionEdit, storedNote: string | null): FormData {
-  const form = new FormData();
-  form.set("sessionId", current.id);
+  const form = sessionForm(current.id);
   form.set("minutes", String(edit.minutes ?? current.minutes));
   form.set("date", edit.day ?? current.day);
   form.set("attendance", edit.attendance ?? current.attendance);
@@ -137,8 +146,7 @@ export function answerOf(body: Record<string, unknown>): { request: SessionAnswe
  * refuse, so an empty note is sent as it is.
  */
 export function answerForm(sessionId: string, body: SessionAnswerRequest): FormData {
-  const form = new FormData();
-  form.set("sessionId", sessionId);
+  const form = sessionForm(sessionId);
   form.set("answer", body.answer);
   if (typeof body.note === "string") form.set("studentNote", body.note);
   return form;

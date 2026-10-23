@@ -23,7 +23,7 @@ vi.mock("@/lib/dal", () => ({
 const { answerSession, editSession, logSession, restoreSession, voidSession } = await import(
   "@/lib/actions/sessions"
 );
-const { readerFor, sessionFor } = await import("@/lib/api/v1/sessions");
+const { readerFor, sessionFor, storedNote } = await import("@/lib/api/v1/sessions");
 
 function form(fields: Record<string, string>) {
   const data = new FormData();
@@ -165,6 +165,13 @@ describe("sessionFor: what each reader is told", () => {
     const state = await logSession(null, form({ studentProfileId: st.id, minutes: "60", date: "2026-10-22" }));
     expect(state).toMatchObject({ ok: true });
     expect((await sessionFor(await readerFor(m), state?.ok ? state.receipt!.id : ""))?.day).toBe("2026-10-22");
+  });
+
+  it("storedNote is the row's own note, which the student is never shown, and none for a session that isn't there", async () => {
+    const { studentUser, s } = await world();
+    expect((await sessionFor(await readerFor(studentUser), s.id))?.note).toBeNull();
+    expect(await storedNote(s.id)).toBe("Went through the essay.");
+    expect(await storedNote("c-made-up")).toBeNull();
   });
 
   it("asks the student for 30 days, and not on the 31st", async () => {

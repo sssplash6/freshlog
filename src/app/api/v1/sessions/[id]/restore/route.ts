@@ -1,5 +1,6 @@
 import { restoreSession } from "@/lib/actions/sessions";
 import { fromAction, inactive, refused, signInAgain } from "@/lib/api/v1/respond";
+import { sessionForm } from "@/lib/api/v1/session-forms";
 import { readerFor, sessionFor } from "@/lib/api/v1/sessions";
 import { getCurrentUser } from "@/lib/dal";
 
@@ -24,7 +25,5 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const session = await sessionFor(await readerFor(user), id);
   if (!session) return refused("Not found.", 404);
-  const form = new FormData();
-  form.set("sessionId", session.id);
-  return fromAction(await restoreSession(null, form));
+  return fromAction(await restoreSession(null, sessionForm(session.id)));
 }

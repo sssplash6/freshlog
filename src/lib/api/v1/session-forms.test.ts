@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { answerForm, answerOf, editForm, editOf, isMinutes, isOneOf, isText } from "@/lib/api/v1/session-forms";
+import {
+  answerForm,
+  answerOf,
+  editForm,
+  editOf,
+  isMinutes,
+  isOneOf,
+  isText,
+  sessionForm,
+} from "@/lib/api/v1/session-forms";
 import type { ApiSession, TimeKind } from "@/lib/api/v1/types";
 
 /**
@@ -17,6 +26,11 @@ const current = {
   note: "Essay",
   task: { id: "a1", purpose: "Essay" },
 } as ApiSession;
+
+describe("sessionForm", () => {
+  it("names the session and nothing else, which is all voidSession and restoreSession read", () =>
+    expect([...sessionForm("s1")]).toEqual([["sessionId", "s1"]]));
+});
 
 describe("editForm", () => {
   // What the row holds. For most readers it is what `current` shows too.

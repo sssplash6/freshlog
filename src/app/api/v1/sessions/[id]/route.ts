@@ -2,9 +2,8 @@ import { editSession } from "@/lib/actions/sessions";
 import { bodyOf } from "@/lib/api/v1/body";
 import { fromAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { editForm, editOf } from "@/lib/api/v1/session-forms";
-import { readerFor, sessionFor } from "@/lib/api/v1/sessions";
+import { readerFor, sessionFor, storedNote } from "@/lib/api/v1/sessions";
 import { getCurrentUser } from "@/lib/dal";
-import { prisma } from "@/lib/prisma";
 
 // Reads the token and the database on every request; never prerender. On
 // Render the SQLite disk only exists at runtime.
@@ -41,12 +40,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
  * body is judged after that, field by field: a value of the wrong type is
  * refused on its field, and what a value says is left to the action.
  *
- * A note the body leaves out is kept from the row itself, never from what the
- * person was shown: a student who also administers the program may edit their
- * own session and is shown no note, so filling it from that would erase the
- * mentor's. The stored note goes to the action and no further: `fromAction`
- * answers the action's sentence alone, and the session the action echoes back,
- * which carries the note it saved, is not sent.
+ * A note the body leaves out is kept from the row itself (`storedNote`), never
+ * from what the person was shown: a student who also administers the program
+ * may edit their own session and is shown no note, so filling it from that
+ * would erase the mentor's. The stored note goes to the action and no further:
+ * `fromAction` answers the action's sentence alone, and the session the action
+ * echoes back, which carries the note it saved, is not sent.
  */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
@@ -59,6 +58,5 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!body) return refused("Send the changes as JSON.", 400);
   const asked = editOf(body);
   if ("field" in asked) return refused("That isn't a valid value.", 400, { field: asked.field });
-  const row = await prisma.session.findUnique({ where: { id: session.id }, select: { note: true } });
-  return fromAction(await editSession(null, editForm(session, asked.edit, row?.note ?? null)));
+  return fromAction(await editSession(null, editForm(session, asked.edit, await storedNote(session.id))));
 }

@@ -162,6 +162,16 @@ export async function sessionFor(reader: Reader, id: string, now: Date = new Dat
   return toApiSession(reader, row, now);
 }
 
+/**
+ * The note the session's row holds, whatever the reader was shown of it, for
+ * `editForm` to keep when an edit leaves the note out. It goes to the action and
+ * nowhere else. A session that doesn't exist has none.
+ */
+export async function storedNote(id: string): Promise<string | null> {
+  const row = await prisma.session.findUnique({ where: { id }, select: { note: true } });
+  return row?.note ?? null;
+}
+
 /* ------------------------------------------------------------------ the ledger --- */
 
 const DAY_MS = 24 * 60 * 60 * 1000;
