@@ -252,6 +252,8 @@ export type Status = {
   at?: Date;
   /** Set only by `rollUp`. */
   count?: number;
+  /** The session a SESSION_UNCONFIRMED row asks about. A rolled-up row is about several, and has none. */
+  sessionId?: string;
 };
 
 export type ViewerContext = {

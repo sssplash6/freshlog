@@ -222,7 +222,11 @@ export type LogSessionRequest = {
 
 /** One row of To do: one of freshform's statuses, already in the reader's words. */
 export type TodoRow = {
-  /** Stable across loads: the status type and its subject. */
+  /**
+   * Stable across loads and unique in one answer: the status type, its subject
+   * and its program, and for a session to confirm its session as well, since
+   * one mentor may have logged several.
+   */
   key: string;
   /** freshform's StatusType. */
   type: string;
@@ -275,6 +279,8 @@ export type MentorHome = {
 export type StudentGrant = {
   /** null for the hour bank, which every meeting draws. */
   mentor: PersonRef | null;
+  /** The student's hour bank. With no `mentor`, false is time nobody has been chosen for yet. */
+  bank: boolean;
   program: ProgramRef;
   allocated: number;
   /** Minutes left, negative when over. */
@@ -284,7 +290,11 @@ export type StudentGrant = {
   expired: boolean;
   useBy: string | null;
   daysLeft: number | null;
-  /** The mentor's booking page for this program, when they have one. */
+  /**
+   * The mentor's booking page for this program or, when they have none here, the
+   * one from another of the student's pairings with them, as the website's Book
+   * page finds it. Null when they have none anywhere.
+   */
   bookingUrl: string | null;
 };
 /** GET /api/v1/student/home. */
