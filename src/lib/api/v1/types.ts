@@ -218,7 +218,11 @@ export type LogSessionRequest = {
 
 /** One row of To do: one of freshform's statuses, already in the reader's words. */
 export type TodoRow = {
-  /** Stable across loads and unique in one answer: the status type, its subject and its program. */
+  /**
+   * Stable across loads and unique in one answer: the status type, its subject
+   * and its program, and for a session to confirm its session as well, since
+   * one mentor may have logged several.
+   */
   key: string;
   /** freshform's StatusType. */
   type: string;

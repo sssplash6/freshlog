@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { programColors, toTodoRow } from "@/lib/api/v1/todo";
+import { programColors, toTodoRow, toTodoRows } from "@/lib/api/v1/todo";
 import { prisma } from "@/lib/prisma";
 import type { Status } from "@/lib/status";
 
@@ -29,6 +29,18 @@ const meeting: Status = {
   label: "Meeting to log",
   subject: { kind: "student", id: "draft1", name: "Aziz" },
   href: "/sessions/new?studentProfileId=p1&minutes=55&date=2026-10-21&programId=g1&attendance=LATE",
+};
+
+/** A session to confirm, as `studentRows` makes one: the mentor who logged it is its subject. */
+const toConfirm: Status = {
+  type: "SESSION_UNCONFIRMED",
+  severity: "attention",
+  kind: "actionable",
+  label: "Confirm this session",
+  explanation: "Oct 22 · 1h",
+  href: "/student/meetings",
+  subject: { kind: "mentor", id: "m1", name: "Akmal Karimov" },
+  sessionId: "s1",
 };
 
 describe("toTodoRow: what the app may do about a row", () => {
@@ -116,7 +128,7 @@ describe("toTodoRow: what the app may do about a row", () => {
   });
 
   it("gives a row about a session the session to confirm", () => {
-    const unconfirmed: Status & { sessionId?: string } = {
+    const unconfirmed: Status = {
       type: "SESSION_UNCONFIRMED",
       severity: "attention",
       kind: "actionable",
@@ -147,6 +159,26 @@ describe("toTodoRow: how a row is told apart", () => {
     expect(inG1.key).not.toBe(inG2.key);
     expect(inG1.key).toBe("ALLOCATION_EXPIRING:p1:g1");
     expect(inG2.key).toBe("ALLOCATION_EXPIRING:p1:g2");
+  });
+
+  it("adds the session to the key of a session to confirm, and to no other row", () => {
+    expect(toTodoRow(toConfirm).key).toBe("SESSION_UNCONFIRMED:m1::s1");
+    // A row with no session, which a roll-up is, is keyed as it always was.
+    expect(toTodoRow({ ...toConfirm, sessionId: undefined }).key).toBe("SESSION_UNCONFIRMED:m1:");
+    expect(toTodoRow(expiring).key).toBe("ALLOCATION_EXPIRING:p1:g1");
+  });
+
+  it("two sessions to confirm from one mentor get different keys", () => {
+    // The mentor is all a session to confirm names as its subject, and it names no
+    // program, so but for the session two of one mentor's would share a key. The
+    // app keys its list on this.
+    const first = toTodoRow({ ...toConfirm, sessionId: "s1" });
+    const second = toTodoRow({ ...toConfirm, sessionId: "s2" });
+    expect(first.subject).toEqual(second.subject);
+    expect(first.program).toEqual(second.program);
+    expect(first.key).not.toBe(second.key);
+    expect(first.key).toBe("SESSION_UNCONFIRMED:m1::s1");
+    expect(second.key).toBe("SESSION_UNCONFIRMED:m1::s2");
   });
 });
 
@@ -220,6 +252,68 @@ describe("programColors: the dot a row's program wears", () => {
   });
 
   it("asks nothing, and answers nothing, when no row names a program", async () => {
-    expect((await programColors([{}, { program: undefined }])).size).toBe(0);
+    const findMany = vi.spyOn(prisma.program, "findMany");
+    try {
+      expect((await programColors([{}, { program: undefined }])).size).toBe(0);
+      expect(findMany).not.toHaveBeenCalled();
+    } finally {
+      findMany.mockRestore();
+    }
+  });
+});
+
+/** A student lent to a host program, as `exchangeStatuses` words it: the program is the HOST. */
+const exchange: Status = {
+  type: "EXCHANGE_UNALLOCATED",
+  severity: "attention",
+  kind: "actionable",
+  label: "Hours not allocated",
+  href: "/students/p1",
+  subject: { kind: "student", id: "p1", name: "Aziz Tursunov" },
+  program: { id: "h1", name: "Global Admissions" },
+};
+
+describe("toTodoRows: a whole list", () => {
+  it("gives rows that would share a key keys of their own, the first keeping the one it has", async () => {
+    // A student sent to one host program from two of a mentor's programs is two rows of
+    // one kind about one student in one program, and the app keys its list on `key`.
+    const rows = await toTodoRows([exchange, expiring, exchange, exchange]);
+    expect(rows.map((row) => row.key)).toEqual([
+      "EXCHANGE_UNALLOCATED:p1:h1",
+      "ALLOCATION_EXPIRING:p1:g1",
+      "EXCHANGE_UNALLOCATED:p1:h1#2",
+      "EXCHANGE_UNALLOCATED:p1:h1#3",
+    ]);
+    expect(new Set(rows.map((row) => row.key)).size).toBe(rows.length);
+    // Only the key tells them apart.
+    expect({ ...rows[3], key: rows[0].key }).toEqual(rows[0]);
+  });
+
+  it("leaves a list whose keys are all different exactly as the formula made it", async () => {
+    const list = [expiring, meeting, { ...toConfirm, sessionId: "s1" }, { ...toConfirm, sessionId: "s2" }];
+    const rows = await toTodoRows(list);
+    expect(rows).toEqual(list.map((status) => toTodoRow(status)));
+    // Two sessions of one mentor's are told apart by the session, not by a number.
+    expect(rows.slice(2).map((row) => row.key)).toEqual(["SESSION_UNCONFIRMED:m1::s1", "SESSION_UNCONFIRMED:m1::s2"]);
+  });
+
+  it("gives a row naming a program that program's colorIndex, with no map passed in", async () => {
+    const [a, b] = await Promise.all([
+      prisma.program.create({ data: { name: "Global Admissions", colorIndex: 2 } }),
+      prisma.program.create({ data: { name: "Master's Program", colorIndex: 5 } }),
+    ]);
+    const findMany = vi.spyOn(prisma.program, "findMany");
+    try {
+      const rows = await toTodoRows([
+        { ...expiring, program: { id: a.id, name: a.name } },
+        { ...expiring, program: { id: b.id, name: b.name } },
+        meeting,
+      ]);
+      expect(rows.map((row) => row.program?.colorIndex ?? null)).toEqual([2, 5, null]);
+      // Both programs' colours come from one read of the list, not one read a row.
+      expect(findMany).toHaveBeenCalledTimes(1);
+    } finally {
+      findMany.mockRestore();
+    }
   });
 });

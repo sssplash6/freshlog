@@ -44,17 +44,19 @@ export async function programColors(rows: readonly Pick<Status, "program">[]): P
  * hold (one deleted since the list was read) wears the first slot, and a row
  * with no program needs none.
  *
- * `sessionId` is the session a SESSION_UNCONFIRMED row asks the student to
- * confirm. `Status` does not carry it yet; the student's home puts it there.
+ * `status.sessionId` is the session a SESSION_UNCONFIRMED row asks the student
+ * to confirm. A row about several, as a roll-up is, has none.
  */
-export function toTodoRow(status: Status & { sessionId?: string }, colors: ProgramColors = new Map()): TodoRow {
-  const { subject, program } = status;
+export function toTodoRow(status: Status, colors: ProgramColors = new Map()): TodoRow {
+  const { subject, program, sessionId } = status;
   return {
     // The app keys its list on this, so no two rows of one answer may share it.
     // A student whose time runs out in two programs is two rows about one
     // subject, and a rolled-up row, which has no subject, is told apart by its
     // program: so the type, the subject and the program, each blank when absent.
-    key: `${status.type}:${subject?.id ?? ""}:${program?.id ?? ""}`,
+    // A session to confirm names only the mentor who logged it, and one mentor
+    // logs several, so it adds its session.
+    key: [status.type, subject?.id ?? "", program?.id ?? "", ...(sessionId ? [sessionId] : [])].join(":"),
     type: status.type,
     severity: status.severity,
     label: status.label,
@@ -66,9 +68,35 @@ export function toTodoRow(status: Status & { sessionId?: string }, colors: Progr
     program: program ? { id: program.id, name: program.name, colorIndex: colors.get(program.id) ?? 0 } : null,
     count: status.count ?? null,
     href: status.href ?? null,
-    sessionId: status.sessionId ?? null,
+    sessionId: sessionId ?? null,
     log: logOf(status),
   };
+}
+
+/**
+ * A whole list of statuses as the contract's rows, in the order given. It is the
+ * one way a list leaves here, for two things a row on its own cannot see.
+ *
+ * Colours: a program's dot is a column of the program, so the list's programs are
+ * read together (`programColors`) and every row is given its own. Without them a
+ * row wears the first slot, whichever program it names.
+ *
+ * Keys: `toTodoRow` makes a key from what its row is about, which tells nearly
+ * every pair of rows apart and not every one. A student sent to one host program
+ * from two of a mentor's programs is two rows of one kind about one student in one
+ * program. The app keys its list on `key`, so the list holds what the formula
+ * cannot: the second and later rows to share a key take `#2`, `#3` and so on, in
+ * order. `#` is in no id and no type, so a numbered key is never another row's.
+ */
+export async function toTodoRows(statuses: readonly Status[]): Promise<TodoRow[]> {
+  const colors = await programColors(statuses);
+  const seen = new Map<string, number>();
+  return statuses.map((status) => {
+    const row = toTodoRow(status, colors);
+    const times = (seen.get(row.key) ?? 0) + 1;
+    seen.set(row.key, times);
+    return times === 1 ? row : { ...row, key: `${row.key}#${times}` };
+  });
 }
 
 /** What a row about time or a meeting lets the mentor log, prefilled. */

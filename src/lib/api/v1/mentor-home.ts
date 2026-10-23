@@ -1,6 +1,6 @@
 import "server-only";
 
-import { programColors, toTodoRow } from "@/lib/api/v1/todo";
+import { toTodoRows } from "@/lib/api/v1/todo";
 import type { CaseloadRow, MentorHome } from "@/lib/api/v1/types";
 import { attentionFor, caseloadStatuses } from "@/lib/attention";
 import { canActAsMentor, SESSION_ANSWER, SESSION_STATUS } from "@/lib/constants";
@@ -27,9 +27,11 @@ import type { User } from "@/generated/prisma/client";
  * To do list is freshform's own and is read at the moment it is asked.
  */
 export async function mentorHomeFor(user: User, now: Date = new Date()): Promise<MentorHome> {
-  // `attentionFor` answers anybody who cannot act as a mentor with the STAFF's
-  // list, whatever lens it is asked for. The route turns such a person away
-  // first; this is here so that forgetting to cannot hand one over.
+  // `attentionFor` answers somebody who cannot act as a mentor with their own
+  // lens's list, whatever lens it is asked for: the staff's, for an admin, and a
+  // student's own, for a student. Neither is a mentor's To do. The route turns
+  // such a person away first; this is here so that forgetting to cannot hand
+  // one over.
   if (!canActAsMentor(user)) throw new Error("mentorHomeFor: this person cannot act as a mentor");
 
   const viewer: ViewerContext = { audience: "mentor", userId: user.id, now };
@@ -49,7 +51,7 @@ export async function mentorHomeFor(user: User, now: Date = new Date()): Promise
   ]);
 
   const rows = students.map((s) => toCaseloadRow(s, viewer));
-  const colors = await programColors(attention.statuses);
+  const todo = await toTodoRows(attention.statuses);
 
   return {
     summary: {
@@ -64,7 +66,7 @@ export async function mentorHomeFor(user: User, now: Date = new Date()): Promise
     },
     // In freshform's order (`attentionList`): what asks something of the mentor
     // before what only tells them, the worst first.
-    todo: attention.statuses.map((status) => toTodoRow(status, colors)),
+    todo,
     // In `mentorCaseload`'s order. The website sorts by urgency on top of it,
     // but only for the table it draws.
     students: rows,

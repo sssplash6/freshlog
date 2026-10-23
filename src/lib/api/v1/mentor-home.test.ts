@@ -248,6 +248,43 @@ describe("mentorHomeFor: To do", () => {
     expect(new Set(todo.map((row) => row.key)).size).toBe(todo.length);
   });
 
+  it("numbers the rows of a student sent to one host program from two of the mentor's programs", async () => {
+    const w = await atWork();
+    const other = await program("Master's Program");
+    const host = await prisma.program.update({
+      where: { id: (await program("Imkon")).id },
+      data: { colorIndex: 4 },
+    });
+    const st = await student({ programId: w.p.id, name: "Aziz Tursunov" });
+    await enroll({ studentId: st.id, programId: other.id });
+    // The mentor sent the same student to the host from each of their programs, and
+    // nobody there holds the hours of either yet.
+    for (const from of [w.p, other]) {
+      await prisma.programExchange.create({
+        data: {
+          studentId: st.id,
+          fromProgramId: from.id,
+          toProgramId: host.id,
+          minutes: 420,
+          deadline: dayIn(60),
+          sentById: w.m.id,
+        },
+      });
+    }
+
+    const { todo } = await mentorHomeFor(w.m, NOW);
+    // Two rows of one kind about one student in one program: only a number tells them apart.
+    expect(todo.map((row) => row.key)).toEqual([
+      `EXCHANGE_UNALLOCATED:${st.id}:${host.id}`,
+      `EXCHANGE_UNALLOCATED:${st.id}:${host.id}#2`,
+    ]);
+    // And the dot on both is the host's, where the row is settled.
+    expect(todo.map((row) => row.program)).toEqual([
+      { id: host.id, name: "Imkon", colorIndex: 4 },
+      { id: host.id, name: "Imkon", colorIndex: 4 },
+    ]);
+  });
+
   it("a mentor who also administers gets the mentor's To do, not the staff's", async () => {
     const p = await program("Global Admissions");
     // Nodira administers Global Admissions and mentors in it: one person, two halves.

@@ -795,6 +795,10 @@ export async function studentRows(
             },
             href: "/student/meetings",
             at: s.date,
+            // Which session the row asks about, for the app, which cannot follow
+            // the link above. The website ignores it, and a roll-up, which is a
+            // new object about several sessions, carries none.
+            sessionId: s.id,
           },
         ]
       : [];
