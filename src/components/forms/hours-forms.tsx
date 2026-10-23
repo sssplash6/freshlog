@@ -9,6 +9,7 @@ import { ConfirmInline } from "@/components/ui/confirm-inline";
 import { Field, GrowingField, Input } from "@/components/ui/field";
 import { RowActionGroup, RowActionMenu } from "@/components/ui/row-action-menu";
 import { DateField } from "@/components/ui/date-field";
+import { DurationField } from "@/components/ui/duration-field";
 import { SaveState, useSaveState } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useAutosave } from "@/components/forms/use-autosave";
@@ -114,17 +115,14 @@ export function AllocationRowActions({
           {bank && <input type="hidden" name="bank" value="1" />}
           <input type="hidden" name="mode" value="set" />
 
-          <Field label="Total minutes">
-            <Input
-              name="minutes"
-              type="number"
-              inputMode="numeric"
-              min="0"
-              step="1"
-              value={minutes}
-              onChange={(event) => setMinutes(event.target.value)}
-            />
-          </Field>
+          {/* A div, not a `Field`: a <label> around two boxes would send
+              every click of the word to the first. */}
+          <div className="space-y-1.5">
+            <span className="block text-sm font-medium text-ink">
+              Total time
+            </span>
+            <DurationField name="minutes" value={minutes} onChange={setMinutes} />
+          </div>
 
           <Field label="Use by">
             <DateField
@@ -158,6 +156,12 @@ export function AllocationRowActions({
               </p>
             </div>
           )}
+
+          {/* Autosave still writes the edit when focus leaves the form; this
+              is for the reader who wants to see it land before closing. */}
+          <SubmitButton size="sm" pendingText="Saving…">
+            Confirm
+          </SubmitButton>
         </form>
         <SaveState state={setSave} />
       </RowActionGroup>
@@ -338,17 +342,10 @@ export function AllocationMinutesEditor({
               value={currentAmountPaid ?? "0"}
             />
           )}
-          <Field label="Total minutes">
-            <Input
-              name="minutes"
-              type="number"
-              inputMode="numeric"
-              min="0"
-              step="1"
-              value={minutes}
-              onChange={(event) => setMinutes(event.target.value)}
-            />
-          </Field>
+          <DurationField name="minutes" value={minutes} onChange={setMinutes} />
+          <SubmitButton size="sm" pendingText="Saving…">
+            Confirm
+          </SubmitButton>
         </form>
         <SaveState state={save} />
       </RowActionGroup>

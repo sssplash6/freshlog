@@ -4,6 +4,15 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-23
+
+### New
+- **Grant time in hours and minutes, and confirm it.** Correcting a mentor's allocation now has an Hours box and a Minutes box, so 3 h no longer has to be typed as 180. A Confirm button saves it at once and shows the time it was saved; leaving the menu still saves as before.
+
+### Fixed
+- **Edits no longer vanish when you tap away.** Changing hours, a deadline or an agenda item in a ⋮ menu and then tapping outside it closed the menu without saving, so the change only stuck after a few tries. It now saves as the menu closes.
+- **You always hear back about a save.** Fields that save themselves now say "Saving…" while they do, and if a menu closes before the answer comes back, a message at the bottom of the screen says it saved, or why it didn't.
+
 ## 2026-10-22
 
 ### New
