@@ -51,7 +51,7 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
     }),
   ]);
   const viewer: ViewerContext = { audience: "student", userId: user.id, now };
-  const links = bookingLinks(pairings);
+  const bookingUrlOf = bookingLinks(pairings);
 
   // In freshform's order (`attentionList`): what asks something of the student
   // before what only tells them, the worst first.
@@ -68,7 +68,7 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
     expiring: hours.expiring
       ? { minutes: hours.expiring.minutes, day: toDateInputValue(hours.expiring.date) }
       : null,
-    grants: hours.perMentor.map((grant) => toGrant(grant, links, now)),
+    grants: hours.perMentor.map((grant) => toGrant(grant, bookingUrlOf, now)),
     todo,
     // Counted from the sessions, not summed from the rows: a row's `count` is null
     // for a session on its own, and set only on the one row that four or more
@@ -83,22 +83,31 @@ const nameOf = (person: { name: string | null; email: string }) => person.name ?
 /** One mentor in one program. The program is part of it: the same mentor may hold separate time, and a separate link, in two. */
 const pairKey = (programId: string, mentorId: string) => `${programId}:${mentorId}`;
 
+/** Where a mentor can be booked for time held in a program, if anywhere. */
+type BookingUrlOf = (programId: string, mentorId: string) => string | null;
+
 /**
- * The booking link of each mentor in each program, where there is one.
+ * Where each mentor can be booked, found as the Book page finds it: by the link
+ * of the pairing in the program the time is in or, when that has none, by the
+ * mentor's link from another of the student's pairings. It is the same person's
+ * calendar either way.
  *
  * A mentor can be paired twice in a program, once for all of it and once for the
- * student's cohort, so a pair's link is whichever of the two carries one, and the
- * first made when both do: the Book page's own rule (`pairings` arrive oldest first).
+ * student's cohort, so a pair's link is whichever of the two carries one. Both
+ * lookups take the first made (`pairings` arrive oldest first).
  */
 function bookingLinks(
   pairings: readonly { mentorId: string; programId: string; calendlyUrl: string | null }[]
-): ReadonlyMap<string, string> {
-  const links = new Map<string, string>();
+): BookingUrlOf {
+  const ofPair = new Map<string, string>();
+  const ofMentor = new Map<string, string>();
   for (const pairing of pairings) {
-    const key = pairKey(pairing.programId, pairing.mentorId);
-    if (pairing.calendlyUrl && !links.has(key)) links.set(key, pairing.calendlyUrl);
+    if (!pairing.calendlyUrl) continue;
+    const pair = pairKey(pairing.programId, pairing.mentorId);
+    if (!ofPair.has(pair)) ofPair.set(pair, pairing.calendlyUrl);
+    if (!ofMentor.has(pairing.mentorId)) ofMentor.set(pairing.mentorId, pairing.calendlyUrl);
   }
-  return links;
+  return (programId, mentorId) => ofPair.get(pairKey(programId, mentorId)) ?? ofMentor.get(mentorId) ?? null;
 }
 
 /**
@@ -109,14 +118,15 @@ function bookingLinks(
  */
 function toGrant(
   grant: AllocationSummary["perMentor"][number],
-  links: ReadonlyMap<string, string>,
+  bookingUrlOf: BookingUrlOf,
   now: Date
 ): StudentGrant {
   const { mentor, program, deadline } = grant;
   return {
     // Time with no mentor behind it has none to name: an hour bank, or time
-    // nobody has been chosen for yet.
+    // nobody has been chosen for yet, which `bank` tells apart.
     mentor: mentor ? { id: mentor.id, name: nameOf(mentor) } : null,
+    bank: grant.bank,
     program: { id: program.id, name: program.name, colorIndex: program.colorIndex },
     allocated: grant.allocated,
     remaining: grant.remaining,
@@ -124,7 +134,7 @@ function toGrant(
     expired: grant.expired,
     useBy: deadline ? toDateInputValue(deadline) : null,
     daysLeft: deadline ? daysAway(deadline, now) : null,
-    bookingUrl: mentor ? (links.get(pairKey(program.id, mentor.id)) ?? null) : null,
+    bookingUrl: mentor ? bookingUrlOf(program.id, mentor.id) : null,
   };
 }
 

@@ -169,6 +169,7 @@ describe("studentHomeFor: the grants", () => {
     expect(home.grants).toEqual([
       {
         mentor: { id: w.m.id, name: "Akmal Karimov" },
+        bank: false,
         program: { id: w.p.id, name: "Global Admissions", colorIndex: 3 },
         allocated: 600,
         remaining: 510,
@@ -238,6 +239,34 @@ describe("studentHomeFor: the grants", () => {
     ]);
   });
 
+  it("an hour bank and unassigned time are told apart", async () => {
+    const gp = await program("Global Admissions");
+    const mp = await program("Master's Program");
+    const rp = await program("Research");
+    const m = await mentor("Akmal Karimov");
+    const st = await student({ programId: gp.id, name: "Aziz Tursunov" });
+    await enroll({ studentId: st.id, programId: mp.id });
+    await enroll({ studentId: st.id, programId: rp.id });
+    // A mentor's time, time nobody has been chosen for yet, and an hour bank, one in
+    // each program: the order is then the programs' name, and not a tie between rows
+    // made in the same millisecond.
+    await grantTo(st, m, gp, 300);
+    await prisma.hourAllocation.create({
+      data: { studentId: st.id, programId: mp.id, mentorId: null, minutes: 90, deadline: dayIn(60) },
+    });
+    await prisma.hourAllocation.create({
+      data: { studentId: st.id, programId: rp.id, mentorId: null, minutes: 120, deadline: dayIn(60), isBank: true },
+    });
+
+    const { grants } = await homeOf(st);
+    // The unassigned time and the bank both have no mentor; only `bank` says which is which.
+    expect(grants.map((g) => [g.program.name, g.mentor?.name ?? null, g.allocated, g.bank])).toEqual([
+      ["Global Admissions", "Akmal Karimov", 300, false],
+      ["Master's Program", null, 90, false],
+      ["Research", null, 120, true],
+    ]);
+  });
+
   it("names a mentor who logged time without a grant of their own, with the overdraw it is", async () => {
     const w = await settled();
     const other = await mentor("Umid Rashidov");
@@ -246,6 +275,7 @@ describe("studentHomeFor: the grants", () => {
     const grant = (await homeOf(w.st)).grants.find((g) => g.mentor?.id === other.id);
     expect(grant).toEqual({
       mentor: { id: other.id, name: "Umid Rashidov" },
+      bank: false,
       program: { id: w.p.id, name: "Global Admissions", colorIndex: w.p.colorIndex },
       allocated: 0,
       remaining: -45,
@@ -275,12 +305,31 @@ describe("studentHomeFor: booking links", () => {
     expect(linkOf(unlinked)).toBeNull();
   });
 
-  it("offers a mentor's link for the program it was set in, and for no other", async () => {
+  it("offers the link of the program the time is in, when that program has one", async () => {
+    const gp = await program("Global Admissions");
+    const mp = await program("Master's Program");
+    const m = await mentor("Akmal Karimov");
+    await paired(m, gp, { link: "https://calendly.com/akmal-global" });
+    await paired(m, mp, { link: "https://calendly.com/akmal-masters" });
+    const st = await student({ programId: gp.id, name: "Aziz Tursunov" });
+    await enroll({ studentId: st.id, programId: mp.id });
+    await grantTo(st, m, gp, 300);
+    await grantTo(st, m, mp, 120);
+
+    const { grants } = await homeOf(st);
+    expect(grants.map((g) => [g.program.name, g.bookingUrl])).toEqual([
+      ["Global Admissions", "https://calendly.com/akmal-global"],
+      ["Master's Program", "https://calendly.com/akmal-masters"],
+    ]);
+  });
+
+  it("a mentor with no link in this program offers their link from another", async () => {
     const gp = await program("Global Admissions");
     const mp = await program("Master's Program");
     const m = await mentor("Akmal Karimov");
     await paired(m, gp, { link: "https://calendly.com/akmal-karimov" });
-    // Paired in the Master's Program too, and no link there yet.
+    // Paired in the Master's Program too, with no link there yet. The Book page offers
+    // the same calendar for that time: it is the same person's either way.
     await paired(m, mp, { link: null });
     const st = await student({ programId: gp.id, name: "Aziz Tursunov" });
     await enroll({ studentId: st.id, programId: mp.id });
@@ -290,8 +339,27 @@ describe("studentHomeFor: booking links", () => {
     const { grants } = await homeOf(st);
     expect(grants.map((g) => [g.program.name, g.bookingUrl])).toEqual([
       ["Global Admissions", "https://calendly.com/akmal-karimov"],
-      ["Master's Program", null],
+      ["Master's Program", "https://calendly.com/akmal-karimov"],
     ]);
+  });
+
+  it("takes the first made of the links a mentor has elsewhere", async () => {
+    const gp = await program("Global Admissions");
+    const mp = await program("Master's Program");
+    const rp = await program("Research");
+    const st = await student({ programId: gp.id, name: "Aziz Tursunov" });
+    await enroll({ studentId: st.id, programId: mp.id });
+    await enroll({ studentId: st.id, programId: rp.id });
+    const m = await mentor("Akmal Karimov");
+    const at = (seconds: number) => new Date(Date.UTC(2026, 9, 1, 0, 0, seconds));
+    // Not paired in the program the time is in at all. Of the two links elsewhere the
+    // Master's was written first and made second, so reading them as they were stored
+    // would pick the wrong one.
+    await paired(m, mp, { link: "https://calendly.com/akmal-masters", madeAt: at(2) });
+    await paired(m, rp, { link: "https://calendly.com/akmal-research", madeAt: at(1) });
+    await grantTo(st, m, gp, 300);
+
+    expect((await homeOf(st)).grants[0].bookingUrl).toBe("https://calendly.com/akmal-research");
   });
 
   it("takes the link of whichever of a mentor's pairings has one, the first made when both do", async () => {
@@ -317,13 +385,16 @@ describe("studentHomeFor: booking links", () => {
     expect(linkOf(second)).toBe("https://calendly.com/umid-program");
   });
 
-  it("leaves out a pairing with a cohort the student is not in", async () => {
+  it("takes a link only from the pairings the student can book through", async () => {
     const p = await program("Global Admissions");
+    const elsewhere = await program("Master's Program");
     const autumn = await cohort({ programId: p.id, name: "Autumn" });
     const spring = await cohort({ programId: p.id, name: "Spring" });
     const st = await student({ programId: p.id, cohortId: autumn.id, name: "Aziz Tursunov" });
     const m = await mentor("Akmal Karimov");
+    // One pairing with a cohort the student is not in, and one in a program they are not in.
     await paired(m, p, { link: "https://calendly.com/akmal-spring", cohortId: spring.id });
+    await paired(m, elsewhere, { link: "https://calendly.com/akmal-masters" });
     await grantTo(st, m, p, 300);
 
     expect((await homeOf(st)).grants[0].bookingUrl).toBeNull();

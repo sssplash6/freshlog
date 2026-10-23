@@ -275,6 +275,8 @@ export type MentorHome = {
 export type StudentGrant = {
   /** null for the hour bank, which every meeting draws. */
   mentor: PersonRef | null;
+  /** The student's hour bank. With no `mentor`, false is time nobody has been chosen for yet. */
+  bank: boolean;
   program: ProgramRef;
   allocated: number;
   /** Minutes left, negative when over. */
@@ -284,7 +286,11 @@ export type StudentGrant = {
   expired: boolean;
   useBy: string | null;
   daysLeft: number | null;
-  /** The mentor's booking page for this program, when they have one. */
+  /**
+   * The mentor's booking page for this program or, when they have none here, the
+   * one from another of the student's pairings with them, as the website's Book
+   * page finds it. Null when they have none anywhere.
+   */
   bookingUrl: string | null;
 };
 /** GET /api/v1/student/home. */
