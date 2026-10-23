@@ -281,6 +281,20 @@ describe("sessionsPage: the filters", () => {
     expect(idsOf(await pageOf(reader, { q: "   " }))).toEqual([forAziz.id, forMalika.id]);
   });
 
+  it("a mentor's search finds a student whose name starts like the mentor's, and only that student", async () => {
+    const { p, aziz, akmal } = await cast();
+    const akmaljon = await pupil(p.id, "Akmaljon Usmonov");
+    const base = { mentorId: akmal.id, programId: p.id };
+    await held({ ...base, studentId: aziz.profile.id, date: day("2026-10-20") });
+    const first = await held({ ...base, studentId: akmaljon.profile.id, date: day("2026-10-19") });
+    const second = await held({ ...base, studentId: akmaljon.profile.id, date: day("2026-10-18") });
+
+    // "akm" starts Akmal Karimov too, who logged all three: a search that looked at his name would list them all.
+    const page = await pageOf(await readerFor(akmal), { q: "akm" });
+    expect(idsOf(page)).toEqual([first.id, second.id]);
+    expect(page.totals.count).toBe(2);
+  });
+
   it("narrows by program, in the reader's own sessions only", async () => {
     const ga = await program("Global Admissions");
     const ms = await program("Master's");
