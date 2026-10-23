@@ -26,9 +26,45 @@ describe("respond", () => {
     expect(await res.json()).toEqual({ ok: false, error: "Pick a valid date.", field: "date" });
   });
 
-  it("fromAction answers success with 200 and the state unchanged", async () => {
+  it("fromAction answers success with 200 and the action's own sentence", async () => {
     expect((await fromAction({ ok: true, message: "Session voided; hours returned." }).json()).message)
       .toBe("Session voided; hours returned.");
+  });
+
+  // The contract's WriteResult is `{ ok, message?, receipt? }`. What else an
+  // action adds to a success is for the website: `editSession` echoes back the
+  // session it saved, the mentor's note included, and that note is not for
+  // everyone who may edit (never for the student it is about, even one who also
+  // administers the program).
+  it("fromAction answers a success with only ok, message and receipt", async () => {
+    const receipt = { id: "s1", headline: "Logged 90 min with Aziza.", notes: ["2 h remaining."] };
+    const res = fromAction({
+      ok: true,
+      message: "Session updated.",
+      receipt,
+      session: {
+        minutes: 45,
+        date: "2026-10-22T00:00:00.000Z",
+        note: "private",
+        assignmentId: null,
+        attended: true,
+        late: false,
+        status: "ACTIVE",
+        withinPlan: true,
+        task: null,
+      },
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, message: "Session updated.", receipt });
+  });
+
+  it("fromAction drops anything else an action adds to a success, too", async () => {
+    const state = { ok: true as const, message: "Done.", somethingNew: "private" };
+    expect(await fromAction(state).json()).toEqual({ ok: true, message: "Done." });
+  });
+
+  it("fromAction answers a success with nothing to say as just ok", async () => {
+    expect(await fromAction({ ok: true }).json()).toEqual({ ok: true });
   });
 
   it("never lets a JSON answer be cached", () => {
