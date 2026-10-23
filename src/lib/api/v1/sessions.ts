@@ -263,8 +263,12 @@ const awaitingAnswer = (now: Date): Prisma.SessionWhereInput => ({
   date: { gte: new Date(now.getTime() - CONFIRM_WINDOW_DAYS * DAY_MS) },
 });
 
-/** What the student disputed and nobody has voided since. */
-const DISPUTED: Prisma.SessionWhereInput = {
+/**
+ * What the student disputed and nobody has voided since. The one rule for it:
+ * the ledger's `answer=disputed` and its `counts.disputed`, and the mentor's
+ * home's `summary.disputed`, so the three cannot disagree.
+ */
+export const DISPUTED: Prisma.SessionWhereInput = {
   studentAnswer: SESSION_ANSWER.DISPUTED,
   status: { not: SESSION_STATUS.VOIDED },
 };

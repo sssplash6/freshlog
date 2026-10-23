@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Program, User } from "@/generated/prisma/client";
 import { mentorHomeFor } from "@/lib/api/v1/mentor-home";
+import { readerFor, sessionsPage } from "@/lib/api/v1/sessions";
 import { attentionFor } from "@/lib/attention";
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -113,6 +114,36 @@ describe("mentorHomeFor: the figures", () => {
     // Another mentor's, about the same student.
     await logged("DISPUTED", { mentorId: (await mentor("Umid Rashidov")).id });
     expect((await mentorHomeFor(w.m, NOW)).summary.disputed).toBe(2);
+  });
+
+  it("counts as disputed exactly what the mentor's ledger lists and counts as disputed", async () => {
+    const w = await atWork();
+    const st = await holding(w, { name: "Aziz Tursunov", minutes: 600 });
+    const disputed = async (opts: { status?: string; withinPlan?: boolean; mentorId?: string } = {}) => {
+      const s = await session({
+        studentId: st.id,
+        programId: w.p.id,
+        mentorId: opts.mentorId ?? w.m.id,
+        minutes: 30,
+        status: opts.status,
+        withinPlan: opts.withinPlan,
+      });
+      await prisma.session.update({ where: { id: s.id }, data: { studentAnswer: "DISPUTED" } });
+    };
+    await disputed();
+    // Given on top of the plan, and moved: neither is voided, so both are still disputed.
+    await disputed({ withinPlan: false });
+    await disputed({ status: "RESCHEDULED" });
+    await disputed({ status: "VOIDED" });
+    await disputed({ mentorId: (await mentor("Umid Rashidov")).id });
+
+    const { summary } = await mentorHomeFor(w.m, NOW);
+    const ledger = await sessionsPage(await readerFor(w.m), { answer: "disputed" }, NOW);
+    if ("refused" in ledger) throw new Error(ledger.refused);
+    expect(summary.disputed).toBe(3);
+    // The ledger's `answer=disputed` and its chip: the three can never disagree.
+    expect(ledger.totals.count).toBe(summary.disputed);
+    expect(ledger.counts.disputed).toBe(summary.disputed);
   });
 });
 

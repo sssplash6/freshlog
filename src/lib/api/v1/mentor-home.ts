@@ -1,9 +1,10 @@
 import "server-only";
 
+import { DISPUTED } from "@/lib/api/v1/sessions";
 import { toTodoRows } from "@/lib/api/v1/todo";
 import type { CaseloadRow, MentorHome } from "@/lib/api/v1/types";
 import { attentionFor, caseloadStatuses } from "@/lib/attention";
-import { canActAsMentor, SESSION_ANSWER, SESSION_STATUS } from "@/lib/constants";
+import { canActAsMentor } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { mentorCaseload, type CaseloadStudent } from "@/lib/queries";
@@ -41,13 +42,8 @@ export async function mentorHomeFor(user: User, now: Date = new Date()): Promise
     // lens cookie, and without one a mentor who also administers is read as an
     // admin and handed the staff's list.
     attentionFor(user, "mentor"),
-    prisma.session.count({
-      where: {
-        mentorId: user.id,
-        studentAnswer: SESSION_ANSWER.DISPUTED,
-        status: { not: SESSION_STATUS.VOIDED },
-      },
-    }),
+    // The ledger's own rule, so this is what its `answer=disputed` lists.
+    prisma.session.count({ where: { AND: [{ mentorId: user.id }, DISPUTED] } }),
   ]);
 
   const rows = students.map((s) => toCaseloadRow(s, viewer));
