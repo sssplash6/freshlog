@@ -200,6 +200,20 @@ export function ledgerScope(reader: Reader): FilterScope | null {
   return null;
 }
 
+/** The fields of the query that take one of a few words, rather than any text. */
+type Choice = "period" | "status" | "answer";
+
+/**
+ * The words each of them takes, keyed by the contract's own union: a word added
+ * to `SessionsQuery` does not compile until it is here too, and a word that is
+ * not there cannot be.
+ */
+const WORDS: { [Key in Choice]: Record<NonNullable<SessionsQuery[Key]>, true> } = {
+  period: { week: true, "30d": true, "90d": true, year: true },
+  status: { active: true, voided: true },
+  answer: { needed: true, disputed: true },
+};
+
 /**
  * The query a request's URL carries.
  *
@@ -211,15 +225,17 @@ export function ledgerScope(reader: Reader): FilterScope | null {
  */
 export function sessionsQueryFrom(params: URLSearchParams): SessionsQuery {
   const text = (key: string) => params.get(key) ?? undefined;
-  const word = <T extends string>(key: string, words: readonly T[]) => words.find((w) => w === params.get(key));
+  // Found among the table's own keys, so a name every object has ("toString") is no word.
+  const word = <Key extends Choice>(key: Key) =>
+    (Object.keys(WORDS[key]) as NonNullable<SessionsQuery[Key]>[]).find((w) => w === params.get(key));
   return {
     cursor: text("cursor"),
     limit: text("limit"),
     student: text("student"),
     program: text("program"),
-    period: word("period", ["week", "30d", "90d", "year"]),
-    status: word("status", ["active", "voided"]),
-    answer: word("answer", ["needed", "disputed"]),
+    period: word("period"),
+    status: word("status"),
+    answer: word("answer"),
     q: text("q"),
   };
 }

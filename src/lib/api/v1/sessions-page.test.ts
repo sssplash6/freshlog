@@ -693,6 +693,9 @@ describe("sessionsQueryFrom: the URL as a query", () => {
     expect(sessionsQueryFrom(new URLSearchParams())).toEqual({});
   });
 
+  it("takes no name that every object has for a word", () =>
+    expect(sessionsQueryFrom(new URLSearchParams("period=toString&status=constructor&answer=__proto__"))).toEqual({}));
+
   it("takes the first of a repeated key, as the website's filters do", () => {
     expect(sessionsQueryFrom(new URLSearchParams("q=first&q=second&status=active&status=voided"))).toEqual({
       q: "first",
