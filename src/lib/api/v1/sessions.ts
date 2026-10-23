@@ -289,6 +289,10 @@ export const DISPUTED: Prisma.SessionWhereInput = {
  * out, and filters.ts is the website's search, so the clause is built here. It
  * is `contains` with no `mode`, as there: SQLite's LIKE is already
  * case-insensitive for ASCII, and Prisma throws if asked for `mode` on SQLite.
+ *
+ * So it must follow a change to `SESSION_SEARCH`. `sessions-page.test.ts` pins
+ * that search's fields by the placeholder they make, so a change there fails a
+ * test before it can go missing here.
  */
 const mentorSearch = (q: string): Prisma.SessionWhereInput | null =>
   q

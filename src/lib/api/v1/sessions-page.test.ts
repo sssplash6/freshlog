@@ -10,6 +10,7 @@ import {
   type Reader,
 } from "@/lib/api/v1/sessions";
 import type { SessionsPage, SessionsQuery } from "@/lib/api/v1/types";
+import { SEARCH_PLACEHOLDER } from "@/lib/filters";
 import { prisma } from "@/lib/prisma";
 import { admin, assignment, enroll, grant, mentor, program, student } from "@/test/db";
 
@@ -250,6 +251,14 @@ describe("sessionsPage: the filters", () => {
     expect(idsOf(await pageOf(reader, { q: "Malika" }))).toEqual([named.id]);
     expect(idsOf(await pageOf(reader, { q: "nothing like this" }))).toEqual([]);
   });
+
+  // `mentorSearch` (sessions.ts) is the website's `SESSION_SEARCH` (filters.ts)
+  // without its mentor field, copied by hand, and nothing else fails when the
+  // website's search changes. Its box's placeholder is made from its fields'
+  // labels, so a field added there, or taken away, fails here first: then
+  // `mentorSearch` must follow it, and this line with it.
+  it("searches the fields of the website's own search, all but the mentor", () =>
+    expect(SEARCH_PLACEHOLDER.sessions).toBe("Note, agenda, student or mentor"));
 
   it("a mentor's search never matches their own name", async () => {
     const { p, aziz, akmal } = await cast();
