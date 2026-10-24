@@ -1,5 +1,5 @@
 import { isText } from "@/lib/api/v1/session-forms";
-import type { BookInterview, OfferSlot } from "@/lib/api/v1/types";
+import type { BookInterview, FeedbackText, OfferSlot } from "@/lib/api/v1/types";
 import { isDay } from "@/lib/api/v1/work-forms";
 import { templateById } from "@/lib/interview-templates";
 import { NOTES_MAX, parseMeetingUrl, parseSlotLength, parseSlotStart } from "@/lib/peer-interviews";
@@ -65,5 +65,41 @@ export function notesForm(body: Record<string, unknown> | null): FormData | { fi
   }
   const form = new FormData();
   form.set("notes", notes);
+  return form;
+}
+
+/** `saveInterviewAnswer`'s FormData. Whether the index is one of the template's questions is the action's to say. */
+export function answerForm(index: string, body: Record<string, unknown> | null): FormData | { field: string; error: string } {
+  if (!/^\d+$/.test(index)) return { field: "index", error: "That question isn't in this interview." };
+  const text = body?.text;
+  if (!isText(text) || text.trim().length > NOTES_MAX) {
+    return { field: "text", error: `An answer can be up to ${NOTES_MAX} characters.` };
+  }
+  const form = new FormData();
+  form.set("questionIndex", index);
+  form.set("text", text);
+  return form;
+}
+
+const BOXES = ["summary", "wentWell", "toImprove"] as const satisfies readonly (keyof FeedbackText)[];
+
+/**
+ * The three feedback boxes as FormData. A draft may leave any empty; sending
+ * and correcting need all three, and the first empty one is named, in the
+ * action's words (`whole` is "submit" or "save", as the action says it).
+ */
+export function feedbackForm(
+  body: Record<string, unknown> | null,
+  whole?: "submit" | "save"
+): FormData | { field: string; error: string } {
+  const form = new FormData();
+  for (const box of BOXES) {
+    const value = body?.[box] ?? "";
+    if (!isText(value) || value.trim().length > NOTES_MAX) {
+      return { field: box, error: `Each box can be up to ${NOTES_MAX} characters.` };
+    }
+    if (whole && !value.trim()) return { field: box, error: `Fill in all three boxes before you ${whole}.` };
+    form.set(box, value);
+  }
   return form;
 }
