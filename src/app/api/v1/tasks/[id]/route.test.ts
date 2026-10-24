@@ -151,12 +151,32 @@ describe("PATCH /api/v1/tasks/:id", () => {
     expect((await res.json()).field).toBe("title");
   });
 
-  it("leaves a student who can see the task but not change it to freshform's refusal", async () => {
+  it("refuses a student, who can read the task but not change it, with 403 in freshform's words", async () => {
     const { st, t } = await setUp();
     actor.value = { id: st.userId };
     const res = await patch(t.id, { title: "Mine now" });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ ok: false, error: "That task is not yours to change." });
+    expect((await stored(t.id))?.title).toBe("Rewrite the draft");
+  });
+
+  it("refuses a mentor who reaches the student but does not own the task, and changes nothing", async () => {
+    const { p, t } = await setUp();
+    const colleague = await mentor("Umid Rashidov");
+    await pairing({ mentorId: colleague.id, programId: p.id });
+    actor.value = { id: colleague.id };
+    const res = await patch(t.id, { title: "Mine now" });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ ok: false, error: "That task is not yours to change." });
+    expect((await stored(t.id))?.title).toBe("Rewrite the draft");
+  });
+
+  it("refuses a whitespace-only title on field \"title\"", async () => {
+    const { m, t } = await setUp();
+    actor.value = { id: m.id };
+    const res = await patch(t.id, { title: "   " });
     expect(res.status).toBe(400);
-    expect(await res.json()).toMatchObject({ ok: false, error: "That task no longer exists." });
+    expect((await res.json()).field).toBe("title");
     expect((await stored(t.id))?.title).toBe("Rewrite the draft");
   });
 });
@@ -186,6 +206,15 @@ describe("DELETE /api/v1/tasks/:id", () => {
     expect(await stored(t.id)).not.toBeNull();
   });
 
+  it("refuses a student, who can read the task but not delete it, with 403", async () => {
+    const { st, t } = await setUp();
+    actor.value = { id: st.userId };
+    const res = await del(t.id);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ ok: false, error: "That task is not yours to change." });
+    expect(await stored(t.id)).not.toBeNull();
+  });
+
   it("the owning mentor deletes it; a mentor who only reaches the student is refused in freshform's words", async () => {
     const { p, st, m, t } = await setUp();
     const colleague = await mentor("Umid Rashidov");
@@ -193,8 +222,8 @@ describe("DELETE /api/v1/tasks/:id", () => {
 
     actor.value = { id: colleague.id };
     const refused = await del(t.id);
-    expect(refused.status).toBe(400);
-    expect(await refused.json()).toMatchObject({ ok: false, error: "That task no longer exists." });
+    expect(refused.status).toBe(403);
+    expect(await refused.json()).toMatchObject({ ok: false, error: "That task is not yours to change." });
     expect(await stored(t.id)).not.toBeNull();
 
     actor.value = { id: m.id };

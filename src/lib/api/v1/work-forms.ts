@@ -30,12 +30,12 @@ export function isDay(value: unknown): value is string {
   return toDateInputValue(made) === value;
 }
 
-/** A title as the action reads it: whitespace collapsed. The limit is judged on that. */
+/** A title as the action reads it: whitespace collapsed. Empty and the limit are judged on that. */
 const collapsed = (title: string) => title.trim().replace(/\s+/g, " ");
 
 /** The first of the title, day and note that is not a valid value, in the contract's own words for the field. */
 function badField(fields: { title?: unknown; due?: unknown; note?: unknown }): string | null {
-  if (fields.title !== undefined && (!isText(fields.title) || collapsed(fields.title).length > MAX_TASK_TITLE))
+  if (fields.title !== undefined && (!isText(fields.title) || !collapsed(fields.title) || collapsed(fields.title).length > MAX_TASK_TITLE))
     return "title";
   if (fields.due !== undefined && !isDay(fields.due)) return "due";
   if (fields.note !== undefined && fields.note !== null && (!isText(fields.note) || fields.note.trim().length > MAX_TASK_NOTE))

@@ -52,6 +52,11 @@ describe("taskCreateForm", () => {
     expect(taskCreateForm({ ...body, title: "x".repeat(100) })).toBeInstanceOf(FormData);
   });
 
+  it("refuses an empty or whitespace-only title with field \"title\"", () => {
+    expect(taskCreateForm({ ...body, title: "" })).toEqual({ field: "title" });
+    expect(taskCreateForm({ ...body, title: " \t " })).toEqual({ field: "title" });
+  });
+
   it("refuses a note over 500 characters with field \"note\"", () =>
     expect(taskCreateForm({ ...body, note: "x".repeat(501) })).toEqual({ field: "note" }));
 
@@ -88,6 +93,11 @@ describe("taskEditForm", () => {
     expect(form(taskEditForm(current, { due: "2026-11-10" })).note).toBe("Start with the intro.");
     expect(form(taskEditForm(current, { note: null })).note).toBe("");
     expect(form(taskEditForm({ ...current, note: null }, { title: "New" })).note).toBe("");
+  });
+
+  it("refuses an empty or whitespace-only title with field \"title\"", () => {
+    expect(taskEditForm(current, { title: "" })).toEqual({ field: "title" });
+    expect(taskEditForm(current, { title: "  " })).toEqual({ field: "title" });
   });
 
   it("refuses an impossible day and a long title", () => {

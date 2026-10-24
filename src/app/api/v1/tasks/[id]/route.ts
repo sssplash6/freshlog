@@ -11,6 +11,9 @@ import { programToday } from "@/lib/when";
 // Render the SQLite disk only exists at runtime.
 export const dynamic = "force-dynamic";
 
+/** `assertTaskScope`'s own words for a task the person may read and may not change. */
+const NOT_YOURS = "That task is not yours to change.";
+
 /**
  * One task, as the person reading it may see it: its student, a mentor who
  * reaches the student, or an admin of its program (`taskFor`).
@@ -36,7 +39,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
  * `taskEditForm` sends each one the body leaves out as the task has it now. The
  * task is read first, as GET reads it: one the person may not see is answered
  * like one that was never made. One they may see but not change is the action's
- * to refuse, and comes back as a 400.
+ * is refused with a 403, in `assertTaskScope`'s words.
  */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
@@ -45,6 +48,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const task = await taskFor(await readerFor(user), id);
   if (!task) return refused("Not found.", 404);
+  // Seen but not theirs to change: the action would say the task no longer exists, which is false.
+  if (!task.can.edit) return refused(NOT_YOURS, 403);
   const body = await bodyOf(request);
   if (!body) return refused("Send the changes as JSON.", 400);
   const asked = taskEditOf(body);
@@ -65,6 +70,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const { id } = await params;
   const task = await taskFor(await readerFor(user), id);
   if (!task) return refused("Not found.", 404);
+  if (!task.can.delete) return refused(NOT_YOURS, 403);
   const form = new FormData();
   form.set("taskId", task.id);
   return fromAction(await deleteStudentTask(null, form));
