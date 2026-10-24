@@ -7,6 +7,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-24
 
 ### New
+- **One combined score per mentor on Feedback.** Each mentor's score now counts every rating, from the mentor form and from single meetings, so mentors rated only on meetings appear too. Your own score includes your meeting ratings as a number; you still don't see which meeting got which rating, or what was written.
 - **Partner staff can read their feedback.** A partner's settings now have a Staff list. Staff on it open the partner's staff link, enter their email, and see every rating their students left, with the averages and filters admins have, read-only.
 
 ## 2026-10-23
