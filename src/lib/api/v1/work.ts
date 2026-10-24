@@ -6,6 +6,7 @@ import { mentorReaches, scopeCovers } from "@/lib/authz";
 import { ASSIGNMENT_PROGRESS, canActAsMentor, SESSION_STATUS, USER_STATUS } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import type { studentLedger } from "@/lib/queries";
 import { daysAway } from "@/lib/when";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -144,4 +145,33 @@ export async function planItemFor(reader: Reader, id: string, now: Date = new Da
     _sum: { minutes: true },
   });
   return toApiPlanItem(reader, row, logged._sum.minutes ?? 0, now);
+}
+
+/** The student a list of work is about: the one person every row in it shares. */
+export type WorkStudent = TaskRow["student"];
+
+/**
+ * A student's tasks and plan items, mapped from the ledger the website's own
+ * pages read, in the order they show them: tasks open first and then done, each
+ * in the ledger's order (soonest due, then made first); plan items not done
+ * first and then done, each in `position` order.
+ *
+ * The ledger has already worked out every item's logged minutes, so nothing is
+ * asked of the database again, however many rows there are. It takes a list the
+ * reader may already read: the gate is the caller's, once, not each row's.
+ */
+export function workOf(
+  reader: Reader,
+  student: WorkStudent,
+  ledger: Pick<Awaited<ReturnType<typeof studentLedger>>, "tasks" | "assignments">,
+  now: Date
+): { tasks: ApiTask[]; plan: ApiPlanItem[] } {
+  const tasks = ledger.tasks.map((task) => toApiTask(reader, { ...task, student }, now));
+  const plan = ledger.assignments.map((item) =>
+    toApiPlanItem(reader, { ...item, student }, item.loggedMinutes, now)
+  );
+  return {
+    tasks: [...tasks.filter((t) => !t.done), ...tasks.filter((t) => t.done)],
+    plan: [...plan.filter((i) => i.progress !== ASSIGNMENT_PROGRESS.DONE), ...plan.filter((i) => i.progress === ASSIGNMENT_PROGRESS.DONE)],
+  };
 }

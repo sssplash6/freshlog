@@ -36,7 +36,7 @@ export async function mentorHomeFor(user: User, now: Date = new Date()): Promise
   if (!canActAsMentor(user)) throw new Error("mentorHomeFor: this person cannot act as a mentor");
 
   const viewer: ViewerContext = { audience: "mentor", userId: user.id, now };
-  const [{ students }, attention, disputed] = await Promise.all([
+  const [{ students }, attention, disputed, unread] = await Promise.all([
     mentorCaseload(user.id),
     // The literal "mentor", never `profileOf(user)`: a bearer request carries no
     // lens cookie, and without one a mentor who also administers is read as an
@@ -44,6 +44,7 @@ export async function mentorHomeFor(user: User, now: Date = new Date()): Promise
     attentionFor(user, "mentor"),
     // The ledger's own rule, so this is what its `answer=disputed` lists.
     prisma.session.count({ where: { AND: [{ mentorId: user.id }, DISPUTED] } }),
+    prisma.notification.count({ where: { userId: user.id, read: false } }),
   ]);
 
   const rows = students.map((s) => toCaseloadRow(s, viewer));
@@ -66,9 +67,10 @@ export async function mentorHomeFor(user: User, now: Date = new Date()): Promise
     // In `mentorCaseload`'s order. The website sorts by urgency on top of it,
     // but only for the table it draws.
     students: rows,
-    // Task F6 fills these; until it lands they are zero so the contract holds.
-    unread: 0,
-    todoSpilled: 0,
+    unread,
+    // How many rows the website's cap left out of To do, so a capped list cannot
+    // read as a whole one.
+    todoSpilled: attention.spilled,
   };
 }
 
