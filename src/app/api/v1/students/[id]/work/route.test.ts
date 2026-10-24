@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { mentor, pairing, program, student, studentTask } from "@/test/db";
+import { admin, assignment, enroll, grant, mentor, pairing, program, student, studentTask } from "@/test/db";
 
 /**
  * One student's work, to the staff who may read them. Anybody else's answers
@@ -68,5 +68,67 @@ describe("GET /api/v1/students/:id/work", () => {
       canSetTaskIn: [{ id: p.id, name: "Global Admissions" }],
     });
     expect(body.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  // A student in two programs, a row in each, and a mentor whose pairing is in the second.
+  async function twoPrograms() {
+    const first = await program("Global Admissions");
+    const second = await program("Master's Program");
+    const st = await student({ programId: first.id, name: "Aziz Karimov" });
+    await enroll({ studentId: st.id, programId: second.id });
+    const m = await mentor("Akmal Karimov");
+    await pairing({ mentorId: m.id, programId: second.id });
+    const inFirst = await studentTask({ studentId: st.id, mentorId: m.id, programId: first.id, title: "First task" });
+    const inSecond = await studentTask({ studentId: st.id, mentorId: m.id, programId: second.id, title: "Second task" });
+    const planFirst = await assignment({ studentId: st.id, programId: first.id, mentorId: m.id, purpose: "First plan" });
+    const planSecond = await assignment({ studentId: st.id, programId: second.id, mentorId: m.id, purpose: "Second plan" });
+    return { first, second, st, m, inFirst, inSecond, planFirst, planSecond };
+  }
+
+  it("an admin of one of two programs sees only that program's rows, and no trace of the other", async () => {
+    const { first, second, st, inFirst, planFirst } = await twoPrograms();
+    const a = await admin("Dilnoza");
+    await grant({ userId: a.id, programId: first.id });
+    actor.value = { id: a.id };
+    const res = await get(st.id);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.tasks.map((t: { id: string }) => t.id)).toEqual([inFirst.id]);
+    expect(body.plan.map((i: { id: string }) => i.id)).toEqual([planFirst.id]);
+    expect(body.canSetTaskIn.map((x: { id: string }) => x.id)).toEqual([first.id]);
+    const text = JSON.stringify(body);
+    expect(text).not.toContain(second.name);
+    expect(text).not.toContain("Second");
+  });
+
+  it("an admin who also mentors stays scoped to the programs they administer", async () => {
+    const { first, second, st, inFirst, planFirst } = await twoPrograms();
+    // Admin of the first program, and a mentor paired in the second, where the student also studies.
+    const both = await admin("Admin Mentor");
+    await prisma.user.update({ where: { id: both.id }, data: { isMentor: true } });
+    await grant({ userId: both.id, programId: first.id });
+    await pairing({ mentorId: both.id, programId: second.id });
+    actor.value = { id: both.id };
+    const body = await (await get(st.id)).json();
+    expect(body.tasks.map((t: { id: string }) => t.id)).toEqual([inFirst.id]);
+    expect(body.plan.map((i: { id: string }) => i.id)).toEqual([planFirst.id]);
+    expect(body.canSetTaskIn.map((x: { id: string }) => x.id)).toEqual([first.id]);
+    expect(JSON.stringify(body)).not.toContain(second.name);
+  });
+
+  it("a student who administers their program reads their own page without the staff note", async () => {
+    const p = await program("Global Admissions");
+    const st = await student({ programId: p.id, name: "Aziz Karimov" });
+    const m = await mentor("Akmal Karimov");
+    await pairing({ mentorId: m.id, programId: p.id });
+    const item = await assignment({ studentId: st.id, mentorId: m.id, purpose: "Essay" });
+    await prisma.assignment.update({ where: { id: item.id }, data: { note: "Staff note" } });
+    await grant({ userId: st.userId, programId: p.id });
+    actor.value = { id: st.userId };
+    const res = await get(st.id);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.plan).toMatchObject([{ id: item.id, note: null }]);
+    expect(JSON.stringify(body)).not.toContain("Staff note");
   });
 });
