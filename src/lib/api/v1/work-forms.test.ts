@@ -26,6 +26,7 @@ describe("isDay", () => {
     expect(isDay(" 2026-11-03")).toBe(false);
     expect(isDay("2026-11-03T00:00:00Z")).toBe(false);
     expect(isDay(20261103)).toBe(false);
+    for (const bad of ["2026-02-29", "2026-00-10", "2026-10-00", "", null]) expect(isDay(bad), String(bad)).toBe(false);
   });
 });
 
