@@ -27,6 +27,24 @@ describe("passCookieName", () => {
   it("is scoped to the partner", () => {
     expect(passCookieName("cana")).toBe("pf_cana");
   });
+  it("names the staff pass apart from the student one", () => {
+    expect(passCookieName("cana", "staff")).toBe("pfs_cana");
+  });
+});
+
+describe("staff passes", () => {
+  it("read back as staff", () => {
+    const { value } = signPass("cana", "head@cana.uz", NOW, "staff");
+    expect(readPass("cana", value, NOW, "staff")).toBe("head@cana.uz");
+  });
+  it("a student pass copied into the staff cookie opens nothing", () => {
+    const { value } = signPass("cana", "a@b.uz", NOW);
+    expect(readPass("cana", value, NOW, "staff")).toBeNull();
+  });
+  it("a staff pass is not a student pass either", () => {
+    const { value } = signPass("cana", "head@cana.uz", NOW, "staff");
+    expect(readPass("cana", value, NOW)).toBeNull();
+  });
 });
 
 describe("signPass", () => {

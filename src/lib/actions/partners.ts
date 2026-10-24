@@ -91,11 +91,24 @@ export async function updatePartner(
   return { ok: true, message: "Saved." };
 }
 
-export async function addPartnerEmails(
-  partnerId: string,
-  _prev: ActionState,
-  formData: FormData
-): Promise<ActionState> {
+/**
+ * A partner has two email lists: students, who may rate, and staff, who may
+ * read every rating. Same paste, same report, same removal — different table,
+ * so one can never stand in for the other.
+ */
+type EmailList = "students" | "staff";
+
+async function listedAmong(list: EmailList, partnerId: string, emails: string[]) {
+  const where = { partnerId, email: { in: emails } };
+  const select = { email: true };
+  const rows =
+    list === "staff"
+      ? await prisma.partnerStaff.findMany({ where, select })
+      : await prisma.partnerStudent.findMany({ where, select });
+  return new Set(rows.map((row) => row.email));
+}
+
+async function addToList(list: EmailList, partnerId: string, formData: FormData): Promise<ActionState> {
   if (!(await platformActor())) return NOT_ALLOWED;
   const partner = await prisma.feedbackPartner.findUnique({ where: { id: partnerId } });
   if (!partner) return NOT_ALLOWED;
@@ -105,19 +118,12 @@ export async function addPartnerEmails(
     return { ok: false, field: "emails", error: "Paste at least one email." };
   }
 
-  const existing = new Set(
-    (
-      await prisma.partnerStudent.findMany({
-        where: { partnerId: partner.id, email: { in: emails } },
-        select: { email: true },
-      })
-    ).map((row) => row.email)
-  );
+  const existing = await listedAmong(list, partner.id, emails);
   const fresh = emails.filter((email) => !existing.has(email));
   if (fresh.length > 0) {
-    await prisma.partnerStudent.createMany({
-      data: fresh.map((email) => ({ partnerId: partner.id, email })),
-    });
+    const data = fresh.map((email) => ({ partnerId: partner.id, email }));
+    if (list === "staff") await prisma.partnerStaff.createMany({ data });
+    else await prisma.partnerStudent.createMany({ data });
   }
 
   const parts: string[] = [];
@@ -131,23 +137,46 @@ export async function addPartnerEmails(
   return { ok: true, message: parts.join(" ") };
 }
 
-export async function removePartnerEmail(
-  partnerId: string,
-  emailId: string
-): Promise<ActionState> {
+async function removeFromList(list: EmailList, partnerId: string, emailId: string): Promise<ActionState> {
   if (!(await platformActor())) return NOT_ALLOWED;
   const partner = await prisma.feedbackPartner.findUnique({ where: { id: partnerId } });
   if (!partner) return NOT_ALLOWED;
 
   // Scoped by partner in the delete itself: an id from another partner's list
   // matches nothing, and answers like any other id that is not here.
-  const { count } = await prisma.partnerStudent.deleteMany({
-    where: { id: emailId, partnerId: partner.id },
-  });
+  const where = { id: emailId, partnerId: partner.id };
+  const { count } =
+    list === "staff"
+      ? await prisma.partnerStaff.deleteMany({ where })
+      : await prisma.partnerStudent.deleteMany({ where });
   if (count === 0) return NOT_ALLOWED;
 
   refresh(partner.slug);
   return { ok: true };
+}
+
+export async function addPartnerEmails(
+  partnerId: string,
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  return addToList("students", partnerId, formData);
+}
+
+export async function removePartnerEmail(partnerId: string, emailId: string): Promise<ActionState> {
+  return removeFromList("students", partnerId, emailId);
+}
+
+export async function addPartnerStaffEmails(
+  partnerId: string,
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  return addToList("staff", partnerId, formData);
+}
+
+export async function removePartnerStaffEmail(partnerId: string, emailId: string): Promise<ActionState> {
+  return removeFromList("staff", partnerId, emailId);
 }
 
 export async function setPartnerMentors(

@@ -2,8 +2,8 @@ import { PartnerMentorForm } from "@/components/forms/partner-feedback-forms";
 import { USER_STATUS } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 
-import { BackToChoice } from "../back";
-import { EmailStep, openPartner, passHolder, StepTitle } from "../pass";
+import { BackToChoice } from "../../back";
+import { EmailStep, openPartner, passHolder, StepTitle } from "../../pass";
 
 /** Rate one of the mentors this partner has ticked. */
 export default async function PartnerMentorPage({ params }: { params: Promise<{ slug: string }> }) {

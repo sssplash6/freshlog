@@ -147,3 +147,54 @@ export async function forgetPartnerEmail(slug: string): Promise<void> {
   const clean = normalizeSlug(slug);
   if (clean) await clearPass(clean);
 }
+
+/**
+ * The partner school's own staff, into the read-only view at /f/<slug>/staff.
+ *
+ * A list of its own (`PartnerStaff`), checked here and again by the page on
+ * every visit. The cookie lives on the staff path only, so a student's
+ * browser never carries it to the form, and it is signed as a staff pass, so a
+ * student's pass copied into it is refused (`readPass`).
+ */
+export async function checkPartnerStaffEmail(
+  slug: string,
+  _prev: ActionState,
+  form: FormData
+): Promise<ActionState> {
+  const partner = await activePartner(slug);
+  if (!partner) return { ok: false, error: NOT_OPEN };
+
+  const raw = text(form, "email");
+  const email = normalizeEmail(raw);
+  const listed = email
+    ? await prisma.partnerStaff.findUnique({
+        where: { partnerId_email: { partnerId: partner.id, email } },
+      })
+    : null;
+  if (!listed) {
+    return {
+      ok: false,
+      error: `This email isn't on ${partner.name}'s staff list. Ask whoever set up the form to add it.`,
+      field: "email",
+      values: { email: raw },
+    };
+  }
+
+  const pass = signPass(partner.slug, email, new Date(), "staff");
+  const jar = await cookies();
+  jar.set(passCookieName(partner.slug, "staff"), pass.value, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: `/f/${partner.slug}/staff`,
+    expires: pass.expires,
+  });
+  return { ok: true };
+}
+
+export async function forgetPartnerStaffEmail(slug: string): Promise<void> {
+  const clean = normalizeSlug(slug);
+  if (!clean) return;
+  const jar = await cookies();
+  jar.delete({ name: passCookieName(clean, "staff"), path: `/f/${clean}/staff` });
+}

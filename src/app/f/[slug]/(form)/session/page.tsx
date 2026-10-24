@@ -1,7 +1,7 @@
 import { PartnerSessionForm } from "@/components/forms/partner-feedback-forms";
 
-import { BackToChoice } from "../back";
-import { EmailStep, openPartner, passHolder, StepTitle } from "../pass";
+import { BackToChoice } from "../../back";
+import { EmailStep, openPartner, passHolder, StepTitle } from "../../pass";
 
 /** Rate a class session by its number; the student signs it with their name. */
 export default async function PartnerSessionPage({ params }: { params: Promise<{ slug: string }> }) {

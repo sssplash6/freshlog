@@ -11,6 +11,7 @@ import { RequiredMark } from "@/components/ui/required-mark";
 import { SubmitButton } from "@/components/ui/submit-button";
 import {
   checkPartnerEmail,
+  checkPartnerStaffEmail,
   submitPartnerFeedback,
 } from "@/lib/actions/partner-feedback";
 import type { ActionState } from "@/lib/actions/shared";
@@ -30,9 +31,19 @@ function failure(state: ActionState) {
 }
 
 /** Step one. On a listed email the pass is set and the page re-renders past it. */
-export function PartnerEmailForm({ slug }: { slug: string }) {
+export function PartnerEmailForm({
+  slug,
+  purpose = "student",
+}: {
+  slug: string;
+  /** Which list the address is checked against: the students' or the staff's. */
+  purpose?: "student" | "staff";
+}) {
   const router = useRouter();
-  const check = useMemo(() => checkPartnerEmail.bind(null, slug), [slug]);
+  const check = useMemo(
+    () => (purpose === "staff" ? checkPartnerStaffEmail : checkPartnerEmail).bind(null, slug),
+    [slug, purpose]
+  );
   const [state, action] = useActionState(check, null);
   const failed = failure(state);
 
