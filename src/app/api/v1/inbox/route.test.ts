@@ -62,4 +62,14 @@ describe("GET /api/v1/inbox", () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ ok: false, field: "cursor" });
   });
+
+  it("answers a bad limit 400 with field limit", async () => {
+    const aziz = await student();
+    actor.value = { id: aziz.userId };
+    for (const q of ["?limit=abc", "?limit=0", "?limit=500"]) {
+      const res = await get(q);
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ ok: false, field: "limit" });
+    }
+  });
 });

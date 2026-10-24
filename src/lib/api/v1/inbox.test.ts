@@ -66,13 +66,15 @@ describe("inboxPage", () => {
     expect(page.nextCursor).not.toBeNull();
   });
 
-  it("a limit that isn't 1 to 100 digits is the default; a bad cursor is refused with field cursor", async () => {
+  it("a limit left out is 25, 1 to 100 digits is taken; anything else is refused with field limit; a bad cursor with field cursor", async () => {
     const aziz = await student({ name: "Aziz Tursunov" });
     for (let i = 0; i < 30; i++) await notice(aziz.userId, i);
-    expect((await pageOf(aziz.userId, { limit: "abc" })).items).toHaveLength(25);
-    expect((await pageOf(aziz.userId, { limit: "0" })).items).toHaveLength(25);
-    expect((await pageOf(aziz.userId, { limit: "500" })).items).toHaveLength(25);
+    expect((await pageOf(aziz.userId)).items).toHaveLength(25);
     expect((await pageOf(aziz.userId, { limit: "100" })).items).toHaveLength(30);
+    expect((await pageOf(aziz.userId, { limit: "1" })).items).toHaveLength(1);
+    for (const limit of ["abc", "0", "500", "101", "-1", "2.5", ""]) {
+      expect(await inboxPage(aziz.userId, { limit })).toEqual({ refused: "Send a page size from 1 to 100.", field: "limit" });
+    }
     for (const cursor of ["!!", Buffer.from("[1,2]").toString("base64url"), Buffer.from(JSON.stringify(["nope", "x"])).toString("base64url")]) {
       expect(await inboxPage(aziz.userId, { cursor })).toEqual({ refused: "Load the list again.", field: "cursor" });
     }

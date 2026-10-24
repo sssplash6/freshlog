@@ -8,7 +8,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * The signed-in person's notifications, newest first, a page at a time
- * (`?cursor=&limit=`), with how many of the whole feed are unread.
+ * (`?cursor=&limit=`), with how many of the whole feed are unread. A `limit`
+ * that is not 1 to 100 (25 when left out) and a `cursor` the feed did not
+ * hand out are each a 400 with the `field` named.
  */
 export async function GET(request: Request) {
   const user = await getCurrentUser();

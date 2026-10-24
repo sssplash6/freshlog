@@ -54,10 +54,11 @@ const after = ({ createdAt, id }: Cursor): Prisma.NotificationWhereInput => ({
   OR: [{ createdAt: { lt: createdAt } }, { createdAt, id: { lt: id } }],
 });
 
-/** The page size `text` asks for: 1 to 100 as digits, and the default for anything else. */
-function limitOf(text: string | undefined): number {
-  const asked = text !== undefined && /^\d+$/.test(text) ? Number(text) : NaN;
-  return asked >= 1 && asked <= MAX_LIMIT ? asked : DEFAULT_LIMIT;
+/** The page size `text` asks for: 1 to 100 as digits, the default when left out, null for anything else. */
+function limitOf(text: string | undefined): number | null {
+  if (text === undefined) return DEFAULT_LIMIT;
+  const asked = /^\d+$/.test(text) ? Number(text) : NaN;
+  return asked >= 1 && asked <= MAX_LIMIT ? asked : null;
 }
 
 type Row = Prisma.NotificationGetPayload<{ include: { actor: { select: { id: true; name: true; email: true } } } }>;
@@ -87,6 +88,7 @@ export async function inboxPage(
     if (!cursor) return { refused: "Load the list again.", field: "cursor" };
   }
   const limit = limitOf(query.limit);
+  if (limit === null) return { refused: "Send a page size from 1 to 100.", field: "limit" };
   const [rows, unread] = await Promise.all([
     prisma.notification.findMany({
       where: { userId, ...(cursor ? after(cursor) : {}) },

@@ -472,6 +472,7 @@ export type InboxItem = {
 };
 /** GET /api/v1/inbox. `unread` counts the whole feed. */
 export type InboxPage = { items: InboxItem[]; nextCursor: string | null; unread: number };
+/** `limit` is 1 to 100, 25 when left out; any other value is a 400 on field `limit`, as a bad `cursor` is on `cursor`. */
 export type InboxQuery = { cursor?: string; limit?: string };
 /** POST /api/v1/statuses/dismiss and /restore: a To do row, by `TodoRow.type` and `TodoRow.subject?.id ?? ""`. */
 export type StatusKey = { type: string; subjectId: string };
