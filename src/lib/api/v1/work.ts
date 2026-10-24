@@ -145,3 +145,12 @@ export async function planItemFor(reader: Reader, id: string, now: Date = new Da
   });
   return toApiPlanItem(reader, row, logged._sum.minutes ?? 0, now);
 }
+
+/**
+ * What a plan item row holds that its reader may not be shown: the mentor, the
+ * progress, and the note (null in a student's view). An edit fills the fields
+ * it leaves out from these, never from what the reader saw. Null for no row.
+ */
+export async function storedPlanItem(id: string): Promise<{ mentorId: string | null; progress: string; note: string | null } | null> {
+  return prisma.assignment.findUnique({ where: { id }, select: { mentorId: true, progress: true, note: true } });
+}

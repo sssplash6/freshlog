@@ -360,6 +360,49 @@ describe("sessionsPage: the filters", () => {
   });
 });
 
+describe("sessionsPage: a plan item", () => {
+  it("assignment=<id> lists only that plan item's sessions, and only the reader's", async () => {
+    const { p, aziz, akmal } = await cast();
+    const umid = await mentor("Umid Rashidov");
+    const task = await assignment({ studentId: aziz.profile.id, mentorId: akmal.id, purpose: "Scholarship essay" });
+    const other = await assignment({ studentId: aziz.profile.id, mentorId: akmal.id, purpose: "CV" });
+    const base = { studentId: aziz.profile.id, programId: p.id };
+    const mine = await held({ ...base, mentorId: akmal.id, assignmentId: task.id });
+    await held({ ...base, mentorId: akmal.id, assignmentId: other.id });
+    await held({ ...base, mentorId: akmal.id });
+    // Another mentor's session against the same plan item is not this mentor's to list.
+    const theirs = await held({ ...base, mentorId: umid.id, assignmentId: task.id });
+
+    expect(idsOf(await pageOf(await readerFor(akmal), { assignment: task.id }))).toEqual([mine.id]);
+    // The student's own list holds both mentors' sessions of it.
+    expect(new Set(idsOf(await pageOf(await readerFor(aziz.user), { assignment: task.id })))).toEqual(
+      new Set([mine.id, theirs.id])
+    );
+  });
+
+  it("a word that isn't a plan item's id gives an empty page, and a blank one narrows nothing", async () => {
+    const { p, aziz, akmal } = await cast();
+    const row = await held({ studentId: aziz.profile.id, mentorId: akmal.id, programId: p.id });
+    const reader = await readerFor(akmal);
+    expect(idsOf(await pageOf(reader, { assignment: "c-made-up" }))).toEqual([]);
+    expect((await pageOf(reader, { assignment: "c-made-up" })).totals.count).toBe(0);
+    expect(idsOf(await pageOf(reader, { assignment: "" }))).toEqual([row.id]);
+  });
+
+  it("a plan item of another student gives a mentor who did not log against it nothing", async () => {
+    const { p, aziz, akmal } = await cast();
+    const umid = await mentor("Umid Rashidov");
+    const task = await assignment({ studentId: aziz.profile.id, mentorId: akmal.id });
+    await held({ studentId: aziz.profile.id, mentorId: akmal.id, programId: p.id, assignmentId: task.id });
+    expect(idsOf(await pageOf(await readerFor(umid), { assignment: task.id }))).toEqual([]);
+  });
+
+  it("is read off the URL as given", () => {
+    expect(sessionsQueryFrom(new URLSearchParams("assignment=abc")).assignment).toBe("abc");
+    expect(sessionsQueryFrom(new URLSearchParams("")).assignment).toBeUndefined();
+  });
+});
+
 describe("sessionsPage: answers", () => {
   /**
    * One kind of session each, dated against a `now` at midnight so that "30 days

@@ -144,10 +144,7 @@ export type SessionsQuery = {
   status?: "active" | "voided";
   /** `needed`: the student is being asked to confirm it. `disputed`: the student disputed it, and it isn't voided. */
   answer?: "needed" | "disputed";
-  /**
-   * A plan item (Assignment.id): narrows to the sessions logged against it.
-   * Left to Task F3 to apply; until then the query ignores it.
-   */
+  /** A plan item (Assignment.id): narrows to the sessions logged against it. */
   assignment?: string;
   /** A mentor's list only: the note, the plan item, the student's name. */
   q?: string;

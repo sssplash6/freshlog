@@ -245,6 +245,7 @@ export function sessionsQueryFrom(params: URLSearchParams): SessionsQuery {
     period: word("period"),
     status: word("status"),
     answer: word("answer"),
+    assignment: text("assignment"),
     q: text("q"),
     as: word("as"),
   };
@@ -439,9 +440,11 @@ export async function sessionsPage(
   const answer =
     query.answer === "needed" ? awaitingAnswer(now) : query.answer === "disputed" ? DISPUTED : null;
   const narrowed = sessionsWhere({ ...filters, period: query.period, status: query.status }, scope, now);
-  const where: Prisma.SessionWhereInput = { AND: [narrowed, ...searched, ...(answer ? [answer] : [])] };
+  // One plan item, inside the scope above: a word that is no plan item's id matches no session. Blank narrows nothing.
+  const planItem: Prisma.SessionWhereInput[] = query.assignment ? [{ assignmentId: query.assignment }] : [];
+  const where: Prisma.SessionWhereInput = { AND: [narrowed, ...searched, ...planItem, ...(answer ? [answer] : [])] };
   // The chips on the status row: the filter without its period, status and answer.
-  const chips: Prisma.SessionWhereInput = { AND: [sessionsWhere(filters, scope, now), ...searched] };
+  const chips: Prisma.SessionWhereInput = { AND: [sessionsWhere(filters, scope, now), ...searched, ...planItem] };
 
   const [rows, groups, disputed, voided, programs] = await Promise.all([
     prisma.session.findMany({
