@@ -15,8 +15,8 @@ export const dynamic = "force-dynamic";
  * finished task, as it does on the website).
  *
  * This is `setStudentTaskProgress`. The task is read first, so one the person
- * may not see answers like one never made. One they may see but not move is the
- * action's to refuse, and comes back as a 400.
+ * may not see answers like one never made. One they may see but not move (a
+ * co-mentor who only reaches the student) gets a 403, as on PATCH and DELETE.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
@@ -25,6 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const task = await taskFor(await readerFor(user), id);
   if (!task) return refused("Not found.", 404);
+  if (!task.can.progress) return refused("That task is not yours to change.", 403);
   const body = await bodyOf(request);
   if (!body) return refused("Send the progress as JSON.", 400);
   const form = taskProgressForm(task.id, body);

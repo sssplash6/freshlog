@@ -101,14 +101,14 @@ describe("POST /api/v1/tasks/:id/progress", () => {
     expect((await stored(t.id)).completedAt).not.toBeNull();
   });
 
-  it("leaves a mentor who only reaches the student to freshform's refusal", async () => {
+  it("refuses a mentor who only reaches the student with 403", async () => {
     const { p, t } = await setUp();
     const colleague = await mentor("Umid Rashidov");
     await pairing({ mentorId: colleague.id, programId: p.id });
     actor.value = { id: colleague.id };
     const res = await post(t.id, { percent: 50 });
-    expect(res.status).toBe(400);
-    expect(await res.json()).toMatchObject({ ok: false, error: "That task is not yours." });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ ok: false, error: "That task is not yours to change." });
     expect((await stored(t.id)).percent).toBe(0);
   });
 });
