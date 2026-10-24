@@ -39,6 +39,7 @@ export async function resetDb() {
   await prisma.partnerFeedback.deleteMany();
   await prisma.partnerMentor.deleteMany();
   await prisma.partnerStudent.deleteMany();
+  await prisma.partnerStaff.deleteMany();
   await prisma.feedbackPartner.deleteMany();
   await prisma.user.deleteMany();
   await prisma.cohort.deleteMany();
@@ -404,6 +405,10 @@ export async function partner(
 
 export async function partnerEmail(partnerId: string, email: string) {
   return prisma.partnerStudent.create({ data: { partnerId, email } });
+}
+
+export async function partnerStaffEmail(partnerId: string, email: string) {
+  return prisma.partnerStaff.create({ data: { partnerId, email } });
 }
 
 export async function partnerMentor(partnerId: string, mentorId: string) {

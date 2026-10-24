@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ChevronRightIcon, UserIcon, UsersIcon } from "@/components/icons";
 import { forgetPartnerEmail } from "@/lib/actions/partner-feedback";
 
-import { EmailStep, openPartner, passHolder, StepTitle } from "./pass";
+import { EmailStep, openPartner, passHolder, StepTitle } from "../pass";
 
 /**
  * The link a partner posts in its Telegram group: check in, then choose what

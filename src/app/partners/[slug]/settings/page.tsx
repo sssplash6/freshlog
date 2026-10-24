@@ -19,7 +19,8 @@ export const metadata: Metadata = { title: "Partner settings" };
 
 /**
  * Everything a partner's form needs before it is handed out: its name and
- * on/off, the three links, the students' emails, and the mentors to rate.
+ * on/off, its links, the students' emails, the school staff who may read the
+ * feedback, and the mentors to rate.
  *
  * The links are absolute because they are pasted into a Telegram group, where
  * a path means nothing.
@@ -41,6 +42,7 @@ export default async function PartnerSettingsPage({
           name: true,
           active: true,
           students: { orderBy: { email: "asc" }, select: { id: true, email: true } },
+          staff: { orderBy: { email: "asc" }, select: { id: true, email: true } },
           mentors: { select: { mentorId: true } },
         },
       })
@@ -76,6 +78,11 @@ export default async function PartnerSettingsPage({
     { label: "Start page", hint: "Students pick a mentor or a session.", url: base },
     { label: "Rate a mentor", hint: "Straight to the mentor form.", url: `${base}/mentor` },
     { label: "Rate a session", hint: "Straight to the session form.", url: `${base}/session` },
+    {
+      label: "Staff view",
+      hint: `For ${partner.name} staff on the staff list: every rating, read-only.`,
+      url: `${base}/staff`,
+    },
   ];
 
   return (
@@ -111,6 +118,14 @@ export default async function PartnerSettingsPage({
 
       <Section title="Students" count={partner.students.length}>
         <PartnerEmailsForm partnerId={partner.id} emails={partner.students} />
+      </Section>
+
+      <Section
+        title="Staff"
+        count={partner.staff.length}
+        caption="Read every rating at the staff view. Being a student here is not enough."
+      >
+        <PartnerEmailsForm partnerId={partner.id} emails={partner.staff} list="staff" />
       </Section>
 
       <Section title="Mentors" count={ticked.size}>

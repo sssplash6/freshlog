@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-24
+
+### New
+- **Partner staff can read their feedback.** A partner's settings now have a Staff list. Staff on it open the partner's staff link, enter their email, and see every rating their students left, with the averages and filters admins have, read-only.
+
 ## 2026-10-23
 
 ### New

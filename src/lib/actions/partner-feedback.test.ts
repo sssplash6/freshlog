@@ -2,21 +2,29 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
 import { passCookieName, readPass, signPass } from "@/lib/partner-feedback";
-import { mentor, partner, partnerEmail, partnerMentor } from "@/test/db";
+import { mentor, partner, partnerEmail, partnerMentor, partnerStaffEmail } from "@/test/db";
 
 const jar = vi.hoisted(() => new Map<string, string>());
+const cookieOptions = vi.hoisted(() => new Map<string, { path?: string; httpOnly?: boolean }>());
 vi.mock("next/headers", () => ({
   cookies: async () => ({
     get: (k: string) => (jar.has(k) ? { value: jar.get(k)! } : undefined),
-    set: (k: string, v: string) => void jar.set(k, v),
+    set: (k: string, v: string, o?: { path?: string; httpOnly?: boolean }) => {
+      jar.set(k, v);
+      cookieOptions.set(k, o ?? {});
+    },
     delete: (k: string | { name: string }) =>
       void jar.delete(typeof k === "string" ? k : k.name),
   }),
 }));
 
-const { checkPartnerEmail, submitPartnerFeedback, forgetPartnerEmail } = await import(
-  "@/lib/actions/partner-feedback"
-);
+const {
+  checkPartnerEmail,
+  checkPartnerStaffEmail,
+  submitPartnerFeedback,
+  forgetPartnerEmail,
+  forgetPartnerStaffEmail,
+} = await import("@/lib/actions/partner-feedback");
 
 function form(fields: Record<string, string>) {
   const data = new FormData();
@@ -32,6 +40,7 @@ const sessionForm = () =>
 beforeEach(() => {
   vi.stubEnv("NEXTAUTH_SECRET", "test-secret-for-partner-passes");
   jar.clear();
+  cookieOptions.clear();
 });
 
 /** A partner with one listed student who already holds a live pass. */
@@ -223,6 +232,48 @@ describe("forgetPartnerEmail", () => {
     await passed();
     await forgetPartnerEmail("cana");
     expect(jar.has("pf_cana")).toBe(false);
+  });
+});
+
+describe("checkPartnerStaffEmail", () => {
+  it("lets a listed staff email in, however it was typed, on the staff path only", async () => {
+    const p = await partner({ slug: "cana", name: "Cana" });
+    await partnerStaffEmail(p.id, "head@cana.uz");
+    const result = await checkPartnerStaffEmail("cana", null, form({ email: " Head@Cana.uz " }));
+    expect(result).toEqual({ ok: true });
+    expect(readPass("cana", jar.get("pfs_cana"), new Date(), "staff")).toBe("head@cana.uz");
+    expect(cookieOptions.get("pfs_cana")).toMatchObject({ path: "/f/cana/staff", httpOnly: true });
+    expect(jar.has("pf_cana")).toBe(false);
+  });
+
+  it("refuses a student's email: rating is not reading", async () => {
+    const p = await partner({ slug: "cana", name: "Cana" });
+    await partnerEmail(p.id, "a@x.uz");
+    const result = await checkPartnerStaffEmail("cana", null, form({ email: "a@x.uz" }));
+    expect(result).toMatchObject({
+      ok: false,
+      error: "This email isn't on Cana's staff list. Ask whoever set up the form to add it.",
+      field: "email",
+    });
+    expect(jar.size).toBe(0);
+  });
+
+  it("answers an inactive partner and an unknown slug the same way", async () => {
+    const p = await partner({ slug: "off", active: false });
+    await partnerStaffEmail(p.id, "head@cana.uz");
+    expect(await checkPartnerStaffEmail("off", null, form({ email: "head@cana.uz" }))).toMatchObject(NOT_OPEN);
+    expect(await checkPartnerStaffEmail("nope", null, form({ email: "head@cana.uz" }))).toMatchObject(NOT_OPEN);
+    expect(jar.size).toBe(0);
+  });
+});
+
+describe("forgetPartnerStaffEmail", () => {
+  it("deletes the staff cookie and leaves a student pass alone", async () => {
+    await passed();
+    jar.set("pfs_cana", "x");
+    await forgetPartnerStaffEmail("cana");
+    expect(jar.has("pfs_cana")).toBe(false);
+    expect(jar.has("pf_cana")).toBe(true);
   });
 });
 
