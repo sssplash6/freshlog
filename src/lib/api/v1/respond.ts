@@ -1,7 +1,8 @@
+import { getURLFromRedirectError } from "next/dist/client/components/redirect";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 import type { ActionState } from "@/lib/actions/shared";
-import type { WriteResult } from "@/lib/api/v1/types";
+import type { BookResult, WriteResult } from "@/lib/api/v1/types";
 
 /**
  * The answers /api/v1 gives the freshlog app. Every one is JSON, bar the 204
@@ -112,5 +113,23 @@ export async function fromRedirectingAction(run: () => Promise<ActionState>): Pr
   } catch (error) {
     if (isRedirectError(error)) return json({ ok: true } satisfies WriteResult, 200);
     throw error;
+  }
+}
+
+/**
+ * `fromRedirectingAction` for `bookInterview`, which ends by sending the
+ * student to the interview it made. That address is the only place the new
+ * id is said, so it is read off the redirect and answered as `BookResult`.
+ * An address of any other shape means the action changed, and the app must
+ * not be told a guess: that is a 500.
+ */
+export async function fromBookingAction(run: () => Promise<ActionState>): Promise<Response> {
+  try {
+    return fromAction(await run());
+  } catch (error) {
+    if (!isRedirectError(error)) throw error;
+    const id = /^\/student\/interviews\/([^/?#]+)$/.exec(getURLFromRedirectError(error))?.[1];
+    if (!id) return json({ ok: false, error: "Something went wrong. Try again." }, 500);
+    return json({ ok: true, id } satisfies BookResult, 200);
   }
 }

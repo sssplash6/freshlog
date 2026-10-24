@@ -1,6 +1,7 @@
 import { isText } from "@/lib/api/v1/session-forms";
-import type { OfferSlot } from "@/lib/api/v1/types";
+import type { BookInterview, OfferSlot } from "@/lib/api/v1/types";
 import { isDay } from "@/lib/api/v1/work-forms";
+import { templateById } from "@/lib/interview-templates";
 import { parseMeetingUrl, parseSlotLength, parseSlotStart } from "@/lib/peer-interviews";
 
 /**
@@ -37,5 +38,18 @@ export function offerSlotForm(body: Record<string, unknown>, now: Date): FormDat
   form.set("time", time);
   form.set("minutes", String(minutes));
   form.set("meetingUrl", link.value ?? "");
+  return form;
+}
+
+/** `bookInterview`'s FormData, or the first bad field, in the action's words. */
+export function bookForm(body: Record<string, unknown>): FormData | { field: string; error: string } {
+  const { slot, template } = body as Partial<Record<keyof BookInterview, unknown>>;
+  if (!isText(slot) || !slot) return { field: "slot", error: "Pick a time." };
+  if (!isText(template) || !templateById(template)) {
+    return { field: "template", error: "Pick what kind of interview to practise." };
+  }
+  const form = new FormData();
+  form.set("slotId", slot);
+  form.set("template", template);
   return form;
 }
