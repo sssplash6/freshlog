@@ -10,7 +10,7 @@ import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { studentLedger } from "@/lib/queries";
 import { programToday } from "@/lib/when";
-import { cohort, DAY, enroll, mentor, NOW, pairing, program, session, student } from "@/test/db";
+import { assignment, cohort, DAY, enroll, mentor, NOW, pairing, program, session, student, studentTask } from "@/test/db";
 
 /**
  * The student's home: their hours, the booking link of each mentor they hold
@@ -523,4 +523,61 @@ describe("studentHomeFor: things to check", () => {
 
 describe("studentHomeFor: who has one", () => {
   it("is nobody's for a mentor", async () => expect(await studentHomeFor(await mentor("Akmal Karimov"), NOW)).toBeNull());
+});
+
+describe("studentHomeFor: tasks, plan, unread", () => {
+  it("lists the student's open tasks before done ones, and their plan items with no note", async () => {
+    const w = await settled();
+    const later = await studentTask({ studentId: w.st.id, mentorId: w.m.id, title: "Later", dueInDays: 9 });
+    const done = await studentTask({
+      studentId: w.st.id,
+      mentorId: w.m.id,
+      title: "Finished",
+      dueInDays: 1,
+      percent: 100,
+      completedAt: NOW,
+    });
+    const sooner = await studentTask({ studentId: w.st.id, mentorId: w.m.id, title: "Sooner", dueInDays: 3 });
+    const finishedItem = await assignment({ studentId: w.st.id, mentorId: w.m.id, purpose: "Done one", position: 0 });
+    await prisma.assignment.update({ where: { id: finishedItem.id }, data: { progress: "DONE", note: "staff only" } });
+    const second = await assignment({ studentId: w.st.id, mentorId: w.m.id, purpose: "Second", position: 2 });
+    const first = await assignment({ studentId: w.st.id, mentorId: null, purpose: "First", position: 1, minuteLimit: 120 });
+    await prisma.assignment.update({ where: { id: second.id }, data: { note: "Weak on the thesis." } });
+    await logged(w, { minutes: 45 }).then((s) => prisma.session.update({ where: { id: s.id }, data: { assignmentId: first.id } }));
+
+    const home = await homeOf(w.st);
+    expect(home.tasks.map((t) => t.id)).toEqual([sooner.id, later.id, done.id]);
+    expect(home.tasks[0]).toMatchObject({
+      title: "Sooner",
+      student: { id: w.st.id, name: "Aziz Tursunov" },
+      mentor: { id: w.m.id },
+      can: { progress: true, edit: false, delete: false },
+    });
+    expect(home.plan.map((i) => i.id)).toEqual([first.id, second.id, finishedItem.id]);
+    expect(home.plan.every((item) => item.note === null)).toBe(true);
+    expect(JSON.stringify(home)).not.toContain("Weak on the thesis.");
+    expect(home.plan[0]).toMatchObject({ minuteLimit: 120, loggedMinutes: 45, can: { edit: false, progress: false } });
+    expect(home.today).toBe(programToday(NOW));
+  });
+
+  it("unread counts only the reader's unread notifications", async () => {
+    const w = await settled();
+    const other = await student({ programId: w.p.id, name: "Malika Rahimova" });
+    const note = (userId: string, read: boolean) =>
+      prisma.notification.create({ data: { userId, type: "TASK_SET", message: "A task", read } });
+    await note(w.st.userId, false);
+    await note(w.st.userId, false);
+    await note(w.st.userId, true);
+    await note(other.userId, false);
+    expect((await homeOf(w.st)).unread).toBe(2);
+    expect((await homeOf(other)).unread).toBe(1);
+  });
+
+  it("carries only the student's own tasks, whichever program they are in", async () => {
+    const w = await settled();
+    const other = await student({ programId: w.p.id, name: "Malika Rahimova" });
+    await studentTask({ studentId: other.id, mentorId: w.m.id, title: "Hers" });
+    expect((await homeOf(w.st)).tasks).toEqual([]);
+    expect((await homeOf(other)).tasks.map((t) => t.title)).toEqual(["Hers"]);
+  });
 });

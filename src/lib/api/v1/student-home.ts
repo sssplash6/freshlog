@@ -1,7 +1,8 @@
 import "server-only";
 
-import { nameOf } from "@/lib/api/v1/sessions";
+import { nameOf, readerFor } from "@/lib/api/v1/sessions";
 import { toTodoRows } from "@/lib/api/v1/todo";
+import { workOf } from "@/lib/api/v1/work";
 import type { StudentGrant, StudentHome } from "@/lib/api/v1/types";
 import { studentRows } from "@/lib/attention";
 import { toDateInputValue } from "@/lib/format";
@@ -39,7 +40,7 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
   });
   if (!profile) return null;
 
-  const [hours, ledger, pairings] = await Promise.all([
+  const [hours, ledger, pairings, unread, reader] = await Promise.all([
     // Every program the student is in, as /student reads it: their balance is
     // one figure however many programs hold it.
     allocationSummary(profile.id),
@@ -50,6 +51,8 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
       select: { mentorId: true, programId: true, calendlyUrl: true },
       orderBy: { createdAt: "asc" },
     }),
+    prisma.notification.count({ where: { userId: user.id, read: false } }),
+    readerFor(user),
   ]);
   const viewer: ViewerContext = { audience: "student", userId: user.id, now };
   const bookingUrlOf = bookingLinks(pairings);
@@ -75,10 +78,10 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
     // for a session on its own, and set only on the one row that four or more
     // sessions are rolled into.
     toConfirm: ledger.sessions.filter((session) => isAwaitingAnswer(session, viewer)).length,
-    // Task F6 fills these; until it lands they are empty so the contract holds.
-    tasks: [],
-    plan: [],
-    unread: 0,
+    // The student's own work, from the ledger already read: no plan item carries
+    // its note, since the reader is the student it is about.
+    ...workOf(reader, { id: profile.id, userId: user.id, user: { name: user.name, email: user.email } }, ledger, now),
+    unread,
     today: programToday(now),
   };
 }

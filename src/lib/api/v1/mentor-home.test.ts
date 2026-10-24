@@ -375,3 +375,31 @@ describe("mentorHomeFor: To do", () => {
     await expect(mentorHomeFor(nodira, NOW)).rejects.toThrow(/mentor/i);
   });
 });
+
+describe("mentorHomeFor: unread and what the cap left out", () => {
+  it("unread counts only the mentor's unread notifications", async () => {
+    const w = await atWork();
+    const note = (userId: string, read: boolean) =>
+      prisma.notification.create({ data: { userId, type: "TASK_MOVED", message: "Moved", read } });
+    await note(w.m.id, false);
+    await note(w.m.id, true);
+    await note((await mentor("Umid Rashidov")).id, false);
+    expect((await mentorHomeFor(w.m, NOW)).unread).toBe(1);
+  });
+
+  it("a mentor's home says how many To do rows the cap left out (todoSpilled)", async () => {
+    const w = await atWork();
+    expect((await mentorHomeFor(w.m, NOW)).todoSpilled).toBe(0);
+    // The website rolls rows up by type and program, so it takes a program each to get past the cap of ten.
+    for (let i = 0; i < 13; i++) {
+      const p = await program(`Program ${i}`);
+      await pairedWith(w.m, p);
+      await holding({ p, m: w.m }, { name: `Student ${i}`, minutes: 600, endsInDays: 3 });
+    }
+    const home = await mentorHomeFor(w.m, NOW);
+    const theirs = await attentionFor(w.m, "mentor");
+    expect(theirs.spilled).toBeGreaterThan(0);
+    expect(home.todoSpilled).toBe(theirs.spilled);
+    expect(home.todo).toHaveLength(10);
+  });
+});
