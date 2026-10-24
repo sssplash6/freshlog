@@ -124,7 +124,9 @@ export function toApiPlanItem(reader: Reader, row: PlanItemRow, loggedMinutes: n
     progress: row.progress as ApiPlanItem["progress"],
     pinned: row.progressManual,
     overdue: !done && row.dueOn !== null && row.dueOn.getTime() < now.getTime(),
-    can: { edit: mayChange, progress: mayChange },
+    daysLeft: row.dueOn ? daysAway(row.dueOn, now) : null,
+    // `deleteAssignment` asks `assertProgramScope`: the item's admins, never its mentor.
+    can: { edit: mayChange, progress: mayChange, delete: scopeCovers(reader.write, row.programId) },
   };
 }
 

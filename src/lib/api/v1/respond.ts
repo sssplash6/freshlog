@@ -1,3 +1,5 @@
+import { isRedirectError } from "next/dist/client/components/redirect-error";
+
 import type { ActionState } from "@/lib/actions/shared";
 import type { WriteResult } from "@/lib/api/v1/types";
 
@@ -95,4 +97,20 @@ export function fromAction(state: ActionState): Response {
     } satisfies WriteResult,
     200
   );
+}
+
+/**
+ * `fromAction` for an action that redirects when it works, as `deleteProgram`
+ * does: Next's `redirect()` throws, after the work is done and the revalidate
+ * has run, so that throw is the success and is answered as one. A refusal comes
+ * back as a state, as from any action, and anything else that is thrown is a
+ * failure and goes on up.
+ */
+export async function fromRedirectingAction(run: () => Promise<ActionState>): Promise<Response> {
+  try {
+    return fromAction(await run());
+  } catch (error) {
+    if (isRedirectError(error)) return json({ ok: true } satisfies WriteResult, 200);
+    throw error;
+  }
 }

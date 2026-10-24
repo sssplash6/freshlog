@@ -136,7 +136,7 @@ export type SessionsQuery = {
   cursor?: string;
   /** 1 to 100; 25 when left out or out of range. */
   limit?: string;
-  /** A mentor's list only: one student (StudentProfile.id). */
+  /** A mentor's or an admin's list only: one student (StudentProfile.id). */
   student?: string;
   program?: string;
   /** `week` is the Tashkent week from Monday. */
@@ -146,7 +146,7 @@ export type SessionsQuery = {
   answer?: "needed" | "disputed";
   /** A plan item (Assignment.id): narrows to the sessions logged against it. */
   assignment?: string;
-  /** A mentor's list only: the note, the plan item, the student's name. */
+  /** A mentor's or an admin's list only: the note, the plan item, the student's name. */
   q?: string;
   /**
    * Whose list, for a reader who has two. Left out, it is a student's own
@@ -154,9 +154,10 @@ export type SessionsQuery = {
    * student first), else the ones a mentor logged. `mentor` is the app's mentor
    * side asking for the ones the reader logged, whatever else they are; to
    * anyone who can't act as a mentor it is a 404, as it is to every reader with
-   * no list.
+   * no list. `admin` is the app's admin side asking for every session in the
+   * programs the reader reads; to anyone who reads none it is a 404.
    */
-  as?: "mentor";
+  as?: "mentor" | "admin";
 };
 
 /** A page of the reader's sessions, newest first, with figures for the whole filter. */
@@ -229,6 +230,12 @@ export type LogSessionRequest = {
   note?: string;
   /** A plan item from `LogProgram.goals`. */
   assignmentId?: string;
+  /**
+   * The mentor who held it, when an admin logs it on their behalf (a User.id
+   * from `GET log-mentors`). Honoured only for a reader who may change some
+   * program; anyone else has it ignored and logs as themselves.
+   */
+  mentor?: string;
 };
 
 /** One row of To do: one of freshform's statuses, already in the reader's words. */
@@ -405,7 +412,10 @@ export type ApiPlanItem = {
   /** Progress was set by hand, and no longer follows the hours. */
   pinned: boolean;
   overdue: boolean;
-  can: { edit: boolean; progress: boolean };
+  /** Tashkent days from today to the due day: 0 today, negative once past; null with no due day. */
+  daysLeft: number | null;
+  /** `delete` is an admin's of the item's program: its own mentor can't (`deleteAssignment`). */
+  can: { edit: boolean; progress: boolean; delete: boolean };
 };
 /** GET /api/v1/tasks/:id. `today` is the earliest due day a new value may take. */
 export type TaskDetail = { task: ApiTask; today: string };
@@ -425,6 +435,11 @@ export type PlanItemEdit = {
   due?: string | null;
   dueNote?: string | null;
   note?: string | null;
+  /**
+   * Who delivers it (a User.id), or null for nobody yet. Only a reader who may
+   * change the item's program may move it, and only to a mentor paired there.
+   */
+  mentor?: string | null;
 };
 /** POST /api/v1/plan-items/:id/progress. AUTO lets it follow its hours again. */
 export type PlanItemProgress = { progress: "NOT_STARTED" | "IN_PROGRESS" | "DONE" | "AUTO" };
@@ -488,3 +503,319 @@ export type StudentWork = {
   canSetTaskIn: ProgramRef[];
   today: string;
 };
+
+/* ------------------------------------------------------------------- admin --- */
+
+/*
+ * A program admin's half of the app. Every answer carries `can` flags built
+ * from the reader's write scope: `MeResponse.roles` lists "admin" for a Leader
+ * or Sales grant, which reads and changes nothing, so the app shows a control
+ * only where a flag says so.
+ *
+ * None of the writes below answers an id (`WriteResult` has none for them): the
+ * app reads the list again to find what it made.
+ */
+
+/** One program as the admin's lists show it. Minutes, over that program's own figures for each student. */
+export type ProgramRow = {
+  program: ProgramRef;
+  archived: boolean;
+  students: number;
+  /** Mentors paired with it, each counted once. */
+  mentors: number;
+  allotted: number;
+  /** Charged minutes: delivered and no-shows. */
+  used: number;
+  /** Lost when a use-by passed. */
+  forfeited: number;
+  /** Negative when its students are overdrawn. */
+  remaining: number;
+  can: { write: boolean };
+};
+
+/** GET /api/v1/admin/home: what /admin shows. 404 to a reader with no program to read. */
+export type AdminHome = {
+  /**
+   * Over every student in the reader's programs. `pending` counts those nobody
+   * has approved; `expiring`, those with time that runs out within 14 days.
+   */
+  summary: { remaining: number; students: number; programs: number; pending: number; expiring: number };
+  /** Active first, then archived, each by name. */
+  programs: ProgramRow[];
+  /** The staff's list, in its order. No row carries `log`: an admin's answer to time running out is a grant. */
+  todo: TodoRow[];
+  todoSpilled: number;
+  unread: number;
+  platformAdmin: boolean;
+  today: string;
+};
+
+/** GET /api/v1/students: the query, every field optional. */
+export type RosterQuery = {
+  /** A name or an email. */
+  q?: string;
+  program?: string;
+  /** Inside `program`. */
+  level?: string;
+  /** Inside `program`. */
+  cohort?: string;
+  /** `pending`: nobody has approved them. `not-signed-in`: approved, with no Telegram yet. */
+  status?: "pending" | "not-signed-in";
+  /** No time at all, time that runs out within 14 days, or time lost to a use-by. */
+  time?: "none" | "expiring" | "expired";
+  /** `student` is by name; the others put the most urgent first. */
+  sort?: "student" | "remaining" | "deadline" | "seen";
+  /** 1-based. */
+  page?: number;
+};
+/** One student on the admin's roster, over the programs the reader reads. */
+export type RosterRow = {
+  student: StudentRef;
+  approved: boolean;
+  /** They have a Telegram handle: the website's "not signed in" chip is its absence. */
+  signedIn: boolean;
+  /** Their own programs first, then visits. */
+  programs: ProgramRef[];
+  completed: number;
+  remaining: number;
+  used: number;
+  forfeited: number;
+  /** The soonest time to run out, with only the minutes that run out then. */
+  expiring: { minutes: number; day: string; daysLeft: number } | null;
+  /** The day of the latest session, or null. */
+  lastSession: string | null;
+  /** False for a student in no program, whom only a platform admin is shown and nobody can open. */
+  openable: boolean;
+};
+/** 25 rows a page. `shown` counts every row the filter matches, on every page. `programs` is the program menu. */
+export type RosterPage = { rows: RosterRow[]; page: number; pages: number; shown: number; programs: ProgramRef[]; today: string };
+
+/** GET /api/v1/students/:id/admin: one student as an admin of one of their programs reads them. */
+export type AdminStudent = {
+  student: StudentRef & {
+    email: string;
+    telegram: string | null;
+    folderUrl: string | null;
+    /** The day the record was made. */
+    registered: string;
+  };
+  approved: boolean;
+  /** The reader's programs among theirs. `visit` is a placement from another program. */
+  programs: (ProgramRef & { level: string | null; cohort: string | null; visit: boolean })[];
+  hours: {
+    allotted: number;
+    completed: number;
+    missed: number;
+    remaining: number;
+    forfeited: number;
+    expiring: { minutes: number; day: string; daysLeft: number } | null;
+  };
+  /** The website's "Time by mentor", one row per grant. */
+  grants: AdminGrant[];
+  /** The last 20 changes to their time, newest first. */
+  history: GrantChange[];
+  /**
+   * `approve` and `reject`: they are waiting and the reader may change one of
+   * their programs. `allocate`: the reader may grant them time. `reach`: the
+   * reader mentors them.
+   */
+  can: { approve: boolean; reject: boolean; allocate: boolean; reach: boolean };
+  today: string;
+};
+/** One row of "Time by mentor": a mentor's grant, the hour bank, or time nobody has been chosen for yet. */
+export type AdminGrant = {
+  program: ProgramRef;
+  /** null with `bank` false is the unassigned pool; with `bank` true it is the hour bank. */
+  mentor: PersonRef | null;
+  bank: boolean;
+  allocated: number;
+  /** The website's Assigned: the grant, or the open plan items' budgets for it when they come to more. */
+  assigned: number;
+  completed: number;
+  missed: number;
+  remaining: number;
+  /** null on a row with planned work and no grant. */
+  deadline: string | null;
+  daysLeft: number | null;
+  expired: boolean;
+  /** What was paid, in the program's currency, where the program tracks payment; null elsewhere. */
+  amountPaid: number | null;
+  can: { edit: boolean; transfer: boolean; remove: boolean };
+};
+/** One change to a student's time: who set which grant from what to what. */
+export type GrantChange = {
+  /** ISO instant. */
+  at: string;
+  program: ProgramRef;
+  mentor: PersonRef | null;
+  bank: boolean;
+  from: number;
+  to: number;
+  by: PersonRef | null;
+};
+
+/** GET /api/v1/students/:id/grant-options: what the grant sheet offers. */
+export type GrantOptions = {
+  /** The student's programs the reader may change. */
+  programs: (ProgramRef & {
+    /** A grant here must say what was paid. */
+    tracksPayment: boolean;
+    /** The program has an hour bank and the reader may grant into it. */
+    bankAllowed: boolean;
+    /** The student's bank here, if they hold one: a grant to a mentor is a share of it. */
+    bank: { left: number; deadline: string } | null;
+    /** A first bank here takes in hours given before it: the sheet asks whether. */
+    askPast: boolean;
+    /** What the program gives on joining. */
+    standard: { minutes: number; days: number } | null;
+  })[];
+  /** Mentors of those programs, with the programs each works in. */
+  mentors: { mentor: PersonRef; programIds: string[] }[];
+  /** Open plan items, which a grant's hours may be for. `mentorId` null is nobody's yet. */
+  openPlan: { id: string; programId: string; mentorId: string | null; purpose: string; logged: number; limit: number | null }[];
+  today: string;
+};
+/** POST /api/v1/students/:id/grants: give time, or set a grant to a total. */
+export type GrantRequest = {
+  program: string;
+  /** null is the unassigned pool, or the hour bank with `bank`. */
+  mentor: string | null;
+  bank?: boolean;
+  /** `add` adds to what they hold; `set` replaces it. */
+  mode: "add" | "set";
+  minutes: number;
+  /** "YYYY-MM-DD". */
+  deadline: string;
+  /** Required where the program tracks payment. */
+  amountPaid?: number;
+  /** What the hours are for: a new plan item, or an open one. */
+  task?: { purpose: string; note?: string } | { planItem: string };
+  /** Required when `GrantOptions` says `askPast`. */
+  includePrevious?: boolean;
+};
+/** POST /api/v1/students/:id/grants/transfer: unused minutes from one mentor (null: the pool) to another. */
+export type GrantTransfer = { program: string; from: string | null; to: string; minutes: number; moveTasks: boolean };
+/** POST /api/v1/students/:id/grants/remove. */
+export type GrantRemove = { program: string; mentor: string | null; bank?: boolean };
+/* POST /api/v1/students/:id/approve and /reject take no body and answer a WriteResult. */
+
+/* GET /api/v1/programs answers ProgramRow[], in the home's order. */
+/** GET /api/v1/programs/:id: one program, its settings and who works in it. */
+export type ProgramDetail = {
+  program: ProgramRef & {
+    archived: boolean;
+    tracksPayment: boolean;
+    hourBank: boolean;
+    classHours: boolean;
+    tracksAdmissions: boolean;
+    schedulesClasses: boolean;
+    /** What a student gets on joining; null for nothing. */
+    standard: { minutes: number; days: number } | null;
+  };
+  totals: { students: number; allotted: number; completed: number; missed: number; remaining: number; forfeited: number };
+  levels: {
+    id: string;
+    name: string;
+    /** null takes the program's. */
+    standard: { minutes: number; days: number } | null;
+    students: number;
+    mentors: number;
+    cohorts: Cohort[];
+    /** Nobody is in it and nothing is under it. */
+    canDelete: boolean;
+  }[];
+  /** A program with no levels keeps its cohorts here. */
+  cohorts: Cohort[];
+  /** Each pairing, which is what Remove addresses. `scope` is the program, a level or a cohort, in words. */
+  mentors: { pairingId: string; mentor: PersonRef; scope: string; students: number }[];
+  admins: { person: PersonRef; level: "admin" | "leader" | "sales" }[];
+  /** Mentors who may be assigned here: the website's list, without those paired here already. */
+  eligibleMentors: (PersonRef & { email: string })[];
+  /**
+   * `platform`: the reader runs the platform, which turning admissions or
+   * scheduled classes on asks for. `delete`: a platform admin, and nothing
+   * stands in the way; otherwise `deleteBlocked` says what does, or is null.
+   */
+  can: { write: boolean; platform: boolean; delete: boolean; deleteBlocked: string | null };
+  today: string;
+};
+export type Cohort = { id: string; name: string; inUse: boolean };
+/** PATCH /api/v1/programs/:id: exactly one field per request. */
+export type ProgramEdit =
+  | { name: string }
+  | { tracksPayment: boolean }
+  | { hourBank: boolean }
+  | { classHours: boolean }
+  | { tracksAdmissions: boolean }
+  | { schedulesClasses: boolean }
+  | { standard: { minutes: number; days: number } | null }
+  | { archived: boolean };
+/*
+ * POST /api/v1/programs {name}: a platform admin's. DELETE /api/v1/programs/:id.
+ * POST /api/v1/programs/:id/levels {name}; PATCH /api/v1/levels/:id {standard}; DELETE /api/v1/levels/:id.
+ * POST /api/v1/programs/:id/cohorts {name, level?}; DELETE /api/v1/cohorts/:id.
+ */
+/** GET /api/v1/programs/options answers these: the running programs the reader may change, for Add students and Register a mentor. */
+export type ProgramOption = ProgramRef & {
+  /** Its students are class groups, added on the website. */
+  classHours: boolean;
+  levels: { id: string; name: string; cohorts: { id: string; name: string }[] }[];
+  /** A program with no levels keeps its cohorts here. */
+  cohorts: { id: string; name: string }[];
+};
+
+/** POST /api/v1/mentors: a new mentor, and where they work. */
+export type MentorRegistration = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  /** At least one. */
+  targets: ({ program: string } | { level: string } | { cohort: string })[];
+};
+/* POST /api/v1/programs/:id/mentors {mentor, level?, cohort?}; DELETE /api/v1/programs/:id/mentors/:pairingId. */
+
+/** GET /api/v1/programs/:id/mentor-tasks: open first by due day, then done. */
+export type ProgramMentorTasks = {
+  items: ProgramMentorTask[];
+  /** Who a task may be given to: the program's mentors. */
+  team: PersonRef[];
+  /** Who a task may be about: the program's students. */
+  students: StudentRef[];
+  can: { write: boolean };
+  today: string;
+};
+/** A task an admin gave the program's mentors. */
+export type ProgramMentorTask = {
+  id: string;
+  title: string;
+  note: string | null;
+  due: string;
+  daysLeft: number;
+  /** The website's mentor-task rule: from the day after the due day, while not everyone is done. */
+  overdue: boolean;
+  createdBy: PersonRef;
+  assignees: { shareId: string; mentor: PersonRef; done: boolean }[];
+  about: StudentRef[];
+  /** Every assignee is done. */
+  done: boolean;
+};
+/** POST /api/v1/programs/:id/mentor-tasks. `mentors` and `about` are ids from `team` and `students`. */
+export type MentorTaskCreate = { title: string; due: string; note?: string; mentors: string[]; about?: string[] };
+/* DELETE /api/v1/programs/:id/mentor-tasks/:taskId. */
+
+/** POST /api/v1/programs/:id/students: one request for every row. */
+export type AddStudents = {
+  /** Required where the program has levels. */
+  level?: string;
+  /** Required where the level, or a program with no levels, has cohorts. */
+  cohort?: string;
+  /** 1 to 200. */
+  rows: { email: string; firstName: string; lastName: string; folderUrl?: string }[];
+};
+
+/*
+ * Logging on someone's behalf:
+ *   GET /api/v1/log-mentors?program= answers PersonRef[]: the mentors of the programs the reader may change.
+ *   GET /api/v1/log-options?mentor=<id> answers that mentor's LogOptions, narrowed to those programs.
+ *   LogSessionRequest.mentor names them.
+ */

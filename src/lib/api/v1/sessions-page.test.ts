@@ -776,8 +776,8 @@ describe("sessionsQueryFrom: the URL as a query", () => {
   it("leaves out what is not asked, what is not one of the words, and every filter the contract doesn't have", () => {
     const query = sessionsQueryFrom(
       new URL(
-        // `as=admin` is Phase 4's, and not a word yet.
-        "http://test/api/v1/sessions?period=forever&status=rescheduled&answer=all&as=admin&mentor=me&attendance=absent&kind=extra&from=2026-01-01&to=2026-02-01&page=2"
+        // `as=staff` is the website's word for the admin side, and not the contract's.
+        "http://test/api/v1/sessions?period=forever&status=rescheduled&answer=all&as=staff&mentor=me&attendance=absent&kind=extra&from=2026-01-01&to=2026-02-01&page=2"
       ).searchParams
     );
     expect(query).toEqual({});

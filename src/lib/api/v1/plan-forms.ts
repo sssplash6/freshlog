@@ -29,6 +29,7 @@ const EDIT_FIELDS: { [Field in keyof PlanItemEdit]-?: (value: unknown) => boolea
   due: orNull(isDay),
   dueNote: orNull(isText),
   note: orNull(isText),
+  mentor: orNull(isText),
 };
 
 /**

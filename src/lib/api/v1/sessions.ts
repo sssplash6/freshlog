@@ -203,6 +203,8 @@ const MAX_LIMIT = 100;
 export function ledgerScope(reader: Reader, as?: SessionsQuery["as"]): FilterScope | null {
   const { user, studentProfileId } = reader;
   if (as === "mentor") return canActAsMentor(user) ? { mentorId: user.id } : null;
+  // The admin's side is in the contract ahead of the list it asks for.
+  if (as === "admin") return null;
   if (user.role === ROLES.STUDENT && studentProfileId !== null) return { studentId: studentProfileId };
   if (canActAsMentor(user)) return { mentorId: user.id };
   return null;
@@ -220,7 +222,7 @@ const WORDS: { [Key in Choice]: Record<NonNullable<SessionsQuery[Key]>, true> } 
   period: { week: true, "30d": true, "90d": true, year: true },
   status: { active: true, voided: true },
   answer: { needed: true, disputed: true },
-  as: { mentor: true },
+  as: { mentor: true, admin: true },
 };
 
 /**

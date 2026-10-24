@@ -194,10 +194,11 @@ describe("planItemFor", () => {
     expect(read).toMatchObject({ mentor: null, can: { edit: false, progress: false } });
     // The owning mentor may; a student may not.
     await prisma.assignment.update({ where: { id: a.id }, data: { mentorId: m.id } });
-    expect((await planItemFor(await asReader(m.id), a.id, NOW))?.can).toEqual({ edit: true, progress: true });
-    expect((await planItemFor(await asReader(st.userId), a.id, NOW))?.can).toEqual({ edit: false, progress: false });
+    // Deleting is the admin's alone (`deleteAssignment`), never the owning mentor's.
+    expect((await planItemFor(await asReader(m.id), a.id, NOW))?.can).toEqual({ edit: true, progress: true, delete: false });
+    expect((await planItemFor(await asReader(st.userId), a.id, NOW))?.can).toEqual({ edit: false, progress: false, delete: false });
     const adm = await admin("Admin");
     await grant({ userId: adm.id, programId: p.id });
-    expect((await planItemFor(await asReader(adm.id), a.id, NOW))?.can).toEqual({ edit: true, progress: true });
+    expect((await planItemFor(await asReader(adm.id), a.id, NOW))?.can).toEqual({ edit: true, progress: true, delete: true });
   });
 });

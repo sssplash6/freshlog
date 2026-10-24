@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { fromAction, inactive, noContent, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { redirect } from "next/navigation";
+
+import { fromAction, fromRedirectingAction, inactive, noContent, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 
 describe("respond", () => {
   it("signInAgain is a 401 the app recognises", async () => {
@@ -153,5 +155,21 @@ describe("respond", () => {
       fromAction(null),
     ];
     for (const res of answers) expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("fromRedirectingAction answers a redirect as success", async () => {
+    const res = await fromRedirectingAction(async () => redirect("/admin"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+  });
+
+  it("fromRedirectingAction answers a refusal as fromAction does", async () => {
+    const res = await fromRedirectingAction(async () => ({ ok: false, error: "Program not found." }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ ok: false, error: "Program not found." });
+  });
+
+  it("fromRedirectingAction lets any other error through", async () => {
+    await expect(fromRedirectingAction(async () => { throw new Error("disk full"); })).rejects.toThrow("disk full");
   });
 });
