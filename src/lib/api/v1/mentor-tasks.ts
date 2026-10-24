@@ -66,13 +66,9 @@ export async function mentorTasksFor(user: User, now: Date = new Date()): Promis
 }
 
 /**
- * The reader's own share, with whether it is done; `null` when it is somebody
- * else's or was never made, which the route answers alike.
+ * The reader's own share; `null` when it is somebody else's or was never made,
+ * which the route answers alike.
  */
-export async function mentorShareFor(user: User, id: string): Promise<{ id: string; done: boolean } | null> {
-  const share = await prisma.mentorTaskAssignee.findFirst({
-    where: { id, mentorId: user.id },
-    select: { id: true, completedAt: true },
-  });
-  return share && { id: share.id, done: share.completedAt !== null };
+export async function mentorShareFor(user: User, id: string): Promise<{ id: string } | null> {
+  return prisma.mentorTaskAssignee.findFirst({ where: { id, mentorId: user.id }, select: { id: true } });
 }

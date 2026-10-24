@@ -1,10 +1,12 @@
-import { updateAssignment } from "@/lib/actions/assignments";
+import { deleteAssignment, updateAssignment } from "@/lib/actions/assignments";
 import { bodyOf } from "@/lib/api/v1/body";
 import { planItemEditForm, planItemEditOf } from "@/lib/api/v1/plan-forms";
 import { fromAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor } from "@/lib/api/v1/sessions";
 import { planItemFor, storedPlanItem } from "@/lib/api/v1/work";
+import { scopeCovers } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
+import { programTeam } from "@/lib/mentor-tasks";
 import { programToday } from "@/lib/when";
 
 const NOT_YOURS = "That plan item is not yours to change.";
@@ -38,8 +40,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
  * what it refuses is the website's, in its words. The action replaces an item
  * whole, which is why `planItemEditForm` sends every field the body leaves out
  * as the item has it now, the note from the row itself (a student is shown
- * none). The mentor and the progress are always the row's: choosing a mentor is
- * an admin's work, and progress moves through its own route.
+ * none). Progress moves through its own route.
+ *
+ * `mentor` hands the item to somebody else, which the action tells both of. It
+ * is an admin's of the item's program: anyone else who names one gets a 403 in
+ * `NOT_YOURS`. The mentor must be paired in the item's program, which the
+ * action does not ask, so the route does; null takes it off everybody.
  *
  * The item is read first, as GET reads it: one the person may not see is
  * answered like one that was never made, whatever the body says. One they may
@@ -62,7 +68,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!body) return refused("Send the changes as JSON.", 400);
   const asked = planItemEditOf(body);
   if ("field" in asked) return refused("That isn't a valid value.", 400, { field: asked.field });
+  if (asked.edit.mentor !== undefined) {
+    const reader = await readerFor(user);
+    if (!scopeCovers(reader.write, item.program.id)) return refused(NOT_YOURS, 403);
+    const team = await programTeam(item.program.id);
+    if (asked.edit.mentor !== null && !team.some((m) => m.id === asked.edit.mentor)) {
+      return refused("That isn't a valid value.", 400, { field: "mentor" });
+    }
+  }
   const form = planItemEditForm(item, asked.edit, stored);
   if (!(form instanceof FormData)) return refused("That isn't a valid value.", 400, { field: form.field });
   return fromAction(await updateAssignment(null, form));
+}
+
+/**
+ * Deletes the plan item, through the website's `deleteAssignment`, which tells
+ * its mentor. That is an admin's of the item's program, never its own mentor's:
+ * a reader who may see it and not delete it gets a 403 in `NOT_YOURS`.
+ */
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getCurrentUser();
+  if (!user) return signInAgain();
+  if (user.status !== "ACTIVE") return inactive();
+  const { id } = await params;
+  const item = await planItemFor(await readerFor(user), id);
+  if (!item) return refused("Not found.", 404);
+  if (!item.can.delete) return refused(NOT_YOURS, 403);
+  const form = new FormData();
+  form.set("assignmentId", id);
+  return fromAction(await deleteAssignment(null, form));
 }

@@ -66,7 +66,7 @@ describe("taskFor", () => {
     const later = await taskFor(reader, t.id, new Date("2026-11-05T09:00:00.000Z"));
     expect(later).toMatchObject({ daysLeft: -2, overdue: true });
     // Done is never overdue.
-    await prisma.studentTask.update({ where: { id: t.id }, data: { completedAt: later && new Date(), percent: 100 } });
+    await prisma.studentTask.update({ where: { id: t.id }, data: { completedAt: new Date(), percent: 100 } });
     expect(await taskFor(reader, t.id, new Date("2026-11-05T09:00:00.000Z"))).toMatchObject({
       overdue: false,
       done: true,

@@ -91,6 +91,16 @@ describe("POST /api/v1/mentor-tasks/:id/done", () => {
     expect((await stored(share.id)).completedAt).not.toBeNull();
   });
 
+  it("a share holder who can no longer act as a mentor may still tick it: the owner's rule, kept", async () => {
+    const { m, share } = await setUp();
+    // No longer a mentor, still active, and still holding the share.
+    await prisma.user.update({ where: { id: m.id }, data: { role: "STUDENT", isMentor: false } });
+    actor.value = { id: m.id };
+    const res = await post(share.id, { done: true });
+    expect(res.status).toBe(200);
+    expect((await stored(share.id)).completedAt).not.toBeNull();
+  });
+
   it("ticking done notifies the admin who set it (MENTOR_TASK_DONE)", async () => {
     const { a, m, share } = await setUp();
     actor.value = { id: m.id };

@@ -108,14 +108,8 @@ describe("mentorShareFor", () => {
     const w = await scene();
     const other = await mentor("Umid Rashidov");
     const { share } = await setFor(w, { title: "Mine", dueIn: 1 });
-    expect(await mentorShareFor(w.m, share.id)).toEqual({ id: share.id, done: false });
+    expect(await mentorShareFor(w.m, share.id)).toEqual({ id: share.id });
     expect(await mentorShareFor(other, share.id)).toBeNull();
     expect(await mentorShareFor(w.m, "c-made-up")).toBeNull();
-  });
-
-  it("says whether it is done", async () => {
-    const w = await scene();
-    const { share } = await setFor(w, { title: "Mine", dueIn: 1, doneAgo: 1 });
-    expect(await mentorShareFor(w.m, share.id)).toEqual({ id: share.id, done: true });
   });
 });

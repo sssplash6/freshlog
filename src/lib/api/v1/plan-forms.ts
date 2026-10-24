@@ -35,8 +35,9 @@ const EDIT_FIELDS: { [Field in keyof PlanItemEdit]-?: (value: unknown) => boolea
 /**
  * The edit a body asks for, or the first of its fields that isn't a valid value.
  *
- * Only the five fields of `PlanItemEdit` are taken, so a body cannot choose a
- * mentor or a progress by naming them: those are not an edit's to move.
+ * Only the fields of `PlanItemEdit` are taken, so a body cannot choose a
+ * progress by naming it: that moves through its own route. `mentor` is taken
+ * here and judged by the route, which knows who is asking.
  */
 export function planItemEditOf(body: Record<string, unknown>): { edit: PlanItemEdit } | { field: string } {
   const edit: Record<string, unknown> = {};
@@ -59,10 +60,11 @@ export type StoredPlanItem = { mentorId: string | null; progress: string; note: 
  *
  * - The purpose is sent as typed text (`purposeCustom`) with nothing picked,
  *   which the action reads as that text, whatever the website's list holds.
- * - The note, the mentor and the progress come from `stored`, the row itself.
- *   The note because a student's view of it is null and an edit filled from
- *   that would erase it. The mentor because choosing one is an admin's work
- *   (Phase 4), and the progress because the action overwrites it and only the
+ * - The note, the mentor and the progress come from `stored`, the row itself,
+ *   unless the edit names a mentor. The note because a student's view of it is
+ *   null and an edit filled from that would erase it. The mentor because the
+ *   action replaces it too, and only an admin's edit moves it (the route says
+ *   whose). The progress because the action overwrites it and only the
  *   progress route moves it, pinned or not.
  * - `null` clears a limit, a day, a due note or a note, and goes as `""`.
  *
@@ -80,7 +82,7 @@ export function planItemEditForm(
   form.set("assignmentId", current.id);
   form.set("purpose", "");
   form.set("purposeCustom", edit.purpose ?? current.purpose);
-  form.set("mentorId", stored.mentorId ?? "");
+  form.set("mentorId", (edit.mentor === undefined ? stored.mentorId : edit.mentor) ?? "");
   form.set("minuteLimit", minuteLimit === null ? "" : String(minuteLimit));
   form.set("dueNote", (edit.dueNote === undefined ? current.dueNote : edit.dueNote) ?? "");
   form.set("dueOn", due ?? "");
