@@ -144,6 +144,11 @@ export type SessionsQuery = {
   status?: "active" | "voided";
   /** `needed`: the student is being asked to confirm it. `disputed`: the student disputed it, and it isn't voided. */
   answer?: "needed" | "disputed";
+  /**
+   * A plan item (Assignment.id): narrows to the sessions logged against it.
+   * Left to Task F3 to apply; until then the query ignores it.
+   */
+  assignment?: string;
   /** A mentor's list only: the note, the plan item, the student's name. */
   q?: string;
   /**
@@ -293,6 +298,10 @@ export type MentorHome = {
   summary: { remaining: number; students: number; expiring: number; disputed: number };
   todo: TodoRow[];
   students: CaseloadRow[];
+  /** Unread notifications, the bell's badge. Filled by Task F6. */
+  unread: number;
+  /** Rows freshform's 10-row cap on the To do list left out. Filled by Task F6. */
+  todoSpilled: number;
 };
 
 /**
@@ -341,4 +350,143 @@ export type StudentHome = {
   todo: TodoRow[];
   /** Sessions waiting for their answer. */
   toConfirm: number;
+  /** The student's tasks, open by due day and then done. Filled by Task F6. */
+  tasks: ApiTask[];
+  /** The student's plan items, not done first. Filled by Task F6. */
+  plan: ApiPlanItem[];
+  /** Unread notifications, the bell's badge. Filled by Task F6. */
+  unread: number;
+  /** Today in the program's zone, "YYYY-MM-DD". The app never takes it from the phone. */
+  today: string;
+};
+
+/* ------------------------------------------------------------ tasks, plan, inbox --- */
+
+/** One of a student's tasks: work a mentor set, with a due day, moved along by the student. */
+export type ApiTask = {
+  id: string;
+  student: StudentRef;
+  program: ProgramRef;
+  /** Who set it. */
+  mentor: PersonRef;
+  title: string;
+  /** The mentor's description. The student reads it too, as on the website. */
+  note: string | null;
+  /** "YYYY-MM-DD", Tashkent's. */
+  due: string;
+  /** Tashkent days from today to the due day: 0 today, negative once past. */
+  daysLeft: number;
+  /** freshform's TASK_OVERDUE rule: not done, and the due day has begun. */
+  overdue: boolean;
+  /** 0-100. */
+  percent: number;
+  done: boolean;
+  /** ISO instant, or null. */
+  completedAt: string | null;
+  /** What this reader may do to it: freshform's own task rules. */
+  can: { progress: boolean; edit: boolean; delete: boolean };
+};
+/** One plan item (the website's "agenda item"): time budgeted for a purpose, worked off by sessions. */
+export type ApiPlanItem = {
+  id: string;
+  student: StudentRef;
+  program: ProgramRef;
+  /** Who delivers it; null while nobody has been chosen. */
+  mentor: PersonRef | null;
+  purpose: string;
+  /** Minutes planned; null when it has no budget. */
+  minuteLimit: number | null;
+  /** Minutes logged against it, by every mentor. */
+  loggedMinutes: number;
+  /** "YYYY-MM-DD", or null. */
+  due: string | null;
+  /** Free text such as "March-May", or null. */
+  dueNote: string | null;
+  /** Staff's note. Always null for a student: the website shows it to staff alone. */
+  note: string | null;
+  progress: "NOT_STARTED" | "IN_PROGRESS" | "DONE";
+  /** Progress was set by hand, and no longer follows the hours. */
+  pinned: boolean;
+  overdue: boolean;
+  can: { edit: boolean; progress: boolean };
+};
+/** GET /api/v1/tasks/:id. `today` is the earliest due day a new value may take. */
+export type TaskDetail = { task: ApiTask; today: string };
+/** GET /api/v1/plan-items/:id. */
+export type PlanItemDetail = { item: ApiPlanItem; today: string };
+
+/** POST /api/v1/tasks. */
+export type TaskCreate = { studentProfileId: string; programId: string; title: string; due: string; note?: string };
+/** PATCH /api/v1/tasks/:id. What is left out keeps its stored value; `note: null` clears it. */
+export type TaskEdit = { title?: string; due?: string; note?: string | null };
+/** POST /api/v1/tasks/:id/progress: finish it, or set a percent (which reopens a finished one). */
+export type TaskProgress = { done: true } | { percent: number };
+/** PATCH /api/v1/plan-items/:id. What is left out keeps its stored value; null clears it. */
+export type PlanItemEdit = {
+  purpose?: string;
+  minuteLimit?: number | null;
+  due?: string | null;
+  dueNote?: string | null;
+  note?: string | null;
+};
+/** POST /api/v1/plan-items/:id/progress. AUTO lets it follow its hours again. */
+export type PlanItemProgress = { progress: "NOT_STARTED" | "IN_PROGRESS" | "DONE" | "AUTO" };
+
+/** The reader's own share of a task a program admin gave mentors. */
+export type ApiMentorTask = {
+  /** The share (MentorTaskAssignee.id): what Done addresses. */
+  id: string;
+  taskId: string;
+  program: ProgramRef;
+  /** The admin who set it. */
+  from: PersonRef;
+  title: string;
+  note: string | null;
+  due: string;
+  daysLeft: number;
+  /** The website's mentor-task rule: overdue from the day after the due day. */
+  overdue: boolean;
+  done: boolean;
+  completedAt: string | null;
+  /** The students it is about. */
+  about: StudentRef[];
+};
+/** GET /api/v1/mentor-tasks: open ones by due day, then those done in the last 14 days. */
+export type MentorTasks = { items: ApiMentorTask[]; today: string };
+/** POST /api/v1/mentor-tasks/:id/done. */
+export type MentorTaskDone = { done: boolean };
+
+/** One notification. */
+export type InboxItem = {
+  id: string;
+  type: string;
+  /** HOURS, SESSIONS, TASKS, DEADLINES or ACCOUNTS; older rows may carry others. */
+  category: string;
+  /** The website's label for the type ("Session logged"), or "Update" for one it doesn't know. */
+  title: string;
+  /** The sentence written when it happened. */
+  message: string;
+  /** A website path with old shapes already rewritten (`neutralHref`), or null. The app maps it to a screen. */
+  href: string | null;
+  actor: PersonRef | null;
+  read: boolean;
+  /** ISO instant. */
+  at: string;
+};
+/** GET /api/v1/inbox. `unread` counts the whole feed. */
+export type InboxPage = { items: InboxItem[]; nextCursor: string | null; unread: number };
+export type InboxQuery = { cursor?: string; limit?: string };
+/** POST /api/v1/statuses/dismiss and /restore: a To do row, by `TodoRow.type` and `TodoRow.subject?.id ?? ""`. */
+export type StatusKey = { type: string; subjectId: string };
+
+/** GET /api/v1/students/:id/work: one student's tasks and plan items, as the website shows them to this reader. */
+export type StudentWork = {
+  student: StudentRef;
+  /** Open by due day, then done. */
+  tasks: ApiTask[];
+  /** Not done in the website's order, then done. */
+  plan: ApiPlanItem[];
+  /** Programs this reader may set this student a task in. Empty: no Add. */
+  canSetTaskIn: ProgramRef[];
+  today: string;
 };

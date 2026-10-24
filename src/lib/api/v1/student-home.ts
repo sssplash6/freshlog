@@ -9,7 +9,7 @@ import { allocationSummary, type AllocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { assignmentsForStudentWhere, studentLedger, type LedgerSession } from "@/lib/queries";
 import { sessionStatuses, type ViewerContext } from "@/lib/status";
-import { daysAway } from "@/lib/when";
+import { daysAway, programToday } from "@/lib/when";
 import type { User } from "@/generated/prisma/client";
 
 /**
@@ -75,6 +75,11 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
     // for a session on its own, and set only on the one row that four or more
     // sessions are rolled into.
     toConfirm: ledger.sessions.filter((session) => isAwaitingAnswer(session, viewer)).length,
+    // Task F6 fills these; until it lands they are empty so the contract holds.
+    tasks: [],
+    plan: [],
+    unread: 0,
+    today: programToday(now),
   };
 }
 

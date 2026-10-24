@@ -66,6 +66,9 @@ export async function mentorHomeFor(user: User, now: Date = new Date()): Promise
     // In `mentorCaseload`'s order. The website sorts by urgency on top of it,
     // but only for the table it draws.
     students: rows,
+    // Task F6 fills these; until it lands they are zero so the contract holds.
+    unread: 0,
+    todoSpilled: 0,
   };
 }
 
