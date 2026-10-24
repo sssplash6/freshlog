@@ -2,7 +2,7 @@ import { isText } from "@/lib/api/v1/session-forms";
 import type { BookInterview, OfferSlot } from "@/lib/api/v1/types";
 import { isDay } from "@/lib/api/v1/work-forms";
 import { templateById } from "@/lib/interview-templates";
-import { parseMeetingUrl, parseSlotLength, parseSlotStart } from "@/lib/peer-interviews";
+import { NOTES_MAX, parseMeetingUrl, parseSlotLength, parseSlotStart } from "@/lib/peer-interviews";
 
 /**
  * Practice bodies as the FormData `lib/actions/interviews.ts` takes.
@@ -51,5 +51,19 @@ export function bookForm(body: Record<string, unknown>): FormData | { field: str
   const form = new FormData();
   form.set("slotId", slot);
   form.set("template", template);
+  return form;
+}
+
+/** A body with nothing to read beyond the interview in the address. */
+export const emptyForm = () => new FormData();
+
+/** `saveInterviewNotes`'s FormData. Empty clears them. */
+export function notesForm(body: Record<string, unknown> | null): FormData | { field: string; error: string } {
+  const notes = body?.notes;
+  if (!isText(notes) || notes.trim().length > NOTES_MAX) {
+    return { field: "notes", error: `Notes can be up to ${NOTES_MAX} characters.` };
+  }
+  const form = new FormData();
+  form.set("notes", notes);
   return form;
 }
