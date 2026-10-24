@@ -819,3 +819,171 @@ export type AddStudents = {
  *   GET /api/v1/log-options?mentor=<id> answers that mentor's LogOptions, narrowed to those programs.
  *   LogSessionRequest.mentor names them.
  */
+
+/*
+ * Practice interviews: students interviewing each other (Phase 5).
+ *
+ * Every route but `students/:id/interviews` is an approved student's own. An
+ * interview they are not in, a time that is not theirs, a classmate who is not
+ * one and a row that does not exist all answer the same 404.
+ */
+
+/**
+ * A practice time on freshform's clock. Show `day` and `time`, which are
+ * Tashkent's; compare `startsAt` and `endsAt`, which are real instants, with
+ * the clock.
+ */
+export type SlotTime = { day: string; time: string; minutes: number; startsAt: string; endsAt: string };
+
+/** One of the kinds of interview to practise, which freshform fixes. */
+export type InterviewTemplateRef = { id: string; name: string; summary: string };
+
+/** "booked" until it starts, "to-mark" once it has, then one of the two outcomes. */
+export type InterviewPhase = "booked" | "to-mark" | "completed" | "absent";
+
+/** One of my practice interviews, in a list. `partner` is a User. */
+export type InterviewRow = {
+  id: string;
+  template: { id: string; name: string };
+  when: SlotTime;
+  partner: PersonRef;
+  /** They booked my time. */
+  hosting: boolean;
+  phase: InterviewPhase;
+  /** I have sent my feedback. */
+  sent: boolean;
+};
+
+/** A time I offer. `interview` once a classmate has booked it. */
+export type OfferedSlot = {
+  id: string;
+  when: SlotTime;
+  meetingUrl: string | null;
+  interview: { id: string; guest: PersonRef } | null;
+};
+
+/** A classmate: a student who shares one of my own programs. `id` is their StudentProfile.id. */
+export type ClassmateRow = {
+  id: string;
+  person: PersonRef;
+  /** The programs we share, only when I am in more than one: otherwise empty. */
+  programs: string[];
+  /** Their open times still to come. */
+  open: number;
+  next: SlotTime | null;
+};
+
+/** A To do row for practice, decided on freshform's clock. */
+export type PracticeTodo = {
+  interview: string;
+  /** "University admissions · Aziz" */
+  title: string;
+  when: SlotTime;
+  /** join: starts within a day, until it ends. mark: it has started. feedback: done, and mine is not sent. */
+  need: "join" | "mark" | "feedback";
+  /** Only for "join". */
+  meetingUrl: string | null;
+};
+
+/** The Practice tab: GET /api/v1/interviews */
+export type PracticeHome = {
+  /** Neither completed nor absent; soonest first. */
+  coming: InterviewRow[];
+  /** Completed or absent; newest first. */
+  done: InterviewRow[];
+  /** Mine, still to come; soonest first. */
+  times: OfferedSlot[];
+  /** Those offering a time first, then the rest; each by name. */
+  classmates: ClassmateRow[];
+  todo: PracticeTodo[];
+  /** What a new time may be: a day from `today` to `lastDay`, `lengths` minutes long. */
+  offer: { today: string; lastDay: string; lengths: number[] };
+  /** "Tashkent": the clock `day` and `time` are on. */
+  zone: string;
+};
+
+/** POST /api/v1/interviews/slots. `day` and `time` on the Tashkent clock. */
+export type OfferSlot = { day: string; time: string; minutes: number; meetingUrl?: string };
+/* DELETE /api/v1/interviews/slots/:id: a time nobody has booked. */
+
+/** A classmate's page: GET /api/v1/classmates/:id */
+export type Classmate = {
+  id: string;
+  person: PersonRef;
+  /** The programs we share, by name. */
+  shared: string[];
+  /** Open and still to come. No meeting link: that is for whoever books it. */
+  slots: { id: string; when: SlotTime }[];
+  templates: InterviewTemplateRef[];
+};
+
+/** POST /api/v1/interviews: book a classmate's time. */
+export type BookInterview = { slot: string; template: string };
+/** The interview the booking made. */
+export type BookResult = WriteResult & { id: string };
+
+/** Feedback's three boxes. */
+export type FeedbackText = { summary: string; wentWell: string; toImprove: string };
+
+/** One answer of mine. `question` is its wording when I answered. */
+export type InterviewAnswerRow = { index: number; question: string; text: string };
+
+/** One of my interviews: GET /api/v1/interviews/:id */
+export type ApiInterview = Omit<InterviewRow, "template"> & {
+  /** Only to the two students in it. */
+  meetingUrl: string | null;
+  template: InterviewTemplateRef & { questions: string[] };
+  /** Only mine. */
+  answers: InterviewAnswerRow[];
+  /** Mine; the partner never reads them. */
+  notes: string;
+  mine: (FeedbackText & { sent: boolean }) | null;
+  /** The partner's, once sent. */
+  theirs: FeedbackText | null;
+  /** Who was marked absent, when `phase` is "absent". */
+  absent: "me" | "partner" | null;
+  /** The day it was marked done. */
+  completedOn: string | null;
+  /** "15:45" Tashkent: while sent feedback can still be changed, until when. */
+  editableUntil: string | null;
+  can: { cancel: boolean; done: boolean; absent: boolean; guide: boolean; notes: boolean; editFeedback: boolean };
+  /** The guide's fixed words, the school's own. */
+  guide: {
+    intro: string;
+    rubric: { name: string; questions: string[] }[];
+    turns: string;
+    prompts: FeedbackText;
+    discuss: string;
+  };
+};
+
+/*
+ * One interview's writes, each answering WriteResult:
+ *   POST /api/v1/interviews/:id/cancel, /done, /absent
+ *   PUT  /api/v1/interviews/:id/notes            InterviewNotes
+ *   PUT  /api/v1/interviews/:id/answers/:index   InterviewAnswerText
+ *   PUT  /api/v1/interviews/:id/feedback         FeedbackText, a draft
+ *   POST /api/v1/interviews/:id/feedback/submit  FeedbackText, sent
+ *   PATCH /api/v1/interviews/:id/feedback        FeedbackText, a correction while `can.editFeedback`
+ */
+export type InterviewNotes = { notes: string };
+export type InterviewAnswerText = { text: string };
+
+/** One of a student's practice interviews, for a mentor who has worked with them. */
+export type StudentInterviewRow = {
+  id: string;
+  template: { id: string; name: string };
+  when: SlotTime;
+  partner: PersonRef;
+  phase: InterviewPhase;
+  completedOn: string | null;
+  /** The student's own. */
+  notes: string;
+  answers: InterviewAnswerRow[];
+  /** Sent by the student. */
+  given: FeedbackText | null;
+  /** Sent to the student. */
+  received: FeedbackText | null;
+};
+/** GET /api/v1/students/:id/interviews */
+export type StudentInterviews = { student: StudentRef; interviews: StudentInterviewRow[] };
