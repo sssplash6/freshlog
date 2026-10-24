@@ -1,15 +1,19 @@
 import "server-only";
 
+import { nameOf, type Reader } from "@/lib/api/v1/sessions";
 import { isMinutes, isOneOf, isText } from "@/lib/api/v1/session-forms";
 import type {
   Attendance,
   LogOptions,
+  PersonRef,
   LogProgram,
   LogSessionRequest,
   LogStudent,
   TimeKind,
 } from "@/lib/api/v1/types";
+import { scopeIsEmpty, scopeProgramFilter } from "@/lib/authz";
 import { ATTENDANCE, SESSION_STATUS, TIME_KIND } from "@/lib/constants";
+import { mentorsWhere } from "@/lib/filters";
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { logSessionOptions, mentorCaseload, type CaseloadStudent, type MentorCaseload } from "@/lib/queries";
@@ -34,21 +38,29 @@ const RECENT_KEPT = 8;
  * Who `user` can log a session for, how many minutes each has to draw on, and
  * their latest sessions by the day they were held, one per student and program.
  *
- * `user` is the mentor, and logging for someone else is Phase 4: the caseload
- * is read as the mentor's own. The route has already asked whether they can act
- * as one.
+ * `user` is the mentor whose meeting it is. The route has already asked whether
+ * they can act as one. When an admin logs on their behalf, `programIds` is the
+ * admin's write scope (`undefined` for a platform admin), and everything is
+ * narrowed to it, as the website's /sessions/new narrows it: `logSession`
+ * refuses an on-behalf log in a program the admin may not change, so the sheet
+ * must never offer one.
  */
-export async function logOptionsFor(user: User, now: Date = new Date()): Promise<LogOptions> {
+export async function logOptionsFor(
+  user: User,
+  now: Date = new Date(),
+  onBehalf?: { programIds: readonly string[] | undefined }
+): Promise<LogOptions> {
+  const inScope = onBehalf?.programIds ? { programId: { in: [...onBehalf.programIds] } } : {};
   const [caseload, latest] = await Promise.all([
     mentorCaseload(user.id),
     prisma.session.findMany({
-      where: { mentorId: user.id, status: { not: SESSION_STATUS.VOIDED } },
+      where: { mentorId: user.id, status: { not: SESSION_STATUS.VOIDED }, ...inScope },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       take: RECENT_READ,
       select: { studentId: true, programId: true, minutes: true },
     }),
   ]);
-  return { today: programToday(now), students: studentsOf(caseload), recent: recentOf(latest) };
+  return { today: programToday(now), students: studentsOf(caseload, onBehalf?.programIds), recent: recentOf(latest) };
 }
 
 /**
@@ -61,7 +73,7 @@ export async function logOptionsFor(user: User, now: Date = new Date()): Promise
  * set"). Its English `balance` and `hint` are left out: the app says its own,
  * from the figures.
  */
-function studentsOf(caseload: MentorCaseload): LogStudent[] {
+function studentsOf(caseload: MentorCaseload, programIds?: readonly string[]): LogStudent[] {
   const rows = new Map<string, CaseloadStudent>();
   for (const row of caseload.students) {
     const key = `${row.profile.id}:${row.program.id}`;
@@ -73,7 +85,8 @@ function studentsOf(caseload: MentorCaseload): LogStudent[] {
   const dots = new Map<string, number>();
   for (const { program } of [...caseload.assignments, ...caseload.students]) dots.set(program.id, program.colorIndex);
 
-  return logSessionOptions(caseload).map((option) => ({
+  // Its English is left out (see above), so no `mentorName`: only the narrowing.
+  return logSessionOptions(caseload, { programIds }).map((option) => ({
     id: option.profileId,
     name: option.label,
     programs: option.programs.map((choice) => ({
@@ -151,6 +164,7 @@ const FIELDS: readonly Field[] = [
   ["kind", "timeKind", isOneOf<TimeKind>(Object.values(TIME_KIND))],
   ["note", "note", isText],
   ["assignmentId", "assignmentId", isText],
+  ["mentor", "mentorId", isText],
 ];
 
 /**
@@ -162,20 +176,46 @@ const FIELDS: readonly Field[] = [
  * request leaves out is left out here too: the action has its own defaults for
  * attendance and kind, and words for a missing student, day or minutes.
  *
- * There is never a `mentorId`. The action logs in that mentor's name when the
- * signed-in person administers their program, and logging on someone's behalf
- * is Phase 4, so a body that names one has it ignored, not honoured. The same
- * goes for `agendaName`, which names a new plan item. Right type is all that is
- * checked: wording and ranges (whole minutes, a real day, not in the future) are
- * the action's to say, in the website's words.
+ * `mentor` becomes the action's `mentorId` only when `mayNameMentor`: the reader
+ * may change some program, which is what `logSession` asks of somebody logging
+ * for somebody else. Anybody else has it ignored, not honoured, and logs as
+ * themselves, as before. The action decides the rest: the mentor is active,
+ * reaches the student, and works in a program the admin may change. The same
+ * goes for `agendaName`, which names a new plan item and is never sent. Right
+ * type is all that is checked: wording and ranges (whole minutes, a real day,
+ * not in the future) are the action's to say, in the website's words.
  */
-export function logForm(body: Record<string, unknown>): FormData | { field: string } {
+export function logForm(body: Record<string, unknown>, mayNameMentor = false): FormData | { field: string } {
   const form = new FormData();
   for (const [request, name, accepts] of FIELDS) {
     const value = body[request];
     if (value === undefined) continue;
+    if (request === "mentor" && !mayNameMentor) continue;
     if (!accepts(value)) return { field: request };
     form.set(name, String(value));
   }
   return form;
+}
+
+/**
+ * The mentors `reader` may log a session for: those paired in a program the
+ * reader may change, as the website's /sessions/new lists them (`mentorsWhere`),
+ * by name. `program` narrows to one of those programs; one outside them names
+ * nobody. The reader is among them when they mentor there too.
+ */
+export async function logMentorsFor(reader: Reader, program?: string): Promise<PersonRef[]> {
+  const mentors = await prisma.user.findMany({
+    where: mentorsWhere(program ? { program } : {}, { programIds: scopeProgramFilter(reader.write) }),
+    orderBy: [{ name: "asc" }, { email: "asc" }],
+    select: { id: true, name: true, email: true },
+  });
+  return mentors.map((m) => ({ id: m.id, name: nameOf(m) }));
+}
+
+/** The mentor `reader` names to log for, when they may log for them; null otherwise. */
+export async function onBehalfMentor(reader: Reader, mentorId: string): Promise<User | null> {
+  if (scopeIsEmpty(reader.write)) return null;
+  return prisma.user.findFirst({
+    where: { AND: [{ id: mentorId }, mentorsWhere({}, { programIds: scopeProgramFilter(reader.write) })] },
+  });
 }

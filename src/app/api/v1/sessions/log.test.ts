@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { programToday } from "@/lib/when";
-import { allocation, assignment, DAY, enroll, mentor, pairing, platformAdmin, program, student } from "@/test/db";
+import { admin, allocation, assignment, DAY, enroll, grant, mentor, pairing, platformAdmin, program, student } from "@/test/db";
 
 /**
  * Logging a session: `POST /api/v1/sessions` is the website's own `logSession`,
@@ -183,15 +183,47 @@ describe("POST /api/v1/sessions", () => {
     expect(await prisma.session.count({ where: { studentId: { in: [st.id, lapsed.id] } } })).toBe(2);
   });
 
-  it("never logs in somebody else's name, whatever the body says", async () => {
-    // Left to the action, an admin who runs the program could name the mentor and log for them
-    // (Phase 4). The app's log carries no `mentorId`, so it is an admin without a mentor's role.
+  it("never logs in somebody else's name through the website's field", async () => {
+    // The contract's field is `mentor`; the website's own `mentorId` in a body goes nowhere.
     const { m, body } = await world();
     actor.value = { id: (await platformAdmin("Nodira Aliyeva")).id };
     const res = await post({ ...body, mentorId: m.id });
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("Only assigned mentors can log sessions.");
     expect(await prisma.session.count()).toBe(0);
+  });
+
+  it("logs on a mentor's behalf for an admin of the program, naming the mentor and telling them", async () => {
+    const { p, m, body } = await world();
+    const nodira = await admin("Nodira Aliyeva");
+    await grant({ userId: nodira.id, programId: p.id });
+    actor.value = { id: nodira.id };
+    const res = await post({ ...body, mentor: m.id });
+    expect(res.status).toBe(200);
+    const logged = await prisma.session.findFirstOrThrow();
+    expect(logged).toMatchObject({ mentorId: m.id, minutes: 60 });
+    expect(await prisma.notification.count({ where: { userId: m.id, type: "SESSION_LOGGED" } })).toBe(1);
+  });
+
+  it("ignores the mentor a Leader names, and logs nothing for somebody who isn't a mentor", async () => {
+    const { p, m, body } = await world();
+    const leader = await admin("Lola Leader");
+    await grant({ userId: leader.id, programId: p.id, role: "LEADER" });
+    actor.value = { id: leader.id };
+    const res = await post({ ...body, mentor: m.id });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Only assigned mentors can log sessions.");
+    expect(await prisma.session.count()).toBe(0);
+  });
+
+  it("ignores the mentor another mentor names, and logs as themselves", async () => {
+    const { p, m, st, body } = await world();
+    const other = await mentor("Umid Rashidov");
+    await pairing({ mentorId: other.id, programId: p.id });
+    await allocation({ studentId: st.id, mentorId: other.id, minutes: 600 });
+    actor.value = { id: other.id };
+    expect((await post({ ...body, mentor: m.id })).status).toBe(200);
+    expect((await prisma.session.findFirstOrThrow()).mentorId).toBe(other.id);
   });
 
   it("refuses a field of the wrong type, naming it, and logs nothing", async () => {

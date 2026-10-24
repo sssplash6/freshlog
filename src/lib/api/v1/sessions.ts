@@ -7,7 +7,7 @@ import type {
   SessionState,
   StudentAnswer,
 } from "@/lib/api/v1/types";
-import { adminScope, adminWriteScope, scopeCovers, type AdminScope } from "@/lib/authz";
+import { adminScope, adminWriteScope, scopeCovers, scopeIsEmpty, scopeProgramFilter, type AdminScope } from "@/lib/authz";
 import {
   attendanceOf,
   canActAsMentor,
@@ -196,15 +196,17 @@ const MAX_LIMIT = 100;
  * a student who also mentors reads those; somebody who can't act as a mentor
  * has no such list.
  *
- * A program's sessions, as its admin reads them, are Phase 4's (`?as=admin`).
- * Until then an admin who does not mentor has no ledger, however many programs
- * they run.
+ * `"admin"` is its admin side: every session in the programs the reader
+ * reads, at any level of grant, as the website's /sessions reads them for
+ * staff. Somebody who reads no program has no such list. Left out, an admin
+ * who does not mentor still has no ledger: the side of the app asks.
  */
 export function ledgerScope(reader: Reader, as?: SessionsQuery["as"]): FilterScope | null {
   const { user, studentProfileId } = reader;
   if (as === "mentor") return canActAsMentor(user) ? { mentorId: user.id } : null;
-  // The admin's side is in the contract ahead of the list it asks for.
-  if (as === "admin") return null;
+  if (as === "admin") {
+    return scopeIsEmpty(reader.read) ? null : { audience: "staff", userId: user.id, programIds: scopeProgramFilter(reader.read) };
+  }
   if (user.role === ROLES.STUDENT && studentProfileId !== null) return { studentId: studentProfileId };
   if (canActAsMentor(user)) return { mentorId: user.id };
   return null;
@@ -432,9 +434,17 @@ export async function sessionsPage(
 
   // `q` searches the mentor's notes, and a student must not learn what those
   // say from what a search matches, so a student's is dropped. `student` is a
-  // mentor's way of picking one of theirs; a student has only themselves.
+  // mentor's or an admin's way of picking one of theirs; a student has only
+  // themselves.
   const asMentor = scope.mentorId !== undefined;
-  const filters: SearchParams = { program: query.program, ...(asMentor ? { student: query.student } : {}) };
+  const asStaff = query.as === "admin";
+  // Staff search the website's own box, the mentor's name included: they read
+  // everybody's sessions in their programs, and do look one mentor up by name.
+  const filters: SearchParams = {
+    program: query.program,
+    ...(asMentor || asStaff ? { student: query.student } : {}),
+    ...(asStaff ? { q: query.q } : {}),
+  };
   // `readParam` reads the box as the website does: trimmed, at most 200
   // characters, and nothing at all when it is blank.
   const search = asMentor ? mentorSearch(readParam({ q: query.q }, "q")) : null;
@@ -443,7 +453,8 @@ export async function sessionsPage(
     query.answer === "needed" ? awaitingAnswer(now) : query.answer === "disputed" ? DISPUTED : null;
   const narrowed = sessionsWhere({ ...filters, period: query.period, status: query.status }, scope, now);
   // One plan item, inside the scope above: a word that is no plan item's id matches no session. Blank narrows nothing.
-  const planItem: Prisma.SessionWhereInput[] = query.assignment ? [{ assignmentId: query.assignment }] : [];
+  const assignment = query.assignment?.trim();
+  const planItem: Prisma.SessionWhereInput[] = assignment ? [{ assignmentId: assignment }] : [];
   const where: Prisma.SessionWhereInput = { AND: [narrowed, ...searched, ...planItem, ...(answer ? [answer] : [])] };
   // The chips on the status row: the filter without its period, status and answer.
   const chips: Prisma.SessionWhereInput = { AND: [sessionsWhere(filters, scope, now), ...searched, ...planItem] };

@@ -69,7 +69,7 @@ describe("GET /api/v1/sessions", () => {
   it("answers 404 to a signed-in person who is neither a student nor a mentor", async () => {
     const { p } = await ledger();
     const nobody = await admin("Dilnoza Yusupova");
-    // A program's sessions, as its admin reads them, wait for Phase 4.
+    // A program's sessions, as its admin reads them, are asked for with as=admin (admin.test.ts).
     const boss = await admin("Nodira Aliyeva");
     await grant({ userId: boss.id, programId: p.id });
     for (const id of [nobody.id, boss.id]) {
