@@ -1,4 +1,5 @@
 import { isMinutes, isOneOf, isText } from "@/lib/api/v1/session-forms";
+import { isDay } from "@/lib/api/v1/work-forms";
 import type { ApiPlanItem, PlanItemEdit, PlanItemProgress } from "@/lib/api/v1/types";
 import { ASSIGNMENT_PROGRESS, ASSIGNMENT_PROGRESS_AUTO } from "@/lib/constants";
 
@@ -11,22 +12,6 @@ import { ASSIGNMENT_PROGRESS, ASSIGNMENT_PROGRESS_AUTO } from "@/lib/constants";
  * undefined, and `updateAssignment` replaces the item whole: a field it isn't
  * sent resets.
  */
-
-/**
- * True for a day that exists, spelled `YYYY-MM-DD`.
- *
- * The action's `parseDateField` takes any `YYYY-MM-DD` the Date constructor
- * accepts and rolls `2026-02-31` over into March, so a day that is not on the
- * calendar is refused here, before it can be saved as another.
- */
-export function isDay(value: unknown): value is string {
-  const parts = isText(value) ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(value) : null;
-  if (!parts) return false;
-  const [year, month, day] = [Number(parts[1]), Number(parts[2]), Number(parts[3])];
-  // A day the calendar lacks comes back from Date as another one.
-  const at = new Date(Date.UTC(year, month - 1, day));
-  return at.getUTCFullYear() === year && at.getUTCMonth() === month - 1 && at.getUTCDate() === day;
-}
 
 const orNull = (valid: (value: unknown) => boolean) => (value: unknown) => value === null || valid(value);
 

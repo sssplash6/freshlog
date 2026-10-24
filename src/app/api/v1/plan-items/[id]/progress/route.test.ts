@@ -60,12 +60,24 @@ describe("POST /api/v1/plan-items/:id/progress", () => {
     expect((await stored(a.id)).progress).not.toBe("DONE");
   });
 
-  it("the item's own student can read it but not move it", async () => {
+  it("the item's own student can read it but not move it: 403, nothing saved", async () => {
     const { st, a } = await setUp();
     actor.value = { id: st.userId };
     const res = await post(a.id, { progress: "DONE" });
-    expect(res.status).toBe(400);
-    expect((await stored(a.id)).progress).not.toBe("DONE");
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toBe("That plan item is not yours to change.");
+    expect(await stored(a.id)).toMatchObject({ progress: "NOT_STARTED", progressManual: false });
+  });
+
+  it("a co-mentor who reaches the student can read it but not move it: 403, nothing saved", async () => {
+    const { p, a } = await setUp();
+    const co = await mentor("Umid Rashidov");
+    await pairing({ mentorId: co.id, programId: p.id });
+    actor.value = { id: co.id };
+    const res = await post(a.id, { progress: "AUTO" });
+    expect(res.status).toBe(403);
+    expect((await post(a.id, { progress: "DONE" })).status).toBe(403);
+    expect(await stored(a.id)).toMatchObject({ progress: "NOT_STARTED", progressManual: false });
   });
 
   it("the owning mentor pins it to the state they name", async () => {

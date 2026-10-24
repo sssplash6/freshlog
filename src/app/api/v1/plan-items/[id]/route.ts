@@ -7,6 +7,8 @@ import { planItemFor, storedPlanItem } from "@/lib/api/v1/work";
 import { getCurrentUser } from "@/lib/dal";
 import { programToday } from "@/lib/when";
 
+const NOT_YOURS = "That plan item is not yours to change.";
+
 // Reads the token and the database on every request; never prerender. On
 // Render the SQLite disk only exists at runtime.
 export const dynamic = "force-dynamic";
@@ -41,7 +43,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
  *
  * The item is read first, as GET reads it: one the person may not see is
  * answered like one that was never made, whatever the body says. One they may
- * see but not change (its student) is the action's to refuse, a 400. A value of
+ * see but not change (its student, a mentor who only reaches the student) is a
+ * 403 in `NOT_YOURS`, since the action would call it missing. A value of
  * the wrong type, or a due day that is not on the calendar, is refused on its
  * field before the action runs.
  */
@@ -53,6 +56,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const item = await planItemFor(await readerFor(user), id);
   const stored = item && (await storedPlanItem(id));
   if (!item || !stored) return refused("Not found.", 404);
+  // Seen but not theirs to change: the action would say the item no longer exists, which is false.
+  if (!item.can.edit) return refused(NOT_YOURS, 403);
   const body = await bodyOf(request);
   if (!body) return refused("Send the changes as JSON.", 400);
   const asked = planItemEditOf(body);

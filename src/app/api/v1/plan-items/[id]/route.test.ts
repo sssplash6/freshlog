@@ -103,10 +103,24 @@ describe("PATCH /api/v1/plan-items/:id", () => {
     expect((await stored(a.id)).purpose).toBe("Personal statement");
   });
 
-  it("the item's own student may see it and not change it", async () => {
+  it("the item's own student may see it and not change it: 403, nothing saved", async () => {
     const { st, a } = await setUp();
     actor.value = { id: st.userId };
-    expect((await patch(a.id, { purpose: "Mine now" })).status).toBe(400);
+    const res = await patch(a.id, { purpose: "Mine now" });
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toBe("That plan item is not yours to change.");
+    expect((await stored(a.id)).purpose).toBe("Personal statement");
+  });
+
+  it("a co-mentor who reaches the student may see it and not change it: 403, nothing saved", async () => {
+    const { p, a } = await setUp();
+    const co = await mentor("Umid Rashidov");
+    await pairing({ mentorId: co.id, programId: p.id });
+    actor.value = { id: co.id };
+    expect((await get(a.id)).status).toBe(200);
+    const res = await patch(a.id, { purpose: "Mine now" });
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toBe("That plan item is not yours to change.");
     expect((await stored(a.id)).purpose).toBe("Personal statement");
   });
 

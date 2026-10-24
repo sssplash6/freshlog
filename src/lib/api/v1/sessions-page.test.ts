@@ -380,6 +380,23 @@ describe("sessionsPage: a plan item", () => {
     );
   });
 
+  it("the counts of disputed and voided sessions follow the plan item too", async () => {
+    const { p, aziz, akmal } = await cast();
+    const task = await assignment({ studentId: aziz.profile.id, mentorId: akmal.id, purpose: "Scholarship essay" });
+    const other = await assignment({ studentId: aziz.profile.id, mentorId: akmal.id, purpose: "CV" });
+    const base = { studentId: aziz.profile.id, mentorId: akmal.id, programId: p.id };
+    await held({ ...base, assignmentId: task.id, studentAnswer: "DISPUTED" });
+    await held({ ...base, assignmentId: task.id, status: "VOIDED" });
+    await held({ ...base, assignmentId: other.id, studentAnswer: "DISPUTED" });
+    await held({ ...base, assignmentId: other.id, studentAnswer: "DISPUTED" });
+    await held({ ...base, assignmentId: other.id, status: "VOIDED" });
+
+    const reader = await readerFor(akmal);
+    expect((await pageOf(reader, {})).counts).toEqual({ disputed: 3, voided: 2 });
+    expect((await pageOf(reader, { assignment: task.id })).counts).toEqual({ disputed: 1, voided: 1 });
+    expect((await pageOf(reader, { assignment: "c-made-up" })).counts).toEqual({ disputed: 0, voided: 0 });
+  });
+
   it("a word that isn't a plan item's id gives an empty page, and a blank one narrows nothing", async () => {
     const { p, aziz, akmal } = await cast();
     const row = await held({ studentId: aziz.profile.id, mentorId: akmal.id, programId: p.id });

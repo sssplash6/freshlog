@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isDay, planItemEditForm, planItemEditOf, planItemProgressForm } from "@/lib/api/v1/plan-forms";
+import { planItemEditForm, planItemEditOf, planItemProgressForm } from "@/lib/api/v1/plan-forms";
 import type { ApiPlanItem } from "@/lib/api/v1/types";
 
 /**
@@ -19,18 +19,6 @@ const current = {
 
 // What the row holds. `current.note` is null for a student's view, the row's is not.
 const stored = { mentorId: "m1", progress: "DONE", note: "Weak on structure." };
-
-describe("isDay", () => {
-  it("takes a day that exists", () => {
-    expect(isDay("2026-10-24")).toBe(true);
-    expect(isDay("2028-02-29")).toBe(true);
-  });
-
-  it("refuses a day the calendar would roll over, and anything that is not YYYY-MM-DD", () => {
-    for (const bad of ["2026-02-31", "2026-02-29", "2026-13-01", "2026-00-10", "2026-10-00", "2026-1-5", " 2026-10-24", "", 20261024, null])
-      expect(isDay(bad), String(bad)).toBe(false);
-  });
-});
 
 describe("planItemEditOf", () => {
   it("takes the five fields, and nothing a body names besides", () => {

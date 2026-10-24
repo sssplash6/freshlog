@@ -15,9 +15,10 @@ export const dynamic = "force-dynamic";
  * pins it there, or to `AUTO`, which lets it follow its logged hours again.
  *
  * This is `setAssignmentProgress`, the action the website's one-click control
- * calls, which decides who may (the owning mentor, and the admins of the item's
- * program) and refuses everyone else in its words, as a 400. Any other word is
- * refused on `progress` before it runs.
+ * calls. Who may is the owning mentor and the admins of the item's program;
+ * someone who can see the item and is neither (its student, a co-mentor) gets a
+ * 403, since the action would call it missing. Any other word is refused on
+ * `progress` before the action runs.
  *
  * An item the person may not see is answered like one that was never made.
  */
@@ -28,6 +29,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const item = await planItemFor(await readerFor(user), id);
   if (!item) return refused("Not found.", 404);
+  // Seen but not theirs to change: the action would say the item no longer exists, which is false.
+  if (!item.can.progress) return refused("That plan item is not yours to change.", 403);
   const form = planItemProgressForm(item.id, await bodyOf(request));
   if (!(form instanceof FormData)) return refused("Pick a progress state.", 400, { field: form.field });
   return fromAction(await setAssignmentProgress(null, form));
