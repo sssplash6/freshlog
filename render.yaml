@@ -179,6 +179,30 @@ services:
           name: freshform
           envVarKey: CRON_SECRET
 
+  # The freshlog app's pushes: every minute, the notices nobody has dealt with
+  # yet go to the readers' phones through Expo's push service. Same arrangement
+  # as the reminders above. EXPO_ACCESS_TOKEN, when the Expo project requires
+  # one, is the web service's to hold, not this job's.
+  - type: cron
+    name: freshform-push
+    runtime: node
+    plan: starter
+    schedule: "* * * * *"
+    buildCommand: "true"
+    startCommand: >-
+      curl -fsSL --retry 2 --retry-delay 5
+      -H "Authorization: Bearer $CRON_SECRET"
+      "$APP_URL/api/cron/push"
+    envVars:
+      # MUST be the canonical host — see the deadline reminders above.
+      - key: APP_URL
+        value: "https://www.freshlog.net"
+      - key: CRON_SECRET
+        fromService:
+          type: web
+          name: freshform
+          envVarKey: CRON_SECRET
+
   # The weekly hours email: what each person redeemed last week, what is still
   # theirs to redeem, and when it expires. Same arrangement as the reminders
   # above — the cron calls the web service, which owns the SQLite disk.
