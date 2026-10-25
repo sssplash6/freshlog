@@ -1297,3 +1297,26 @@ export type BugTriage = {
   diagnostics: string | null;
   changelogDate: string | null;
 };
+
+/** A program access level: ADMIN changes the program, LEADER reads it, SALES has its students. */
+export type GrantLevel = "ADMIN" | "LEADER" | "SALES";
+
+/** One person on Platform admins: staff, mentors, and anybody already holding a grant. */
+export type PlatformPerson = {
+  person: PersonRef & { email: string };
+  platformAdmin: boolean;
+  grants: { program: string; level: GrantLevel }[];
+};
+
+/**
+ * `GET /api/v1/platform`: who administers what, as /settings/platform reads it.
+ * Platform admins only; anybody else is a 404. `me` is the reader's own id.
+ *
+ * Its writes, each answering WriteResult and each the website's action:
+ *   PUT    /api/v1/platform/people/:userId/programs/:programId   AccessChange (setProgramGrant)
+ *   DELETE /api/v1/platform/people/:userId/programs/:programId   (removeProgramGrant)
+ *   PUT    /api/v1/platform/people/:userId/admin                 PlatformAdminChange (setPlatformAdmin)
+ */
+export type ApiPlatform = { me: string; programs: { id: string; name: string }[]; people: PlatformPerson[] };
+export type AccessChange = { level: GrantLevel };
+export type PlatformAdminChange = { on: boolean };
