@@ -397,7 +397,14 @@ export function StudentsTable({
                     string, because two enrollments is the case this column
                     exists for and "Global Admissions · Master's" is a sentence
                     the reader has to parse. */}
-                <ProgramChips enrollments={enrollments} className="flex-col items-start gap-y-1" />
+                {/* `*:flex-wrap`: a visit's "(on exchange)" may drop under ITS
+                    chip when the column is narrow. Kept on one line, chip and
+                    label were the widest thing in the table (~330px) and the
+                    Student column paid for it — names broken mid-word at 1366. */}
+                <ProgramChips
+                  enrollments={enrollments}
+                  className="flex-col items-start gap-y-1 *:flex-wrap *:gap-y-0.5"
+                />
               </Td>
             )}
 
