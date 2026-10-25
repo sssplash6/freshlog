@@ -1236,3 +1236,18 @@ export type RatedMentor = { mentor: PersonRef; average: number; count: number; l
 export type ApiRatings =
   | { kind: "staff"; average: number | null; count: number; mentors: RatedMentor[]; ratings: RatingRow[]; page: number; pageSize: number }
   | { kind: "own"; average: number | null; count: number; ratings: RatingRow[]; page: number; pageSize: number };
+
+/**
+ * One person Search finds, as the website's command palette lists them. For a
+ * student `id` is the StudentProfile.id and `userId` the User.id; for a mentor
+ * both are the User.id. `programs` are only the reader's own programs of theirs.
+ */
+export type SearchHit = { id: string; userId: string; name: string; email: string; programs: string[] };
+
+/**
+ * `GET /api/v1/search?q=`: up to eight students and eight mentors, the best
+ * match first, through the same questions /students and /mentors ask (an admin
+ * their programs, a mentor the students they may log for). A student, and
+ * anybody with no roster, is a 404. An empty `q` answers empty lists.
+ */
+export type ApiSearch = { students: SearchHit[]; mentors: SearchHit[] };
