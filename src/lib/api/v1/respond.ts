@@ -1,6 +1,3 @@
-import { getURLFromRedirectError } from "next/dist/client/components/redirect";
-import { isRedirectError } from "next/dist/client/components/redirect-error";
-
 import type { ActionState } from "@/lib/actions/shared";
 import type { CreatedResult, WriteResult } from "@/lib/api/v1/types";
 
@@ -101,6 +98,23 @@ export function fromAction(state: ActionState): Response {
 }
 
 /**
+ * Where a `redirect()` thrown by an action sends the reader, or null for any
+ * other throw. Next exports no public test for its redirect, so this reads the
+ * digest it puts on the error, `NEXT_REDIRECT;<type>;<url>;<status>;`, here
+ * and nowhere else, instead of importing `next/dist` internals that an upgrade
+ * may move. respond.test.ts throws a real `redirect()` against it, so a change
+ * to the digest fails a test, not a request.
+ */
+export function redirectTarget(error: unknown): string | null {
+  if (typeof error !== "object" || error === null || !("digest" in error)) return null;
+  const { digest } = error as { digest: unknown };
+  if (typeof digest !== "string") return null;
+  const parts = digest.split(";");
+  if (parts[0] !== "NEXT_REDIRECT" || parts.length < 5) return null;
+  return parts.slice(2, -2).join(";");
+}
+
+/**
  * `fromAction` for an action that redirects when it works, as `deleteProgram`
  * does: Next's `redirect()` throws, after the work is done and the revalidate
  * has run, so that throw is the success and is answered as one. A refusal comes
@@ -111,7 +125,7 @@ export async function fromRedirectingAction(run: () => Promise<ActionState>): Pr
   try {
     return fromAction(await run());
   } catch (error) {
-    if (isRedirectError(error)) return json({ ok: true } satisfies WriteResult, 200);
+    if (redirectTarget(error) !== null) return json({ ok: true } satisfies WriteResult, 200);
     throw error;
   }
 }
@@ -128,8 +142,8 @@ export async function fromCreatingAction(run: () => Promise<ActionState>, prefix
   try {
     return fromAction(await run());
   } catch (error) {
-    if (!isRedirectError(error)) throw error;
-    const url = getURLFromRedirectError(error);
+    const url = redirectTarget(error);
+    if (url === null) throw error;
     const id = url.startsWith(prefix) ? url.slice(prefix.length) : "";
     if (!/^[^/?#]+$/.test(id)) return json({ ok: false, error: "Something went wrong. Try again." }, 500);
     return json({ ok: true, id } satisfies CreatedResult, 200);

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { redirect } from "next/navigation";
 
-import { fromAction, fromCreatingAction, fromRedirectingAction, inactive, noContent, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, fromCreatingAction, fromRedirectingAction, inactive, noContent, ok, redirectTarget, refused, signInAgain } from "@/lib/api/v1/respond";
 
 describe("respond", () => {
   it("signInAgain is a 401 the app recognises", async () => {
@@ -155,6 +155,20 @@ describe("respond", () => {
       fromAction(null),
     ];
     for (const res of answers) expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("redirectTarget reads where Next's own redirect() goes, and nothing from any other throw", () => {
+    const thrown = (go: () => never) => {
+      try {
+        go();
+      } catch (error) {
+        return error;
+      }
+    };
+    expect(redirectTarget(thrown(() => redirect("/bugs/b-1?x=1;y")))).toBe("/bugs/b-1?x=1;y");
+    expect(redirectTarget(new Error("boom"))).toBeNull();
+    expect(redirectTarget({ digest: "NEXT_NOT_FOUND" })).toBeNull();
+    expect(redirectTarget(null)).toBeNull();
   });
 
   it("fromRedirectingAction answers a redirect as success", async () => {
