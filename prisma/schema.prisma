@@ -102,6 +102,8 @@ model User {
   meetDrafts          MeetDraft[]              @relation("MeetDraftMentor")
   apiTokens           ApiToken[]
   apiSignInCodes      ApiSignInCode[]
+  deviceTokens        DeviceToken[]
+  pushPreferences     PushPreference[]
   partnerMentorships  PartnerMentor[]
   partnerFeedback     PartnerFeedback[]        @relation("PartnerFeedbackMentor")
 }
@@ -898,6 +900,11 @@ model Notification {
   // When it was read. `read` stays for the unread badge and the unsubscribe
   // path; this is the half that lets a feed say "new since you last looked".
   readAt    DateTime?
+  // When the push sweeper (src/lib/push.ts) dealt with this row: sent to the
+  // reader's phones, or passed over (no phone, Push off, too old). Null until
+  // then. The migration that added it set it on every row already there, so
+  // no notice from before push existed is ever pushed.
+  pushedAt  DateTime?
 
   user  User  @relation(fields: [userId], references: [id])
   // SetNull so removing a staff account never deletes the history of what they
@@ -905,6 +912,7 @@ model Notification {
   actor User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([userId, read])
+  @@index([pushedAt])
 }
 
 // What one person wants to hear about, per category, and where.
@@ -1318,6 +1326,7 @@ model ApiToken {
   lastUsedAt DateTime  @default(now())
   expiresAt  DateTime
   revokedAt  DateTime?
+  devices    DeviceToken[]
 
   @@index([userId])
 }
@@ -1400,4 +1409,39 @@ model PartnerFeedback {
   mentor  User?           @relation("PartnerFeedbackMentor", fields: [mentorId], references: [id])
 
   @@index([partnerId, createdAt])
+}
+
+/// A phone the app pushes to: its Expo push token, for the sign-in it came with.
+/// Ending that sign-in (signing out, a revoked or expired ApiToken deleted)
+/// ends its pushes, so a phone handed to somebody else stops hearing the last
+/// person's news. The sweeper also skips a sign-in that is revoked or expired.
+model DeviceToken {
+  id         String   @id @default(cuid())
+  /// "ExponentPushToken[…]", one row per phone and app install.
+  token      String   @unique
+  /// "ios" | "android"
+  platform   String
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiTokenId String
+  apiToken   ApiToken @relation(fields: [apiTokenId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@index([apiTokenId])
+}
+
+/// One category's Push switch. No row is the default, on: a person who
+/// installed the app and allowed notifications wants them. A table of its own
+/// rather than a column on NotificationPreference, whose writer deletes a row
+/// it finds at the email default and would take a Push setting with it.
+model PushPreference {
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// A NOTIFICATION_CATEGORY.
+  category String
+  on       Boolean
+
+  @@id([userId, category])
 }

@@ -28,12 +28,12 @@ export function apiAvatarPath(person: AvatarPerson): string | null {
  * What Account shows that /me doesn't, read as /settings reads it
  * (`app/settings/page.tsx`): the student's handle, a mentor's pairings with the
  * page's label, and each category's switches defaulted as the page defaults
- * them. Plus the two marks Account carries: an unread changelog and open
- * reports.
+ * them, with each category's Push switch (on unless turned off). Plus the two
+ * marks Account carries: an unread changelog and open reports.
  */
 export async function accountFor(user: User): Promise<ApiAccount> {
   const isMentor = canActAsMentor(user);
-  const [profile, assignments, prefs, openBugs, changelog] = await Promise.all([
+  const [profile, assignments, prefs, pushPrefs, openBugs, changelog] = await Promise.all([
     prisma.studentProfile.findUnique({
       where: { userId: user.id },
       select: { telegramUsername: true },
@@ -46,12 +46,14 @@ export async function accountFor(user: User): Promise<ApiAccount> {
         })
       : Promise.resolve(null),
     prisma.notificationPreference.findMany({ where: { userId: user.id } }),
+    prisma.pushPreference.findMany({ where: { userId: user.id } }),
     prisma.bugReport.count({
       where: { reporterId: user.id, status: { in: OPEN_BUG_STATUSES } },
     }),
     readChangelog(),
   ]);
   const prefOf = new Map(prefs.map((p) => [p.category, p]));
+  const pushOf = new Map(pushPrefs.map((p) => [p.category, p.on]));
 
   const notices: NoticePref[] = (
     Object.keys(NOTIFICATION_CATEGORY_LABELS) as NotificationCategory[]
@@ -61,6 +63,8 @@ export async function accountFor(user: User): Promise<ApiAccount> {
     hint: NOTIFICATION_CATEGORY_HINTS[category],
     inApp: prefOf.get(category)?.inApp ?? true,
     email: prefOf.get(category)?.email ?? EMAIL_BY_DEFAULT[category],
+    // No row is on: a person who allowed notifications on a phone wants them.
+    push: pushOf.get(category) ?? true,
   }));
 
   return {

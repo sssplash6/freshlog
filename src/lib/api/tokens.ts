@@ -109,12 +109,35 @@ export async function userForToken(
   return row.user;
 }
 
-/** Ends a token for good. One that is unknown, or already ended, is left alone. */
+/**
+ * Ends a token for good, and stops pushing to the phones that signed in with it:
+ * the row stays (revoked) until the next `issueToken` sweeps it, and its
+ * DeviceToken rows would wait with it. One that is unknown, or already ended, is
+ * left alone.
+ */
 export async function revokeToken(token: string): Promise<void> {
-  await prisma.apiToken.updateMany({
-    where: { tokenHash: hashOf(token), revokedAt: null },
-    data: { revokedAt: new Date() },
+  const tokenHash = hashOf(token);
+  await prisma.$transaction([
+    prisma.deviceToken.deleteMany({ where: { apiToken: { tokenHash } } }),
+    prisma.apiToken.updateMany({
+      where: { tokenHash, revokedAt: null },
+      data: { revokedAt: new Date() },
+    }),
+  ]);
+}
+
+/**
+ * The id of the sign-in this token is, while it is live (not revoked, not
+ * expired), or null. For a route that ties something to the sign-in itself
+ * rather than to the person: a phone's push token, which ends when it does.
+ */
+export async function liveTokenId(token: string, now: Date = new Date()): Promise<string | null> {
+  const row = await prisma.apiToken.findUnique({
+    where: { tokenHash: hashOf(token) },
+    select: { id: true, revokedAt: true, expiresAt: true },
   });
+  if (!row || row.revokedAt || row.expiresAt.getTime() <= now.getTime()) return null;
+  return row.id;
 }
 
 /**

@@ -1000,7 +1000,15 @@ export type NoticeCategory = "HOURS" | "SESSIONS" | "TASKS" | "DEADLINES" | "ACC
  * stored is the default: in the app always, by email where EMAIL_BY_DEFAULT
  * says so, so `email` can be on for a person who never touched it.
  */
-export type NoticePref = { category: NoticeCategory; label: string; hint: string; inApp: boolean; email: boolean };
+export type NoticePref = {
+  category: NoticeCategory;
+  label: string;
+  hint: string;
+  inApp: boolean;
+  email: boolean;
+  /** Pushed to the person's phones (Phase 7). No row is the default: on. */
+  push: boolean;
+};
 
 /** A mentor's booking link on one pairing (a MentorAssignment). `label` is "Program · Cohort", as Settings writes it. */
 export type BookingLink = { assignment: string; label: string; url: string | null };
@@ -1107,3 +1115,27 @@ export type OnboardingStep =
  * `register`. Which form it answers is freshform's to know, not the body's.
  */
 export type OnboardingAnswer = { name: string; telegram?: string; program?: string; level?: string; cohort?: string };
+
+/*
+ * Phase 7: push.
+ */
+
+/**
+ * `POST /api/v1/devices`: this phone's Expo push token ("ExponentPushToken[…]"),
+ * tied to the sign-in the request carries, so signing out of that phone stops
+ * its pushes. A token another person registered moves to this one. 204.
+ */
+export type DeviceRegistration = { token: string; platform: "ios" | "android" };
+
+/** `DELETE /api/v1/devices`: stop pushing to this phone. 204, whether or not it was the reader's or registered at all. */
+export type DeviceRemoval = { token: string };
+
+/** `PUT /api/v1/account/push/:category`: one category's Push switch, answering WriteResult. */
+export type PushSwitch = { on: boolean };
+
+/**
+ * A push's `data`. `notification` is the Notification it is (for marking it
+ * read); `href` where it is about, a web path as the inbox gives it, or null.
+ * Title "freshlog", body the notice's message, badge the unread count.
+ */
+export type PushData = { notification: string; href: string | null };
