@@ -2,12 +2,11 @@ import { redirect } from "next/navigation";
 
 import { ExpandableText } from "@/components/expandable-text";
 import { PersonCell, PersonChip } from "@/components/person-chip";
-import { Rating } from "@/components/rating";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
-import { PageTitle, Section } from "@/components/ui/section";
+import { Eyebrow, PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { FILL_CELL, Table, Td, Tr, type Column } from "@/components/ui/table";
 import {
@@ -27,6 +26,7 @@ import {
   readParam,
   type SearchParams,
 } from "@/lib/filters";
+import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import {
@@ -198,7 +198,7 @@ async function OwnRatings({
   page: number;
 }) {
   const where = { mentorId: user.id };
-  const [rows, stats, meetings] = await Promise.all([
+  const [rows, stats, meetings, spread] = await Promise.all([
     prisma.mentorFeedback.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -217,6 +217,14 @@ async function OwnRatings({
       where: meetingRatingsWhere({}, { mentorId: user.id }, new Date()),
       _sum: { studentRating: true },
       _count: true,
+    }),
+    // The written ratings' spread only: each of them is already on this page
+    // with its score, so the bars say nothing the list does not. The meetings'
+    // spread would — with one rated meeting, it is that meeting's score.
+    prisma.mentorFeedback.groupBy({
+      by: ["rating"],
+      where,
+      _count: { _all: true },
     }),
   ]);
   const [own] = mentorStandings(
@@ -242,16 +250,38 @@ async function OwnRatings({
 
   return (
     <div className="space-y-4">
-      <PageTitle
-        title="Feedback"
-        // The combined average alone: the counts are the sections', and
-        // "anonymous" is said once, as the section's caption.
-        subtitle={
-          own
-            ? `${own.average.toFixed(1)} combined · ${partCounts(own)}`
-            : undefined
-        }
-      />
+      <PageTitle title="Feedback" />
+
+      {own && (
+        <Overview
+          average={own.average}
+          total={own.total}
+          spread={{
+            title: "Written ratings",
+            counts: tallyStars(
+              spread.map((r) => [r.rating, r._count._all] as const)
+            ),
+          }}
+          figures={[
+            {
+              label: "Written ratings",
+              value: String(own.general.count),
+              hint:
+                own.general.average === null
+                  ? undefined
+                  : `${own.general.average.toFixed(1)} average`,
+            },
+            {
+              label: "Meetings rated",
+              value: String(own.meetings.count),
+              hint:
+                own.meetings.average === null
+                  ? undefined
+                  : `${own.meetings.average.toFixed(1)} average`,
+            },
+          ]}
+        />
+      )}
 
       {!own ? (
         <EmptyState title="No ratings yet">
@@ -270,23 +300,12 @@ async function OwnRatings({
           <Section title="Ratings" count={stats._count} caption={ANONYMOUS}>
             <ul className="divide-y divide-line">
               {rows.map((f) => (
-                <li key={f.id} className="px-4 py-3 sm:px-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <Rating value={f.rating} />
-                    <span className="text-xs tabular-nums text-muted-fg">
-                      {formatDate(f.createdAt)}
-                    </span>
-                  </div>
-                  {f.comment && (
-                    <div className="mt-1 text-body">
-                      <ExpandableText
-                        text={f.comment}
-                        lines={2}
-                        className="text-ink"
-                      />
-                    </div>
-                  )}
-                </li>
+                <FeedItem
+                  key={f.id}
+                  score={f.rating}
+                  text={f.comment}
+                  aside={formatDate(f.createdAt)}
+                />
               ))}
             </ul>
           </Section>
@@ -374,6 +393,8 @@ async function AllRatings({
     meetingRows,
     meetingsByMentor,
     meetingsLately,
+    formSpread,
+    meetingSpread,
   ] = await Promise.all([
     prisma.mentorFeedback.aggregate({
       where,
@@ -470,6 +491,18 @@ async function AllRatings({
       where: { AND: [meetingCards, { studentAnsweredAt: { gte: since } }] },
       _min: { studentRating: true },
     }),
+    // The 1-to-5 spread behind the headline, through the same two `where`s
+    // the cards pool — so the bars add up to the headline's count.
+    prisma.mentorFeedback.groupBy({
+      by: ["rating"],
+      where,
+      _count: { _all: true },
+    }),
+    prisma.session.groupBy({
+      by: ["studentRating"],
+      where: meetingCards,
+      _count: { _all: true },
+    }),
   ]);
 
   const person = new Map(rated.map((m) => [m.id, m]));
@@ -535,20 +568,6 @@ async function AllRatings({
   const lowCount = mentors.filter((m) => m.low).length;
   const filtered = activeFilterCount(params) > 0;
 
-  // "4.3 · 48 ratings · 12 mentors, 2 low". The comma, not a fourth dot-
-  // separated clause: "· 2 low" beside "· 48 ratings" reads as two low
-  // RATINGS, and the number it is actually counting is mentors.
-  const standing =
-    avg === null
-      ? undefined
-      : [
-          avg.toFixed(1),
-          count(ratedCount, "rating"),
-          lowCount > 0
-            ? `${count(mentors.length, "mentor")}, ${lowCount} low`
-            : count(mentors.length, "mentor"),
-        ].join(" · ");
-
   const columns: Column[] = [
     { label: "Mentor" },
     { label: "Combined", align: "right", emphasis: "key" },
@@ -557,12 +576,51 @@ async function AllRatings({
     { label: "Last rated", align: "right" },
   ];
 
-  const worst = mentors.slice(0, WORST_SHOWN);
-  const rest = mentors.slice(WORST_SHOWN);
+  // Still worst first, in two groups: the mentors somebody should look at,
+  // as cards that say why, and everyone else in the table.
+  const flagged = mentors.filter((m) => m.low);
+  const others = mentors.filter((m) => !m.low);
+  const worst = others.slice(0, WORST_SHOWN);
+  const rest = others.slice(WORST_SHOWN);
+
+  const general = byMentor.reduce((n, r) => n + r._count._all, 0);
+  const meetingTotal = meetingsByMentor.reduce((n, r) => n + r._count._all, 0);
 
   return (
     <div className="space-y-4">
-      <PageTitle title="Feedback" subtitle={standing} />
+      <PageTitle title="Feedback" />
+
+      {avg !== null && (
+        <Overview
+          average={avg}
+          total={ratedCount}
+          spread={{
+            title: "Every rating",
+            counts: tallyStars([
+              ...formSpread.map((r) => [r.rating, r._count._all] as const),
+              ...meetingSpread.map(
+                (r) => [r.studentRating, r._count._all] as const
+              ),
+            ]),
+          }}
+          figures={[
+            {
+              label: "Need attention",
+              value: String(lowCount),
+              hint: `of ${count(mentors.length, "mentor")}`,
+              tone: lowCount > 0 ? "attention" : "ink",
+            },
+            {
+              label: "Written ratings",
+              value: String(general),
+            },
+            {
+              label: "Meetings rated",
+              value: String(meetingTotal),
+            },
+          ]}
+        />
+      )}
 
       <FilterBar
         basePath="/feedback"
@@ -594,8 +652,8 @@ async function AllRatings({
         ]}
         dateRange={readDateWindow(params, now)}
         // Only once a filter is on. Unfiltered, the sentence would repeat the
-        // subtitle a few pixels above it; filtered, it says the one thing the
-        // subtitle cannot — that the number is a subset, and here is the way
+        // overview a few pixels above it; filtered, it says the one thing the
+        // overview cannot — that the number is a subset, and here is the way
         // back out.
         summary={
           filtered
@@ -608,10 +666,24 @@ async function AllRatings({
         }
       />
 
-      {mentors.length > 0 && (
+      {flagged.length > 0 && (
         <Section
-          title="Mentors"
-          count={mentors.length}
+          title="Needs attention"
+          count={flagged.length}
+          caption={`Under ${LOW_AVERAGE}, or a ${LOW_RATING} or lower in ${RECENT_DAYS} days.`}
+          bare
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {flagged.map((m) => (
+            <AttentionCard key={m.who.id} mentor={m} />
+          ))}
+        </Section>
+      )}
+
+      {others.length > 0 && (
+        <Section
+          title={flagged.length > 0 ? "Other mentors" : "Mentors"}
+          count={others.length}
           caption={`Recent is the last ${RECENT_DAYS} days.`}
         >
           <Table columns={columns} framed={false}>
@@ -637,127 +709,100 @@ async function AllRatings({
         </Section>
       )}
 
-      <Section
-        title="Ratings"
-        count={stats._count}
-      >
-        {list.length === 0 ? (
-          filtered ? (
-            <EmptyState framed={false} variant="no-results">
-              Widen the window, or reset to read every rating.
-            </EmptyState>
-          ) : (
-            <EmptyState framed={false} title="No ratings">
-              A student rates a mentor from their own feedback page.
-            </EmptyState>
-          )
-        ) : (
-          <ul className="divide-y divide-line">
-            {list.map((f) => (
-              <li key={f.id} className="px-4 py-3 sm:px-5">
-                {/* Who it is about and the score on one line; what was said
-                    as the body, in ink, because the words are the point of
-                    the row; who said it — open to the writer's admins only —
-                    and when, as the quiet line under it. */}
-                <div className="flex items-center justify-between gap-3">
-                  <PersonChip
-                    person={f.mentor}
-                    size="sm"
-                    href={`/mentors/${f.mentor.id}`}
+      {/* What was said, the two kinds side by side from `lg` up: the words
+          are read together, and stacked the meeting ratings sat a whole
+          page of comments below the mentors they explain. */}
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <div className="min-w-0 space-y-2">
+          <Section
+            eyebrow="Anonymous to the mentor"
+            title="Written ratings"
+            count={stats._count}
+          >
+            {list.length === 0 ? (
+              filtered ? (
+                <EmptyState framed={false} variant="no-results">
+                  Widen the window, or reset to read every rating.
+                </EmptyState>
+              ) : (
+                <EmptyState framed={false} title="No ratings">
+                  A student rates a mentor from their own feedback page.
+                </EmptyState>
+              )
+            ) : (
+              <ul className="divide-y divide-line/70">
+                {list.map((f) => (
+                  <FeedItem
+                    key={f.id}
+                    score={f.rating}
+                    mentor={f.mentor}
+                    aside={formatDate(f.createdAt)}
+                    text={f.comment}
+                    // Who said it is open to the writer's admins only.
+                    meta={
+                      f.student ? (f.student.name ?? f.student.email) : "Anonymous"
+                    }
                   />
-                  <Rating value={f.rating} />
-                </div>
-                {f.comment && (
-                  <div className="mt-1 text-body">
-                    <ExpandableText
-                      text={f.comment}
-                      lines={2}
-                      className="text-ink"
-                    />
-                  </div>
-                )}
-                <p className="mt-0.5 text-xs text-muted-fg">
-                  {f.student ? (f.student.name ?? f.student.email) : "Anonymous"}
-                  {" · "}
-                  {formatDate(f.createdAt)}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
+                ))}
+              </ul>
+            )}
+          </Section>
+          <Pagination
+            basePath="/feedback"
+            params={params}
+            page={page}
+            total={stats._count}
+            unit="ratings"
+            className="px-1"
+          />
+        </div>
 
-      <Pagination
-        basePath="/feedback"
-        params={params}
-        page={page}
-        total={stats._count}
-        unit="ratings"
-        className="px-1"
-      />
-
-      <Section
-        title="Meeting ratings"
-        count={meetingStats._count}
-        caption={
-          meetingStats._avg.studentRating === null
-            ? undefined
-            : `${meetingStats._avg.studentRating.toFixed(1)} average · one meeting each`
-        }
-      >
-        {meetingRows.length === 0 ? (
-          filtered ? (
-            <EmptyState framed={false} variant="no-results">
-              No meeting ratings match these filters.
-            </EmptyState>
-          ) : (
-            <EmptyState framed={false} title="No meeting ratings">
-              A student rates a meeting when they confirm it happened.
-            </EmptyState>
-          )
-        ) : (
-          <ul className="divide-y divide-line">
-            {meetingRows.map((s) => (
-              <li key={s.id} className="px-4 py-3 sm:px-5">
-                <div className="flex items-center justify-between gap-3">
-                  <PersonChip
-                    person={s.mentor}
-                    size="sm"
-                    href={`/mentors/${s.mentor.id}`}
+        <div className="min-w-0 space-y-2">
+          <Section
+            eyebrow={
+              meetingStats._avg.studentRating === null
+                ? "One meeting each"
+                : `${meetingStats._avg.studentRating.toFixed(1)} average · one meeting each`
+            }
+            title="Meeting ratings"
+            count={meetingStats._count}
+          >
+            {meetingRows.length === 0 ? (
+              filtered ? (
+                <EmptyState framed={false} variant="no-results">
+                  No meeting ratings match these filters.
+                </EmptyState>
+              ) : (
+                <EmptyState framed={false} title="No meeting ratings">
+                  A student rates a meeting when they confirm it happened.
+                </EmptyState>
+              )
+            ) : (
+              <ul className="divide-y divide-line/70">
+                {meetingRows.map((s) => (
+                  <FeedItem
+                    key={s.id}
+                    score={s.studentRating}
+                    mentor={s.mentor}
+                    aside={formatDate(s.date)}
+                    text={s.studentNote}
+                    meta={`${s.student.user.name ?? s.student.user.email} · ${s.program.name}`}
                   />
-                  {s.studentRating !== null && <Rating value={s.studentRating} />}
-                </div>
-                {s.studentNote && (
-                  <div className="mt-1 text-body">
-                    <ExpandableText
-                      text={s.studentNote}
-                      lines={2}
-                      className="text-ink"
-                    />
-                  </div>
-                )}
-                <p className="mt-0.5 text-xs text-muted-fg">
-                  {s.student.user.name ?? s.student.user.email}
-                  {" · "}
-                  {s.program.name}
-                  {" · meeting on "}
-                  {formatDate(s.date)}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      <Pagination
-        basePath="/feedback"
-        params={params}
-        page={meetingPage}
-        total={meetingStats._count}
-        unit="meeting ratings"
-        param={MEETING_PAGE}
-        className="px-1"
-      />
+                ))}
+              </ul>
+            )}
+          </Section>
+          <Pagination
+            basePath="/feedback"
+            params={params}
+            page={meetingPage}
+            total={meetingStats._count}
+            unit="meeting ratings"
+            param={MEETING_PAGE}
+            className="px-1"
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -843,5 +888,250 @@ function AverageStars({ value }: { value: number }) {
       {"★".repeat(filled)}
       <span className="text-muted-fg">{"☆".repeat(5 - filled)}</span>
     </span>
+  );
+}
+
+/**
+ * A star count per score, 1 to 5, from grouped rows — two kinds pooled into
+ * one array. A null score (a meeting confirmed without a rating) is dropped;
+ * the grouped `where` should already have excluded it.
+ */
+function tallyStars(rows: readonly (readonly [number | null, number])[]): number[] {
+  const counts = [0, 0, 0, 0, 0];
+  for (const [score, n] of rows) {
+    if (score !== null && score >= 1 && score <= 5) counts[score - 1] += n;
+  }
+  return counts;
+}
+
+/**
+ * The page's one lead, and what stands behind it: the combined score, how the
+ * ratings spread across 1 to 5, and two or three quieter counts.
+ *
+ * One card in three bands divided by hairlines, the `StatStrip` shape, with
+ * the spread where its second figure would be. The bars are ink, not orange:
+ * orange means hours, and a column of it here would read as time.
+ */
+function Overview({
+  average,
+  total,
+  spread,
+  figures,
+}: {
+  average: number;
+  total: number;
+  spread: { title: string; counts: number[] };
+  figures: {
+    label: string;
+    value: string;
+    hint?: string;
+    tone?: "ink" | "attention";
+  }[];
+}) {
+  const most = Math.max(1, ...spread.counts);
+  const filled = Math.round(average);
+  return (
+    <div className="@container">
+      <div className="grid divide-y divide-line overflow-hidden rounded-xl bg-surface shadow-sm @3xl:grid-cols-[1fr_1.6fr_1fr] @3xl:divide-x @3xl:divide-y-0">
+        <div className="min-w-0 px-4 py-4 @3xl:px-5 @3xl:py-5">
+          <Eyebrow>Combined score</Eyebrow>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-lead font-semibold tabular-nums text-ink">
+              {average.toFixed(1)}
+            </span>
+            <span className="text-sm text-muted-fg">of 5</span>
+          </div>
+          <div aria-hidden="true" className="mt-1 text-title tracking-tight text-ink">
+            {"★".repeat(filled)}
+            <span className="text-line-strong">{"★".repeat(5 - filled)}</span>
+          </div>
+          <p className="mt-2 text-xs text-muted-fg">
+            From {count(total, "rating")}, both kinds pooled.
+          </p>
+        </div>
+
+        <div className="min-w-0 px-4 py-4 @3xl:px-5 @3xl:py-5">
+          <Eyebrow>{spread.title}</Eyebrow>
+          <ul className="mt-2.5 space-y-1.5">
+            {[5, 4, 3, 2, 1].map((star) => {
+              const n = spread.counts[star - 1];
+              return (
+                <li
+                  key={star}
+                  className="grid grid-cols-[2.25rem_1fr_2.5rem] items-center gap-3 text-xs"
+                >
+                  <span className="tabular-nums text-muted-fg">{star} ★</span>
+                  <span
+                    className="h-2 overflow-hidden rounded-full bg-fill"
+                    role="img"
+                    aria-label={`${count(n, "rating")} of ${star}`}
+                  >
+                    <span
+                      className={cn(
+                        "bar-grow block h-full rounded-full",
+                        star <= LOW_RATING ? "bg-warn-ink" : "bg-ink/70"
+                      )}
+                      style={{ width: `${(n / most) * 100}%` }}
+                    />
+                  </span>
+                  <span className="text-right tabular-nums text-ink">{n}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        <dl className="grid min-w-0 content-center divide-y divide-line">
+          {figures.map((f) => (
+            <div
+              key={f.label}
+              className="flex items-baseline justify-between gap-3 px-4 py-3 @3xl:px-5"
+            >
+              <dt className="text-xs font-medium text-muted-fg">{f.label}</dt>
+              <dd className="text-right">
+                <span
+                  className={cn(
+                    "text-figure-md font-semibold tabular-nums",
+                    f.tone === "attention" ? "text-warn-ink" : "text-ink"
+                  )}
+                >
+                  {f.value}
+                </span>
+                {f.hint && (
+                  <span className="ml-1.5 text-xs text-muted-fg">{f.hint}</span>
+                )}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </div>
+  );
+}
+
+/** Why a mentor is in the attention group, in the words of the two rules. */
+function lowReasons(mentor: MentorCard): string[] {
+  const reasons: string[] = [];
+  if (mentor.average < LOW_AVERAGE) reasons.push(`Average under ${LOW_AVERAGE}`);
+  if (mentor.lowestRecent !== null && mentor.lowestRecent <= LOW_RATING) {
+    reasons.push(`Rated ${mentor.lowestRecent} in the last ${RECENT_DAYS} days`);
+  }
+  return reasons;
+}
+
+/**
+ * A mentor somebody should look at: who, the score, and the reason on screen —
+ * not in a tooltip a phone never shows.
+ */
+function AttentionCard({ mentor }: { mentor: MentorCard }) {
+  const filled = Math.round(mentor.average);
+  return (
+    <article className="flex min-w-0 flex-col rounded-xl bg-surface shadow-sm">
+      <div className="px-4 pt-4 sm:px-5">
+        <PersonCell
+          person={mentor.who}
+          href={`/mentors/${mentor.who.id}`}
+          secondary={false}
+        >
+          <StatusChip severity="attention">Low</StatusChip>
+        </PersonCell>
+      </div>
+      <div className="flex items-end justify-between gap-4 px-4 pb-3 pt-4 sm:px-5">
+        <div>
+          <div className="text-figure-lg font-semibold leading-none tabular-nums text-ink">
+            {mentor.average.toFixed(1)}
+          </div>
+          <div aria-hidden="true" className="mt-1.5 text-sm tracking-tight text-ink">
+            {"★".repeat(filled)}
+            <span className="text-line-strong">{"★".repeat(5 - filled)}</span>
+          </div>
+        </div>
+        <dl className="space-y-0.5 text-right text-xs">
+          {mentor.general.average !== null && (
+            <div>
+              <dt className="inline text-muted-fg">Written </dt>
+              <dd className="inline tabular-nums text-ink">
+                {mentor.general.average.toFixed(1)}
+                <span className="text-muted-fg"> · {mentor.general.count}</span>
+              </dd>
+            </div>
+          )}
+          {mentor.meetings.average !== null && (
+            <div>
+              <dt className="inline text-muted-fg">Meetings </dt>
+              <dd className="inline tabular-nums text-ink">
+                {mentor.meetings.average.toFixed(1)}
+                <span className="text-muted-fg"> · {mentor.meetings.count}</span>
+              </dd>
+            </div>
+          )}
+        </dl>
+      </div>
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-line/70 px-4 py-2.5 text-xs sm:px-5">
+        <span className="text-warn-ink">{lowReasons(mentor).join(" · ")}</span>
+        <span className="text-muted-fg">
+          {mentor.lastRated ? `Last ${formatDate(mentor.lastRated)}` : null}
+        </span>
+      </div>
+    </article>
+  );
+}
+
+/**
+ * The score as a tile at the start of a feed row, so a column of them can be
+ * scanned for the low ones. The number is the signal and the tint only
+ * repeats it — never colour alone.
+ */
+function ScoreBadge({ value }: { value: number }) {
+  return (
+    <span
+      className={cn(
+        "grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sm font-semibold tabular-nums",
+        value <= LOW_RATING ? "bg-warn-soft text-warn-ink" : "bg-fill text-ink"
+      )}
+      aria-label={`${value} out of 5`}
+    >
+      {value}
+    </span>
+  );
+}
+
+/**
+ * One rating in a feed: the score tile, who it is about and when, what was
+ * said in ink because the words are the point, and who said it quietly under.
+ */
+function FeedItem({
+  score,
+  mentor,
+  aside,
+  text,
+  meta,
+}: {
+  score: number | null;
+  mentor?: { id: string; name: string | null; email: string; avatarUpdatedAt: Date | null };
+  aside: string;
+  text: string | null;
+  meta?: string;
+}) {
+  return (
+    <li className="flex gap-3 px-4 py-3 sm:px-5">
+      {score !== null && <ScoreBadge value={score} />}
+      <div className="min-w-0 flex-1">
+        <div className="flex min-h-9 items-center justify-between gap-3">
+          {mentor ? (
+            <PersonChip person={mentor} size="sm" href={`/mentors/${mentor.id}`} />
+          ) : (
+            <span className="text-xs text-muted-fg">{meta ?? ""}</span>
+          )}
+          <span className="shrink-0 text-xs tabular-nums text-muted-fg">{aside}</span>
+        </div>
+        {text && (
+          <div className="mt-1 text-body">
+            <ExpandableText text={text} lines={2} className="text-ink" />
+          </div>
+        )}
+        {mentor && meta && <p className="mt-1 text-xs text-muted-fg">{meta}</p>}
+      </div>
+    </li>
   );
 }

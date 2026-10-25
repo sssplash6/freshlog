@@ -8,6 +8,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ### New
 - **Copy a student's email in one click.** On a student's page, click their email address to copy it. It says Copied for a moment so you know it worked.
+- **A clearer Feedback page.** It opens on the combined score, a bar for each star from 1 to 5, and how many mentors need attention. Those mentors get cards that say why, above everyone else. Written and meeting ratings sit side by side, each led by its score.
 
 ### Fixed
 - **Students list names stay readable.** On a laptop, a student on exchange no longer squeezes the Student column: names were breaking mid-word and "Not signed in" sat on top of them. "(on exchange)" now drops under its program when space is tight.
