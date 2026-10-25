@@ -1,8 +1,8 @@
 import "server-only";
 
+import { apiAvatarPath } from "@/lib/api/v1/account";
 import type { ApiRole, MeResponse, Onboarding } from "@/lib/api/v1/types";
 import { adminScope, scopeIsEmpty } from "@/lib/authz";
-import { avatarUrl } from "@/lib/avatar";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import type { User } from "@/generated/prisma/client";
@@ -42,7 +42,7 @@ export async function meFor(user: User): Promise<MeResponse> {
     status: user.status as MeResponse["status"],
     roles,
     platformAdmin: user.platformAdmin,
-    avatarPath: avatarUrl(user),
+    avatarPath: apiAvatarPath(user),
     unread,
     onboarding: onboardingFor(roles[0], user, profile),
   };

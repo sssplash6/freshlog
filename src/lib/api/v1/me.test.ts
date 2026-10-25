@@ -151,7 +151,7 @@ describe("meFor: the picture and the bell", () => {
       where: { id: m.id },
       data: { avatarUpdatedAt: new Date(1_790_000_000_000) },
     });
-    expect((await meFor(withPicture)).avatarPath).toBe(`/api/avatar/${m.id}?v=1790000000000`);
+    expect((await meFor(withPicture)).avatarPath).toBe(`/api/v1/avatars/${m.id}?v=1790000000000`);
   });
 
   it("counts only this person's unread notifications", async () => {

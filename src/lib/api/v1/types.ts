@@ -54,9 +54,9 @@ export type MeResponse = {
   roles: ApiRole[];
   platformAdmin: boolean;
   /**
-   * "/api/avatar/<id>?v=<ms>"; null when there is no picture. The app cannot
-   * fetch it yet: /api/avatar stays behind the website's cookie check until
-   * Phase 6, so a request that carries only the bearer is sent to /login.
+   * "/api/v1/avatars/<id>?v=<ms>"; null when there is no picture. The API's
+   * own copy of the website's /api/avatar, which stays behind the website's
+   * cookie check; `?v=` changes with each new picture.
    */
   avatarPath: string | null;
   /** Unread notifications. */
@@ -987,3 +987,123 @@ export type StudentInterviewRow = {
 };
 /** GET /api/v1/students/:id/interviews */
 export type StudentInterviews = { student: StudentRef; interviews: StudentInterviewRow[] };
+
+/*
+ * Phase 6: Account and sign-up.
+ */
+
+/** A kind of notice, as Settings names them (NOTIFICATION_CATEGORY). */
+export type NoticeCategory = "HOURS" | "SESSIONS" | "TASKS" | "DEADLINES" | "ACCOUNTS";
+
+/**
+ * One category's two switches, with the label and hint Settings shows. No row
+ * stored is the default: in the app always, by email where EMAIL_BY_DEFAULT
+ * says so, so `email` can be on for a person who never touched it.
+ */
+export type NoticePref = { category: NoticeCategory; label: string; hint: string; inApp: boolean; email: boolean };
+
+/** A mentor's booking link on one pairing (a MentorAssignment). `label` is "Program · Cohort", as Settings writes it. */
+export type BookingLink = { assignment: string; label: string; url: string | null };
+
+/** `GET /api/v1/account`: what Account and its pages show that /me doesn't. */
+export type ApiAccount = {
+  name: string | null;
+  email: string;
+  /** "/api/v1/avatars/<User.id>?v=<ms>", or null for none. */
+  avatarPath: string | null;
+  /**
+   * A student's handle, without "@" (`handle` null when they have none yet);
+   * null altogether for anyone without a student record, who has no handle here.
+   */
+  telegram: { handle: string | null } | null;
+  /** A mentor's pairings, in the order Settings lists them; null for anyone who doesn't mentor. */
+  bookingLinks: BookingLink[] | null;
+  weeklyDigest: boolean;
+  notices: NoticePref[];
+  /** Something in the changelog this person hasn't seen (`hasUnseenChangelog`). */
+  whatsNew: boolean;
+  /** Their own reports still open (OPEN_BUG_STATUSES). */
+  openBugs: number;
+};
+
+/*
+ * Account's writes, each answering WriteResult. None takes anybody's id: the
+ * reader is the subject, bar a booking link's pairing, which must be theirs.
+ *   PUT    /api/v1/account/name                  NameText
+ *   PUT    /api/v1/account/telegram              TelegramText (students)
+ *   PUT    /api/v1/account/avatar                multipart, one file "avatar"
+ *   DELETE /api/v1/account/avatar
+ *   PUT    /api/v1/account/notices/:category     NoticeSwitches
+ *   PUT    /api/v1/account/weekly-digest         DigestSwitch
+ *   PUT    /api/v1/account/booking-links/:id     BookingLinkText (mentors, their own pairing)
+ */
+export type NameText = { name: string };
+export type TelegramText = { telegram: string };
+export type NoticeSwitches = { inApp: boolean; email: boolean };
+export type DigestSwitch = { on: boolean };
+export type BookingLinkText = { url: string };
+
+/** One changelog item: written `**Headline.** detail`, or plain text with no headline. */
+export type ChangelogItem = { headline: string | null; detail: string };
+/** One day of the changelog. `unseen` when it holds something this person hasn't read (`isUnseen`). */
+export type ChangelogDay = { day: string; unseen: boolean; new: ChangelogItem[]; fixed: ChangelogItem[] };
+/** `GET /api/v1/changelog`, newest day first. `POST /api/v1/changelog/seen` marks it read (204). */
+export type ApiChangelog = { days: ChangelogDay[] };
+
+export type BugStatus = "PENDING" | "IN_PROGRESS" | "IN_REVIEW" | "FIXED" | "CLOSED";
+/**
+ * One of my reports. `statusLabel` is freshform's ("New", "In progress", "In
+ * review", "Done", "Won't do"); `open` is whether the team is still on it;
+ * `sentOn` the Tashkent day it was sent.
+ */
+export type BugRow = { id: string; title: string; status: BugStatus; statusLabel: string; open: boolean; sentOn: string };
+/** A fixed report, as everybody may read it: the fix line and its day, nothing the reporter wrote. */
+export type FixedBug = { fix: string; fixedOn: string | null };
+/** `GET /api/v1/bugs` */
+export type ApiBugs = { mine: BugRow[]; fixed: FixedBug[] };
+/**
+ * `GET /api/v1/bugs/:id`: one report, for its reporter or a platform admin.
+ * `resolution` is the fix line or the team's note, only once Done or Won't do.
+ * `imagePath` is the screenshot, "/api/v1/bugs/<id>/image".
+ */
+export type ApiBug = BugRow & { description: string; resolution: string | null; imagePath: string | null };
+/*
+ * POST /api/v1/bugs is multipart: "title", "description" and an optional file,
+ * "screenshot". It answers CreatedResult, the new report's id.
+ */
+
+/** A write that made something, and its id: a bug report (a booking answers BookResult, the same shape). */
+export type CreatedResult = WriteResult & { id: string };
+
+/** A program a new student can pick, as the registration form lists them (`toProgramOptions`). */
+export type ProgramChoice = {
+  id: string;
+  name: string;
+  /** A program has levels (with their cohorts) or flat cohorts, never both. */
+  levels: { id: string; name: string; cohorts: { id: string; name: string }[] }[];
+  cohorts: { id: string; name: string }[];
+};
+
+/**
+ * `GET /api/v1/onboarding`: the one form this person has left, as /onboarding
+ * decides it. `step` null when there is none to fill in: a wait, or nothing.
+ * Answers accounts that aren't active yet: that is who it is for.
+ *
+ * - `register`: a student nobody registered, who picks their program.
+ * - `details`: a student staff registered, who confirms their name and adds a
+ *   Telegram handle. `welcome` is "the Global Admissions Program", or
+ *   "Freshman Academy"; `eyebrow` the page's ("Step 1 of 2 · Cohort A").
+ * - `mentor-name`: a mentor with no name yet.
+ */
+export type OnboardingStep =
+  | { step: "register"; name: string; programs: ProgramChoice[] }
+  | { step: "details"; name: string; welcome: string; eyebrow: string | null; pending: boolean }
+  | { step: "mentor-name"; name: string }
+  | { step: null };
+
+/**
+ * `POST /api/v1/onboarding`: the answer to that form, answering WriteResult.
+ * `telegram` for both student steps; `program`, `level` and `cohort` for
+ * `register`. Which form it answers is freshform's to know, not the body's.
+ */
+export type OnboardingAnswer = { name: string; telegram?: string; program?: string; level?: string; cohort?: string };
