@@ -1320,3 +1320,30 @@ export type PlatformPerson = {
 export type ApiPlatform = { me: string; programs: { id: string; name: string }[]; people: PlatformPerson[] };
 export type AccessChange = { level: GrantLevel };
 export type PlatformAdminChange = { on: boolean };
+
+/**
+ * One session on Analytics: [program, mentor, student, day, minutes, kind].
+ * `program` and `mentor` index `programs` and `mentors`; `student` is an opaque
+ * index (no student is ever named here); `day` is the Tashkent day as yyyymmdd;
+ * `kind` is 0 completed, 1 extra (out of plan), 2 no-show.
+ */
+export type AnalyticsSession = [program: number, mentor: number, student: number, day: number, minutes: number, kind: 0 | 1 | 2];
+
+/**
+ * `GET /api/v1/analytics?frame=school`: the website's Analytics read, the
+ * same rows for every mentor and member of staff (it names mentors and hours,
+ * never a student). `frame` is where the reader starts: one institute's levels
+ * when that is their whole work, else the school; `other` is the one link to
+ * the other frame. `audience` "mentor" lands on `self`'s own year. Students
+ * are a 404.
+ */
+export type ApiAnalytics = {
+  audience: "staff" | "mentor";
+  self: string | null;
+  frame: { kind: "school" } | { kind: "institute"; name: string };
+  other: { label: string; school: boolean } | null;
+  today: string;
+  programs: { id: string; name: string; colorIndex: number | null; archived: boolean; granted: number }[];
+  mentors: PersonRef[];
+  sessions: AnalyticsSession[];
+};
