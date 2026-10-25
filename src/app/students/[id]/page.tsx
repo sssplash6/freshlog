@@ -34,6 +34,7 @@ import { Callout } from "@/components/ui/callout";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FactList } from "@/components/ui/fact-list";
+import { CopyText } from "@/components/ui/copy-text";
 import { ExternalLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
@@ -602,7 +603,7 @@ export default async function StudentWorkspacePage({
                 {headline.rest && <> · {headline.rest}</>}
               </span>
             )}
-            {profile.user.email}
+            <CopyText value={profile.user.email} />
             {handle && (
               <>
                 {" · "}

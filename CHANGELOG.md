@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-25
+
+### New
+- **Copy a student's email in one click.** On a student's page, click their email address to copy it. It says Copied for a moment so you know it worked.
+
 ## 2026-10-24
 
 ### New
