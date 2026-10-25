@@ -1162,3 +1162,40 @@ export type StudentRatings = { mentors: PersonRef[]; given: GivenRating[] };
  * wrote it; the student's program admins hear the score.
  */
 export type RateMentor = { mentor: string; rating: number; comment?: string };
+
+/** The period a mentor's record is read over, as /mentors/:id's tabs: 30 days, 90 days (the default) or all. */
+export type RecordPeriod = "30d" | "90d" | "all";
+
+/** One student's time with a mentor in one program, as /mentors/:id's Students table. Minutes; `useBy` a Tashkent day. */
+export type RecordStudent = {
+  student: StudentRef;
+  program: ProgramRef;
+  completed: number;
+  missed: number;
+  remaining: number;
+  forfeited: number;
+  allocated: number;
+  useBy: string | null;
+  /** Not approved yet. */
+  pending: boolean;
+};
+
+/**
+ * `GET /api/v1/mentors/:id?period=`: a mentor's record, for the mentor
+ * themselves and for an admin who manages them (`canManageMentor`), every
+ * figure narrowed to the reader's programs as the page narrows it (a mentor
+ * reading their own sees all of theirs). Anybody else is a 404.
+ *
+ * `time` is the period's; `students` every grant, soonest use-by first.
+ * `ratings` is the average and the count, never who wrote them; the words are
+ * on the Ratings page.
+ */
+export type ApiMentorRecord = {
+  mentor: PersonRef & { email: string };
+  self: boolean;
+  period: RecordPeriod;
+  programs: (ProgramRef & { cohort: string | null; bookingLink: boolean })[];
+  time: { delivered: number; missed: number; sessions: number };
+  students: RecordStudent[];
+  ratings: { count: number; average: number } | null;
+};
