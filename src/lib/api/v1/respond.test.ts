@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { redirect } from "next/navigation";
 
-import { fromAction, fromBookingAction, fromRedirectingAction, inactive, noContent, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, fromCreatingAction, fromRedirectingAction, inactive, noContent, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 
 describe("respond", () => {
   it("signInAgain is a 401 the app recognises", async () => {
@@ -173,15 +173,21 @@ describe("respond", () => {
     await expect(fromRedirectingAction(async () => { throw new Error("disk full"); })).rejects.toThrow("disk full");
   });
 
-  it("fromBookingAction answers the interview a booking redirected to", async () => {
-    const res = await fromBookingAction(async () => redirect("/student/interviews/c-new"));
+  it("fromCreatingAction answers the interview a booking redirected to", async () => {
+    const res = await fromCreatingAction(async () => redirect("/student/interviews/c-new"), "/student/interviews/");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true, id: "c-new" });
   });
 
-  it("fromBookingAction answers a redirect anywhere else as a failure, not a guess", async () => {
-    const res = await fromBookingAction(async () => redirect("/student/interviews"));
+  it("fromCreatingAction answers a redirect anywhere else as a failure, not a guess", async () => {
+    const res = await fromCreatingAction(async () => redirect("/student/interviews"), "/student/interviews/");
     expect(res.status).toBe(500);
     expect((await res.json()).ok).toBe(false);
+  });
+
+  it("fromCreatingAction reads the id under any prefix, and never a deeper path", async () => {
+    expect(await (await fromCreatingAction(async () => redirect("/bugs/b-1"), "/bugs/")).json()).toEqual({ ok: true, id: "b-1" });
+    expect((await fromCreatingAction(async () => redirect("/bugs/b-1/edit"), "/bugs/")).status).toBe(500);
+    expect((await fromCreatingAction(async () => redirect("/student/interviews/c-1"), "/bugs/")).status).toBe(500);
   });
 });

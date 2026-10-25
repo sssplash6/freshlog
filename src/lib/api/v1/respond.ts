@@ -2,7 +2,7 @@ import { getURLFromRedirectError } from "next/dist/client/components/redirect";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 import type { ActionState } from "@/lib/actions/shared";
-import type { BookResult, WriteResult } from "@/lib/api/v1/types";
+import type { CreatedResult, WriteResult } from "@/lib/api/v1/types";
 
 /**
  * The answers /api/v1 gives the freshlog app. Every one is JSON, bar the 204
@@ -117,19 +117,21 @@ export async function fromRedirectingAction(run: () => Promise<ActionState>): Pr
 }
 
 /**
- * `fromRedirectingAction` for `bookInterview`, which ends by sending the
- * student to the interview it made. That address is the only place the new
- * id is said, so it is read off the redirect and answered as `BookResult`.
- * An address of any other shape means the action changed, and the app must
- * not be told a guess: that is a 500.
+ * `fromRedirectingAction` for an action that ends by sending the reader to the
+ * thing it made: `bookInterview` to `/student/interviews/<id>`, `reportBug` to
+ * `/bugs/<id>`. That address is the only place the new id is said, so it is
+ * read off the redirect and answered as `CreatedResult`. An address of any
+ * other shape means the action changed, and the app must not be told a guess:
+ * that is a 500.
  */
-export async function fromBookingAction(run: () => Promise<ActionState>): Promise<Response> {
+export async function fromCreatingAction(run: () => Promise<ActionState>, prefix: string): Promise<Response> {
   try {
     return fromAction(await run());
   } catch (error) {
     if (!isRedirectError(error)) throw error;
-    const id = /^\/student\/interviews\/([^/?#]+)$/.exec(getURLFromRedirectError(error))?.[1];
-    if (!id) return json({ ok: false, error: "Something went wrong. Try again." }, 500);
-    return json({ ok: true, id } satisfies BookResult, 200);
+    const url = getURLFromRedirectError(error);
+    const id = url.startsWith(prefix) ? url.slice(prefix.length) : "";
+    if (!/^[^/?#]+$/.test(id)) return json({ ok: false, error: "Something went wrong. Try again." }, 500);
+    return json({ ok: true, id } satisfies CreatedResult, 200);
   }
 }
