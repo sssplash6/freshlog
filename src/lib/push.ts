@@ -80,7 +80,7 @@ export type SweepResult = {
 
 /**
  * One sweep. Takes up to SWEEP_BATCH rows not dealt with yet, oldest first,
- * claiming each by writing `pushedAt` only where it is still null, so two
+ * and claims them in one write of `pushedAt` where it is still null, so two
  * sweeps that overlap cannot both send one row. Then, for each fresh row, a
  * message to each of the reader's live phones (their sign-in not revoked, not
  * expired) unless they turned that category's Push off.
@@ -93,13 +93,15 @@ export async function sweepPushes(now: Date, send: Sender): Promise<SweepResult>
     select: { id: true, userId: true, category: true, message: true, href: true, createdAt: true },
   });
 
-  const mine: typeof rows = [];
-  for (const row of rows) {
-    const { count } = await prisma.notification.updateMany({
-      where: { id: row.id, pushedAt: null },
-      data: { pushedAt: now },
-    });
-    if (count === 1) mine.push(row);
+  // One write claims them all; the rows that read back with this sweep's
+  // `now` are the ones it won. A sweep that overlapped claimed the rest first.
+  const ids = rows.map((r) => r.id);
+  let mine: typeof rows = [];
+  if (ids.length) {
+    await prisma.notification.updateMany({ where: { id: { in: ids }, pushedAt: null }, data: { pushedAt: now } });
+    const won = await prisma.notification.findMany({ where: { id: { in: ids }, pushedAt: now }, select: { id: true } });
+    const claimed = new Set(won.map((r) => r.id));
+    mine = rows.filter((r) => claimed.has(r.id));
   }
 
   const fresh = mine.filter((r) => now.getTime() - r.createdAt.getTime() <= STALE_MS);

@@ -75,6 +75,14 @@ describe("sweepPushes", () => {
     expect(calls).toHaveLength(1);
   });
 
+  it("sends a notice once when two sweeps overlap", async () => {
+    await withPhone().then(({ user }) => notice(user.id));
+    const { calls, send } = recorder();
+    const [a, b] = await Promise.all([sweepPushes(NOW, send), sweepPushes(new Date(NOW.getTime() + 1), send)]);
+    expect(a.claimed + b.claimed).toBe(1);
+    expect(calls.flat()).toHaveLength(1);
+  });
+
   it("marks a notice too old to matter and sends nothing for it", async () => {
     const { user } = await withPhone();
     const old = await notice(user.id, { createdAt: new Date(NOW.getTime() - STALE_MS - 1000) });
