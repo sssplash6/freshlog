@@ -1076,7 +1076,13 @@ export type ApiBugs = { mine: BugRow[]; fixed: FixedBug[] };
  * `resolution` is the fix line or the team's note, only once Done or Won't do.
  * `imagePath` is the screenshot, "/api/v1/bugs/<id>/image".
  */
-export type ApiBug = BugRow & { description: string; resolution: string | null; imagePath: string | null };
+export type ApiBug = BugRow & {
+  description: string;
+  resolution: string | null;
+  imagePath: string | null;
+  /** For a platform admin only, triaging it (Phase 8); null for its reporter. */
+  triage: BugTriage | null;
+};
 /*
  * POST /api/v1/bugs is multipart: "title", "description" and an optional file,
  * "screenshot". It answers CreatedResult, the new report's id.
@@ -1251,3 +1257,43 @@ export type SearchHit = { id: string; userId: string; name: string; email: strin
  * anybody with no roster, is a 404. An empty `q` answers empty lists.
  */
 export type ApiSearch = { students: SearchHit[]; mentors: SearchHit[] };
+
+export type BugKind = "BUG" | "FEATURE";
+
+/** One report on the triage board. `reporter` is the reporter's name, the Telegram author's, or "Former user". */
+export type TriageCard = {
+  id: string;
+  title: string;
+  status: BugStatus;
+  statusLabel: string;
+  kind: BugKind;
+  kindLabel: string;
+  fromTelegram: boolean;
+  reporter: string;
+  sentOn: string;
+  resolvedOn: string | null;
+};
+
+/** `GET /api/v1/bugs/triage?kind=BUG|FEATURE`: everything open, newest first, and the last thirty finished. Platform admins only; anybody else a 404. */
+export type ApiTriage = { open: TriageCard[]; finished: TriageCard[] };
+
+/**
+ * `POST /api/v1/bugs/:id/status`: `setBugStatus`. Done (FIXED) needs the fix
+ * line everyone reads, Won't do (CLOSED) a note to the reporter; `changelogDate`
+ * ("YYYY-MM-DD") is the fix's changelog day, today when left out. `kind`
+ * corrects a report filed as the wrong one. Answers WriteResult.
+ */
+export type BugStatusChange = { status: BugStatus; resolution?: string; kind?: BugKind; changelogDate?: string };
+
+/** What a platform admin reads on a report besides what its reporter does (`ApiBug.triage`). */
+export type BugTriage = {
+  reporter: string;
+  kind: BugKind;
+  fromTelegram: boolean;
+  /** The sender's own words from the Telegram group, voice notes transcribed. */
+  originalText: string | null;
+  pagePath: string | null;
+  /** Where it was drawn, as one line. */
+  diagnostics: string | null;
+  changelogDate: string | null;
+};
