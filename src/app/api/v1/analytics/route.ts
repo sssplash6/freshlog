@@ -3,10 +3,9 @@ import type { ApiAnalytics } from "@/lib/api/v1/types";
 import { analyticsData, instituteAnalyticsData } from "@/lib/analytics";
 import { canActAsMentor, ROLES } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/dal";
-import { toDateInputValue } from "@/lib/format";
 import { profileOf } from "@/lib/profile";
 import { spaceOf } from "@/lib/space";
-import { programWallClock } from "@/lib/when";
+import { programToday } from "@/lib/when";
 
 // Reads the token and the database on every request; never prerender. On
 // Render the SQLite disk only exists at runtime.
@@ -40,7 +39,7 @@ export async function GET(request: Request) {
     self: asMentor ? user.id : null,
     frame: inInstitute ? { kind: "institute", name: space.name } : { kind: "school" },
     other: space.kind !== "institute" ? null : inInstitute ? { label: "Whole school", school: true } : { label: space.name, school: false },
-    today: toDateInputValue(programWallClock(new Date())),
+    today: programToday(new Date()),
     programs: data.programs.map((p) => ({ id: p.id, name: p.name, colorIndex: p.colorIndex, archived: p.archived, granted: p.granted })),
     mentors: data.mentors.map((m) => ({ id: m.id, name: m.name })),
     sessions: data.rows.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5]]),

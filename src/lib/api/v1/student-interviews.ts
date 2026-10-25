@@ -6,12 +6,11 @@ import { nameOf } from "@/lib/api/v1/sessions";
 import type { FeedbackText, StudentInterviews } from "@/lib/api/v1/types";
 import { mentorHasWorkedWith } from "@/lib/authz";
 import { canActAsMentor } from "@/lib/constants";
-import { toDateInputValue } from "@/lib/format";
 import { templateName } from "@/lib/interview-templates";
 import { interviewPhase } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
 import { interviewsOfStudent } from "@/lib/student-interviews";
-import { programWallClock } from "@/lib/when";
+import { programToday } from "@/lib/when";
 
 /**
  * A student's practice interviews, for a mentor who has worked with them, as
@@ -44,7 +43,7 @@ export async function studentInterviewsFor(reader: User, studentProfileId: strin
       when: slotTime(r.slot),
       partner: personOf(r.partner),
       phase: interviewPhase(r, now),
-      completedOn: r.completedAt ? toDateInputValue(programWallClock(r.completedAt)) : null,
+      completedOn: r.completedAt ? programToday(r.completedAt) : null,
       notes: r.notes,
       answers: r.answers.map((a) => ({ index: a.questionIndex, question: a.question, text: a.text })),
       given: text(r.given),

@@ -6,9 +6,8 @@ import { adminScope, adminWriteScope, staffLevel, type AdminScope } from "@/lib/
 import { PAGE_SIZE, parsePage } from "@/components/ui/pagination";
 import { canActAsMentor } from "@/lib/constants";
 import { feedbackWhere, readParam, type SearchParams } from "@/lib/filters";
-import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { programWallClock } from "@/lib/when";
+import { programToday } from "@/lib/when";
 import type { User } from "@/generated/prisma/client";
 
 /** /feedback's own thresholds: a mentor under this average, or one rating this low in 30 days, is "low". */
@@ -16,7 +15,7 @@ const LOW_AVERAGE = 3.5;
 const LOW_RATING = 2;
 const RECENT_DAYS = 30;
 
-const dayOf = (at: Date) => toDateInputValue(programWallClock(at));
+const dayOf = programToday;
 
 /**
  * The programs whose ratings this person may read: /feedback's

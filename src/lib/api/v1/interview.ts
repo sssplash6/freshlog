@@ -5,7 +5,6 @@ import type { ActionState } from "@/lib/actions/shared";
 import { NOT_A_STUDENT, personOf, practiceStudent, slotTime, wallTime, type PracticeStudent } from "@/lib/api/v1/practice";
 import { fromAction, refused } from "@/lib/api/v1/respond";
 import type { ApiInterview, FeedbackText } from "@/lib/api/v1/types";
-import { toDateInputValue } from "@/lib/format";
 import {
   FEEDBACK_DISCUSS,
   FEEDBACK_PROMPTS,
@@ -24,7 +23,7 @@ import {
   sideOf,
 } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
-import { programWallClock } from "@/lib/when";
+import { programToday } from "@/lib/when";
 
 /**
  * One practice interview, for one of the two students in it: what
@@ -101,7 +100,7 @@ export async function interviewFor({ profile }: PracticeStudent, id: string, now
     theirs: theirs && text(theirs),
     absent: row.absentId ? (row.absentId === profile.id ? "me" : "partner") : null,
     // The day it was marked, on the program's calendar.
-    completedOn: row.completedAt ? toDateInputValue(programWallClock(row.completedAt)) : null,
+    completedOn: row.completedAt ? programToday(row.completedAt) : null,
     editableUntil: editable ? wallTime(feedbackEditableUntil(row.slot)) : null,
     can: {
       // The website offers Cancel until the interview is closed, after the start too.

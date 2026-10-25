@@ -4,11 +4,10 @@ import type { ApiMentorRecord, RecordPeriod } from "@/lib/api/v1/types";
 import { nameOf } from "@/lib/api/v1/sessions";
 import { adminScope, canManageMentor, scopeProgramFilter } from "@/lib/authz";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
-import { toDateInputValue } from "@/lib/format";
 import { mentorWindow } from "@/lib/mentor-window";
 import { prisma } from "@/lib/prisma";
 import { mentorAssignments, mentorOverview } from "@/lib/queries";
-import { programWallClock } from "@/lib/when";
+import { programToday } from "@/lib/when";
 import type { User } from "@/generated/prisma/client";
 
 /** The period as the page's tabs write it: `period=30d`, `period=all`, or none for ninety days. */
@@ -76,7 +75,7 @@ export async function mentorRecordFor(viewer: User, id: string, period: RecordPe
       remaining: s.remaining,
       forfeited: s.forfeited,
       allocated: s.allocated,
-      useBy: s.deadline ? toDateInputValue(programWallClock(s.deadline)) : null,
+      useBy: s.deadline ? programToday(s.deadline) : null,
       pending: s.student.user.status === USER_STATUS.PENDING,
     })),
     ratings: feedback._count > 0 && feedback._avg.rating != null ? { count: feedback._count, average: feedback._avg.rating } : null,

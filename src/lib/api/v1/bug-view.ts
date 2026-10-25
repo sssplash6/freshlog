@@ -3,12 +3,11 @@ import "server-only";
 import type { ApiBug, ApiBugs, ApiTriage, BugRow, BugStatus } from "@/lib/api/v1/types";
 import { bugReportFor, fixedBugs, myBugReports, triageList } from "@/lib/bug-queries";
 import { BUG_KIND_LABELS, BUG_SOURCE, BUG_STATUS_LABELS, OPEN_BUG_STATUSES, isBugKind, isBugStatus, type TriageFilter } from "@/lib/bugs";
-import { toDateInputValue } from "@/lib/format";
-import { programWallClock } from "@/lib/when";
+import { programToday } from "@/lib/when";
 import type { User } from "@/generated/prisma/client";
 
 /** The Tashkent day an instant fell on, as the API writes days. */
-const dayOf = (at: Date) => toDateInputValue(programWallClock(at));
+const dayOf = programToday;
 
 /** A status freshform doesn't know reads as New, which is what a fresh row holds. */
 const statusOf = (raw: string): BugStatus => (isBugStatus(raw) ? raw : "PENDING");

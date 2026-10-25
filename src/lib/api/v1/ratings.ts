@@ -4,8 +4,7 @@ import type { StudentRatings } from "@/lib/api/v1/types";
 import { nameOf } from "@/lib/api/v1/sessions";
 import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
-import { programWallClock } from "@/lib/when";
-import { toDateInputValue } from "@/lib/format";
+import { programToday } from "@/lib/when";
 
 /**
  * A student's ratings, read as /student/feedback reads them: the mentors they
@@ -38,7 +37,7 @@ export async function ratingsFor(studentId: string): Promise<StudentRatings> {
       mentor: { id: f.mentor.id, name: nameOf(f.mentor) },
       rating: f.rating,
       comment: f.comment,
-      sentOn: toDateInputValue(programWallClock(f.createdAt)),
+      sentOn: programToday(f.createdAt),
     })),
   };
 }
