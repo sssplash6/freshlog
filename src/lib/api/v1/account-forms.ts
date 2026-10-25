@@ -1,6 +1,6 @@
 import type { ActionState } from "@/lib/actions/shared";
 import { isText } from "@/lib/api/v1/session-forms";
-import type { BookingLinkText, DigestSwitch, NameText, NoticeCategory, NoticeSwitches, TelegramText } from "@/lib/api/v1/types";
+import type { BookingLinkText, DigestSwitch, NameText, NoticeCategory, NoticeSwitches, PushSwitch, TelegramText } from "@/lib/api/v1/types";
 import { NOTIFICATION_CATEGORY } from "@/lib/constants";
 
 /**
@@ -46,6 +46,13 @@ export function noticeForm(category: NoticeCategory, body: Record<string, unknow
   if (inApp) form.set("inApp", "on");
   if (email) form.set("email", "on");
   return form;
+}
+
+/** A category's Push switch, or the bad field. Push has no action of the website's: the route writes it. */
+export function pushSwitch(body: Record<string, unknown> | null): { on: boolean } | Bad {
+  const { on } = (body ?? {}) as Partial<Record<keyof PushSwitch, unknown>>;
+  if (typeof on !== "boolean") return { field: "on", error: "Say whether it is pushed." };
+  return { on };
 }
 
 /** `setWeeklyDigest`'s FormData. */

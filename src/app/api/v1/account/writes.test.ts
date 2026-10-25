@@ -21,6 +21,8 @@ const avatar = await import("@/app/api/v1/account/avatar/route");
 const notices = await import("@/app/api/v1/account/notices/[category]/route");
 const digest = await import("@/app/api/v1/account/weekly-digest/route");
 const booking = await import("@/app/api/v1/account/booking-links/[id]/route");
+const push = await import("@/app/api/v1/account/push/[category]/route");
+const account = await import("@/app/api/v1/account/route");
 
 const as = (s: { userId: string } | { id: string }) => {
   actor.value = { id: "userId" in s ? s.userId : s.id };
@@ -166,5 +168,37 @@ describe("PUT account/booking-links/:id", () => {
     expect(a.status).toBe(404);
     expect(await a.json()).toEqual(await b.json());
     expect((await prisma.mentorAssignment.findUnique({ where: { id: theirs.id } }))?.calendlyUrl).toBeNull();
+  });
+});
+
+describe("PUT account/push/:category", () => {
+  const pushOf = async (category: string) =>
+    (await (await account.GET()).json()).notices.find((n: { category: string }) => n.category === category).push;
+
+  it("is on by default, stores off, and deletes the row when turned back on", async () => {
+    const m = await mentor();
+    as(m);
+    expect(await pushOf("SESSIONS")).toBe(true);
+    expect(await (await push.PUT(put({ on: false }), params({ category: "SESSIONS" }))).json()).toEqual({ ok: true });
+    expect(await pushOf("SESSIONS")).toBe(false);
+    expect(await pushOf("HOURS")).toBe(true);
+    await push.PUT(put({ on: true }), params({ category: "SESSIONS" }));
+    expect(await pushOf("SESSIONS")).toBe(true);
+    expect(await prisma.pushPreference.count({ where: { userId: m.id } })).toBe(0);
+  });
+
+  it("answers 404 for a category that isn't one, and 400 for a switch that isn't a boolean", async () => {
+    as(await mentor());
+    expect((await push.PUT(put({ on: false }), params({ category: "WEEKLY_SUMMARY" }))).status).toBe(404);
+    expect(await (await push.PUT(put({ on: "no" }), params({ category: "TASKS" }))).json()).toMatchObject({ field: "on" });
+  });
+
+  it("leaves the email switch alone, and the email writer leaves it alone", async () => {
+    const m = await mentor();
+    as(m);
+    await push.PUT(put({ on: false }), params({ category: "TASKS" }));
+    // TASKS back at its email default: setNotificationPreference deletes its own row, never this one.
+    await notices.PUT(put({ inApp: true, email: true }), params({ category: "TASKS" }));
+    expect(await pushOf("TASKS")).toBe(false);
   });
 });
