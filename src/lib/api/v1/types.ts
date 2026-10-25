@@ -1199,3 +1199,40 @@ export type ApiMentorRecord = {
   students: RecordStudent[];
   ratings: { count: number; average: number } | null;
 };
+
+/** One mentor on the admin's Mentors list, as /mentors draws them: their pairings and figures in the reader's programs only. */
+export type MentorListRow = {
+  mentor: PersonRef & { email: string };
+  /** In no program, or an account not placed yet. */
+  unassigned: boolean;
+  admin: boolean;
+  programs: { program: ProgramRef; label: string }[];
+  pairings: number;
+  pairingsWithLink: number;
+  /** Students holding their time. */
+  students: number;
+  rating: { average: number; count: number } | null;
+};
+
+/**
+ * `GET /api/v1/mentors?page=&program=&status=unassigned&link=missing&q=`: the
+ * admin's Mentors list, `mentorsWhere` in the reader's programs, twenty-five a
+ * page, unplaced mentors first. `roster` is everybody in reach, unfiltered.
+ */
+export type MentorList = { rows: MentorListRow[]; total: number; roster: number; page: number; pageSize: number };
+
+/** One rating as a reader of it sees it. `student` only where the reader administers one of the writer's programs; never for a mentor's own. */
+export type RatingRow = { id: string; rating: number; comment: string | null; sentOn: string; mentor: PersonRef | null; student: PersonRef | null };
+
+/** A mentor on the Ratings page: worst average first. `low` under 3.5 on average, or a 2 or less in the last 30 days. */
+export type RatedMentor = { mentor: PersonRef; average: number; count: number; lastRatedOn: string | null; lowestRecent: number | null; low: boolean };
+
+/**
+ * `GET /api/v1/ratings?mentor=&program=&page=`, as /feedback reads it.
+ * `staff`: every rating the reader's ADMIN and LEADER grants reach (a SALES
+ * grant reads none), the mentors table and the newest ratings. `own`: a mentor
+ * with no such grant, their own ratings, anonymous. Anybody else is a 404.
+ */
+export type ApiRatings =
+  | { kind: "staff"; average: number | null; count: number; mentors: RatedMentor[]; ratings: RatingRow[]; page: number; pageSize: number }
+  | { kind: "own"; average: number | null; count: number; ratings: RatingRow[]; page: number; pageSize: number };
