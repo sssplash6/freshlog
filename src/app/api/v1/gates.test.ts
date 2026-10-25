@@ -54,6 +54,8 @@ const UNGATED: Record<string, string> = {
 const ANY_STATUS: Record<string, string> = {
   "me GET": "how a person who isn't active yet learns what they are waiting for",
   "auth/start GET": "the sign-in itself, which an account that isn't active yet still goes through",
+  "onboarding GET": "the form a person who isn't active yet fills in before they can be",
+  "onboarding POST": "the answer to that form, which is how a pending account gets as far as waiting",
 };
 
 const isExported = (node: ts.HasModifiers) =>
