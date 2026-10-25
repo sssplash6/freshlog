@@ -108,6 +108,9 @@ describe("PATCH /api/v1/programs/:id", () => {
     actor.value = { id: nodira.id };
     expect((await (await patch(p.id, { hourBank: true, classHours: true })).json()).error).toBe("Change one setting at a time.");
     expect((await patch(p.id, {})).status).toBe(400);
+    // A name every object inherits is no setting.
+    expect((await patch(p.id, { constructor: true })).status).toBe(400);
+    expect((await patch(p.id, { toString: true })).status).toBe(400);
     expect((await (await patch(p.id, { hourBank: "yes" })).json()).field).toBe("hourBank");
     expect((await (await patch(p.id, { standard: { minutes: 600 } })).json()).field).toBe("standard");
     expect((await stored(p.id)).hourBank).toBe(false);

@@ -63,7 +63,7 @@ export function programEditOf(
   programId: string,
   body: Record<string, unknown>
 ): { action: Action; form: FormData; platformOnly: boolean } | { field: string } | { count: number } {
-  const named = Object.keys(body).filter((key): key is Field => key in FIELDS);
+  const named = Object.keys(body).filter((key): key is Field => Object.hasOwn(FIELDS, key));
   if (named.length !== 1) return { count: named.length };
   const [field] = named;
   const value = body[field];
