@@ -209,9 +209,21 @@ export function Popover({
   }, [open, sheet]);
 
   const close = useCallback((restoreFocus: boolean) => {
+    // Blur first, while the panel is still mounted. An outside mousedown
+    // unmounts it before the browser moves focus, so the field inside never
+    // saw a blur — and an autosaving form, which saves on blur, dropped the
+    // edit without a word. Blurring here hands it its departure in time.
+    // By id rather than `panelRef`: `close` is handed to children in render.
+    const active = document.activeElement;
+    if (
+      active instanceof HTMLElement &&
+      document.getElementById(panelId)?.contains(active)
+    ) {
+      active.blur();
+    }
     setRestoring(restoreFocus);
     setOpen(false);
-  }, []);
+  }, [panelId]);
   // What an item inside the panel closes it with: focus goes back to the
   // trigger, because the item it was on is about to unmount.
   const closeAndRestore = useCallback(() => close(true), [close]);

@@ -6,9 +6,9 @@ import { openPartner } from "./pass";
 export const dynamic = "force-dynamic";
 
 /**
- * Inherited by all three pages. Never indexed: the link is handed out in a
- * Telegram group, and a search result for it would advertise a form to people
- * who are not on the list.
+ * Inherited by every page under /f/<slug>. Never indexed: the link is handed
+ * out in a Telegram group, and a search result for it would advertise a form
+ * to people who are not on the list.
  */
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const partner = await openPartner((await params).slug);
@@ -19,25 +19,18 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 /**
- * A partner school's feedback form, opened on a phone from a Telegram link.
- *
- * No AppShell, no nav, no account menu: the reader has no account and nothing
- * else here is theirs. One narrow column, and the school's name above it so
- * the student knows whose list they are being checked against.
+ * The gate only. The frame is each side's own: the students' form is one
+ * narrow column for a phone ((form)/layout.tsx), the staff's view is a wide
+ * page of tables (staff/layout.tsx), and a layout here would force one shape
+ * on both.
  */
-export default async function PartnerFeedbackLayout({
+export default async function PartnerLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
   params: Promise<{ slug: string }>;
 }) {
-  const partner = await openPartner((await params).slug);
-
-  return (
-    <main className="mx-auto w-full max-w-md flex-1 px-4 py-8 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]">
-      <p className="mb-5 text-sm font-semibold text-muted-fg">{partner.name}</p>
-      {children}
-    </main>
-  );
+  await openPartner((await params).slug);
+  return children;
 }

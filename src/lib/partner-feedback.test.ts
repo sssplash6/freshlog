@@ -25,40 +25,58 @@ function form(fields: Record<string, string>) {
 
 describe("passCookieName", () => {
   it("is scoped to the partner", () => {
-    expect(passCookieName("khana")).toBe("pf_khana");
+    expect(passCookieName("cana")).toBe("pf_cana");
+  });
+  it("names the staff pass apart from the student one", () => {
+    expect(passCookieName("cana", "staff")).toBe("pfs_cana");
+  });
+});
+
+describe("staff passes", () => {
+  it("read back as staff", () => {
+    const { value } = signPass("cana", "head@cana.uz", NOW, "staff");
+    expect(readPass("cana", value, NOW, "staff")).toBe("head@cana.uz");
+  });
+  it("a student pass copied into the staff cookie opens nothing", () => {
+    const { value } = signPass("cana", "a@b.uz", NOW);
+    expect(readPass("cana", value, NOW, "staff")).toBeNull();
+  });
+  it("a staff pass is not a student pass either", () => {
+    const { value } = signPass("cana", "head@cana.uz", NOW, "staff");
+    expect(readPass("cana", value, NOW)).toBeNull();
   });
 });
 
 describe("signPass", () => {
   it("expires twelve hours on", () => {
-    expect(signPass("khana", "a@b.uz", NOW).expires.getTime()).toBe(NOW.getTime() + 12 * 3600e3);
+    expect(signPass("cana", "a@b.uz", NOW).expires.getTime()).toBe(NOW.getTime() + 12 * 3600e3);
   });
 });
 
 describe("readPass", () => {
   it("returns the email for a fresh pass", () => {
-    const { value } = signPass("khana", "a@b.uz", NOW);
-    expect(readPass("khana", value, NOW)).toBe("a@b.uz");
+    const { value } = signPass("cana", "a@b.uz", NOW);
+    expect(readPass("cana", value, NOW)).toBe("a@b.uz");
   });
   it("refuses another partner's pass", () => {
-    expect(readPass("other", signPass("khana", "a@b.uz", NOW).value, NOW)).toBeNull();
+    expect(readPass("other", signPass("cana", "a@b.uz", NOW).value, NOW)).toBeNull();
   });
   it("refuses a pass 12 hours and one second old", () => {
-    const { value } = signPass("khana", "a@b.uz", NOW);
-    expect(readPass("khana", value, new Date(NOW.getTime() + 12 * 3600e3 + 1000))).toBeNull();
+    const { value } = signPass("cana", "a@b.uz", NOW);
+    expect(readPass("cana", value, new Date(NOW.getTime() + 12 * 3600e3 + 1000))).toBeNull();
   });
   it("refuses a pass whose email was swapped", () => {
-    const [, exp, mac] = signPass("khana", "a@b.uz", NOW).value.split(".");
+    const [, exp, mac] = signPass("cana", "a@b.uz", NOW).value.split(".");
     const forged = `${Buffer.from("c@d.uz").toString("base64url")}.${exp}.${mac}`;
-    expect(readPass("khana", forged, NOW)).toBeNull();
+    expect(readPass("cana", forged, NOW)).toBeNull();
   });
   it("refuses a pass whose expiry was extended", () => {
-    const [who, exp, mac] = signPass("khana", "a@b.uz", NOW).value.split(".");
+    const [who, exp, mac] = signPass("cana", "a@b.uz", NOW).value.split(".");
     const forged = `${who}.${Number(exp) + 86400e3}.${mac}`;
-    expect(readPass("khana", forged, NOW)).toBeNull();
+    expect(readPass("cana", forged, NOW)).toBeNull();
   });
   it.each([undefined, "", "garbage", "a.b", "a.b.c.d"])("refuses %s", (v) => {
-    expect(readPass("khana", v, NOW)).toBeNull();
+    expect(readPass("cana", v, NOW)).toBeNull();
   });
 });
 
@@ -119,7 +137,7 @@ describe("parseEmailList", () => {
 
 describe("normalizeSlug", () => {
   it.each([
-    [" Khana ", "khana"],
+    [" Cana ", "cana"],
     ["sat-2026", "sat-2026"],
     ["a", null],
     ["kh ana", null],

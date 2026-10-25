@@ -53,7 +53,7 @@ describe("/partners", () => {
 
 describe("/partners/[slug]", () => {
   it("answers a plain admin with not-found, even for a partner that exists", async () => {
-    const p = await partner({ slug: "khana" });
+    const p = await partner({ slug: "cana" });
     session.id = (await admin()).id;
     const Page = await partnerPage();
     expect(await digestOf(() => Page(at(p.slug)))).toContain("404");
@@ -68,7 +68,7 @@ describe("/partners/[slug]", () => {
   });
 
   it("renders a partner, and its settings, for a platform admin", async () => {
-    const p = await partner({ slug: "khana", active: false });
+    const p = await partner({ slug: "cana", active: false });
     session.id = (await platformAdmin()).id;
     const Page = await partnerPage();
     expect(await digestOf(() => Page(at(p.slug)))).toBe("rendered");

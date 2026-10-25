@@ -11,8 +11,10 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { Switch } from "@/components/ui/switch";
 import {
   addPartnerEmails,
+  addPartnerStaffEmails,
   createPartner,
   removePartnerEmail,
+  removePartnerStaffEmail,
   setPartnerMentors,
   updatePartner,
 } from "@/lib/actions/partners";
@@ -56,7 +58,7 @@ export function NewPartnerForm() {
             name="name"
             required
             maxLength={80}
-            placeholder="Khana"
+            placeholder="Cana"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -71,7 +73,7 @@ export function NewPartnerForm() {
             name="slug"
             required
             maxLength={40}
-            placeholder="khana"
+            placeholder="cana"
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
             autoCapitalize="none"
@@ -200,11 +202,17 @@ export function CopyLink({ url }: { url: string }) {
 export function PartnerEmailsForm({
   partnerId,
   emails,
+  list = "students",
 }: {
   partnerId: string;
   emails: { id: string; email: string }[];
+  /** The students, who may rate, or the school's staff, who may read every rating. */
+  list?: "students" | "staff";
 }) {
-  const add = useMemo(() => addPartnerEmails.bind(null, partnerId), [partnerId]);
+  const add = useMemo(
+    () => (list === "staff" ? addPartnerStaffEmails : addPartnerEmails).bind(null, partnerId),
+    [partnerId, list]
+  );
   const [result, action, state] = useSaveState(add);
   const failed = failure(result);
 
@@ -222,7 +230,11 @@ export function PartnerEmailsForm({
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            placeholder={"aziza@example.com\nbobur@example.com"}
+            placeholder={
+              list === "staff"
+                ? "coordinator@example.com"
+                : "aziza@example.com\nbobur@example.com"
+            }
           />
         </Field>
         <div>
@@ -235,7 +247,7 @@ export function PartnerEmailsForm({
       {emails.length > 0 && (
         <ul className="divide-y divide-line border-t border-line">
           {emails.map((e) => (
-            <EmailRow key={e.id} partnerId={partnerId} emailId={e.id} email={e.email} />
+            <EmailRow key={e.id} partnerId={partnerId} emailId={e.id} email={e.email} list={list} />
           ))}
         </ul>
       )}
@@ -247,14 +259,17 @@ function EmailRow({
   partnerId,
   emailId,
   email,
+  list,
 }: {
   partnerId: string;
   emailId: string;
   email: string;
+  list: "students" | "staff";
 }) {
   const remove = useMemo(
-    () => async () => removePartnerEmail(partnerId, emailId),
-    [partnerId, emailId]
+    () => async () =>
+      (list === "staff" ? removePartnerStaffEmail : removePartnerEmail)(partnerId, emailId),
+    [partnerId, emailId, list]
   );
   const [, action, save] = useSaveState(remove);
 
@@ -267,7 +282,11 @@ function EmailRow({
           action={action}
           pending={save.kind === "saving"}
           label="Remove"
-          question="They can no longer send feedback. What they already sent stays."
+          question={
+            list === "staff"
+              ? "They can no longer read the feedback."
+              : "They can no longer send feedback. What they already sent stays."
+          }
           confirmLabel="Yes, remove"
           pendingLabel="Removing…"
         />

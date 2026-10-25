@@ -43,6 +43,28 @@ export async function passHolder(partner: Partner): Promise<string | null> {
   return listed ? email : null;
 }
 
+/**
+ * The staff member reading /f/<slug>/staff, or null for its email step. The
+ * same two questions as `passHolder` — a live pass, and still on the list —
+ * asked of the staff cookie and the staff list. Asked on every visit: the page
+ * is the only place this pass is ever used, so there is no later check to lean on.
+ */
+export async function staffHolder(partner: Partner): Promise<string | null> {
+  const jar = await cookies();
+  const email = readPass(
+    partner.slug,
+    jar.get(passCookieName(partner.slug, "staff"))?.value,
+    new Date(),
+    "staff"
+  );
+  if (!email) return null;
+  const listed = await prisma.partnerStaff.findUnique({
+    where: { partnerId_email: { partnerId: partner.id, email } },
+    select: { id: true },
+  });
+  return listed ? email : null;
+}
+
 /** The one heading size these pages use: a page's h1 on a phone. */
 export function StepTitle({ children }: { children: React.ReactNode }) {
   return (

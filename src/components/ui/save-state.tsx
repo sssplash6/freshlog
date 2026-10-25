@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 
 import { CheckIcon } from "@/components/icons";
+import { toast } from "@/components/toaster";
 import type { ActionState } from "@/lib/actions/shared";
 import { cn } from "@/lib/cn";
 
@@ -27,7 +28,8 @@ export type SaveState =
   /** An inline editor is open on a value that has not been touched yet. */
   | { kind: "editing" }
   | { kind: "unsaved" }
-  | { kind: "saving" }
+  /** `shown`: a form that saves itself has no button to spin, so it says so. */
+  | { kind: "saving"; shown?: boolean }
   | { kind: "saved"; at?: Date; message?: string }
   | { kind: "failed"; error: string; retry?: () => void };
 
@@ -71,7 +73,32 @@ export function useSaveState(
   action: FormAction,
   unsaved = false
 ): [ActionState, (formData: FormData) => void, SaveState] {
-  const [result, dispatch, pending] = useActionState(action, null);
+  // A save can outlive the form that sent it: the menu closes as the edit
+  // leaves, and the answer lands with no `SaveState` left to show it. Then the
+  // toaster says it instead — above all a refusal, which would otherwise be
+  // read as "it saved" until a refresh showed the old figure.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const reported = useCallback<FormAction>(
+    async (prev, formData) => {
+      const next = await action(prev, formData);
+      if (!mounted.current && next) {
+        toast(
+          next.ok
+            ? { message: next.message ?? "Saved." }
+            : { message: next.error, tone: "error" }
+        );
+      }
+      return next;
+    },
+    [action]
+  );
+  const [result, dispatch, pending] = useActionState(reported, null);
 
   // Stamped when the result changes, not in an effect: an effect that sets
   // state runs a second render pass for a value the first pass could already
@@ -140,7 +167,9 @@ function clock(at: Date): string {
  * text and spins while the action is in flight; a second "Saving…" underneath
  * is the same fact twice, and it makes the form jump for the ~200ms it is
  * true. What `saving` does do is clear the previous tick or error, so a stale
- * "✓ Saved 12:04" can never sit under a save that is still going.
+ * "✓ Saved 12:04" can never sit under a save that is still going. The one
+ * exception is a form that saves itself (`useAutosave`): it has no button to
+ * spin, so its `saving` carries `shown` and says "Saving…" here.
  *
  * Both live regions are mounted from the start, empty. A region that appears
  * at the same moment as its text is not reliably announced — several screen
@@ -157,7 +186,8 @@ export function SaveState({
 }) {
   const saved = state.kind === "saved" ? state : null;
   const failed = state.kind === "failed" ? state : null;
-  const shown = Boolean(saved || failed) || state.kind === "unsaved";
+  const saving = state.kind === "saving" && state.shown;
+  const shown = Boolean(saved || failed || saving) || state.kind === "unsaved";
 
   return (
     <div className={cn(shown && "mt-2", className)}>
@@ -172,6 +202,9 @@ export function SaveState({
               </span>
             )}
           </span>
+        )}
+        {saving && (
+          <span className="text-sm text-muted-fg">Saving…</span>
         )}
         {state.kind === "unsaved" && (
           <span className="rise-in text-sm text-muted-fg">

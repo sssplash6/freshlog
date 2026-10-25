@@ -62,8 +62,10 @@ const RULES = [
       // The shell holds the app off the viewport edge — not a card off a card.
       "src/components/app-shell.tsx",
       "src/components/public-shell.tsx",
-      // A partner's public feedback form: its layout is the whole shell.
-      "src/app/f/[slug]/layout.tsx",
+      // A partner's public pages — the students' form and the staff's view:
+      // each layout is the whole shell.
+      "src/app/f/[slug]/(form)/layout.tsx",
+      "src/app/f/[slug]/staff/layout.tsx",
       "src/components/sidebar.tsx",
       "src/components/tab-bar.tsx",
       // Deliberately large quiet areas.

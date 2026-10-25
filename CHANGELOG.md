@@ -4,10 +4,27 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-24
+
+### New
+- **One combined score per mentor on Feedback.** Each mentor's score now counts every rating, from the mentor form and from single meetings, so mentors rated only on meetings appear too. Your own score includes your meeting ratings as a number; you still don't see which meeting got which rating, or what was written.
+- **Partner staff can read their feedback.** A partner's settings now have a Staff list. Staff on it open the partner's staff link, enter their email, and see every rating their students left, with the averages and filters admins have, read-only.
+
+## 2026-10-23
+
+### New
+- **Meeting ratings on the Feedback page.** The stars and comments students leave on a single meeting now appear on Feedback, under Meeting ratings, for the programs you lead or administer. They follow the same filters as mentor ratings. Mentor ratings stay anonymous, and you never see the ratings of your own meetings.
+- **Grant time in hours and minutes, and confirm it.** Correcting a mentor's allocation now has an Hours box and a Minutes box, so 3 h no longer has to be typed as 180. A Confirm button saves it at once and shows the time it was saved; leaving the menu still saves as before.
+
+### Fixed
+- **Edits no longer vanish when you tap away.** Changing hours, a deadline or an agenda item in a ⋮ menu and then tapping outside it closed the menu without saving, so the change only stuck after a few tries. It now saves as the menu closes.
+- **You always hear back about a save.** Fields that save themselves now say "Saving…" while they do, and if a menu closes before the answer comes back, a message at the bottom of the screen says it saved, or why it didn't.
+
 ## 2026-10-22
 
 ### New
-- **Partner schools can now leave feedback.** Admins set up a partner — Khana is the first — paste in its students' emails and pick its mentors; students open the partner's link, enter their email, and rate a mentor or a session. Every rating is on the partner's page, with filters.
+- **Partner schools can now leave feedback.** Admins set up a partner — Cana is the first — paste in its students' emails and pick its mentors; students open the partner's link, enter their email, and rate a mentor or a session. Every rating is on the partner's page, with filters.
+- **Log time in hours and minutes.** When you log or edit a session, How long now has an Hours box and a Minutes box, so 1 h 30 min no longer has to be worked out as 90. Typing minutes alone still works.
 
 ## 2026-10-21
 
@@ -68,6 +85,9 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Missed meetings count in Analytics.** When a student misses a meeting, its time now counts toward the mentor's and the program's hours, shown striped as "Missed" beside in-plan and extra time. This applies to past missed meetings too. Each mentor's month table has a Missed column.
 - **Analytics agrees with the rest of the app.** A meeting logged as extra is counted as extra even when the student didn't come, as it is on the mentor's own page. Sessions now include missed ones. A program's share of its total hours counts only the time its students' hours paid for, not extra time.
 - **Mentors' Home counts hour-bank meetings.** Time an admin gives a mentor out of a student's hour bank now appears as that student's row on the mentor's Home. Meetings drawn from a student's hour bank now count in the mentor's Completed, as they already did on the admin's page for that mentor.
+- **Move a student's time to yourself.** An admin who also mentors now appears in the list when moving a student's unused time from another mentor, and can move their own time to someone else.
+
+### Fixed
 - **Move a student's time to yourself.** An admin who also mentors now appears in the list when moving a student's unused time from another mentor, and can move their own time to someone else.
 
 ## 2026-10-12

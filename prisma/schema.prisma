@@ -1351,11 +1351,12 @@ model ApiSignInCode {
 model FeedbackPartner {
   id        String   @id @default(cuid())
   slug      String   @unique // the deep link: /f/<slug>; lowercase a-z, 0-9, "-"
-  name      String // "Khana"
+  name      String // "Cana"
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
   students PartnerStudent[]
+  staff    PartnerStaff[]
   mentors  PartnerMentor[]
   feedback PartnerFeedback[]
 }
@@ -1364,6 +1365,21 @@ model FeedbackPartner {
 // Removing a row stops new feedback from that address; what it already wrote
 // stays, because PartnerFeedback copies the email rather than pointing here.
 model PartnerStudent {
+  id        String   @id @default(cuid())
+  partnerId String
+  email     String // stored trimmed and lowercased
+  createdAt DateTime @default(now())
+
+  partner FeedbackPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([partnerId, email])
+}
+
+// An email allowed into a partner's read-only staff view (/f/<slug>/staff):
+// the school's own coordinators, who read what their students said. A list of
+// its own, not a flag on PartnerStudent — being able to rate a mentor must
+// never be enough to read everybody's ratings.
+model PartnerStaff {
   id        String   @id @default(cuid())
   partnerId String
   email     String // stored trimmed and lowercased

@@ -1,7 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { admin, mentor, partner, partnerEmail, partnerMentor, platformAdmin, student } from "@/test/db";
+import {
+  admin,
+  mentor,
+  partner,
+  partnerEmail,
+  partnerMentor,
+  partnerStaffEmail,
+  platformAdmin,
+  student,
+} from "@/test/db";
 
 const actor = vi.hoisted(() => ({ value: null as { id: string } | null }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
@@ -15,6 +24,8 @@ const {
   updatePartner,
   addPartnerEmails,
   removePartnerEmail,
+  addPartnerStaffEmails,
+  removePartnerStaffEmail,
   setPartnerMentors,
 } = await import("@/lib/actions/partners");
 
@@ -48,7 +59,7 @@ describe("refusals", () => {
 
     for (const who of [await admin(), null]) {
       actor.value = who;
-      expect((await create({ name: "Khana", slug: "khana-new" })).state).toEqual(NOT_ALLOWED);
+      expect((await create({ name: "Cana", slug: "cana-new" })).state).toEqual(NOT_ALLOWED);
       expect(await updatePartner(p.id, null, form({ name: "Changed" }))).toEqual(NOT_ALLOWED);
       expect(await addPartnerEmails(p.id, null, form({ emails: "z@x.uz" }))).toEqual(NOT_ALLOWED);
       expect(await removePartnerEmail(p.id, email.id)).toEqual(NOT_ALLOWED);
@@ -56,7 +67,7 @@ describe("refusals", () => {
     }
 
     expect(await prisma.feedbackPartner.count()).toBe(1);
-    expect((await prisma.feedbackPartner.findUniqueOrThrow({ where: { id: p.id } })).name).toBe("Khana");
+    expect((await prisma.feedbackPartner.findUniqueOrThrow({ where: { id: p.id } })).name).toBe("Cana");
     expect(await prisma.partnerStudent.count()).toBe(1);
     expect(await prisma.partnerMentor.count()).toBe(0);
   });
@@ -74,29 +85,29 @@ describe("createPartner", () => {
   it("normalizes the slug, redirects to settings, and refuses a taken one", async () => {
     actor.value = await platformAdmin();
 
-    const first = await create({ name: "  Khana  ", slug: " Khana " });
-    expect(first.to).toBe("/partners/khana/settings");
-    expect(await prisma.feedbackPartner.findUniqueOrThrow({ where: { slug: "khana" } })).toMatchObject({
-      name: "Khana",
+    const first = await create({ name: "  Cana  ", slug: " Cana " });
+    expect(first.to).toBe("/partners/cana/settings");
+    expect(await prisma.feedbackPartner.findUniqueOrThrow({ where: { slug: "cana" } })).toMatchObject({
+      name: "Cana",
       active: true,
     });
 
-    const again = await create({ name: "Khana", slug: "khana" });
+    const again = await create({ name: "Cana", slug: "cana" });
     expect(again.state).toMatchObject({ ok: false, field: "slug", error: "That link is already used." });
     expect(await prisma.feedbackPartner.count()).toBe(1);
   });
 
   it("refuses a bad slug and a bad name", async () => {
     actor.value = await platformAdmin();
-    expect((await create({ name: "Khana", slug: "a b" })).state).toMatchObject({
+    expect((await create({ name: "Cana", slug: "a b" })).state).toMatchObject({
       field: "slug",
       error: "Use 2–40 lowercase letters, digits or dashes.",
     });
-    expect((await create({ name: "  ", slug: "khana" })).state).toMatchObject({
+    expect((await create({ name: "  ", slug: "cana" })).state).toMatchObject({
       field: "name",
       error: "Enter a name.",
     });
-    expect((await create({ name: "x".repeat(81), slug: "khana" })).state).toMatchObject({
+    expect((await create({ name: "x".repeat(81), slug: "cana" })).state).toMatchObject({
       field: "name",
       error: "Keep it under 80 characters.",
     });
@@ -108,12 +119,12 @@ describe("updatePartner", () => {
   it("renames and switches off, and on again", async () => {
     actor.value = await platformAdmin();
     const p = await partner();
-    expect(await updatePartner(p.id, null, form({ name: " Khana School " }))).toMatchObject({ ok: true });
+    expect(await updatePartner(p.id, null, form({ name: " Cana School " }))).toMatchObject({ ok: true });
     expect(await prisma.feedbackPartner.findUniqueOrThrow({ where: { id: p.id } })).toMatchObject({
-      name: "Khana School",
+      name: "Cana School",
       active: false,
     });
-    await updatePartner(p.id, null, form({ name: "Khana School", active: "on" }));
+    await updatePartner(p.id, null, form({ name: "Cana School", active: "on" }));
     expect((await prisma.feedbackPartner.findUniqueOrThrow({ where: { id: p.id } })).active).toBe(true);
   });
 
@@ -168,6 +179,44 @@ describe("removePartnerEmail", () => {
 
     expect(await removePartnerEmail(p.id, mine.id)).toMatchObject({ ok: true });
     expect(await prisma.partnerStudent.findMany()).toHaveLength(1);
+  });
+});
+
+describe("the staff list", () => {
+  it("refuses a plain admin and nobody, and writes nothing", async () => {
+    const p = await partner();
+    const row = await partnerStaffEmail(p.id, "head@cana.uz");
+    for (const who of [await admin(), null]) {
+      actor.value = who;
+      expect(await addPartnerStaffEmails(p.id, null, form({ emails: "z@x.uz" }))).toEqual(NOT_ALLOWED);
+      expect(await removePartnerStaffEmail(p.id, row.id)).toEqual(NOT_ALLOWED);
+    }
+    expect(await prisma.partnerStaff.count()).toBe(1);
+  });
+
+  it("adds to the staff list, not the students', with the same report", async () => {
+    actor.value = await platformAdmin();
+    const p = await partner();
+    await partnerStaffEmail(p.id, "head@cana.uz");
+    await partnerEmail(p.id, "a@x.uz");
+
+    const state = await addPartnerStaffEmails(p.id, null, form({ emails: "Head@cana.uz\na@x.uz; bob@" }));
+    expect(state).toEqual({ ok: true, message: "Added 1. 1 already listed. 1 not valid: bob@." });
+    const staff = await prisma.partnerStaff.findMany({ where: { partnerId: p.id }, orderBy: { email: "asc" } });
+    expect(staff.map((r) => r.email)).toEqual(["a@x.uz", "head@cana.uz"]);
+    expect(await prisma.partnerStudent.count()).toBe(1);
+  });
+
+  it("removes its own staff row and refuses another partner's", async () => {
+    actor.value = await platformAdmin();
+    const p = await partner();
+    const other = await partner();
+    const mine = await partnerStaffEmail(p.id, "head@cana.uz");
+    const theirs = await partnerStaffEmail(other.id, "head@cana.uz");
+
+    expect(await removePartnerStaffEmail(p.id, theirs.id)).toEqual(NOT_ALLOWED);
+    expect(await removePartnerStaffEmail(p.id, mine.id)).toMatchObject({ ok: true });
+    expect(await prisma.partnerStaff.findMany()).toEqual([expect.objectContaining({ id: theirs.id })]);
   });
 });
 

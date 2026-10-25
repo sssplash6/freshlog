@@ -22,12 +22,18 @@ import {
   activeFilterCount,
   feedbackWhere,
   filterSummary,
+  meetingRatingsWhere,
   readDateWindow,
   readParam,
   type SearchParams,
 } from "@/lib/filters";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import {
+  mentorStandings,
+  overallStanding,
+  type MentorStanding,
+} from "@/lib/mentor-standing";
 import { homeFor, profileOf } from "@/lib/profile";
 import type { User } from "@/generated/prisma/client";
 import type { Metadata } from "next";
@@ -78,6 +84,9 @@ const LOW_RATING = 2;
 
 /** What "recent" means, in the column and in the chip. */
 const RECENT_DAYS = 30;
+
+/** The page-number key for meeting ratings, which paginate beside the others. */
+const MEETING_PAGE = "meetings";
 
 /** Mentors open before the tail folds away — the tail is the settled subset. */
 const WORST_SHOWN = 8;
@@ -189,7 +198,7 @@ async function OwnRatings({
   page: number;
 }) {
   const where = { mentorId: user.id };
-  const [rows, stats] = await Promise.all([
+  const [rows, stats, meetings] = await Promise.all([
     prisma.mentorFeedback.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -199,24 +208,59 @@ async function OwnRatings({
     }),
     prisma.mentorFeedback.aggregate({
       where,
-      _avg: { rating: true },
+      _sum: { rating: true },
+      _count: true,
+    }),
+    // Their meeting ratings join the average as a number only — no row, no
+    // note, no date is selected, so none can reach the render.
+    prisma.session.aggregate({
+      where: meetingRatingsWhere({}, { mentorId: user.id }, new Date()),
+      _sum: { studentRating: true },
       _count: true,
     }),
   ]);
-  const avg = stats._avg.rating;
+  const [own] = mentorStandings(
+    [
+      {
+        mentorId: user.id,
+        sum: stats._sum.rating ?? 0,
+        count: stats._count,
+        last: null,
+        lowestRecent: null,
+      },
+    ],
+    [
+      {
+        mentorId: user.id,
+        sum: meetings._sum.studentRating ?? 0,
+        count: meetings._count,
+        last: null,
+        lowestRecent: null,
+      },
+    ]
+  );
 
   return (
     <div className="space-y-4">
       <PageTitle
         title="Feedback"
-        // The average alone: the count is the section's, and "anonymous" is
-        // said once, as the section's caption. It was all three, three times.
-        subtitle={avg === null ? undefined : `${avg.toFixed(1)} average`}
+        // The combined average alone: the counts are the sections', and
+        // "anonymous" is said once, as the section's caption.
+        subtitle={
+          own
+            ? `${own.average.toFixed(1)} combined · ${partCounts(own)}`
+            : undefined
+        }
       />
 
-      {stats._count === 0 ? (
+      {!own ? (
         <EmptyState title="No ratings yet">
           Students rate a mentor when they choose to; many never do.
+        </EmptyState>
+      ) : stats._count === 0 ? (
+        <EmptyState title="No written ratings yet">
+          Your combined score comes from the meetings students rated. You see
+          the score, not the ratings.
         </EmptyState>
       ) : (
         <>
@@ -301,6 +345,23 @@ async function AllRatings({
   const since = new Date(now.getTime() - RECENT_DAYS * 24 * 60 * 60 * 1000);
   const recentWhere = { AND: [where, { createdAt: { gte: since } }] };
 
+  // Ratings of single meetings, through the same filters. They are not
+  // anonymous — the student rated one meeting so its mentor's program could act
+  // on it — so the writer is named. Never the reader's own meetings, though:
+  // a mentor is not shown what students thought of them (`/mentors/[id]`
+  // drops it for `isSelf`, `/sessions` for the mentor audience), and holding
+  // an admin grant does not change that here.
+  const notMine = { mentorId: { not: user.id } };
+  const meetingWhere = {
+    AND: [meetingRatingsWhere(params, scope, now), notMine],
+  };
+  // The combined score on each mentor card counts meeting ratings too — the
+  // reader's own included, as a number. Only the LIST above hides the reader's
+  // own meetings; their card's score is the one figure they asked to see.
+  const meetingCards = meetingRatingsWhere(params, scope, now);
+  const meetingInReach = meetingRatingsWhere({}, scope, now);
+  const meetingPage = parsePage(readParam(params, MEETING_PAGE));
+
   const [
     stats,
     byMentor,
@@ -309,21 +370,24 @@ async function AllRatings({
     rated,
     programs,
     writeScope,
+    meetingStats,
+    meetingRows,
+    meetingsByMentor,
+    meetingsLately,
   ] = await Promise.all([
     prisma.mentorFeedback.aggregate({
       where,
       _avg: { rating: true },
       _count: true,
     }),
-    // The mentors table, in one grouped read. Worst average first — a tie goes
-    // to the mentor more people have said it about.
+    // The mentors table, in one grouped read per kind. Sums, not averages, so
+    // `mentorStandings` can pool the two and order worst first.
     prisma.mentorFeedback.groupBy({
       by: ["mentorId"],
       where,
-      _avg: { rating: true },
+      _sum: { rating: true },
       _count: { _all: true },
       _max: { createdAt: true },
-      orderBy: [{ _avg: { rating: "asc" } }, { _count: { mentorId: "desc" } }],
     }),
     prisma.mentorFeedback.groupBy({
       by: ["mentorId"],
@@ -357,7 +421,12 @@ async function AllRatings({
     // lookup for the table above, since every mentor in a filtered group is
     // also a mentor in reach.
     prisma.user.findMany({
-      where: { mentorFeedback: { some: inReach } },
+      where: {
+        OR: [
+          { mentorFeedback: { some: inReach } },
+          { mentorSessions: { some: meetingInReach } },
+        ],
+      },
       orderBy: { name: "asc" },
       select: PERSON,
     }),
@@ -369,23 +438,70 @@ async function AllRatings({
     // ADMIN-level grants — the "admin" the name is open to. A LEADER reads
     // every row in reach and names none of them.
     adminWriteScope(user),
+    prisma.session.aggregate({
+      where: meetingWhere,
+      _avg: { studentRating: true },
+      _count: true,
+    }),
+    prisma.session.findMany({
+      where: meetingWhere,
+      orderBy: [{ studentAnsweredAt: "desc" }, { date: "desc" }],
+      skip: (meetingPage - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      select: {
+        id: true,
+        date: true,
+        studentRating: true,
+        studentNote: true,
+        mentor: { select: PERSON },
+        student: { select: { user: { select: PERSON } } },
+        program: { select: { name: true } },
+      },
+    }),
+    prisma.session.groupBy({
+      by: ["mentorId"],
+      where: meetingCards,
+      _sum: { studentRating: true },
+      _count: { _all: true },
+      _max: { studentAnsweredAt: true },
+    }),
+    prisma.session.groupBy({
+      by: ["mentorId"],
+      where: { AND: [meetingCards, { studentAnsweredAt: { gte: since } }] },
+      _min: { studentRating: true },
+    }),
   ]);
 
   const person = new Map(rated.map((m) => [m.id, m]));
-  const lowestRecent = new Map(lately.map((r) => [r.mentorId, r._min.rating]));
-  const mentors = byMentor.flatMap((row) => {
-    const who = person.get(row.mentorId);
+  const generalRecent = new Map(lately.map((r) => [r.mentorId, r._min.rating]));
+  const meetingRecent = new Map(
+    meetingsLately.map((r) => [r.mentorId, r._min.studentRating])
+  );
+  const standings = mentorStandings(
+    byMentor.map((row) => ({
+      mentorId: row.mentorId,
+      sum: row._sum.rating ?? 0,
+      count: row._count._all,
+      last: row._max.createdAt,
+      lowestRecent: generalRecent.get(row.mentorId) ?? null,
+    })),
+    meetingsByMentor.map((row) => ({
+      mentorId: row.mentorId,
+      sum: row._sum.studentRating ?? 0,
+      count: row._count._all,
+      last: row._max.studentAnsweredAt,
+      lowestRecent: meetingRecent.get(row.mentorId) ?? null,
+    }))
+  );
+  const mentors = standings.flatMap((s) => {
+    const who = person.get(s.mentorId);
     if (!who) return [];
-    const average = row._avg.rating ?? 0;
-    const recent = lowestRecent.get(row.mentorId) ?? null;
+    const recent = s.lowestRecent;
     return [
       {
+        ...s,
         who,
-        average,
-        total: row._count._all,
-        lastRated: row._max.createdAt,
-        recent,
-        low: average < LOW_AVERAGE || (recent !== null && recent <= LOW_RATING),
+        low: s.average < LOW_AVERAGE || (recent !== null && recent <= LOW_RATING),
       },
     ];
   });
@@ -413,7 +529,9 @@ async function AllRatings({
     student: namesFor(f.student.enrollments) ? f.student.user : null,
   }));
 
-  const avg = stats._avg.rating;
+  // The headline is the cards' own arithmetic, so it agrees with them: every
+  // rating of either kind, pooled.
+  const { average: avg, total: ratedCount } = overallStanding(standings);
   const lowCount = mentors.filter((m) => m.low).length;
   const filtered = activeFilterCount(params) > 0;
 
@@ -425,7 +543,7 @@ async function AllRatings({
       ? undefined
       : [
           avg.toFixed(1),
-          count(stats._count, "rating"),
+          count(ratedCount, "rating"),
           lowCount > 0
             ? `${count(mentors.length, "mentor")}, ${lowCount} low`
             : count(mentors.length, "mentor"),
@@ -433,7 +551,7 @@ async function AllRatings({
 
   const columns: Column[] = [
     { label: "Mentor" },
-    { label: "Average", align: "right", emphasis: "key" },
+    { label: "Combined", align: "right", emphasis: "key" },
     { label: "Ratings", align: "right" },
     { label: "Lowest recent", align: "right" },
     { label: "Last rated", align: "right" },
@@ -577,22 +695,102 @@ async function AllRatings({
         unit="ratings"
         className="px-1"
       />
+
+      <Section
+        title="Meeting ratings"
+        count={meetingStats._count}
+        caption={
+          meetingStats._avg.studentRating === null
+            ? undefined
+            : `${meetingStats._avg.studentRating.toFixed(1)} average · one meeting each`
+        }
+      >
+        {meetingRows.length === 0 ? (
+          filtered ? (
+            <EmptyState framed={false} variant="no-results">
+              No meeting ratings match these filters.
+            </EmptyState>
+          ) : (
+            <EmptyState framed={false} title="No meeting ratings">
+              A student rates a meeting when they confirm it happened.
+            </EmptyState>
+          )
+        ) : (
+          <ul className="divide-y divide-line">
+            {meetingRows.map((s) => (
+              <li key={s.id} className="px-4 py-3 sm:px-5">
+                <div className="flex items-center justify-between gap-3">
+                  <PersonChip
+                    person={s.mentor}
+                    size="sm"
+                    href={`/mentors/${s.mentor.id}`}
+                  />
+                  {s.studentRating !== null && <Rating value={s.studentRating} />}
+                </div>
+                {s.studentNote && (
+                  <div className="mt-1 text-body">
+                    <ExpandableText
+                      text={s.studentNote}
+                      lines={2}
+                      className="text-ink"
+                    />
+                  </div>
+                )}
+                <p className="mt-0.5 text-xs text-muted-fg">
+                  {s.student.user.name ?? s.student.user.email}
+                  {" · "}
+                  {s.program.name}
+                  {" · meeting on "}
+                  {formatDate(s.date)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      <Pagination
+        basePath="/feedback"
+        params={params}
+        page={meetingPage}
+        total={meetingStats._count}
+        unit="meeting ratings"
+        param={MEETING_PAGE}
+        className="px-1"
+      />
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ parts --- */
 
-type MentorStanding = {
+type MentorCard = MentorStanding & {
   who: { id: string; name: string | null; email: string; avatarUpdatedAt: Date | null };
-  average: number;
-  total: number;
-  lastRated: Date | null;
-  recent: number | null;
   low: boolean;
 };
 
-function MentorRow({ mentor }: { mentor: MentorStanding }) {
+/** "Form 4.5 · Meetings 4.3" — what the combined score is made of. */
+function parts(mentor: MentorStanding): string {
+  return [
+    mentor.general.average !== null && `Form ${mentor.general.average.toFixed(1)}`,
+    mentor.meetings.average !== null &&
+      `Meetings ${mentor.meetings.average.toFixed(1)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/** "2 form · 4 meetings" — how many of each went into it. */
+function partCounts(mentor: MentorStanding): string {
+  return [
+    mentor.general.count > 0 && `${mentor.general.count} form`,
+    mentor.meetings.count > 0 && count(mentor.meetings.count, "meeting"),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function MentorRow({ mentor }: { mentor: MentorCard }) {
   return (
     <Tr>
       <Td label="Mentor" className={FILL_CELL}>
@@ -600,20 +798,23 @@ function MentorRow({ mentor }: { mentor: MentorStanding }) {
           {mentor.low && <StatusChip severity="attention">Low</StatusChip>}
         </PersonCell>
       </Td>
-      <Td label="Average" align="right" tone="key">
+      <Td label="Combined" align="right" tone="key">
         <span className="tabular-nums text-ink">
           {mentor.average.toFixed(1)}
         </span>
         <AverageStars value={mentor.average} />
+        <span className="block text-xs tabular-nums text-muted-fg">
+          {parts(mentor)}
+        </span>
       </Td>
       <Td label="Ratings" align="right" tone="muted" className="tabular-nums">
-        {mentor.total}
+        {partCounts(mentor)}
       </Td>
       <Td label="Lowest recent" align="right">
-        {mentor.recent === null ? (
+        {mentor.lowestRecent === null ? (
           <span className="text-muted-fg">—</span>
         ) : (
-          <span className="tabular-nums text-ink">{mentor.recent}</span>
+          <span className="tabular-nums text-ink">{mentor.lowestRecent}</span>
         )}
       </Td>
       <Td label="Last rated" align="right" tone="muted">

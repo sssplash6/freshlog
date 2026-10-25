@@ -27,31 +27,51 @@ function key(): string {
   return secret;
 }
 
+/**
+ * Who a pass is for. A student's lets them rate; a staff member's lets them
+ * read every rating, so the two are signed apart and one is never the other.
+ */
+export type PassPurpose = "student" | "staff";
+
 /** One cookie per partner, so passing one school's list opens nothing at another. */
-export function passCookieName(slug: string): string {
-  return `pf_${slug}`;
+export function passCookieName(slug: string, purpose: PassPurpose = "student"): string {
+  return purpose === "staff" ? `pfs_${slug}` : `pf_${slug}`;
 }
 
 /**
  * The slug is inside the MAC, not only the cookie name: a cookie copied from
- * `pf_khana` to `pf_other` carries a signature made for the wrong slug and is
+ * `pf_cana` to `pf_other` carries a signature made for the wrong slug and is
  * refused. Without it the name would be the only thing keeping partners apart.
+ * The purpose is in it for the same reason: a student's pass copied into the
+ * staff cookie is a signature made for something else. The student prefix is
+ * the one the first passes were signed with, so they stay valid.
  */
-function mac(slug: string, email: string, expiresAtMs: number): string {
+function mac(slug: string, email: string, expiresAtMs: number, purpose: PassPurpose): string {
+  const prefix = purpose === "staff" ? "partner-staff" : "partner-feedback";
   return createHmac("sha256", key())
-    .update(`partner-feedback:${slug}:${email}:${expiresAtMs}`)
+    .update(`${prefix}:${slug}:${email}:${expiresAtMs}`)
     .digest("base64url");
 }
 
-export function signPass(slug: string, email: string, now: Date): { value: string; expires: Date } {
+export function signPass(
+  slug: string,
+  email: string,
+  now: Date,
+  purpose: PassPurpose = "student"
+): { value: string; expires: Date } {
   const expires = new Date(now.getTime() + PASS_HOURS * 3600e3);
   const who = Buffer.from(email).toString("base64url");
   const expiresAtMs = expires.getTime();
-  return { value: `${who}.${expiresAtMs}.${mac(slug, email, expiresAtMs)}`, expires };
+  return { value: `${who}.${expiresAtMs}.${mac(slug, email, expiresAtMs, purpose)}`, expires };
 }
 
 /** The email the pass was issued to, or null for anything that is not a live pass for this partner. */
-export function readPass(slug: string, value: string | undefined, now: Date): string | null {
+export function readPass(
+  slug: string,
+  value: string | undefined,
+  now: Date,
+  purpose: PassPurpose = "student"
+): string | null {
   if (!value) return null;
   const parts = value.split(".");
   if (parts.length !== 3) return null;
@@ -60,7 +80,7 @@ export function readPass(slug: string, value: string | undefined, now: Date): st
   const expiresAtMs = Number(exp);
   const email = Buffer.from(who, "base64url").toString();
 
-  const expected = Buffer.from(mac(slug, email, expiresAtMs));
+  const expected = Buffer.from(mac(slug, email, expiresAtMs, purpose));
   const actual = Buffer.from(given);
   // Length must match before timingSafeEqual, which throws on a mismatch.
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return null;
