@@ -138,6 +138,8 @@ export type SessionsQuery = {
   limit?: string;
   /** A mentor's or an admin's list only: one student (StudentProfile.id). */
   student?: string;
+  /** A student's own list only: the sessions with one mentor (User.id), for that mentor's page. */
+  mentor?: string;
   program?: string;
   /** `week` is the Tashkent week from Monday. */
   period?: "week" | "30d" | "90d" | "year";
@@ -1139,3 +1141,24 @@ export type PushSwitch = { on: boolean };
  * Title "freshlog", body the notice's message, badge the unread count.
  */
 export type PushData = { notification: string; href: string | null };
+
+/*
+ * Phase 8: the remaining screens.
+ */
+
+/** A rating a student sent: a report freshform keeps, one per send. `sentOn` is the Tashkent day. */
+export type GivenRating = { id: string; mentor: PersonRef; rating: number; comment: string | null; sentOn: string };
+
+/**
+ * `GET /api/v1/feedback`: who the student may rate (every mentor they hold or
+ * held time with, and every one met through an hour bank, as /student/feedback
+ * lists them) and what they have sent, newest first.
+ */
+export type StudentRatings = { mentors: PersonRef[]; given: GivenRating[] };
+
+/**
+ * `POST /api/v1/feedback`: a rating of one of the student's mentors, 1 to 5,
+ * and words if they like. Answers WriteResult. The mentor never learns who
+ * wrote it; the student's program admins hear the score.
+ */
+export type RateMentor = { mentor: string; rating: number; comment?: string };

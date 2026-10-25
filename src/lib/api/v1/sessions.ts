@@ -245,6 +245,7 @@ export function sessionsQueryFrom(params: URLSearchParams): SessionsQuery {
     cursor: text("cursor"),
     limit: text("limit"),
     student: text("student"),
+    mentor: text("mentor"),
     program: text("program"),
     period: word("period"),
     status: word("status"),
@@ -455,9 +456,12 @@ export async function sessionsPage(
   // One plan item, inside the scope above: a word that is no plan item's id matches no session. Blank narrows nothing.
   const assignment = query.assignment?.trim();
   const planItem: Prisma.SessionWhereInput[] = assignment ? [{ assignmentId: assignment }] : [];
-  const where: Prisma.SessionWhereInput = { AND: [narrowed, ...searched, ...planItem, ...(answer ? [answer] : [])] };
+  // One mentor, on a student's own list (their mentor's page); a mentor's and an admin's list ignore it.
+  const mentor = !asMentor && !asStaff ? query.mentor?.trim() : undefined;
+  const withMentor: Prisma.SessionWhereInput[] = mentor ? [{ mentorId: mentor }] : [];
+  const where: Prisma.SessionWhereInput = { AND: [narrowed, ...searched, ...planItem, ...withMentor, ...(answer ? [answer] : [])] };
   // The chips on the status row: the filter without its period, status and answer.
-  const chips: Prisma.SessionWhereInput = { AND: [sessionsWhere(filters, scope, now), ...searched, ...planItem] };
+  const chips: Prisma.SessionWhereInput = { AND: [sessionsWhere(filters, scope, now), ...searched, ...planItem, ...withMentor] };
 
   const [rows, groups, disputed, voided, programs] = await Promise.all([
     prisma.session.findMany({

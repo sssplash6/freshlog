@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SessionsPage } from "@/lib/api/v1/types";
 import { prisma } from "@/lib/prisma";
-import { admin, grant, mentor, program, student } from "@/test/db";
+import { admin, grant, mentor, program, session, student } from "@/test/db";
 
 /**
  * The reader's ledger over HTTP: who is turned away, and what the URL asks for.
@@ -124,6 +124,16 @@ describe("GET /api/v1/sessions", () => {
     );
     expect(res.status).toBe(200);
     expect(idsOf(await pageFrom(res))).toEqual(rows.map((row) => row.id));
+  });
+
+  it("narrows a student's own list to one mentor, for that mentor's page", async () => {
+    const { p, aziz, akmal, rows } = await ledger();
+    const umid = await mentor("Umid Rashidov");
+    const other = await session({ studentId: aziz.id, programId: p.id, mentorId: umid.id, minutes: 30 });
+    actor.value = { id: aziz.userId };
+    expect(idsOf(await pageFrom(await get(`?mentor=${akmal.id}`)))).toEqual(rows.map((row) => row.id));
+    expect(idsOf(await pageFrom(await get(`?mentor=${umid.id}`)))).toEqual([other.id]);
+    expect(idsOf(await pageFrom(await get("?mentor=nobody")))).toEqual([]);
   });
 
   it("answers 400 on cursor to a cursor it can't read", async () => {

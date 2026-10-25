@@ -754,16 +754,17 @@ describe("sessionsPage: programs", () => {
 });
 
 describe("sessionsQueryFrom: the URL as a query", () => {
-  it("reads the nine things a list may be asked", () => {
+  it("reads the things a list may be asked", () => {
     const query = sessionsQueryFrom(
       new URL(
-        "http://test/api/v1/sessions?cursor=abc&limit=7&student=s1&program=p1&period=30d&status=voided&answer=disputed&q=essay&as=mentor"
+        "http://test/api/v1/sessions?cursor=abc&limit=7&student=s1&mentor=m1&program=p1&period=30d&status=voided&answer=disputed&q=essay&as=mentor"
       ).searchParams
     );
     expect(query).toEqual({
       cursor: "abc",
       limit: "7",
       student: "s1",
+      mentor: "m1",
       program: "p1",
       period: "30d",
       status: "voided",
@@ -777,7 +778,7 @@ describe("sessionsQueryFrom: the URL as a query", () => {
     const query = sessionsQueryFrom(
       new URL(
         // `as=staff` is the website's word for the admin side, and not the contract's.
-        "http://test/api/v1/sessions?period=forever&status=rescheduled&answer=all&as=staff&mentor=me&attendance=absent&kind=extra&from=2026-01-01&to=2026-02-01&page=2"
+        "http://test/api/v1/sessions?period=forever&status=rescheduled&answer=all&as=staff&attendance=absent&kind=extra&from=2026-01-01&to=2026-02-01&page=2"
       ).searchParams
     );
     expect(query).toEqual({});
