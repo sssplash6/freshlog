@@ -241,9 +241,18 @@ export default async function MentorHomePage({
     ? institute.levels.filter((l) => students.some((s) => levelOf(s)?.id === l.id))
     : [];
   const selectedLevel = caseloadLevels.some((l) => l.id === level) ? level : "";
-  const inView = selectedLevel
+  const inLens = selectedLevel
     ? inProgram.filter((s) => levelOf(s)?.id === selectedLevel)
     : inProgram;
+  // Unassigned time is every mentor's in the program to claim, so the same
+  // student sat in "Your students" for each of them, and mentors wrote in
+  // asking why somebody else's students were assigned to them. They are still
+  // reached — the caseload, the log picker and the student's page all keep
+  // them — but listed apart, as time to claim rather than as students. A bank
+  // stays in the caseload: every meeting draws it, whoever delivers it.
+  const toClaim = (s: CaseloadStudent) => s.reach === "pool" && !s.bank;
+  const inView = inLens.filter((s) => !toClaim(s));
+  const claimRows = inLens.filter(toClaim).sort(byUrgency);
 
   // -------------------------------------------------------------- Title figure
   //
@@ -655,6 +664,60 @@ export default async function MentorHomePage({
           </>
         )}
       </Section>
+
+      {claimRows.length > 0 && (
+        <Section
+          title="Time to claim"
+          count={claimRows.length}
+          caption="Not assigned to any mentor yet. Log a session with one of them and the time is yours."
+        >
+          <ul className="divide-y divide-line">
+            {claimRows.map((s) => {
+              const balance = balanceOf(s);
+              return (
+                <li key={`${s.profile.id}:${s.program.id}`}>
+                  <Link
+                    href={`/students/${s.profile.id}`}
+                    transitionTypes={["nav-forward"]}
+                    className="flex min-h-14 items-center gap-3 px-4 py-2.5 transition-colors hover:bg-fill active:bg-fill sm:px-5"
+                  >
+                    <Avatar
+                      person={{
+                        id: s.profile.user.id,
+                        name: s.profile.user.name,
+                        email: s.profile.user.email,
+                      }}
+                      className="h-8 w-8 shrink-0 text-caption"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block min-w-0 truncate text-body font-semibold text-ink">
+                        {nameOf(s)}
+                      </span>
+                      <span className="mt-0.5 block min-w-0 truncate text-xs text-muted-fg">
+                        <span className={cn("tabular-nums", TONE[balance.tone])}>
+                          {balance.text}
+                        </span>
+                        {s.deadline && (
+                          <>
+                            {" · use by "}
+                            <DeadlineText
+                              deadline={s.deadline}
+                              now={viewer.now}
+                              within={EXPIRY_WINDOW_DAYS.mentor}
+                            />
+                          </>
+                        )}
+                        {programs.size > 1 && ` · ${s.program.name}`}
+                      </span>
+                    </span>
+                    <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </Section>
+      )}
     </div>
   );
 }
