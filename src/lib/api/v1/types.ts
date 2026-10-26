@@ -864,11 +864,11 @@ export type OfferedSlot = {
   interview: { id: string; guest: PersonRef } | null;
 };
 
-/** A classmate: a student who shares one of my own programs. `id` is their StudentProfile.id. */
+/** A classmate: any other approved student, in any program. `id` is their StudentProfile.id. */
 export type ClassmateRow = {
   id: string;
   person: PersonRef;
-  /** The programs we share, only when I am in more than one: otherwise empty. */
+  /** Their own programs, by name: never one they are only visiting. */
   programs: string[];
   /** Their open times still to come. */
   open: number;
@@ -912,7 +912,7 @@ export type OfferSlot = { day: string; time: string; minutes: number; meetingUrl
 export type Classmate = {
   id: string;
   person: PersonRef;
-  /** The programs we share, by name. */
+  /** Their own programs, by name. Named `shared` from when only classmates who shared a program were listed. */
   shared: string[];
   /** Open and still to come. No meeting link: that is for whoever books it. */
   slots: { id: string; when: SlotTime }[];

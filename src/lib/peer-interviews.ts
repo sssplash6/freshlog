@@ -8,7 +8,6 @@
  * student types "15:00" meaning 15:00 Tashkent, it is stored as 15:00Z, and
  * `now` has to be moved onto the same clock before the two are compared.
  */
-import { studiesIn } from "@/lib/enrollments";
 import { formatDate } from "@/lib/format";
 import type { InterviewTemplate } from "@/lib/interview-templates";
 import type { StatusType } from "@/lib/status";
@@ -105,22 +104,6 @@ export function formatSlotSpan(
     `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
   const span = `${hhmm(startsAt)}–${hhmm(end)}`;
   return zone ? `${span} ${PROGRAM_ZONE}` : span;
-}
-
-/**
- * Whether two students may see each other's times and book them: they share
- * at least one of their OWN programs.
- *
- * Own, not visiting: a student lent to another program for seven hours of
- * help is there for the help, and is not a classmate of that program's
- * students (AGENTS.md, "A visit is not an enrollment").
- */
-export function areClassmates(
-  a: readonly { programId: string; exchangeId?: string | null }[],
-  b: readonly { programId: string; exchangeId?: string | null }[]
-): boolean {
-  const mine = new Set(studiesIn(a).map((e) => e.programId));
-  return studiesIn(b).some((e) => mine.has(e.programId));
 }
 
 /** Which side of an interview a student is on, or null if neither. */

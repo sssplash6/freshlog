@@ -3,14 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { toDateInputValue } from "@/lib/format";
 import { programWallClock } from "@/lib/when";
-import { admin, program, student } from "@/test/db";
+import { program, student } from "@/test/db";
 
 /**
  * Students practising interviews on each other.
  *
- * What these pin is who may reach whom — a classmate is somebody sharing one
- * of your OWN programs, never one you are visiting — and that a time is
- * booked once, whoever presses first.
+ * What these pin is who may reach whom — any approved student, in any
+ * program — and that a time is booked once, whoever presses first.
  */
 const actor = vi.hoisted(() => ({ value: null as { id: string } | null }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
@@ -123,42 +122,17 @@ describe("bookInterview", () => {
     expect(await book(slot.id, "made-up")).toMatchObject({ ok: false });
   });
 
-  it("does not reach a student in a program the reader is not in", async () => {
-    const { slot } = await scene();
-    const outsider = await student({ programId: (await program("Imkon")).id });
+  it("books a student in another program", async () => {
+    const { host, slot } = await scene();
+    const outsider = await student({ programId: (await program("Freshman Scholars")).id });
     as(outsider);
 
-    const result = await book(slot.id);
+    await book(slot.id);
 
-    // The same sentence a missing time gets: an id says nothing about who exists.
-    expect(result).toEqual({
-      ok: false,
-      error: "That time isn't available any more. Pick another.",
+    expect(await prisma.peerInterview.findUniqueOrThrow({ where: { slotId: slot.id } })).toMatchObject({
+      hostId: host.id,
+      guestId: outsider.id,
     });
-    expect(await prisma.peerInterview.count()).toBe(0);
-  });
-
-  it("does not make a visiting student a classmate of the host program", async () => {
-    const { p, slot } = await scene();
-    const home = await program("Imkon");
-    const visitor = await student({ programId: home.id, name: "Visitor" });
-    const sender = await admin("Sender");
-    const exchange = await prisma.programExchange.create({
-      data: {
-        studentId: visitor.id,
-        fromProgramId: home.id,
-        toProgramId: p.id,
-        minutes: 420,
-        deadline: new Date(Date.now() + 30 * 24 * HOUR),
-        sentById: sender.id,
-      },
-    });
-    await prisma.studentEnrollment.create({
-      data: { studentId: visitor.id, programId: p.id, exchangeId: exchange.id },
-    });
-    as(visitor);
-
-    expect(await book(slot.id)).toMatchObject({ ok: false });
   });
 
   it("refuses the student's own time", async () => {

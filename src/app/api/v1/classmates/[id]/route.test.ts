@@ -45,7 +45,7 @@ beforeEach(() => {
 describe("GET /api/v1/classmates/:id", () => {
   it("answers 401 with no user", async () => expect((await read("x")).status).toBe(401));
 
-  it("reads a classmate: the programs we share, the open times, no link and no email", async () => {
+  it("reads a classmate: their own programs, the open times, no link and no email", async () => {
     const { p, host, guest, slot } = await scene();
     const other = await program("Master's Program");
     await enroll({ studentId: host.id, programId: other.id });
@@ -53,7 +53,7 @@ describe("GET /api/v1/classmates/:id", () => {
     const res = await read(host.id);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toMatchObject({ id: host.id, person: { id: host.userId, name: "Aziza Karimova" }, shared: [p.name] });
+    expect(body).toMatchObject({ id: host.id, person: { id: host.userId, name: "Aziza Karimova" }, shared: [p.name, other.name] });
     expect(body.slots).toEqual([{ id: slot.id, when: expect.objectContaining({ minutes: 45 }) }]);
     expect(body.templates.length).toBeGreaterThan(0);
     expect(body.templates[0]).not.toHaveProperty("questions");
@@ -61,18 +61,24 @@ describe("GET /api/v1/classmates/:id", () => {
     expect(JSON.stringify(body)).not.toContain("@");
   });
 
-  it("answers somebody in another program, myself and nobody alike", async () => {
-    const { host, guest } = await scene();
-    const stranger = await student({ programId: (await program("Imkon")).id, name: "Dilnoza" });
+  it("reads a student in another program", async () => {
+    const { host } = await scene();
+    const other = await program("Freshman Scholars");
+    const stranger = await student({ programId: other.id, name: "Dilnoza" });
+    as(stranger);
+    expect(await (await read(host.id)).json()).toMatchObject({ id: host.id, shared: ["Global Admissions"] });
+  });
+
+  it("answers myself, a student awaiting approval and nobody alike", async () => {
+    const { p, guest } = await scene();
+    const pending = await student({ programId: p.id, name: "Pending", status: "PENDING" });
     as(guest);
     const missing = await (await read("c-made-up")).json();
-    for (const id of [stranger.id, guest.id]) {
+    for (const id of [pending.id, guest.id]) {
       const res = await read(id);
       expect(res.status).toBe(404);
       expect(await res.json()).toEqual(missing);
     }
-    as(stranger);
-    expect((await read(host.id)).status).toBe(404);
   });
 });
 
@@ -96,7 +102,7 @@ describe("POST /api/v1/interviews", () => {
     expect(await (await book({ slot: slot.id, template: "made-up" })).json()).toMatchObject({ field: "template" });
   });
 
-  it("books a time once, and refuses my own and a stranger's in the action's words", async () => {
+  it("books a time once, and refuses my own in the action's words", async () => {
     const { p, host, guest, slot } = await scene();
     const third = await student({ programId: p.id, name: "Charos" });
     as(guest);
@@ -109,12 +115,6 @@ describe("POST /api/v1/interviews", () => {
     const mine = await prisma.interviewSlot.create({ data: { studentId: host.id, startsAt: wallHoursFromNow(72), minutes: 30 } });
     as(host);
     expect((await (await book({ slot: mine.id, template: "visa" })).json()).error).toBe("That's one of your own times.");
-
-    const stranger = await student({ programId: (await program("Imkon")).id, name: "Dilnoza" });
-    as(stranger);
-    expect((await (await book({ slot: mine.id, template: "visa" })).json()).error).toBe(
-      "That time isn't available any more. Pick another."
-    );
   });
 
   it("refuses a time that has started", async () => {

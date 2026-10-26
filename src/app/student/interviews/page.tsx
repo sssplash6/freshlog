@@ -9,7 +9,6 @@ import { PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { ROLES, USER_STATUS } from "@/lib/constants";
 import { requireRole } from "@/lib/dal";
-import { studiesIn } from "@/lib/enrollments";
 import { toDateInputValue } from "@/lib/format";
 import { templateName } from "@/lib/interview-templates";
 import {
@@ -34,10 +33,11 @@ const DAY = 24 * 60 * 60 * 1000;
  * Practising interviews with classmates: the ones booked, the times this
  * student offers, and the classmates whose times they can book.
  *
- * A classmate is a student who shares one of this student's OWN programs —
- * never one they are only visiting — and is shown by name and program, never
- * by email: this is the one page where a student sees other students, and it
- * shows them what they need to pick a partner and nothing else.
+ * A classmate is any other approved student, in any program: practising with
+ * somebody from another program is the point, not a leak. They are shown by
+ * name and their own programs — never a program they are only visiting — and
+ * never by email: this is the one page where a student sees other students, and
+ * it shows them what they need to pick a partner and nothing else.
  */
 export default async function StudentInterviewsPage() {
   const user = await requireRole(ROLES.STUDENT);
@@ -46,16 +46,12 @@ export default async function StudentInterviewsPage() {
 
   const profile = await prisma.studentProfile.findUnique({
     where: { userId: user.id },
-    select: {
-      id: true,
-      enrollments: { select: { programId: true, exchangeId: true } },
-    },
+    select: { id: true },
   });
   // Not onboarded / not approved yet — the home page explains what's next.
   if (!profile || user.status !== USER_STATUS.ACTIVE) redirect("/student");
 
   const wallNow = programWallClock(now);
-  const myPrograms = studiesIn(profile.enrollments).map((e) => e.programId);
 
   const [interviews, mySlots, classmates] = await Promise.all([
     prisma.peerInterview.findMany({
@@ -85,27 +81,24 @@ export default async function StudentInterviewsPage() {
       },
       orderBy: { startsAt: "asc" },
     }),
-    myPrograms.length === 0
-      ? Promise.resolve([])
-      : prisma.studentProfile.findMany({
-          where: {
-            id: { not: profile.id },
-            user: { role: ROLES.STUDENT, status: USER_STATUS.ACTIVE, name: { not: null } },
-            enrollments: { some: { programId: { in: myPrograms }, exchangeId: null } },
-          },
-          select: {
-            id: true,
-            user: { select: { id: true, name: true, avatarUpdatedAt: true } },
-            enrollments: {
-              where: { programId: { in: myPrograms }, exchangeId: null },
-              select: { program: { select: { name: true } } },
-            },
-            interviewSlots: {
-              where: { startsAt: { gt: wallNow }, interview: null },
-              select: { id: true },
-            },
-          },
-        }),
+    prisma.studentProfile.findMany({
+      where: {
+        id: { not: profile.id },
+        user: { role: ROLES.STUDENT, status: USER_STATUS.ACTIVE, name: { not: null } },
+      },
+      select: {
+        id: true,
+        user: { select: { id: true, name: true, avatarUpdatedAt: true } },
+        enrollments: {
+          where: { exchangeId: null },
+          select: { program: { select: { name: true } } },
+        },
+        interviewSlots: {
+          where: { startsAt: { gt: wallNow }, interview: null },
+          select: { id: true },
+        },
+      },
+    }),
   ]);
 
   const open = interviews.filter((i) => !i.completedAt && !i.absentId);
@@ -158,7 +151,7 @@ export default async function StudentInterviewsPage() {
           ) : (
             <ul className="divide-y divide-line">
               {offering.map((c) => (
-                <ClassmateRow key={c.id} classmate={c} showProgram={myPrograms.length > 1} />
+                <ClassmateRow key={c.id} classmate={c} />
               ))}
             </ul>
           )}
@@ -172,7 +165,7 @@ export default async function StudentInterviewsPage() {
             >
               <ul className="-mx-4 divide-y divide-line border-t border-line sm:-mx-5">
                 {quiet.map((c) => (
-                  <ClassmateRow key={c.id} classmate={c} showProgram={myPrograms.length > 1} />
+                  <ClassmateRow key={c.id} classmate={c} />
                 ))}
               </ul>
             </Disclosure>
@@ -247,13 +240,10 @@ export default async function StudentInterviewsPage() {
   );
 }
 
+/** A classmate, with their programs: the list runs across every program. */
 function ClassmateRow({
   classmate,
-  showProgram,
 }: {
-  /** Only when the student is in more than one program: otherwise it is their
-      own program, repeated under every name down the list. */
-  showProgram: boolean;
   classmate: {
     id: string;
     user: { id: string; name: string | null; avatarUpdatedAt: Date | null };
@@ -267,9 +257,7 @@ function ClassmateRow({
       <PersonCell
         person={{ ...classmate.user, email: "" }}
         href={`/student/interviews/people/${classmate.id}`}
-        secondary={
-          showProgram ? classmate.enrollments.map((e) => e.program.name).join(" · ") : false
-        }
+        secondary={classmate.enrollments.map((e) => e.program.name).join(" · ") || false}
         className="min-w-0 flex-1"
       />
       {open > 0 && (

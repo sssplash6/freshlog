@@ -12,7 +12,6 @@ import type {
   SlotTime,
 } from "@/lib/api/v1/types";
 import { ROLES, USER_STATUS } from "@/lib/constants";
-import { studiesIn } from "@/lib/enrollments";
 import { toDateInputValue } from "@/lib/format";
 import { templateName } from "@/lib/interview-templates";
 import { MAX_DAYS_AHEAD, SLOT_LENGTHS, guideOpen, interviewPhase, sideOf } from "@/lib/peer-interviews";
@@ -24,8 +23,8 @@ import { PROGRAM_ZONE, programToday, programWallClock } from "@/lib/when";
  * the reads of `/student/interviews`, field by field, and the To do rows the
  * app shows for them.
  *
- * What a student may see of another is what the page shows: a name and the
- * programs the two share. No email, no Telegram, and a time's meeting link
+ * What a student may see of another is what the page shows: a name and their
+ * own programs. No email, no Telegram, and a time's meeting link
  * only to its host and to whoever booked it.
  */
 
@@ -136,7 +135,6 @@ export function practiceTodo(interviews: readonly HomeInterview[], studentId: st
 /** Everything the Practice tab shows: `app/student/interviews/page.tsx`'s three reads, mapped. */
 export async function practiceHomeFor({ profile }: PracticeStudent, now: Date = new Date()): Promise<PracticeHome> {
   const wallNow = programWallClock(now);
-  const myPrograms = studiesIn(profile.enrollments).map((e) => e.programId);
 
   const [interviews, mySlots, classmates] = await Promise.all([
     prisma.peerInterview.findMany({
@@ -167,28 +165,25 @@ export async function practiceHomeFor({ profile }: PracticeStudent, now: Date = 
       },
       orderBy: { startsAt: "asc" },
     }),
-    myPrograms.length === 0
-      ? Promise.resolve([])
-      : prisma.studentProfile.findMany({
-          where: {
-            id: { not: profile.id },
-            user: { role: ROLES.STUDENT, status: USER_STATUS.ACTIVE, name: { not: null } },
-            enrollments: { some: { programId: { in: myPrograms }, exchangeId: null } },
-          },
-          select: {
-            id: true,
-            user: { select: { id: true, name: true } },
-            enrollments: {
-              where: { programId: { in: myPrograms }, exchangeId: null },
-              select: { program: { select: { name: true } } },
-            },
-            interviewSlots: {
-              where: { startsAt: { gt: wallNow }, interview: null },
-              select: { startsAt: true, minutes: true },
-              orderBy: { startsAt: "asc" },
-            },
-          },
-        }),
+    prisma.studentProfile.findMany({
+      where: {
+        id: { not: profile.id },
+        user: { role: ROLES.STUDENT, status: USER_STATUS.ACTIVE, name: { not: null } },
+      },
+      select: {
+        id: true,
+        user: { select: { id: true, name: true } },
+        enrollments: {
+          where: { exchangeId: null },
+          select: { program: { select: { name: true } } },
+        },
+        interviewSlots: {
+          where: { startsAt: { gt: wallNow }, interview: null },
+          select: { startsAt: true, minutes: true },
+          orderBy: { startsAt: "asc" },
+        },
+      },
+    }),
   ]);
 
   const rows = interviews.map((i) => rowOf(i, profile.id, now));
@@ -204,7 +199,6 @@ export async function practiceHomeFor({ profile }: PracticeStudent, now: Date = 
     })
   );
 
-  const showPrograms = myPrograms.length > 1;
   const named = classmates.filter((c) => c.user.name?.trim());
   const byName = (a: (typeof named)[number], b: (typeof named)[number]) =>
     (a.user.name ?? "").localeCompare(b.user.name ?? "");
@@ -214,7 +208,7 @@ export async function practiceHomeFor({ profile }: PracticeStudent, now: Date = 
     (c): ClassmateRow => ({
       id: c.id,
       person: personOf(c.user),
-      programs: showPrograms ? c.enrollments.map((e) => e.program.name) : [],
+      programs: c.enrollments.map((e) => e.program.name),
       open: c.interviewSlots.length,
       next: c.interviewSlots[0] ? slotTime(c.interviewSlots[0]) : null,
     })

@@ -7,6 +7,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-26
 
 ### New
+- **Practise with students from any program.** Interviews now lists every student, each with their program, so a Freshman Scholars student can book someone from Global Admissions and the other way round.
 - **Click any Feedback figure to open it.** A star's bar shows only ratings of that star, Written ratings or Meetings rated shows that kind alone, and Need attention jumps to those mentors. A score tile in the feed does the same for its star.
 - **Sort the mentors on Feedback.** Click a column heading to order by name, combined score, number of ratings, lowest recent rating or last rated. Every mentor is listed; nothing is folded away.
 - **Chips above the Feedback filters.** Written, Meetings and Low narrow the page in one tap, and a mentor who also holds a staff grant gets Mine. The Rating filter can pick one star exactly as well as "3 stars or fewer".

@@ -60,7 +60,7 @@ describe("GET /api/v1/interviews", () => {
     expect((await res.json()).error).toBe("Only approved students can practise interviews.");
   });
 
-  it("lists classmates offering a time first, and never one only visiting", async () => {
+  it("lists students of every program, offering a time first, by their own programs", async () => {
     const { p, host, guest } = await scene();
     const other = await program("Imkon");
     const visitor = await student({ programId: other.id, name: "Anvar Visiting" });
@@ -79,8 +79,13 @@ describe("GET /api/v1/interviews", () => {
     as(host);
     const body = await (await GET()).json();
 
-    expect(body.classmates.map((c: { person: { name: string } }) => c.person.name)).toEqual(["Bekzod Tursunov"]);
-    expect(body.classmates[0]).toMatchObject({ id: guest.id, open: 1, programs: [] });
+    expect(body.classmates.map((c: { person: { name: string } }) => c.person.name)).toEqual([
+      "Bekzod Tursunov",
+      "Anvar Visiting",
+    ]);
+    expect(body.classmates[0]).toMatchObject({ id: guest.id, open: 1, programs: [p.name] });
+    // The program they are only visiting is not theirs.
+    expect(body.classmates[1]).toMatchObject({ id: visitor.id, open: 0, programs: ["Imkon"] });
     expect(body.classmates[0].next.minutes).toBe(45);
     // A classmate's link is for whoever books the time.
     expect(JSON.stringify(body)).not.toContain("meet.example");

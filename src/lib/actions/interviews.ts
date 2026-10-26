@@ -11,7 +11,6 @@ import { notify } from "@/lib/notify";
 import {
   FEEDBACK_EDIT_MINUTES,
   NOTES_MAX,
-  areClassmates,
   feedbackEditable,
   formatSlotWhen,
   guideOpen,
@@ -37,17 +36,14 @@ import type { ActionState } from "@/lib/actions/shared";
 
 const INTERVIEWS = "/student/interviews";
 
-/** An approved student and their own enrollments, or null. */
+/** An approved student and their profile, or null. */
 async function activeStudent() {
   const user = await getCurrentUser();
   if (!user || user.role !== ROLES.STUDENT) return null;
   if (user.status !== USER_STATUS.ACTIVE) return null;
   const profile = await prisma.studentProfile.findUnique({
     where: { userId: user.id },
-    select: {
-      id: true,
-      enrollments: { select: { programId: true, exchangeId: true } },
-    },
+    select: { id: true },
   });
   return profile ? { user, profile } : null;
 }
@@ -167,7 +163,6 @@ export async function bookInterview(
         select: {
           id: true,
           user: { select: { id: true, name: true, status: true } },
-          enrollments: { select: { programId: true, exchangeId: true } },
         },
       },
     },
@@ -183,7 +178,6 @@ export async function bookInterview(
     return { ok: false, error: "That's one of your own times." };
   }
   if (slot.student.user.status !== USER_STATUS.ACTIVE) return unavailable;
-  if (!areClassmates(me.profile.enrollments, slot.student.enrollments)) return unavailable;
   if (hasStarted(slot.startsAt, new Date())) return unavailable;
 
   if ((await busyTimes(me.profile.id)).some((t) => overlaps(t, slot))) {

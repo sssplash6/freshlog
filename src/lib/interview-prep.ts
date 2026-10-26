@@ -17,9 +17,8 @@ import { prisma } from "@/lib/prisma";
  *
  * Which interviews: those with at least one student who studies — their own
  * enrollment, not a visit — in a program the reader administers. An interview
- * has no program of its own, but two students may only book each other when
- * they share one (`areClassmates`), so this is that program asked from the
- * reader's side. `programIds` undefined is a platform admin: everything.
+ * has no program of its own, and its two students may study in different
+ * programs: the admins of each one see it. `programIds` undefined is a platform admin: everything.
  */
 export async function interviewsForStaff(
   programIds: readonly string[] | undefined,
