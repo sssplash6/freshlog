@@ -14,7 +14,15 @@ import type {
 import { ROLES, USER_STATUS } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/format";
 import { templateName } from "@/lib/interview-templates";
-import { MAX_DAYS_AHEAD, SLOT_LENGTHS, guideOpen, interviewPhase, sideOf } from "@/lib/peer-interviews";
+import {
+  MAX_DAYS_AHEAD,
+  SLOT_LENGTHS,
+  givesFeedback,
+  guideOpen,
+  interviewPhase,
+  partOf,
+  sideOf,
+} from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
 import { PROGRAM_ZONE, programToday, programWallClock } from "@/lib/when";
 
@@ -50,7 +58,7 @@ export async function practiceStudent(user: User) {
 export type PracticeStudent = NonNullable<Awaited<ReturnType<typeof practiceStudent>>>;
 
 /** The words every practice route refuses anybody else with: the actions' own. */
-export const NOT_A_STUDENT = "Only approved students can practise interviews.";
+export const NOT_A_STUDENT = "Only approved students and their mentors can practise interviews.";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -88,20 +96,21 @@ type HomeInterview = {
   guestId: string;
   template: string;
   completedAt: Date | null;
+  mentorId: string | null;
   absentId: string | null;
   slot: { startsAt: Date; minutes: number; meetingUrl: string | null };
-  host: { user: { id: string; name: string | null } };
-  guest: { user: { id: string; name: string | null } };
+  host: { id: string; name: string | null };
+  guest: { id: string; name: string | null };
   feedback: { submittedAt: Date | null }[];
 };
 
-function rowOf(i: HomeInterview, studentId: string, now: Date): InterviewRow {
-  const hosting = sideOf(i, studentId) === "host";
+function rowOf(i: HomeInterview, userId: string, now: Date): InterviewRow {
+  const hosting = sideOf(i, userId) === "host";
   return {
     id: i.id,
     template: { id: i.template, name: templateName(i.template) },
     when: slotTime(i.slot),
-    partner: personOf(hosting ? i.guest.user : i.host.user),
+    partner: personOf(hosting ? i.guest : i.host),
     hosting,
     phase: interviewPhase(i, now) satisfies InterviewPhase,
     sent: i.feedback.some((f) => f.submittedAt !== null),
@@ -127,41 +136,45 @@ export function practiceTodo(interviews: readonly HomeInterview[], studentId: st
       if (wallNow >= end) return [{ ...base, need: "mark" }];
       return [];
     }
-    if (i.completedAt && guideOpen(i.slot, mine, now, i.absentId)) return [{ ...base, need: "feedback" }];
+    // The student a mentor interviews has no feedback to send.
+    if (i.completedAt && givesFeedback(partOf(i, studentId)) && guideOpen(i.slot, mine, now, i.absentId)) {
+      return [{ ...base, need: "feedback" }];
+    }
     return [];
   });
 }
 
 /** Everything the Practice tab shows: `app/student/interviews/page.tsx`'s three reads, mapped. */
-export async function practiceHomeFor({ profile }: PracticeStudent, now: Date = new Date()): Promise<PracticeHome> {
+export async function practiceHomeFor({ user, profile }: PracticeStudent, now: Date = new Date()): Promise<PracticeHome> {
   const wallNow = programWallClock(now);
 
   const [interviews, mySlots, classmates] = await Promise.all([
     prisma.peerInterview.findMany({
-      where: { OR: [{ hostId: profile.id }, { guestId: profile.id }] },
+      where: { OR: [{ hostId: user.id }, { guestId: user.id }] },
       select: {
         id: true,
         hostId: true,
         guestId: true,
+        mentorId: true,
         template: true,
         completedAt: true,
         absentId: true,
         slot: { select: { startsAt: true, minutes: true, meetingUrl: true } },
-        host: { select: { user: { select: { id: true, name: true } } } },
-        guest: { select: { user: { select: { id: true, name: true } } } },
+        host: { select: { id: true, name: true } },
+        guest: { select: { id: true, name: true } },
         // Only this student's own row, and only whether it was sent.
-        feedback: { where: { fromId: profile.id }, select: { submittedAt: true } },
+        feedback: { where: { fromId: user.id }, select: { submittedAt: true } },
       },
       orderBy: { slot: { startsAt: "asc" } },
     }),
     prisma.interviewSlot.findMany({
-      where: { studentId: profile.id, startsAt: { gt: wallNow } },
+      where: { userId: user.id, asMentor: false, startsAt: { gt: wallNow } },
       select: {
         id: true,
         startsAt: true,
         minutes: true,
         meetingUrl: true,
-        interview: { select: { id: true, guest: { select: { user: { select: { id: true, name: true } } } } } },
+        interview: { select: { id: true, guest: { select: { id: true, name: true } } } },
       },
       orderBy: { startsAt: "asc" },
     }),
@@ -172,21 +185,26 @@ export async function practiceHomeFor({ profile }: PracticeStudent, now: Date = 
       },
       select: {
         id: true,
-        user: { select: { id: true, name: true } },
         enrollments: {
           where: { exchangeId: null },
           select: { program: { select: { name: true } } },
         },
-        interviewSlots: {
-          where: { startsAt: { gt: wallNow }, interview: null },
-          select: { startsAt: true, minutes: true },
-          orderBy: { startsAt: "asc" },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            interviewSlots: {
+              where: { asMentor: false, startsAt: { gt: wallNow }, interview: null },
+              select: { startsAt: true, minutes: true },
+              orderBy: { startsAt: "asc" },
+            },
+          },
         },
       },
     }),
   ]);
 
-  const rows = interviews.map((i) => rowOf(i, profile.id, now));
+  const rows = interviews.map((i) => rowOf(i, user.id, now));
   const coming = rows.filter((r) => r.phase === "booked" || r.phase === "to-mark");
   const done = rows.filter((r) => r.phase === "completed" || r.phase === "absent").reverse();
 
@@ -195,22 +213,22 @@ export async function practiceHomeFor({ profile }: PracticeStudent, now: Date = 
       id: s.id,
       when: slotTime(s),
       meetingUrl: s.meetingUrl,
-      interview: s.interview && { id: s.interview.id, guest: personOf(s.interview.guest.user) },
+      interview: s.interview && { id: s.interview.id, guest: personOf(s.interview.guest) },
     })
   );
 
   const named = classmates.filter((c) => c.user.name?.trim());
   const byName = (a: (typeof named)[number], b: (typeof named)[number]) =>
     (a.user.name ?? "").localeCompare(b.user.name ?? "");
-  const offering = named.filter((c) => c.interviewSlots.length > 0).sort(byName);
-  const quiet = named.filter((c) => c.interviewSlots.length === 0).sort(byName);
+  const offering = named.filter((c) => c.user.interviewSlots.length > 0).sort(byName);
+  const quiet = named.filter((c) => c.user.interviewSlots.length === 0).sort(byName);
   const classmateRows = [...offering, ...quiet].map(
     (c): ClassmateRow => ({
       id: c.id,
       person: personOf(c.user),
       programs: c.enrollments.map((e) => e.program.name),
-      open: c.interviewSlots.length,
-      next: c.interviewSlots[0] ? slotTime(c.interviewSlots[0]) : null,
+      open: c.user.interviewSlots.length,
+      next: c.user.interviewSlots[0] ? slotTime(c.user.interviewSlots[0]) : null,
     })
   );
 
@@ -219,7 +237,7 @@ export async function practiceHomeFor({ profile }: PracticeStudent, now: Date = 
     done,
     times,
     classmates: classmateRows,
-    todo: practiceTodo(interviews, profile.id, now),
+    todo: practiceTodo(interviews, user.id, now),
     offer: {
       today: programToday(now),
       lastDay: toDateInputValue(new Date(wallNow.getTime() + MAX_DAYS_AHEAD * DAY)),

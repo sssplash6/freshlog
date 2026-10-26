@@ -21,7 +21,7 @@ async function interview(opts: {
   absentId?: string;
 }) {
   const slot = await prisma.interviewSlot.create({
-    data: { studentId: opts.hostId, startsAt: new Date(opts.startsAt), minutes: opts.minutes ?? 45 },
+    data: { userId: opts.hostId, startsAt: new Date(opts.startsAt), minutes: opts.minutes ?? 45 },
   });
   return prisma.peerInterview.create({
     data: {
@@ -44,8 +44,8 @@ describe("interviewsForStaff", () => {
     const b = await student({ programId: ga.id, name: "Bobur" });
     const c = await student({ programId: imkon.id, name: "Dilnoza" });
     const d = await student({ programId: imkon.id, name: "Eldor" });
-    await interview({ hostId: a.id, guestId: b.id, startsAt: "2026-10-10T10:00:00Z", completed: true });
-    await interview({ hostId: c.id, guestId: d.id, startsAt: "2026-10-11T10:00:00Z", completed: true });
+    await interview({ hostId: a.userId, guestId: b.userId, startsAt: "2026-10-10T10:00:00Z", completed: true });
+    await interview({ hostId: c.userId, guestId: d.userId, startsAt: "2026-10-11T10:00:00Z", completed: true });
 
     const gaRows = await interviewsForStaff([ga.id], NOW);
     expect(gaRows.map((r) => [r.host.name, r.guest.name])).toEqual([["Aziza", "Bobur"]]);
@@ -60,7 +60,7 @@ describe("interviewsForStaff", () => {
     const a = await student({ programId: ga.id, name: "Aziza" });
     const b = await student({ programId: masters.id, name: "Bobur" });
     await enroll({ studentId: a.id, programId: masters.id });
-    await interview({ hostId: a.id, guestId: b.id, startsAt: "2026-10-10T10:00:00Z", completed: true });
+    await interview({ hostId: a.userId, guestId: b.userId, startsAt: "2026-10-10T10:00:00Z", completed: true });
 
     const [row] = await interviewsForStaff([ga.id], NOW);
     expect(row.host).toMatchObject({ name: "Aziza", ours: true });
@@ -75,10 +75,10 @@ describe("prepByStudent", () => {
     const p = await program("Global Admissions");
     const a = await student({ programId: p.id, name: "Aziza" });
     const b = await student({ programId: p.id, name: "Bobur" });
-    await interview({ hostId: a.id, guestId: b.id, startsAt: "2026-10-01T10:00:00Z", minutes: 60, completed: true });
-    await interview({ hostId: b.id, guestId: a.id, startsAt: "2026-10-03T10:00:00Z", absentId: b.id });
-    await interview({ hostId: a.id, guestId: b.id, startsAt: "2026-10-05T10:00:00Z" });
-    await interview({ hostId: a.id, guestId: b.id, startsAt: "2026-10-20T10:00:00Z" });
+    await interview({ hostId: a.userId, guestId: b.userId, startsAt: "2026-10-01T10:00:00Z", minutes: 60, completed: true });
+    await interview({ hostId: b.userId, guestId: a.userId, startsAt: "2026-10-03T10:00:00Z", absentId: b.userId });
+    await interview({ hostId: a.userId, guestId: b.userId, startsAt: "2026-10-05T10:00:00Z" });
+    await interview({ hostId: a.userId, guestId: b.userId, startsAt: "2026-10-20T10:00:00Z" });
 
     const rows = prepByStudent(await interviewsForStaff([p.id], NOW));
     const aziza = rows.find((r) => r.person.name === "Aziza")!;

@@ -1,6 +1,6 @@
 /**
- * The rules of students practising interviews on each other, as pure functions
- * so they can be tested without a database. The actions in
+ * The rules of practising interviews — two students, or a mentor and a student
+ * — as pure functions so they can be tested without a database. The actions in
  * lib/actions/interviews.ts and the pages under /student/interviews both ask
  * these, so a time the page offers is a time the action accepts.
  *
@@ -106,14 +106,41 @@ export function formatSlotSpan(
   return zone ? `${span} ${PROGRAM_ZONE}` : span;
 }
 
-/** Which side of an interview a student is on, or null if neither. */
+/** Which side of an interview a user is on, or null if neither. */
 export function sideOf(
   interview: { hostId: string; guestId: string },
-  studentId: string
+  userId: string
 ): "host" | "guest" | null {
-  if (interview.hostId === studentId) return "host";
-  if (interview.guestId === studentId) return "guest";
+  if (interview.hostId === userId) return "host";
+  if (interview.guestId === userId) return "guest";
   return null;
+}
+
+/**
+ * What this user does in the interview. Between two students each one does
+ * both, taking turns: `peer`. With a mentor, the mentor asks and writes the
+ * feedback (`interviewer`) and the student answers (`interviewee`).
+ */
+export type InterviewPart = "peer" | "interviewer" | "interviewee";
+
+export function partOf(interview: { mentorId?: string | null }, userId: string): InterviewPart {
+  if (!interview.mentorId) return "peer";
+  return interview.mentorId === userId ? "interviewer" : "interviewee";
+}
+
+/** Whether this part answers the questions: never the mentor asking them. */
+export const answers = (part: InterviewPart) => part !== "interviewer";
+
+/** Whether this part writes feedback: never the student a mentor interviews. */
+export const givesFeedback = (part: InterviewPart) => part !== "interviewee";
+
+/**
+ * Where a user's own interview pages are: the mentor side's under /mentor, the
+ * student side's under /student. Asked of the interview, not of the reader's
+ * role, so a notification links each side to the page it can open.
+ */
+export function interviewsBase(interview: { mentorId?: string | null }, userId: string): string {
+  return interview.mentorId === userId ? "/mentor/interviews" : "/student/interviews";
 }
 
 export type InterviewPhase = "booked" | "to-mark" | "completed" | "absent";
@@ -181,6 +208,10 @@ export function feedbackVisibleTo(
  * Whether this student may still use the guide: from the start time until
  * they submit their own feedback. NOT until the interview is completed — the
  * partner who submits first completes it, and must not lock the other out.
+ *
+ * A student a mentor interviews writes no feedback: pass the interview's
+ * `completedAt` as theirs (`guideClosedAt`), so the guide closes when the
+ * mentor sends theirs or marks it done.
  */
 export function guideOpen(
   slot: { startsAt: Date },
@@ -189,6 +220,15 @@ export function guideOpen(
   absentId: string | null = null
 ): boolean {
   return absentId === null && mySubmittedAt === null && hasStarted(slot.startsAt, now);
+}
+
+/** The moment the guide closes for this part: its own feedback, or — for the interviewee — the interview's completion. */
+export function guideClosedAt(
+  part: InterviewPart,
+  mySubmittedAt: Date | null,
+  completedAt: Date | null
+): Date | null {
+  return part === "interviewee" ? completedAt : mySubmittedAt;
 }
 
 /** How long after an interview's end its feedback can still be corrected. */

@@ -17,9 +17,11 @@ import {
 import {
   feedbackEditable,
   feedbackEditableUntil,
+  guideClosedAt,
   guideOpen,
   hasStarted,
   interviewPhase,
+  partOf,
   sideOf,
 } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
@@ -37,40 +39,41 @@ import { programToday } from "@/lib/when";
  *
  * Null, a 404, when the interview does not exist or the reader is not in it.
  */
-export async function interviewFor({ profile }: PracticeStudent, id: string, now: Date = new Date()): Promise<ApiInterview | null> {
+export async function interviewFor({ user }: PracticeStudent, id: string, now: Date = new Date()): Promise<ApiInterview | null> {
   const row = await prisma.peerInterview.findUnique({
     where: { id },
     select: {
       id: true,
       hostId: true,
       guestId: true,
+      mentorId: true,
       template: true,
       completedAt: true,
       absentId: true,
       hostNotes: true,
       guestNotes: true,
       slot: { select: { startsAt: true, minutes: true, meetingUrl: true } },
-      host: { select: { user: { select: { id: true, name: true } } } },
-      guest: { select: { user: { select: { id: true, name: true } } } },
+      host: { select: { id: true, name: true } },
+      guest: { select: { id: true, name: true } },
       answers: {
-        where: { studentId: profile.id },
+        where: { userId: user.id },
         select: { questionIndex: true, question: true, text: true },
         orderBy: { questionIndex: "asc" },
       },
       feedback: {
-        where: { OR: [{ fromId: profile.id }, { submittedAt: { not: null } }] },
+        where: { OR: [{ fromId: user.id }, { submittedAt: { not: null } }] },
         select: { fromId: true, summary: true, wentWell: true, toImprove: true, submittedAt: true },
       },
     },
   });
-  const side = row ? sideOf(row, profile.id) : null;
+  const side = row ? sideOf(row, user.id) : null;
   if (!row || !side) return null;
 
   const hosting = side === "host";
   const template = templateById(row.template);
   const phase = interviewPhase(row, now);
-  const mine = row.feedback.find((f) => f.fromId === profile.id) ?? null;
-  const theirs = row.feedback.find((f) => f.fromId !== profile.id && f.submittedAt !== null) ?? null;
+  const mine = row.feedback.find((f) => f.fromId === user.id) ?? null;
+  const theirs = row.feedback.find((f) => f.fromId !== user.id && f.submittedAt !== null) ?? null;
   const sentAt = mine?.submittedAt ?? null;
   const open = !row.completedAt && !row.absentId;
   const editable = feedbackEditable(row.slot, sentAt, now, row.absentId);
@@ -83,7 +86,7 @@ export async function interviewFor({ profile }: PracticeStudent, id: string, now
   return {
     id: row.id,
     when: slotTime(row.slot),
-    partner: personOf(hosting ? row.guest.user : row.host.user),
+    partner: personOf(hosting ? row.guest : row.host),
     hosting,
     phase,
     sent: sentAt !== null,
@@ -98,7 +101,7 @@ export async function interviewFor({ profile }: PracticeStudent, id: string, now
     notes: (hosting ? row.hostNotes : row.guestNotes) ?? "",
     mine: mine && { ...text(mine), sent: sentAt !== null },
     theirs: theirs && text(theirs),
-    absent: row.absentId ? (row.absentId === profile.id ? "me" : "partner") : null,
+    absent: row.absentId ? (row.absentId === user.id ? "me" : "partner") : null,
     // The day it was marked, on the program's calendar.
     completedOn: row.completedAt ? programToday(row.completedAt) : null,
     editableUntil: editable ? wallTime(feedbackEditableUntil(row.slot)) : null,
@@ -107,7 +110,7 @@ export async function interviewFor({ profile }: PracticeStudent, id: string, now
       cancel: open,
       done: open && hasStarted(row.slot.startsAt, now),
       absent: open && hasStarted(row.slot.startsAt, now),
-      guide: guideOpen(row.slot, sentAt, now, row.absentId),
+      guide: guideOpen(row.slot, guideClosedAt(partOf(row, user.id), sentAt, row.completedAt), now, row.absentId),
       notes: row.completedAt !== null,
       editFeedback: editable,
     },
@@ -121,10 +124,10 @@ export async function interviewFor({ profile }: PracticeStudent, id: string, now
   };
 }
 
-/** Whether `studentId` is one of the two students in interview `id`. */
-async function inInterview(studentId: string, id: string): Promise<boolean> {
+/** Whether `userId` is one of the two sides of interview `id`. */
+async function inInterview(userId: string, id: string): Promise<boolean> {
   const row = await prisma.peerInterview.findUnique({ where: { id }, select: { hostId: true, guestId: true } });
-  return row !== null && sideOf(row, studentId) !== null;
+  return row !== null && sideOf(row, userId) !== null;
 }
 
 /**
@@ -142,7 +145,7 @@ export async function interviewWrite(
 ): Promise<Response> {
   const me = await practiceStudent(user);
   if (!me) return refused(NOT_A_STUDENT, 403);
-  if (!(await inInterview(me.profile.id, id))) return refused("Not found.", 404);
+  if (!(await inInterview(me.user.id, id))) return refused("Not found.", 404);
   if (!(form instanceof FormData)) return refused(form.error, 400, { field: form.field });
   form.set("interviewId", id);
   return respond(() => run(form));

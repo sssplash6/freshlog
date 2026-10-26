@@ -34,7 +34,7 @@ export async function studentInterviewsFor(reader: User, studentProfileId: strin
   const text = (f: { summary: string | null; wentWell: string | null; toImprove: string | null } | null): FeedbackText | null =>
     f && { summary: f.summary ?? "", wentWell: f.wentWell ?? "", toImprove: f.toImprove ?? "" };
 
-  const rows = await interviewsOfStudent(profile.id);
+  const rows = await interviewsOfStudent(profile.userId);
   return {
     student: { id: profile.id, userId: profile.userId, name: nameOf(profile.user) },
     interviews: rows.map((r) => ({

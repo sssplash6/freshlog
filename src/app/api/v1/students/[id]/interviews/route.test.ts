@@ -23,12 +23,12 @@ async function scene() {
   const host = await student({ programId: p.id, name: "Aziza Karimova" });
   const guest = await student({ programId: p.id, name: "Bekzod Tursunov" });
   const startsAt = programWallClock(new Date(Date.now() - 3 * 60 * 60 * 1000));
-  const slot = await prisma.interviewSlot.create({ data: { studentId: host.id, startsAt, minutes: 45 } });
+  const slot = await prisma.interviewSlot.create({ data: { userId: host.userId, startsAt, minutes: 45 } });
   const interview = await prisma.peerInterview.create({
     data: {
       slotId: slot.id,
-      hostId: host.id,
-      guestId: guest.id,
+      hostId: host.userId,
+      guestId: guest.userId,
       template: "visa",
       completedAt: new Date(),
       hostNotes: "PARTNER-NOTES",
@@ -37,14 +37,14 @@ async function scene() {
   });
   await prisma.interviewAnswer.createMany({
     data: [
-      { interviewId: interview.id, studentId: host.id, questionIndex: 0, question: "Q", text: "PARTNER-ANSWER" },
-      { interviewId: interview.id, studentId: guest.id, questionIndex: 0, question: "Q", text: "Bekzod's answer" },
+      { interviewId: interview.id, userId: host.userId, questionIndex: 0, question: "Q", text: "PARTNER-ANSWER" },
+      { interviewId: interview.id, userId: guest.userId, questionIndex: 0, question: "Q", text: "Bekzod's answer" },
     ],
   });
   await prisma.interviewFeedback.createMany({
     data: [
-      { interviewId: interview.id, fromId: host.id, summary: "Sent to Bekzod", wentWell: "a", toImprove: "b", submittedAt: new Date() },
-      { interviewId: interview.id, fromId: guest.id, summary: "DRAFT", wentWell: "c", toImprove: "d" },
+      { interviewId: interview.id, fromId: host.userId, summary: "Sent to Bekzod", wentWell: "a", toImprove: "b", submittedAt: new Date() },
+      { interviewId: interview.id, fromId: guest.userId, summary: "DRAFT", wentWell: "c", toImprove: "d" },
     ],
   });
   const m = await mentor("Akmal Karimov");

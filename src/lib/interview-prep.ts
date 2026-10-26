@@ -15,6 +15,9 @@ import { prisma } from "@/lib/prisma";
  * the reader has no standing in, so they are a name and a face, as everywhere
  * else a classmate is shown.
  *
+ * A mentor on one side is named like a partner from elsewhere: never "ours",
+ * so they get no row in the per-student totals.
+ *
  * Which interviews: those with at least one student who studies — their own
  * enrollment, not a visit — in a program the reader administers. An interview
  * has no program of its own, and its two students may study in different
@@ -30,10 +33,16 @@ export async function interviewsForStaff(
   const side = {
     select: {
       id: true,
-      user: { select: { id: true, name: true, avatarUpdatedAt: true } },
-      // Non-empty when this student is the reader's own: they get a row in
-      // the per-student totals. A partner from elsewhere is only named.
-      enrollments: { where: ownIn, select: { programId: true }, take: 1 },
+      name: true,
+      avatarUpdatedAt: true,
+      studentProfile: {
+        select: {
+          id: true,
+          // Non-empty when this student is the reader's own: they get a row in
+          // the per-student totals. A partner from elsewhere is only named.
+          enrollments: { where: ownIn, select: { programId: true }, take: 1 },
+        },
+      },
     },
   } as const;
 
@@ -41,8 +50,8 @@ export async function interviewsForStaff(
     where: programIds
       ? {
           OR: [
-            { host: { enrollments: { some: ownIn } } },
-            { guest: { enrollments: { some: ownIn } } },
+            { host: { studentProfile: { enrollments: { some: ownIn } } } },
+            { guest: { studentProfile: { enrollments: { some: ownIn } } } },
           ],
         }
       : {},
@@ -53,6 +62,7 @@ export async function interviewsForStaff(
       absentId: true,
       hostId: true,
       guestId: true,
+      mentorId: true,
       slot: { select: { startsAt: true, minutes: true } },
       host: side,
       guest: side,
@@ -62,9 +72,14 @@ export async function interviewsForStaff(
 
   return rows.map((row) => {
     const person = (s: typeof row.host) => ({
-      profileId: s.id,
-      ours: s.enrollments.length > 0,
-      ...s.user,
+      // Where an admin opens them; a mentor has no student page.
+      profileId: s.studentProfile?.id ?? "",
+      // The mentor side is never one of the reader's students, even a
+      // student-who-mentors.
+      ours: s.id !== row.mentorId && (s.studentProfile?.enrollments.length ?? 0) > 0,
+      id: s.id,
+      name: s.name,
+      avatarUpdatedAt: s.avatarUpdatedAt,
       email: "",
     });
     return {
@@ -116,7 +131,7 @@ export function prepByStudent(interviews: readonly PrepInterview[]): PrepStudent
       const person = iv[side];
       if (!person.ours) continue;
       const row =
-        by.get(person.profileId) ??
+        by.get(person.id) ??
         { person, held: 0, minutesHeld: 0, upcoming: 0, missed: 0, lastAt: null };
       if (iv.phase === "completed") {
         row.held += 1;
@@ -127,7 +142,7 @@ export function prepByStudent(interviews: readonly PrepInterview[]): PrepStudent
       if (iv.phase !== "booked" && (!row.lastAt || iv.startsAt > row.lastAt)) {
         row.lastAt = iv.startsAt;
       }
-      by.set(person.profileId, row);
+      by.set(person.id, row);
     }
   }
   return [...by.values()].sort(

@@ -56,7 +56,7 @@ describe("POST /api/v1/interviews/slots", () => {
     as(await mentor());
     const res = await post(offer);
     expect(res.status).toBe(403);
-    expect((await res.json()).error).toBe("Only approved students can practise interviews.");
+    expect((await res.json()).error).toBe("Only approved students and their mentors can practise interviews.");
   });
 
   it("offers the time as typed on the Tashkent clock", async () => {
@@ -65,7 +65,7 @@ describe("POST /api/v1/interviews/slots", () => {
     const res = await post({ ...offer, meetingUrl: "https://meet.example/a" });
     expect(res.status).toBe(200);
     expect((await res.json()).ok).toBe(true);
-    const slot = await prisma.interviewSlot.findFirstOrThrow({ where: { studentId: host.id } });
+    const slot = await prisma.interviewSlot.findFirstOrThrow({ where: { userId: host.userId } });
     expect(slot.startsAt.toISOString()).toBe(`${offer.day}T15:00:00.000Z`);
     expect(slot).toMatchObject({ minutes: 45, meetingUrl: "https://meet.example/a" });
   });
@@ -104,7 +104,7 @@ describe("DELETE /api/v1/interviews/slots/:id", () => {
   async function offered() {
     const s = await scene();
     const slot = await prisma.interviewSlot.create({
-      data: { studentId: s.host.id, startsAt: new Date(`${offer.day}T15:00:00.000Z`), minutes: 45 },
+      data: { userId: s.host.userId, startsAt: new Date(`${offer.day}T15:00:00.000Z`), minutes: 45 },
     });
     return { ...s, slot };
   }
@@ -129,10 +129,10 @@ describe("DELETE /api/v1/interviews/slots/:id", () => {
 
   it("refuses a booked time in the action's words", async () => {
     const { host, guest, slot } = await offered();
-    await prisma.peerInterview.create({ data: { slotId: slot.id, hostId: host.id, guestId: guest.id, template: "visa" } });
+    await prisma.peerInterview.create({ data: { slotId: slot.id, hostId: host.userId, guestId: guest.userId, template: "visa" } });
     as(host);
     const res = await remove(slot.id);
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("A classmate booked this time. Cancel the interview instead.");
+    expect((await res.json()).error).toBe("Somebody booked this time. Cancel the interview instead.");
   });
 });

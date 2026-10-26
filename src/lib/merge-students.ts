@@ -68,11 +68,11 @@ export async function mergeStudents(tx: Tx, keepId: string, dropId: string): Pro
                 meetDrafts: true,
               },
             },
+            interviewSlots: { select: { startsAt: true } },
           },
         },
         enrollments: { include: { program: { select: { name: true } } } },
         hourAllocations: { select: { programId: true, mentorId: true } },
-        interviewSlots: { select: { startsAt: true } },
         application: { select: { id: true } },
       },
     });
@@ -98,15 +98,18 @@ export async function mergeStudents(tx: Tx, keepId: string, dropId: string): Pro
     clashes.push("both hold time from the same mentor in the same program");
   }
   if (keep.application && drop.application) clashes.push("both have an application");
-  const keptSlots = new Set(keep.interviewSlots.map((s) => s.startsAt.getTime()));
-  if (drop.interviewSlots.some((s) => keptSlots.has(s.startsAt.getTime()))) {
+  // Practice interviews are keyed on the USER, not the profile.
+  const keepUser = keep.userId;
+  const dropUser = drop.userId;
+  const keptSlots = new Set(keep.user.interviewSlots.map((s) => s.startsAt.getTime()));
+  if (drop.user.interviewSlots.some((s) => keptSlots.has(s.startsAt.getTime()))) {
     clashes.push("both offered an interview slot at the same time");
   }
   const between = await tx.peerInterview.count({
     where: {
       OR: [
-        { hostId: keepId, guestId: dropId },
-        { hostId: dropId, guestId: keepId },
+        { hostId: keepUser, guestId: dropUser },
+        { hostId: dropUser, guestId: keepUser },
       ],
     },
   });
@@ -132,11 +135,15 @@ export async function mergeStudents(tx: Tx, keepId: string, dropId: string): Pro
   count(moved, "tasks", (await tx.assignment.updateMany({ ...ofDrop, data: toKeep })).count);
   count(moved, "student tasks", (await tx.studentTask.updateMany({ ...ofDrop, data: toKeep })).count);
   count(moved, "mentor feedback", (await tx.mentorFeedback.updateMany({ ...ofDrop, data: toKeep })).count);
-  count(moved, "interview slots", (await tx.interviewSlot.updateMany({ ...ofDrop, data: toKeep })).count);
-  count(moved, "interviews hosted", (await tx.peerInterview.updateMany({ where: { hostId: dropId }, data: { hostId: keepId } })).count);
-  count(moved, "interviews booked", (await tx.peerInterview.updateMany({ where: { guestId: dropId }, data: { guestId: keepId } })).count);
-  count(moved, "interview answers", (await tx.interviewAnswer.updateMany({ ...ofDrop, data: toKeep })).count);
-  count(moved, "interview feedback", (await tx.interviewFeedback.updateMany({ where: { fromId: dropId }, data: { fromId: keepId } })).count);
+  count(moved, "interview slots", (await tx.interviewSlot.updateMany({ where: { userId: dropUser }, data: { userId: keepUser } })).count);
+  count(moved, "interviews hosted", (await tx.peerInterview.updateMany({ where: { hostId: dropUser }, data: { hostId: keepUser } })).count);
+  count(moved, "interviews booked", (await tx.peerInterview.updateMany({ where: { guestId: dropUser }, data: { guestId: keepUser } })).count);
+  // Absence names a side by user id; a student is never the mentor side, but
+  // the column is asked anyway so no row is left naming the dropped account.
+  await tx.peerInterview.updateMany({ where: { absentId: dropUser }, data: { absentId: keepUser } });
+  await tx.peerInterview.updateMany({ where: { mentorId: dropUser }, data: { mentorId: keepUser } });
+  count(moved, "interview answers", (await tx.interviewAnswer.updateMany({ where: { userId: dropUser }, data: { userId: keepUser } })).count);
+  count(moved, "interview feedback", (await tx.interviewFeedback.updateMany({ where: { fromId: dropUser }, data: { fromId: keepUser } })).count);
   count(moved, "application", (await tx.studentApplication.updateMany({ ...ofDrop, data: toKeep })).count);
 
   // Keyed on the student as well as something else: a row the kept account
@@ -161,8 +168,6 @@ export async function mergeStudents(tx: Tx, keepId: string, dropId: string): Pro
   }
 
   /* The user's rows. */
-  const keepUser = keep.userId;
-  const dropUser = drop.userId;
   count(moved, "notifications", (await tx.notification.updateMany({ where: { userId: dropUser }, data: { userId: keepUser } })).count);
   await tx.notification.updateMany({ where: { actorId: dropUser }, data: { actorId: keepUser } });
   count(moved, "bug reports", (await tx.bugReport.updateMany({ where: { reporterId: dropUser }, data: { reporterId: keepUser } })).count);

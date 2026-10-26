@@ -341,7 +341,7 @@ export default async function StudentHomePage({
   const [hours, ledger, interviews, space] = await Promise.all([
     allocationSummary(profile.id),
     studentLedger(profile.id),
-    interviewsForLog(profile.id, now),
+    interviewsForLog(user.id, now),
     // The frame the shell already drew, asked again for free (request-cached).
     profileOf(user).then((lens) => spaceOf(user, lens)),
   ]);

@@ -275,11 +275,11 @@ async function main() {
   const offer = async (name: string, startsAt: Date, minutes: number) => {
     const s = P(name);
     if (!s) return null;
-    const existing = await prisma.interviewSlot.findFirst({ where: { studentId: s.id, startsAt } });
+    const existing = await prisma.interviewSlot.findFirst({ where: { userId: s.userId, startsAt } });
     return (
       existing ??
       prisma.interviewSlot.create({
-        data: { studentId: s.id, startsAt, minutes, meetingUrl: "https://meet.google.com/abc-defg-hij" },
+        data: { userId: s.userId, startsAt, minutes, meetingUrl: "https://meet.google.com/abc-defg-hij" },
       })
     );
   };
@@ -304,8 +304,8 @@ async function main() {
     const iv = await prisma.peerInterview.create({
       data: {
         slotId: slot.id,
-        hostId: P(host).id,
-        guestId: P(guest).id,
+        hostId: P(host).userId,
+        guestId: P(guest).userId,
         template,
         completedAt: completed ? new Date(startsAt.getTime() + minutes * 60_000) : undefined,
         hostNotes: completed ? "Strong opening. Should slow down on the why-this-university answer." : undefined,
@@ -317,7 +317,7 @@ async function main() {
         await prisma.interviewAnswer.create({
           data: {
             interviewId: iv.id,
-            studentId: P(who).id,
+            userId: P(who).userId,
             questionIndex: q,
             question: ANSWERS[q],
             text: [
@@ -331,7 +331,7 @@ async function main() {
       await prisma.interviewFeedback.create({
         data: {
           interviewId: iv.id,
-          fromId: P(host).id,
+          fromId: P(host).userId,
           summary: "A clear, confident interview with a few places to tighten.",
           wentWell: "Specific examples (the robotics club) and a calm voice.",
           toImprove: "Answer 'why this university' with one detail only that school has.",
@@ -341,7 +341,7 @@ async function main() {
       await prisma.interviewFeedback.create({
         data: {
           interviewId: iv.id,
-          fromId: P(guest).id,
+          fromId: P(guest).userId,
           summary: "Helpful questions and kind feedback.",
           wentWell: "Good follow-up questions that made me expand my answers.",
           toImprove: "Leave a little more silence after a question.",

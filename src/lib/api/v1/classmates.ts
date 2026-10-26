@@ -26,13 +26,21 @@ export async function classmateFor({ profile }: PracticeStudent, id: string, now
     where: { id },
     select: {
       id: true,
-      user: { select: { id: true, name: true, role: true, status: true } },
-      enrollments: { select: { programId: true, exchangeId: true, program: { select: { name: true } } } },
-      interviewSlots: {
-        where: { startsAt: { gt: programWallClock(now) }, interview: null },
-        select: { id: true, startsAt: true, minutes: true },
-        orderBy: { startsAt: "asc" },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          role: true,
+          status: true,
+          // Their times for classmates: a mentor's are not offered here.
+          interviewSlots: {
+            where: { asMentor: false, startsAt: { gt: programWallClock(now) }, interview: null },
+            select: { id: true, startsAt: true, minutes: true },
+            orderBy: { startsAt: "asc" },
+          },
+        },
       },
+      enrollments: { select: { programId: true, exchangeId: true, program: { select: { name: true } } } },
     },
   });
   if (
@@ -48,7 +56,7 @@ export async function classmateFor({ profile }: PracticeStudent, id: string, now
     id: classmate.id,
     person: personOf(classmate.user),
     shared: studiesIn(classmate.enrollments).map((e) => e.program.name),
-    slots: classmate.interviewSlots.map((s) => ({ id: s.id, when: slotTime(s) })),
+    slots: classmate.user.interviewSlots.map((s) => ({ id: s.id, when: slotTime(s) })),
     templates: INTERVIEW_TEMPLATES.map((t) => ({ id: t.id, name: t.name, summary: t.summary })),
   };
 }

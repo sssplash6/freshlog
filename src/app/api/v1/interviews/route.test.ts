@@ -57,7 +57,7 @@ describe("GET /api/v1/interviews", () => {
     as(await mentor());
     const res = await GET();
     expect(res.status).toBe(403);
-    expect((await res.json()).error).toBe("Only approved students can practise interviews.");
+    expect((await res.json()).error).toBe("Only approved students and their mentors can practise interviews.");
   });
 
   it("lists students of every program, offering a time first, by their own programs", async () => {
@@ -73,7 +73,7 @@ describe("GET /api/v1/interviews", () => {
       data: { exchangeId: exchange.id },
     });
     await prisma.interviewSlot.create({
-      data: { studentId: guest.id, startsAt: wallHoursFromNow(30), minutes: 45, meetingUrl: "https://meet.example/x" },
+      data: { userId: guest.userId, startsAt: wallHoursFromNow(30), minutes: 45, meetingUrl: "https://meet.example/x" },
     });
 
     as(host);
@@ -97,23 +97,23 @@ describe("GET /api/v1/interviews", () => {
   it("reads my interviews, my times and the To do on freshform's clock", async () => {
     const { host, guest } = await scene();
     const soon = await prisma.interviewSlot.create({
-      data: { studentId: host.id, startsAt: wallHoursFromNow(3), minutes: 45, meetingUrl: "https://meet.example/soon" },
+      data: { userId: host.userId, startsAt: wallHoursFromNow(3), minutes: 45, meetingUrl: "https://meet.example/soon" },
     });
     const past = await prisma.interviewSlot.create({
-      data: { studentId: host.id, startsAt: wallHoursFromNow(-3), minutes: 45 },
+      data: { userId: host.userId, startsAt: wallHoursFromNow(-3), minutes: 45 },
     });
     const held = await prisma.interviewSlot.create({
-      data: { studentId: host.id, startsAt: wallHoursFromNow(-30), minutes: 45 },
+      data: { userId: host.userId, startsAt: wallHoursFromNow(-30), minutes: 45 },
     });
-    await prisma.interviewSlot.create({ data: { studentId: host.id, startsAt: wallHoursFromNow(80), minutes: 30 } });
+    await prisma.interviewSlot.create({ data: { userId: host.userId, startsAt: wallHoursFromNow(80), minutes: 30 } });
     const a = await prisma.peerInterview.create({
-      data: { slotId: soon.id, hostId: host.id, guestId: guest.id, template: "scholarship" },
+      data: { slotId: soon.id, hostId: host.userId, guestId: guest.userId, template: "scholarship" },
     });
     const b = await prisma.peerInterview.create({
-      data: { slotId: past.id, hostId: host.id, guestId: guest.id, template: "behavioral" },
+      data: { slotId: past.id, hostId: host.userId, guestId: guest.userId, template: "behavioral" },
     });
     const c = await prisma.peerInterview.create({
-      data: { slotId: held.id, hostId: host.id, guestId: guest.id, template: "visa", completedAt: new Date() },
+      data: { slotId: held.id, hostId: host.userId, guestId: guest.userId, template: "visa", completedAt: new Date() },
     });
 
     as(host);

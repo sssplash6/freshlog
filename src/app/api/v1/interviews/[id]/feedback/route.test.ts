@@ -36,10 +36,10 @@ async function scene(startedMinutesAgo = 10) {
   const host = await student({ programId: p.id, name: "Aziza Karimova" });
   const guest = await student({ programId: p.id, name: "Bekzod Tursunov" });
   const slot = await prisma.interviewSlot.create({
-    data: { studentId: host.id, startsAt: wallMinutesFromNow(-startedMinutesAgo), minutes: 45 },
+    data: { userId: host.userId, startsAt: wallMinutesFromNow(-startedMinutesAgo), minutes: 45 },
   });
   const interview = await prisma.peerInterview.create({
-    data: { slotId: slot.id, hostId: host.id, guestId: guest.id, template: "scholarship" },
+    data: { slotId: slot.id, hostId: host.userId, guestId: guest.userId, template: "scholarship" },
   });
   return { p, host, guest, interview };
 }
@@ -55,7 +55,7 @@ describe("PUT /api/v1/interviews/:id/answers/:index", () => {
     expect((await putAnswer(interview.id, "0", { text: "First" })).status).toBe(200);
     expect((await putAnswer(interview.id, "0", { text: "Second" })).status).toBe(200);
     const rows = await prisma.interviewAnswer.findMany({ where: { interviewId: interview.id } });
-    expect(rows).toEqual([expect.objectContaining({ studentId: guest.id, questionIndex: 0, text: "Second" })]);
+    expect(rows).toEqual([expect.objectContaining({ userId: guest.userId, questionIndex: 0, text: "Second" })]);
   });
 
   it("refuses before the start, an index that isn't a question, and somebody not in it", async () => {
@@ -83,7 +83,7 @@ describe("feedback", () => {
     const { host, guest, interview } = await scene();
     as(guest);
     expect((await draft(req("PUT", { summary: "Half" }), params(interview.id))).status).toBe(200);
-    const row = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.id } });
+    const row = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.userId } });
     expect(row).toMatchObject({ summary: "Half", submittedAt: null });
 
     const missing = await submit(req("POST", { ...full, toImprove: "  " }), params(interview.id));
@@ -104,12 +104,12 @@ describe("feedback", () => {
     await submit(req("POST", full), params(interview.id));
     const fixed = await edit(req("PATCH", { ...full, toImprove: "Slow down a little." }), params(interview.id));
     expect(fixed.status).toBe(200);
-    expect((await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.id } })).toImprove).toBe("Slow down a little.");
+    expect((await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.userId } })).toImprove).toBe("Slow down a little.");
 
     const old = await scene(120);
     as(old.guest);
     await prisma.interviewFeedback.create({
-      data: { interviewId: old.interview.id, fromId: old.guest.id, ...full, submittedAt: new Date() },
+      data: { interviewId: old.interview.id, fromId: old.guest.userId, ...full, submittedAt: new Date() },
     });
     const late = await edit(req("PATCH", full), params(old.interview.id));
     expect(late.status).toBe(400);

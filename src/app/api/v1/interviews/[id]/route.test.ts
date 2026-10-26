@@ -43,10 +43,10 @@ async function scene(startsIn = 48, extra: { completedAt?: Date } = {}) {
   const host = await student({ programId: p.id, name: "Aziza Karimova" });
   const guest = await student({ programId: p.id, name: "Bekzod Tursunov" });
   const slot = await prisma.interviewSlot.create({
-    data: { studentId: host.id, startsAt: wallHoursFromNow(startsIn), minutes: 45, meetingUrl: "https://meet.example/a" },
+    data: { userId: host.userId, startsAt: wallHoursFromNow(startsIn), minutes: 45, meetingUrl: "https://meet.example/a" },
   });
   const interview = await prisma.peerInterview.create({
-    data: { slotId: slot.id, hostId: host.id, guestId: guest.id, template: "scholarship", ...extra },
+    data: { slotId: slot.id, hostId: host.userId, guestId: guest.userId, template: "scholarship", ...extra },
   });
   return { p, host, guest, slot, interview };
 }
@@ -93,13 +93,13 @@ describe("GET /api/v1/interviews/:id", () => {
     const { host, guest, interview } = await scene(-2, { completedAt: new Date() });
     await prisma.peerInterview.update({ where: { id: interview.id }, data: { hostNotes: "HOST-PRIVATE", guestNotes: "mine" } });
     await prisma.interviewAnswer.create({
-      data: { interviewId: interview.id, studentId: host.id, questionIndex: 0, question: "Q", text: "HOST-ANSWER" },
+      data: { interviewId: interview.id, userId: host.userId, questionIndex: 0, question: "Q", text: "HOST-ANSWER" },
     });
     await prisma.interviewAnswer.create({
-      data: { interviewId: interview.id, studentId: guest.id, questionIndex: 0, question: "Q", text: "my answer" },
+      data: { interviewId: interview.id, userId: guest.userId, questionIndex: 0, question: "Q", text: "my answer" },
     });
     await prisma.interviewFeedback.create({
-      data: { interviewId: interview.id, fromId: host.id, summary: "HOST-DRAFT", wentWell: "x", toImprove: "y" },
+      data: { interviewId: interview.id, fromId: host.userId, summary: "HOST-DRAFT", wentWell: "x", toImprove: "y" },
     });
 
     as(guest);
@@ -108,7 +108,7 @@ describe("GET /api/v1/interviews/:id", () => {
     expect(draft).toMatchObject({ notes: "mine", answers: [{ index: 0, question: "Q", text: "my answer" }], theirs: null });
     expect(draft.can).toMatchObject({ notes: true, guide: true, cancel: false });
 
-    await prisma.interviewFeedback.updateMany({ where: { fromId: host.id }, data: { submittedAt: new Date() } });
+    await prisma.interviewFeedback.updateMany({ where: { fromId: host.userId }, data: { submittedAt: new Date() } });
     const sent = await (await read(interview.id)).json();
     expect(sent.theirs).toEqual({ summary: "HOST-DRAFT", wentWell: "x", toImprove: "y" });
     expect(sent.notes).toBe("mine");

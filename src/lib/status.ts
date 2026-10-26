@@ -633,6 +633,7 @@ const META: Record<StatusType, Meta> = {
     severity: "neutral",
     voices: {
       staff: { kind: "informational", label: () => "Booked" },
+      mentor: { kind: "informational", label: () => "Booked" },
       student: { kind: "informational", label: () => "Booked" },
     },
   },
@@ -644,6 +645,12 @@ const META: Record<StatusType, Meta> = {
     severity: "attention",
     voices: {
       staff: { kind: "informational", label: () => "Not marked done" },
+      // A mentor in the interview does what a student in it does.
+      mentor: {
+        kind: "actionable",
+        label: () => "Not marked done",
+        explanation: () => "Start the interview, or mark it done to write your notes.",
+      },
       student: {
         kind: "actionable",
         label: () => "Not marked done",
@@ -656,6 +663,7 @@ const META: Record<StatusType, Meta> = {
     severity: "ok",
     voices: {
       staff: { kind: "informational", label: () => "Completed" },
+      mentor: { kind: "informational", label: () => "Completed" },
       student: { kind: "informational", label: () => "Completed" },
     },
   },
@@ -666,6 +674,7 @@ const META: Record<StatusType, Meta> = {
     severity: "neutral",
     voices: {
       staff: { kind: "informational", label: () => "No-show" },
+      mentor: { kind: "informational", label: () => "Absent" },
       student: { kind: "informational", label: () => "Absent" },
     },
   },

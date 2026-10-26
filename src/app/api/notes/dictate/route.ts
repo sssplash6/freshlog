@@ -131,25 +131,19 @@ async function interviewPartner(actor: User, form: FormData): Promise<string | n
   const interviewId = String(form.get("interviewId") ?? "").trim();
   if (!interviewId) return null;
 
-  const [profile, interview] = await Promise.all([
-    prisma.studentProfile.findUnique({
-      where: { userId: actor.id },
-      select: { id: true },
-    }),
-    prisma.peerInterview.findUnique({
-      where: { id: interviewId },
-      select: {
-        hostId: true,
-        guestId: true,
-        host: { select: { user: { select: { name: true } } } },
-        guest: { select: { user: { select: { name: true } } } },
-      },
-    }),
-  ]);
-  if (!profile || !interview) return null;
+  const interview = await prisma.peerInterview.findUnique({
+    where: { id: interviewId },
+    select: {
+      hostId: true,
+      guestId: true,
+      host: { select: { name: true } },
+      guest: { select: { name: true } },
+    },
+  });
+  if (!interview) return null;
 
-  const side = sideOf(interview, profile.id);
+  const side = sideOf(interview, actor.id);
   if (!side) return null;
   const other = side === "host" ? interview.guest : interview.host;
-  return other.user.name ?? "";
+  return other.name ?? "";
 }

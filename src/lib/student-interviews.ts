@@ -5,7 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { programWallClock } from "@/lib/when";
 
 /**
- * One student's practice interviews, as their mentors read them.
+ * One student's practice interviews, as their mentors read them. `studentId`
+ * is the student's USER id: interviews are keyed on users, since a mentor may
+ * be the other side.
  *
  * The student's own side only: what they answered, what they noted, the
  * feedback they sent and the feedback sent about them. The partner's answers
@@ -23,16 +25,17 @@ export async function interviewsOfStudent(studentId: string) {
     select: {
       id: true,
       hostId: true,
+      mentorId: true,
       template: true,
       completedAt: true,
       absentId: true,
       hostNotes: true,
       guestNotes: true,
       slot: { select: { startsAt: true, minutes: true } },
-      host: { select: { user: { select: { id: true, name: true, avatarUpdatedAt: true } } } },
-      guest: { select: { user: { select: { id: true, name: true, avatarUpdatedAt: true } } } },
+      host: { select: { id: true, name: true, avatarUpdatedAt: true } },
+      guest: { select: { id: true, name: true, avatarUpdatedAt: true } },
       answers: {
-        where: { studentId },
+        where: { userId: studentId },
         orderBy: { questionIndex: "asc" },
         select: { questionIndex: true, question: true, text: true },
       },
@@ -52,7 +55,8 @@ export async function interviewsOfStudent(studentId: string) {
         completedAt: row.completedAt,
         absentId: row.absentId,
         slot: row.slot,
-        partner: (hosting ? row.guest : row.host).user,
+        partner: hosting ? row.guest : row.host,
+        withMentor: row.mentorId !== null && row.mentorId !== studentId,
         notes: (hosting ? row.hostNotes : row.guestNotes) ?? "",
         answers: row.answers,
         given: row.feedback.find((f) => f.fromId === studentId) ?? null,
@@ -69,9 +73,9 @@ export type StudentInterview = Awaited<ReturnType<typeof interviewsOfStudent>>[n
  * one whose time has come, newest first — held, missed, or still to be marked.
  *
  * They sit beside the sessions because a student reads one history of the
- * meetings they had, but they are not sessions. Two classmates meet with no
- * mentor and no program, so nothing here is drawn from an allocation, and no
- * figure about hours reads this. The partner is a name and a face, as on
+ * meetings they had, but they are not sessions. Nothing here is drawn from an
+ * allocation — not even with a mentor: practice is not a session — and no
+ * figure about hours reads this. `studentId` is the student's user id. The partner is a name and a face, as on
  * /student/meetings' coming-up list.
  */
 export async function interviewsForLog(studentId: string, now: Date) {
@@ -87,8 +91,8 @@ export async function interviewsForLog(studentId: string, now: Date) {
       completedAt: true,
       absentId: true,
       slot: { select: { startsAt: true, minutes: true } },
-      host: { select: { user: { select: { id: true, name: true, avatarUpdatedAt: true } } } },
-      guest: { select: { user: { select: { id: true, name: true, avatarUpdatedAt: true } } } },
+      host: { select: { id: true, name: true, avatarUpdatedAt: true } },
+      guest: { select: { id: true, name: true, avatarUpdatedAt: true } },
     },
     orderBy: { slot: { startsAt: "desc" } },
   });
@@ -99,7 +103,7 @@ export async function interviewsForLog(studentId: string, now: Date) {
     minutes: row.slot.minutes,
     template: row.template,
     phase: interviewPhase(row, now),
-    partner: { ...(row.hostId === studentId ? row.guest : row.host).user, email: "" },
+    partner: { ...(row.hostId === studentId ? row.guest : row.host), email: "" },
   }));
 }
 

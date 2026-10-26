@@ -148,7 +148,7 @@ export default async function StudentWorkspacePage({
   // not read them by virtue of managing the student.
   const interviews =
     canActAsMentor(me) && (await mentorHasWorkedWith(me, profile))
-      ? await interviewsOfStudent(profile.id)
+      ? await interviewsOfStudent(profile.userId)
       : [];
 
   // The university application, for a student in a program that tracks them,

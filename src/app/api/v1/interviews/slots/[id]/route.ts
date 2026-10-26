@@ -20,8 +20,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const me = await practiceStudent(user);
   if (!me) return refused(NOT_A_STUDENT, 403);
   const { id } = await params;
-  const slot = await prisma.interviewSlot.findUnique({ where: { id }, select: { studentId: true } });
-  if (!slot || slot.studentId !== me.profile.id) return refused("Not found.", 404);
+  const slot = await prisma.interviewSlot.findUnique({ where: { id }, select: { userId: true } });
+  if (!slot || slot.userId !== me.user.id) return refused("Not found.", 404);
   const form = new FormData();
   form.set("slotId", id);
   return fromAction(await removeInterviewSlot(null, form));

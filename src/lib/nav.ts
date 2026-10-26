@@ -200,6 +200,8 @@ async function mentorNav(viewer: User, inbox?: number): Promise<NavItem[]> {
     { href: "/programs", label: "Programs" },
     { href: "/sessions", label: "Sessions" },
     ...(await classesItem(viewer)),
+    // Practice interviews with their students: not sessions, no hours.
+    { href: "/mentor/interviews", label: "Interviews" },
     { href: "/feedback", label: "Feedback" },
     analytics,
   ];

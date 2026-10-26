@@ -33,7 +33,7 @@ async function scene() {
   const host = await student({ programId: p.id, name: "Aziza Karimova" });
   const guest = await student({ programId: p.id, name: "Bekzod Tursunov" });
   const slot = await prisma.interviewSlot.create({
-    data: { studentId: host.id, startsAt: wallHoursFromNow(48), minutes: 45, meetingUrl: "https://meet.example/a" },
+    data: { userId: host.userId, startsAt: wallHoursFromNow(48), minutes: 45, meetingUrl: "https://meet.example/a" },
   });
   return { p, host, guest, slot };
 }
@@ -91,7 +91,7 @@ describe("POST /api/v1/interviews", () => {
     const body = await res.json();
     const made = await prisma.peerInterview.findUniqueOrThrow({ where: { slotId: slot.id } });
     expect(body).toEqual({ ok: true, id: made.id });
-    expect(made).toMatchObject({ hostId: host.id, guestId: guest.id, template: "scholarship" });
+    expect(made).toMatchObject({ hostId: host.userId, guestId: guest.userId, template: "scholarship" });
     expect(await prisma.notification.count({ where: { userId: host.userId, type: "PEER_INTERVIEW_BOOKED" } })).toBe(1);
   });
 
@@ -112,14 +112,14 @@ describe("POST /api/v1/interviews", () => {
     expect(taken.status).toBe(400);
     expect((await taken.json()).error).toBe("That time isn't available any more. Pick another.");
 
-    const mine = await prisma.interviewSlot.create({ data: { studentId: host.id, startsAt: wallHoursFromNow(72), minutes: 30 } });
+    const mine = await prisma.interviewSlot.create({ data: { userId: host.userId, startsAt: wallHoursFromNow(72), minutes: 30 } });
     as(host);
     expect((await (await book({ slot: mine.id, template: "visa" })).json()).error).toBe("That's one of your own times.");
   });
 
   it("refuses a time that has started", async () => {
     const { host, guest } = await scene();
-    const started = await prisma.interviewSlot.create({ data: { studentId: host.id, startsAt: wallHoursFromNow(-1), minutes: 60 } });
+    const started = await prisma.interviewSlot.create({ data: { userId: host.userId, startsAt: wallHoursFromNow(-1), minutes: 60 } });
     as(guest);
     expect((await book({ slot: started.id, template: "visa" })).status).toBe(400);
     expect(await prisma.peerInterview.count()).toBe(0);

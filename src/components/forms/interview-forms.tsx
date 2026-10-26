@@ -29,10 +29,13 @@ import { MEETING_URL_MAX, NOTES_MAX, SLOT_LENGTHS } from "@/lib/peer-interviews"
  * offer a day the server will refuse.
  */
 export function OfferSlotForm({
+  as = "student",
   today,
   tomorrow,
   lastDay,
 }: {
+  /** "mentor" offers the time to the mentor's students, "student" to classmates. */
+  as?: "student" | "mentor";
   today: string;
   /** The default day: today's afternoon has usually gone by the time anyone looks. */
   tomorrow: string;
@@ -42,6 +45,7 @@ export function OfferSlotForm({
 
   return (
     <form action={action} className="space-y-4 px-4 py-3 sm:px-5">
+      <input type="hidden" name="as" value={as} />
       {/* Top-aligned, with each label a block line the legend's height and
           the control the legend's `mt-1` under it. Bottom-aligned, the
           segmented track — a few pixels taller than an input — lifted its
@@ -116,10 +120,13 @@ export type OpenSlot = {
  * between them, not looking one up.
  */
 export function BookInterviewForm({
+  as = "student",
   slots,
   templates,
   classmate,
 }: {
+  /** The capacity the booker acts in: "mentor" books one of their students. */
+  as?: "student" | "mentor";
   slots: OpenSlot[];
   templates: readonly InterviewTemplate[];
   classmate: string;
@@ -132,6 +139,7 @@ export function BookInterviewForm({
 
   return (
     <form action={action} className="space-y-4 px-4 py-3 sm:px-5">
+      <input type="hidden" name="as" value={as} />
       <fieldset>
         <legend className="text-sm text-muted-fg">1. Pick a time</legend>
         <div className="mt-2 space-y-3">
@@ -208,7 +216,7 @@ export function CancelInterviewButton({ interviewId }: { interviewId: string }) 
     <div className="flex flex-wrap items-center gap-3">
       <ConfirmInline
         label="Cancel interview"
-        question="Your classmate is told, any answers and feedback are deleted, and the time opens for others to book."
+        question="Your partner is told, any answers and feedback are deleted, and the time opens for others to book."
         confirmLabel="Yes, cancel it"
         cancelLabel="Keep it"
         pendingLabel="Cancelling…"

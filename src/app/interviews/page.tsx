@@ -171,7 +171,7 @@ function MeetingsTable({
             <Td label="Students" className={FILL_CELL}>
               <span className="flex flex-wrap items-center gap-1.5">
                 {[iv.host, iv.guest].map((p) => (
-                  <span key={p.profileId} className="flex min-w-0 max-w-48">
+                  <span key={p.id} className="flex min-w-0 max-w-48">
                     <PersonChip
                       person={p}
                       size="sm"

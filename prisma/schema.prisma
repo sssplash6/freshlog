@@ -106,6 +106,13 @@ model User {
   pushPreferences     PushPreference[]
   partnerMentorships  PartnerMentor[]
   partnerFeedback     PartnerFeedback[]        @relation("PartnerFeedbackMentor")
+  // Practice interviews, as either side: a student, or a mentor interviewing
+  // a student they work with.
+  interviewSlots      InterviewSlot[]
+  interviewsHosted    PeerInterview[]          @relation("InterviewHost")
+  interviewsBooked    PeerInterview[]          @relation("InterviewGuest")
+  interviewAnswers    InterviewAnswer[]
+  interviewFeedback   InterviewFeedback[]
 }
 
 // One profile picture, stored in the database rather than on disk so it travels
@@ -360,12 +367,7 @@ model StudentProfile {
   allotmentChanges  HourAllotmentChange[]
   mentorFeedback    MentorFeedback[]
   exchanges         ProgramExchange[]
-  interviewSlots    InterviewSlot[]
   mentorTasks       MentorTaskStudent[]
-  interviewsHosted  PeerInterview[]       @relation("InterviewHost")
-  interviewsBooked  PeerInterview[]       @relation("InterviewGuest")
-  interviewAnswers  InterviewAnswer[]
-  interviewFeedback InterviewFeedback[]
   application       StudentApplication?
   universities      StudentUniversity[]
 }
@@ -969,23 +971,30 @@ model MentorFeedback {
   mentor  User           @relation("FeedbackMentor", fields: [mentorId], references: [id])
 }
 
-// A time one student has offered for a practice interview with a classmate.
+// A time somebody has offered for a practice interview.
 //
 // Students rehearse admissions interviews on each other: one offers a few
-// times, a classmate who shares one of their own programs books one and picks
-// the questions. Nothing here touches the ledger — no hours, no mentor, no
-// program column. It is not a meeting a mentor arranges (that left the product
-// on 15 Sep 2026, with the old `Interview` table); it is two students
-// practising. The two of them read these rows, and so does any mentor who has
-// ever held a grant, a session or a task with either student (`mentorHasWorkedWith`,
-// read by `interviewsOfStudent`) — never another student, never an admin by role.
+// times, any other approved student books one and picks the questions. A
+// mentor may take part too, with a student they have worked with
+// (`mentorHasWorkedWith`): either offers a time and the other books it, and
+// the mentor asks the questions. Nothing here touches the ledger — no hours, no
+// program column. The two people in an interview read its rows, and so does any
+// mentor who has ever held a grant, a session or a task with the student
+// (`interviewsOfStudent`) — never another student, never an admin by role.
+//
+// Every party is a USER, not a student profile, because a mentor has none.
+// `asMentor` is the capacity the time was offered in — a person who is both a
+// student and a mentor offers one kind or the other — and decides who may book
+// it: a student's time is for students and for their mentors, a mentor's only
+// for their students.
 //
 // `startsAt` is the program's wall clock in a UTC field, the convention
 // lib/when.ts documents: the student types "15:00" meaning 15:00 Tashkent,
 // and every reader is handed back that same 15:00.
 model InterviewSlot {
   id         String   @id @default(cuid())
-  studentId  String
+  userId     String
+  asMentor   Boolean  @default(false)
   startsAt   DateTime
   minutes    Int
   // Where the two students meet — a Meet or Zoom link, https only, optional.
@@ -994,16 +1003,16 @@ model InterviewSlot {
   meetingUrl String?
   createdAt  DateTime @default(now())
 
-  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   // Null while the time is open. Being booked IS this row existing: the slot
   // has no flag of its own that could disagree with it.
   interview PeerInterview?
 
-  @@unique([studentId, startsAt])
+  @@unique([userId, startsAt])
   @@index([startsAt])
 }
 
-// One booked practice interview between two students.
+// One booked practice interview: two students, or a mentor and a student.
 //
 // Unique on the slot, which is what makes a time bookable once: two classmates
 // pressing Book at the same moment meet this constraint, not a race. Cancelling
@@ -1013,19 +1022,24 @@ model InterviewSlot {
 // one column, as `StudentTask.completedAt` is, because two would let them
 // disagree. Either student may set it.
 //
-// Absent is `absentId`: the student who did not join, named by the one who did.
-// It is a student id rather than a flag per side so that only one of the two can
+// Absent is `absentId`: the person who did not join, named by the one who did.
+// It is a user id rather than a flag per side so that only one of the two can
 // ever be absent. An absent interview is closed but not completed — there is
 // nothing to write notes about — and the actions refuse to do both.
 //
 // Notes are per side and private to their writer: what one student thought of
 // the other's answers is theirs to keep, not something the other reads.
+//
+// `mentorId` is set when one side is a mentor — it is then hostId or guestId,
+// as `absentId` is. The mentor asks and writes the feedback; the student
+// answers and writes none.
 model PeerInterview {
   id          String    @id @default(cuid())
   slotId      String    @unique
-  // The student who offered the time, and the one who took it.
+  // The user who offered the time, and the one who took it.
   hostId      String
   guestId     String
+  mentorId    String?
   // An id from INTERVIEW_TEMPLATES in lib/interview-templates.ts. Fixed by the
   // product; students choose one and never write their own.
   template    String
@@ -1038,8 +1052,8 @@ model PeerInterview {
   updatedAt   DateTime  @updatedAt
 
   slot     InterviewSlot       @relation(fields: [slotId], references: [id], onDelete: Cascade)
-  host     StudentProfile      @relation("InterviewHost", fields: [hostId], references: [id], onDelete: Cascade)
-  guest    StudentProfile      @relation("InterviewGuest", fields: [guestId], references: [id], onDelete: Cascade)
+  host     User                @relation("InterviewHost", fields: [hostId], references: [id], onDelete: Cascade)
+  guest    User                @relation("InterviewGuest", fields: [guestId], references: [id], onDelete: Cascade)
   answers  InterviewAnswer[]
   feedback InterviewFeedback[]
 
@@ -1048,14 +1062,15 @@ model PeerInterview {
 }
 
 // One student's own answer to one question, typed or dictated. Private to the
-// student who gave it: no page or action selects it for the partner.
+// student who gave it and their mentors: no page or action selects it for the
+// partner. A mentor interviewing a student asks, and has no answers.
 //
 // `question` is the wording at the time, so editing a template never relabels
 // an answer already given.
 model InterviewAnswer {
   id            String   @id @default(cuid())
   interviewId   String
-  studentId     String
+  userId        String
   questionIndex Int
   question      String
   text          String
@@ -1063,12 +1078,12 @@ model InterviewAnswer {
   updatedAt     DateTime @updatedAt
 
   interview PeerInterview  @relation(fields: [interviewId], references: [id], onDelete: Cascade)
-  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([interviewId, studentId, questionIndex])
+  @@unique([interviewId, userId, questionIndex])
 }
 
-// What one student says about their partner's answers. A draft is its author's
+// What one side says about their partner's answers. A draft is its author's
 // alone; `submittedAt` is the moment it becomes the partner's to read. After it
 // the author may still correct the wording until 30 minutes past the slot's end
 // (FEEDBACK_EDIT_MINUTES), and then the row does not change.
@@ -1084,7 +1099,7 @@ model InterviewFeedback {
   updatedAt   DateTime  @updatedAt
 
   interview PeerInterview  @relation(fields: [interviewId], references: [id], onDelete: Cascade)
-  from      StudentProfile @relation(fields: [fromId], references: [id], onDelete: Cascade)
+  from      User           @relation(fields: [fromId], references: [id], onDelete: Cascade)
 
   @@unique([interviewId, fromId])
 }
