@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-26
+
+### New
+- **A combined score for each program on Feedback.** Under the overview, each program you can read gets one line with its score, worst first, and what it is made of. Click a line to see that program's ratings only.
+
 ## 2026-10-25
 
 ### New

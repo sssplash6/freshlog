@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { ExpandableText } from "@/components/expandable-text";
@@ -395,6 +396,7 @@ async function AllRatings({
     meetingsLately,
     formSpread,
     meetingSpread,
+    meetingsByProgram,
   ] = await Promise.all([
     prisma.mentorFeedback.aggregate({
       where,
@@ -503,7 +505,54 @@ async function AllRatings({
       where: meetingCards,
       _count: { _all: true },
     }),
+    prisma.session.groupBy({
+      by: ["programId"],
+      where: meetingCards,
+      _sum: { studentRating: true },
+      _count: { _all: true },
+    }),
   ]);
+
+  // A written rating names no program, so it counts in each program its writer
+  // is enrolled in — the same answer the Program filter gives, so a program's
+  // line matches the page filtered to that program. One read per program the
+  // reader can see, and that is a handful.
+  const writtenByProgram = await Promise.all(
+    programs.map((p) =>
+      prisma.mentorFeedback.aggregate({
+        where: {
+          AND: [where, { student: { enrollments: { some: { programId: p.id } } } }],
+        },
+        _sum: { rating: true },
+        _count: true,
+      })
+    )
+  );
+  const meetingProgram = new Map(meetingsByProgram.map((r) => [r.programId, r]));
+  const programScores = programs
+    .flatMap((p, i) => {
+      const written = writtenByProgram[i];
+      const meetings = meetingProgram.get(p.id);
+      const gCount = written._count;
+      const mCount = meetings?._count._all ?? 0;
+      const total = gCount + mCount;
+      if (total === 0) return [];
+      const gSum = written._sum.rating ?? 0;
+      const mSum = meetings?._sum.studentRating ?? 0;
+      return [
+        {
+          ...p,
+          average: (gSum + mSum) / total,
+          total,
+          written: gCount ? gSum / gCount : null,
+          writtenCount: gCount,
+          meetings: mCount ? mSum / mCount : null,
+          meetingCount: mCount,
+        },
+      ];
+    })
+    // Worst first, like everything else on this page.
+    .sort((a, b) => a.average - b.average || b.total - a.total);
 
   const person = new Map(rated.map((m) => [m.id, m]));
   const generalRecent = new Map(lately.map((r) => [r.mentorId, r._min.rating]));
@@ -620,6 +669,22 @@ async function AllRatings({
             },
           ]}
         />
+      )}
+
+      {/* One line each, not a card each: a program is a row of the school's
+          score, and a reader with one program has nothing to compare it to. */}
+      {programScores.length > 1 && (
+        <Section
+          title="Programs"
+          count={programScores.length}
+          caption="A written rating counts in every program its writer studies in."
+        >
+          <ul className="divide-y divide-line/70">
+            {programScores.map((p) => (
+              <ProgramLine key={p.id} program={p} params={params} />
+            ))}
+          </ul>
+        </Section>
       )}
 
       <FilterBar
@@ -1006,6 +1071,67 @@ function Overview({
         </dl>
       </div>
     </div>
+  );
+}
+
+/**
+ * One program's combined score on one line: the name, what the score is made
+ * of, and the score with its stars. The line narrows the page to that program,
+ * the filter its figures already agree with.
+ */
+function ProgramLine({
+  program,
+  params,
+}: {
+  program: {
+    id: string;
+    name: string;
+    average: number;
+    total: number;
+    written: number | null;
+    writtenCount: number;
+    meetings: number | null;
+    meetingCount: number;
+  };
+  params: SearchParams;
+}) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (key === "page" || key === MEETING_PAGE || key === "program") continue;
+    for (const v of [value].flat()) if (v) query.append(key, v);
+  }
+  query.set("program", program.id);
+  const low = program.average < LOW_AVERAGE;
+  return (
+    <li>
+      <Link
+        href={`/feedback?${query}`}
+        className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 hover:bg-fill/60 sm:px-5"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-sm font-medium text-ink">{program.name}</span>
+          {low && <StatusChip severity="attention">Low</StatusChip>}
+        </span>
+        <span className="flex items-baseline gap-4">
+          <span className="text-xs tabular-nums text-muted-fg">
+            {[
+              program.written !== null &&
+                `Written ${program.written.toFixed(1)} · ${program.writtenCount}`,
+              program.meetings !== null &&
+                `Meetings ${program.meetings.toFixed(1)} · ${program.meetingCount}`,
+            ]
+              .filter(Boolean)
+              .join("  ·  ")}
+          </span>
+          <span className="whitespace-nowrap">
+            <span className="text-sm font-semibold tabular-nums text-ink">
+              {program.average.toFixed(1)}
+            </span>
+            <AverageStars value={program.average} />
+          </span>
+        </span>
+      </Link>
+    </li>
   );
 }
 
