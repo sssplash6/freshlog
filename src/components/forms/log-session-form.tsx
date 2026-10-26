@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { logSession } from "@/lib/actions/sessions";
 import type { ActionState } from "@/lib/actions/shared";
@@ -202,61 +202,76 @@ export function LogSessionForm({
   // unchecked while the component still believes it is on "Late", and the
   // mentor's answer is silently lost. Remounting them per attempt makes the
   // echoed value the one that wins.
-  const [{ state, attempt, errors: missing }, action, pending] = useActionState(
-    async (
-      prev: { state: ActionState; attempt: number; errors: FieldErrors },
-      formData: FormData
-    ) => {
-      // Checked here, before the round trip, and every field at once. The
-      // browser's own check fired on one field at a time in a tooltip that
-      // vanished on the next tap, while the fields the form drew itself
-      // answered in red under the control — two voices on one submit, and a
-      // footer promising "marked in red" over a Minutes box that was not.
-      const errors = checkFields(formData);
-      if (Object.keys(errors).length > 0) {
-        const values: Record<string, string> = {};
-        for (const [name, value] of formData.entries()) {
-          if (typeof value === "string") values[name] = value;
-        }
-        return {
-          state: { ok: false, error: "", values } as ActionState,
-          attempt: prev.attempt + 1,
-          errors,
-        };
+  const [{ state, attempt, errors: missing }, setOutcome] = useState({
+    state: null as ActionState,
+    attempt: 0,
+    errors: {} as FieldErrors,
+  });
+  const [pending, setPending] = useState(false);
+  // Read and set synchronously, so a second tap that lands before React has
+  // rendered the pending button still finds the first submit in flight.
+  const inFlight = useRef(false);
+
+  // A plain submit handler rather than a form action, and that is the fix for
+  // "Logging…" spinning long after the session was saved (October 2026). The
+  // action revalidates, so its response also carries the whole page
+  // re-rendered — shell, bell and all — and React holds a form action's
+  // pending state until every transition started inside it has committed.
+  // The receipt waited on the slowest query on the page, not on the save; on
+  // a slow evening mentors gave up, went back, and found the session there.
+  // Called from here, the result lands as soon as the server has written it,
+  // and the page refreshes behind the receipt in Next's own transition.
+  async function submit(formData: FormData) {
+    // Checked here, before the round trip, and every field at once. The
+    // browser's own check fired on one field at a time in a tooltip that
+    // vanished on the next tap, while the fields the form drew itself
+    // answered in red under the control — two voices on one submit, and a
+    // footer promising "marked in red" over a Minutes box that was not.
+    const errors = checkFields(formData);
+    if (Object.keys(errors).length > 0) {
+      const values: Record<string, string> = {};
+      for (const [name, value] of formData.entries()) {
+        if (typeof value === "string") values[name] = value;
       }
-      try {
-        return {
-          state: await logSession(prev.state, formData),
-          attempt: prev.attempt + 1,
-          errors: {},
-        };
-      } catch {
-        // A server action that never lands — a dropped connection, a proxy
-        // that ate the POST, an origin the deployment does not recognise —
-        // rejects here, and React renders nothing for a rejected action. The
-        // mentor pressed the button and the page sat there, which is the one
-        // failure they cannot report and cannot work around.
-        //
-        // Echo the fields back the way a refused submit does, so a retry does
-        // not start from an empty form.
-        const values: Record<string, string> = {};
-        for (const [name, value] of formData.entries()) {
-          if (typeof value === "string") values[name] = value;
-        }
-        return {
-          state: {
-            ok: false as const,
-            error:
-              "That did not reach the server, so nothing was logged. Check your connection and try again.",
-            values,
-          } as ActionState,
-          attempt: prev.attempt + 1,
-          errors: {},
-        };
+      setOutcome((prev) => ({
+        state: { ok: false, error: "", values } as ActionState,
+        attempt: prev.attempt + 1,
+        errors,
+      }));
+      return;
+    }
+    inFlight.current = true;
+    setPending(true);
+    const result = await send(formData);
+    inFlight.current = false;
+    setPending(false);
+    setOutcome((prev) => ({ state: result, attempt: prev.attempt + 1, errors: {} }));
+  }
+
+  async function send(formData: FormData): Promise<ActionState> {
+    try {
+      return await logSession(state, formData);
+    } catch {
+      // A server action that never lands — a dropped connection, a proxy
+      // that ate the POST, an origin the deployment does not recognise —
+      // rejects here, and React renders nothing for a rejected action. The
+      // mentor pressed the button and the page sat there, which is the one
+      // failure they cannot report and cannot work around.
+      //
+      // Echo the fields back the way a refused submit does, so a retry does
+      // not start from an empty form.
+      const values: Record<string, string> = {};
+      for (const [name, value] of formData.entries()) {
+        if (typeof value === "string") values[name] = value;
       }
-    },
-    { state: null as ActionState, attempt: 0, errors: {} as FieldErrors }
-  );
+      return {
+        ok: false as const,
+        error:
+          "That did not reach the server, so nothing was logged. Check your connection and try again.",
+        values,
+      } as ActionState;
+    }
+  }
   const page = mode === "page";
 
   // What the form opens with: the last failed attempt if there was one — React
@@ -785,7 +800,11 @@ export function LogSessionForm({
   return (
     <form
       ref={formRef}
-      action={action}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (inFlight.current) return;
+        void submit(new FormData(event.currentTarget));
+      }}
       // The form checks itself (`checkFields`), so every missing answer is
       // named at once, under its own field, in one voice.
       noValidate
@@ -862,6 +881,7 @@ export function LogSessionForm({
           </p>
         )}
         <SubmitButton
+          pending={pending}
           pendingText="Logging…"
           className="w-full sm:w-auto sm:min-w-40"
           disabled={students.length === 0}
