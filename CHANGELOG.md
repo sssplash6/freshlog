@@ -9,6 +9,9 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ### New
 - **A combined score for each program on Feedback.** Under the overview, each program you can read gets one line with its score, worst first, and what it is made of. Click a line to see that program's ratings only.
 
+### Fixed
+- **Sign in to the freshlog app with the right Google account.** The page that asks you to continue into the app now has "Use another account", so you're no longer stuck with whichever account this browser last used.
+
 ## 2026-10-25
 
 ### New

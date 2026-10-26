@@ -171,6 +171,16 @@ export async function issueSignInCode(
 }
 
 /**
+ * Says in the server's log why a sign-in code was refused. The app is told only
+ * CODE_FAILED, whatever the reason, so an answer says nothing about the code;
+ * the log is the one place a failed sign-in can be told apart. Never the code
+ * or the verifier: only the reason, and the redirect the app sent.
+ */
+export function refusedBecause(reason: string): void {
+  console.warn(`[api] sign-in code refused: ${reason}`);
+}
+
+/**
  * Trades a code for the user it was issued to. A code works once.
  *
  * The code is deleted before anything is checked, so a wrong verifier, a wrong
@@ -186,7 +196,10 @@ export async function redeemSignInCode(
     const row = await tx.apiSignInCode.findUnique({
       where: { codeHash: hashOf(input.code) },
     });
-    if (!row) return { error: CODE_FAILED };
+    if (!row) {
+      refusedBecause("no such code: already used, or never made");
+      return { error: CODE_FAILED };
+    }
 
     await tx.apiSignInCode.delete({ where: { codeHash: row.codeHash } });
 
@@ -195,11 +208,16 @@ export async function redeemSignInCode(
     const challenge = createHash("sha256")
       .update(input.verifier)
       .digest("base64url");
-    if (
-      row.expiresAt.getTime() <= now.getTime() ||
-      row.redirectUri !== input.redirectUri ||
-      challenge !== row.challenge
-    ) {
+    const reason =
+      row.expiresAt.getTime() <= now.getTime()
+        ? "the code is more than two minutes old"
+        : row.redirectUri !== input.redirectUri
+          ? `the redirect is not the one the code was made for (${JSON.stringify(input.redirectUri)})`
+          : challenge !== row.challenge
+            ? "the verifier does not match the challenge (PKCE)"
+            : null;
+    if (reason) {
+      refusedBecause(reason);
       return { error: CODE_FAILED };
     }
     return { userId: row.userId };

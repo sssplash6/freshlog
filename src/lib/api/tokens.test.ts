@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
 import { DAY, mentor } from "@/test/db";
@@ -101,6 +101,39 @@ describe("sign-in codes", () => {
     const m = await mentor();
     const code = await issueSignInCode(m.id, CHALLENGE, APP, T0);
     expect(await redeemSignInCode({ code, verifier: VERIFIER, redirectUri: "freshlog://other" }, T0)).toEqual({ error: CODE_FAILED });
+  });
+
+  describe("say in the log why they were refused, and never the code or the verifier", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    const refusal = async (redeem: (code: string) => Promise<unknown>) => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const m = await mentor();
+      const code = await issueSignInCode(m.id, CHALLENGE, APP, T0);
+      expect(await redeem(code)).toEqual({ error: CODE_FAILED });
+      expect(warn).toHaveBeenCalledTimes(1);
+      const said = String(warn.mock.calls[0][0]);
+      expect(said).not.toContain(code);
+      expect(said).not.toContain(VERIFIER);
+      return said;
+    };
+
+    it.each([
+      ["an unknown code", (code: string) => redeemSignInCode({ code: `${code}x`, verifier: VERIFIER, redirectUri: APP }, T0), "no such code"],
+      ["a code too old", (code: string) => redeemSignInCode({ code, verifier: VERIFIER, redirectUri: APP }, at(121_000)), "more than two minutes old"],
+      ["another redirect", (code: string) => redeemSignInCode({ code, verifier: VERIFIER, redirectUri: "freshlog://other" }, T0), 'the redirect is not the one the code was made for ("freshlog://other")'],
+      ["another verifier", (code: string) => redeemSignInCode({ code, verifier: "x".repeat(43), redirectUri: APP }, T0), "PKCE"],
+    ])("%s", async (_, redeem, reason) => {
+      expect(await refusal(redeem)).toContain(reason);
+    });
+
+    it("and say nothing when the code is good", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const m = await mentor();
+      const code = await issueSignInCode(m.id, CHALLENGE, APP, T0);
+      await redeemSignInCode({ code, verifier: VERIFIER, redirectUri: APP }, T0);
+      expect(warn).not.toHaveBeenCalled();
+    });
   });
 
   it("issuing a code clears the codes that have expired, and only those", async () => {

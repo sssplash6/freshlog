@@ -117,16 +117,17 @@ const beneathName = (html: string) => {
 const count = (text: string, part: string) => text.split(part).length - 1;
 
 /**
- * Checks that `res` is the Continue page, and gives back its text and the one
- * address its link goes to, as a browser would read it.
+ * Checks that `res` is the Continue page, and gives back its text, the address
+ * Continue goes to and the address "Use another account" goes to, as a browser
+ * would read them.
  */
 async function continuePage(res: Response) {
   expect(res.status).toBe(200);
   expect(headersOf(res), "the page's headers, and no others").toEqual(PAGE_HEADERS);
   const html = await res.text();
   const written = hrefs(html);
-  expect(written, "the links on the page").toHaveLength(1);
-  return { html, link: unescapeHtml(written[0]) };
+  expect(written, "the links on the page").toHaveLength(2);
+  return { html, link: unescapeHtml(written[0]), other: unescapeHtml(written[1]) };
 }
 
 describe("GET /api/v1/auth/start", () => {
@@ -511,6 +512,40 @@ describe("the page a signed-in person is shown", () => {
     // The code is in the one link and nowhere else on the page.
     expect(count(html, "code=")).toBe(1);
     expect(count(html, "freshlog://")).toBe(1);
+  });
+});
+
+describe("using another account", () => {
+  it("is a link on the page back to this start, asking for Google's account chooser, with no code in it", async () => {
+    await signInAs();
+    const { html, other } = await continuePage(await start());
+    expect(other).toBe(`/api/v1/auth/start?${QUERY}&prompt=select_account`);
+    expect(html).toContain(">Use another account</a>");
+    expect(other).not.toMatch(/[?&]code=/);
+  });
+
+  it("sends a signed-in person to Google's account chooser, and makes no code for the account they had", async () => {
+    await signInAs();
+    await expect(start(`${QUERY}&prompt=select_account`)).rejects.toThrow("NEXT_REDIRECT google");
+    expect(signedIn.calls[0]).toEqual(["google", { redirectTo: `/api/v1/auth/start?${QUERY}` }, { prompt: "select_account" }]);
+    expect(await prisma.apiSignInCode.count()).toBe(0);
+  });
+
+  it("comes back from Google to an ordinary start, so the chooser is asked for once", async () => {
+    await expect(start(`${QUERY}&prompt=select_account`)).rejects.toThrow("NEXT_REDIRECT google");
+    const [, options] = signedIn.calls[0] as [string, { redirectTo: string }];
+    expect(options.redirectTo).not.toContain("prompt");
+  });
+
+  it("is still refused for a redirect that isn't the app's", async () => {
+    const res = await start(`${QUERY.replace(encodeURIComponent("freshlog://auth"), encodeURIComponent("https://evil.example"))}&prompt=select_account`);
+    expect(res.status).toBe(400);
+    expect(signedIn.calls).toHaveLength(0);
+  });
+
+  it("ignores any other prompt, and leaves it out of the way back", async () => {
+    await expect(start(`${QUERY}&prompt=none`)).rejects.toThrow("NEXT_REDIRECT google");
+    expect(signedIn.calls[0]).toEqual(["google", { redirectTo: `/api/v1/auth/start?${QUERY}` }]);
   });
 });
 

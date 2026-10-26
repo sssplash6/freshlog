@@ -1,4 +1,4 @@
-import { CODE_FAILED, issueToken, redeemSignInCode } from "@/lib/api/tokens";
+import { CODE_FAILED, issueToken, redeemSignInCode, refusedBecause } from "@/lib/api/tokens";
 import { ok, refused } from "@/lib/api/v1/respond";
 import type { TokenResponse } from "@/lib/api/v1/types";
 
@@ -29,10 +29,14 @@ export async function POST(request: Request) {
   // This route is the sign-in itself, so there is no session to check: the code
   // and the verifier it was made for are the whole credential.
   const body: unknown = await request.json().catch(() => null);
-  if (typeof body !== "object" || body === null) return refused(CODE_FAILED, 400);
+  if (typeof body !== "object" || body === null) {
+    refusedBecause("the body is not a JSON object");
+    return refused(CODE_FAILED, 400);
+  }
 
   const { code, code_verifier, redirect_uri, device_name } = body as Record<string, unknown>;
   if (!isText(code) || !isText(code_verifier) || !isText(redirect_uri)) {
+    refusedBecause("code, code_verifier or redirect_uri is missing");
     return refused(CODE_FAILED, 400);
   }
 
