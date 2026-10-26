@@ -979,6 +979,49 @@ export function sessionsWhere(
 }
 
 /**
+ * `?rating=`, read as the one-to-five window it names.
+ *
+ * `rating=1` is exactly one star — what clicking the 1-star bar on the
+ * overview means, and what the page's 1-star count was promising. `rating=1-3`
+ * is a window: "3 stars or fewer", which is how a low-scoring mentor is found
+ * and the only shape this param used to have. Either end outside 1 to 5 is not
+ * a rating this product can store, so it is not a filter; a window written
+ * backwards is read the right way round.
+ */
+export function readRatingRange(
+  params: SearchParams
+): number | { gte: number; lte: number } | undefined {
+  const match = /^([1-5])(?:-([1-5]))?$/.exec(readParam(params, "rating"));
+  if (!match) return undefined;
+  const a = Number(match[1]);
+  if (match[2] === undefined) return a;
+  const b = Number(match[2]);
+  return { gte: Math.min(a, b), lte: Math.max(a, b) };
+}
+
+/** The rating `?rating=` names, in words: "1 star", "3 stars or fewer". */
+export function ratingLabel(params: SearchParams): string | undefined {
+  const range = readRatingRange(params);
+  if (range === undefined) return undefined;
+  if (typeof range === "number") return range === 1 ? "1 star" : `${range} stars`;
+  if (range.gte === range.lte) return ratingLabel({ rating: String(range.gte) });
+  if (range.gte === 1) return `${range.lte} stars or fewer`;
+  if (range.lte === 5) return `${range.gte} stars or more`;
+  return `${range.gte} to ${range.lte} stars`;
+}
+
+/** Which kind of rating `/feedback` is showing: one of the two, or both. */
+export type RatingKind = "written" | "meetings";
+
+/** `?kind=`, read as a rating kind, or nothing for both kinds pooled. */
+export function readRatingKind(params: SearchParams): RatingKind | undefined {
+  return readChoice<RatingKind>(params, "kind", {
+    written: "written",
+    meetings: "meetings",
+  });
+}
+
+/**
  * Mentor feedback, filtered.
  *
  * The scope clause is on the STUDENT's enrollments, which is what closes the
@@ -1015,12 +1058,8 @@ export function feedbackWhere(
     and.push({ student: { enrollments: { some: { programId: program } } } });
   }
 
-  // "Rating at most N", which is how a low-scoring mentor is found. Anything
-  // outside 1-5 is not a rating this product can store, so it is not a filter.
-  const rating = Number(readParam(params, "rating"));
-  if (Number.isInteger(rating) && rating >= 1 && rating <= 5) {
-    and.push({ rating: { lte: rating } });
-  }
+  const rating = readRatingRange(params);
+  if (rating) and.push({ rating });
 
   const date = dateWhere(readDateWindow(params, now));
   if (date) and.push({ createdAt: date });
@@ -1061,10 +1100,8 @@ export function meetingRatingsWhere(
   const program = readParam(params, "program");
   if (program) and.push({ programId: program });
 
-  const rating = Number(readParam(params, "rating"));
-  if (Number.isInteger(rating) && rating >= 1 && rating <= 5) {
-    and.push({ studentRating: { lte: rating } });
-  }
+  const rating = readRatingRange(params);
+  if (rating) and.push({ studentRating: rating });
 
   const date = dateWhere(readDateWindow(params, now));
   if (date) and.push({ studentAnsweredAt: date });

@@ -7,9 +7,13 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-26
 
 ### New
+- **Click any Feedback figure to open it.** A star's bar shows only ratings of that star, Written ratings or Meetings rated shows that kind alone, and Need attention jumps to those mentors. A score tile in the feed does the same for its star.
+- **Sort the mentors on Feedback.** Click a column heading to order by name, combined score, number of ratings, lowest recent rating or last rated. Every mentor is listed; nothing is folded away.
+- **Chips above the Feedback filters.** Written, Meetings and Low narrow the page in one tap, and a mentor who also holds a staff grant gets Mine. The Rating filter can pick one star exactly as well as "3 stars or fewer".
 - **A combined score for each program on Feedback.** Under the overview, each program you can read gets one line with its score, worst first, and what it is made of. Click a line to see that program's ratings only.
 
 ### Fixed
+- **Your own ratings stay anonymous to you.** A mentor who also administers a program could see who wrote a rating about them by filtering Feedback to themselves. The writer's name is now hidden there, as the rating form promised.
 - **Sign in to the freshlog app with the right Google account.** The page that asks you to continue into the app now has "Use another account", so you're no longer stuck with whichever account this browser last used.
 
 ## 2026-10-25
