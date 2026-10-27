@@ -45,6 +45,7 @@ export async function meFor(user: User): Promise<MeResponse> {
     avatarPath: apiAvatarPath(user),
     unread,
     onboarding: onboardingFor(roles[0], user, profile),
+    deletionRequestedAt: user.deletionRequestedAt?.toISOString() ?? null,
   };
 }
 

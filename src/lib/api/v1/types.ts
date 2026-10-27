@@ -63,6 +63,8 @@ export type MeResponse = {
   unread: number;
   /** What `roles[0]` still needs before its home works. */
   onboarding: Onboarding;
+  /** When they asked for their account to be deleted (`POST account/deletion`); null when they have not. */
+  deletionRequestedAt: string | null;
 };
 
 /** `POST /api/v1/auth/token`: the one-time code the sign-in redirect carried, with the proof it is ours. */
@@ -190,6 +192,12 @@ export type SessionEdit = {
 export type SessionAnswerRequest = { answer: StudentAnswer; note?: string };
 /** What a write answers when it worked: the website's own sentence, and for a log, the session it made (`receipt.id`). */
 export type WriteResult = { ok: true; message?: string; receipt?: { id: string; headline: string; notes: string[] } };
+
+/**
+ * `POST /api/v1/account/deletion` (ask) and `DELETE` (take it back). A platform
+ * admin deletes the account by hand; `message` says within how many days.
+ */
+export type DeletionResult = { ok: true; message: string; requestedAt: string | null };
 
 /** GET /api/v1/log-options: who the signed-in mentor can log a session for, and how their hours stand. */
 export type LogOptions = {

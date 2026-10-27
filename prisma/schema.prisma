@@ -69,6 +69,11 @@ model User {
   // Google Meet participant — who arrives as `users/<id>`, never as an email —
   // is recognised as this person. Recorded at sign-in; null until their next.
   googleId        String?   @unique
+  // When they asked, in the app, for their account to be deleted (App Store
+  // rule 5.1.1(v)). A platform admin deletes it by hand within the days the
+  // app promises (ACCOUNT_DELETION_DAYS); null when nothing is asked, and back
+  // to null if they take it back first.
+  deletionRequestedAt DateTime?
 
   studentProfile      StudentProfile?          @relation("StudentUser")
   createdStudents     StudentProfile[]         @relation("CreatedBy")

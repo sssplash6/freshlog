@@ -32,6 +32,7 @@ describe("meFor: who and which roles", () => {
       avatarPath: null,
       unread: 0,
       onboarding: null,
+      deletionRequestedAt: null,
     });
   });
 

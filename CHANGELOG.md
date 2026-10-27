@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-27
+
+### New
+- **Delete your account from the freshlog app.** Under Account, Delete account asks us to remove it, and we do within 30 days. Until then you can take it back from the same place. Platform admins are told who asked, with a link to their page.
+
 ## 2026-10-26
 
 ### New

@@ -56,6 +56,8 @@ const ANY_STATUS: Record<string, string> = {
   "auth/start GET": "the sign-in itself, which an account that isn't active yet still goes through",
   "onboarding GET": "the form a person who isn't active yet fills in before they can be",
   "onboarding POST": "the answer to that form, which is how a pending account gets as far as waiting",
+  "account/deletion POST": "asking for your account to be deleted, which the App Store asks for any account, active or not",
+  "account/deletion DELETE": "taking that back, from wherever it was asked",
 };
 
 const isExported = (node: ts.HasModifiers) =>
