@@ -23,7 +23,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ### Fixed
 - **Log session no longer hangs on "Logging…".** The confirmation now appears as soon as the session is saved, instead of waiting for the whole page to reload. You no longer need to go back to check it went through.
 - **Your own ratings stay anonymous to you.** A mentor who also administers a program could see who wrote a rating about them by filtering Feedback to themselves. The writer's name is now hidden there, as the rating form promised.
-- **Sign in to the freshlog app with the right Google account.** The page that asks you to continue into the app now has "Use another account", so you're no longer stuck with whichever account this browser last used.
+- **Sign in to the app with another Google account.** The page that asks you to continue into the app now has "Use another account", so you're no longer stuck with whichever account this browser last used.
 - **Your students lists only your students.** A student whose time has not been given to any mentor yet showed up under Your students for every mentor in their program, as if they were yours. They now sit in their own Time to claim list below it. You can still open them and log a session, and logging one makes that time yours.
 
 ## 2026-10-25
