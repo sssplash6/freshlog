@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-28
+
+### New
+- **A privacy policy and a support page.** www.freshlog.net/privacy says what freshlog keeps and who handles it, and /support says how to get help. Both open without signing in.
+
 ## 2026-10-27
 
 ### New

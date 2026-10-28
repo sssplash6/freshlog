@@ -34,6 +34,9 @@ import { NextRequest, NextResponse } from "next/server";
 // auth/signout, which say so in their own first-line comments, and auth/dev,
 // whose first line is the dev-login guard (devLoginEnabled).
 // src/app/api/v1/gates.test.ts holds every route there to this.
+//
+// /privacy and /support are the pages the App Store listing links to, read by
+// Apple's review and by anyone before they have an account. Static text.
 const PUBLIC_PATHS = [
   "/login",
   "/unsubscribe",
@@ -42,6 +45,8 @@ const PUBLIC_PATHS = [
   "/api/telegram",
   "/f",
   "/api/v1",
+  "/privacy",
+  "/support",
 ];
 
 /**

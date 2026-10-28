@@ -45,6 +45,11 @@ describe("proxy", () => {
     expect(signedOut("/api/v1/me").headers.get("location")).toBeNull();
   });
 
+  it("lets anyone read the privacy policy and support pages", () => {
+    expect(signedOut("/privacy").headers.get("location")).toBeNull();
+    expect(signedOut("/support").headers.get("location")).toBeNull();
+  });
+
   it("still sends a look-alike path to the login page", () => {
     expect(signedOut("/api/v1x").headers.get("location")).toBe("https://www.freshlog.net/login");
   });
