@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 
 import { logSession } from "@/lib/actions/sessions";
 import type { ActionState } from "@/lib/actions/shared";
@@ -117,6 +117,17 @@ const DRAFT_KEY = "freshlog:log-session-draft";
 const URL_SAFE = 8192;
 /** Longer than any real interruption, short enough that last week's draft is gone. */
 const DRAFT_TTL_MS = 48 * 60 * 60 * 1000;
+/**
+ * The draft is written at most once per this long, however fast the typing.
+ *
+ * Safari, and so every browser on an iPhone, lets a page rewrite its address
+ * 100 times in 10 seconds and throws on the next. Next rewrites it once more
+ * after each of ours, so a draft written per keystroke spent that in about 50
+ * characters. The throw landed inside the router: a mentor typing a note
+ * quickly got "This page couldn't load", and the URL draft had stopped where
+ * the limit hit (October 2026). This is at most 20 writes in 10 seconds.
+ */
+const DRAFT_WRITE_DELAY_MS = 500;
 
 /** The note the URL could not hold, or "" — unreadable storage reads as nothing saved. */
 function readNoteMirror(): string {
@@ -353,7 +364,8 @@ export function LogSessionForm({
    *
    * `history.replaceState` rather than a router push: this must not re-render
    * the page or add a history entry, and the values are only ever read back on
-   * a fresh load.
+   * a fresh load. Called through `touched`, at most once per
+   * `DRAFT_WRITE_DELAY_MS`.
    */
   function rememberDraft(override?: Record<string, string>) {
     if (!page || typeof window === "undefined") return;
@@ -431,9 +443,47 @@ export function LogSessionForm({
    * already being called by hand at every one of these call sites.
    */
   function touched(override?: Record<string, string>) {
-    rememberDraft(override);
+    // The first change starts the wait and the write takes the form as it is
+    // when the wait ends, so a long burst of typing is still saved as it goes.
+    pendingDraft.current = {
+      override,
+      timer: pendingDraft.current?.timer ?? setTimeout(flushDraft, DRAFT_WRITE_DELAY_MS),
+    };
     setEdits((n) => n + 1);
   }
+
+  // The draft write waiting to go out, if there is one.
+  const pendingDraft = useRef<{
+    timer: ReturnType<typeof setTimeout>;
+    override?: Record<string, string>;
+  } | null>(null);
+  function flushDraft() {
+    const pending = pendingDraft.current;
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    pendingDraft.current = null;
+    rememberDraft(pending.override);
+  }
+
+  // A phone interruption is the reason the draft exists, and a hidden page's
+  // timers may never run again, so a waiting write goes out as the page is
+  // hidden or unloaded. Leaving the form drops it instead: written late, it
+  // would land in the next page's address.
+  const flushOnLeave = useEffectEvent(flushDraft);
+  useEffect(() => {
+    const hidden = () => {
+      if (document.visibilityState === "hidden") flushOnLeave();
+    };
+    const gone = () => flushOnLeave();
+    document.addEventListener("visibilitychange", hidden);
+    window.addEventListener("pagehide", gone);
+    return () => {
+      document.removeEventListener("visibilitychange", hidden);
+      window.removeEventListener("pagehide", gone);
+      if (pendingDraft.current) clearTimeout(pendingDraft.current.timer);
+      pendingDraft.current = null;
+    };
+  }, []);
 
   // After a refused submit, ask the form again whenever something it checks
   // changes. Deferred a microtask, like the draft restore above: the form's
@@ -605,6 +655,7 @@ export function LogSessionForm({
             // so everything typed survives, and so does the STUDENT — dropped
             // only if the mentor picked cannot reach them. The agenda item
             // cannot survive: tasks belong to a mentor.
+            flushDraft();
             const url = new URL(window.location.href);
             url.searchParams.set("mentor", value);
             url.searchParams.delete("assignmentId");

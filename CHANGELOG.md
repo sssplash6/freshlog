@@ -9,6 +9,9 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ### New
 - **A privacy policy and a support page.** www.freshlog.net/privacy says what freshlog keeps and who handles it, and /support says how to get help. Both open without signing in.
 
+### Fixed
+- **A fast-typed note no longer breaks the page.** On an iPhone or in Safari, typing a note quickly on Log session sent you to an error page, and the rest of the form was gone when you came back. The note and every field now stay put.
+
 ## 2026-10-27
 
 ### New
