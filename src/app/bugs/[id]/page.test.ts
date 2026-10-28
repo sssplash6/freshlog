@@ -28,7 +28,7 @@ vi.mock("@/lib/bug-queries", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
 const { default: BugPage } = await import("@/app/bugs/[id]/page");
-const props = { params: Promise.resolve({ id: "r1" }) };
+const props = { params: Promise.resolve({ id: "r1" }), searchParams: Promise.resolve({}) };
 
 beforeEach(() => {
   calls.length = 0;

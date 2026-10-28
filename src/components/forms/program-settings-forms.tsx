@@ -20,6 +20,8 @@ import {
   setLevelStandardHours,
   setProgramHourBank,
   setProgramClassHours,
+  setProgramTracksAdmissions,
+  setProgramSchedulesClasses,
   setProgramStandardHours,
   setProgramSpace,
   setProgramTracksPayment,
@@ -461,6 +463,72 @@ export function ClassHoursToggle({
           <input type="hidden" name="classHours" value={classHours ? "off" : "on"} />
           <SubmitButton variant="secondary" pendingText="Saving…">
             {classHours ? "Log hours per student" : "Log hours as classes"}
+          </SubmitButton>
+        </form>
+      }
+      state={<SaveState state={save} />}
+    />
+  );
+}
+
+/** Does this program follow its students' university applications? */
+export function TracksAdmissionsToggle({
+  programId,
+  tracksAdmissions,
+}: {
+  programId: string;
+  tracksAdmissions: boolean;
+}) {
+  const [, action, save] = useSaveState(setProgramTracksAdmissions);
+
+  return (
+    <SettingsRow
+      label="University applications"
+      description={
+        tracksAdmissions
+          ? "Each student's page shows their scores, essays and university list, for their mentors and this program's admins."
+          : "Turn this on to follow each student's scores, essays and university list on their page."
+      }
+      control={
+        <form action={action} className="flex flex-wrap items-center gap-3">
+          <OnOff on={tracksAdmissions} />
+          <input type="hidden" name="programId" value={programId} />
+          <input type="hidden" name="tracksAdmissions" value={tracksAdmissions ? "off" : "on"} />
+          <SubmitButton variant="secondary" pendingText="Saving…">
+            {tracksAdmissions ? "Stop tracking applications" : "Track applications"}
+          </SubmitButton>
+        </form>
+      }
+      state={<SaveState state={save} />}
+    />
+  );
+}
+
+/** Do this program's mentors schedule classes, with their hours totalled by month? */
+export function SchedulesClassesToggle({
+  programId,
+  schedulesClasses,
+}: {
+  programId: string;
+  schedulesClasses: boolean;
+}) {
+  const [, action, save] = useSaveState(setProgramSchedulesClasses);
+
+  return (
+    <SettingsRow
+      label="Scheduled classes"
+      description={
+        schedulesClasses
+          ? "Mentors put classes in the diary from their Classes page. Each one is reserved out of the hours the student holds with them, and totalled by month."
+          : "Turn this on to let this program's mentors schedule classes and see each student's hours by month."
+      }
+      control={
+        <form action={action} className="flex flex-wrap items-center gap-3">
+          <OnOff on={schedulesClasses} />
+          <input type="hidden" name="programId" value={programId} />
+          <input type="hidden" name="schedulesClasses" value={schedulesClasses ? "off" : "on"} />
+          <SubmitButton variant="secondary" pendingText="Saving…">
+            {schedulesClasses ? "Stop scheduling classes" : "Schedule classes"}
           </SubmitButton>
         </form>
       }

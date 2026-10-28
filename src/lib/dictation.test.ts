@@ -55,6 +55,32 @@ describe("dictateNote", () => {
     });
   });
 
+  it("never hands back a transcript the model was cut off in", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "or-key");
+    // October 2026: a student's answer came back as its first two sentences,
+    // ending "and I". It reads as if they stopped talking.
+    respond({
+      choices: [
+        {
+          finish_reason: "length",
+          message: { content: "I'm really not a movie guy, and I" },
+        },
+      ],
+    });
+
+    expect((await dictateNote(new Blob(["x"]), [], "answer")).ok).toBe(false);
+  });
+
+  it("keeps the model from thinking away the room the transcript needs", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "or-key");
+    const fetchMock = respond(SAID);
+
+    await dictateNote(new Blob(["x"]), [], "answer");
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(init.body as string).reasoning).toEqual({ effort: "minimal" });
+  });
+
   it("calls nobody when the deployment has no key", async () => {
     vi.stubEnv("OPENROUTER_API_KEY", "");
     const fetchMock = respond(SAID);

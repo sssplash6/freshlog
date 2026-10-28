@@ -1,7 +1,6 @@
-import { timingSafeEqual } from "node:crypto";
-
 import { encode } from "next-auth/jwt";
 
+import { devLoginEnabled } from "@/lib/dev-login";
 import { prisma } from "@/lib/prisma";
 
 // Reads the database and the environment on every request; never prerender.
@@ -9,7 +8,6 @@ export const dynamic = "force-dynamic";
 
 const COOKIE = "authjs.session-token";
 const MAX_AGE = 60 * 60 * 8;
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
 
 /**
  * Sign in as anybody in the local database, without Google: `GET
@@ -22,24 +20,10 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
  * it exactly like a real sign-in and every gate still runs on the account's
  * real role and status.
  *
- * OFF unless BOTH hold, and it answers 404 otherwise — the same answer as an
- * address that does not exist:
- *
- *   DEV_LOGIN=1   set only by `npm run start:local` / `npm run dev:local`. It is
- *                 never in `.env`, so a deploy cannot inherit it.
- *   localhost     the request's own host, AND no proxy in front claiming to
- *                 forward it — a public deploy sits behind one, and a spoofed
- *                 Host header on a server that somehow had the flag still
- *                 carries the proxy's X-Forwarded-Host.
- *
- * SHARING through a tunnel is the one exception, and it needs a secret:
- * start the server with DEV_LOGIN_KEY=<random> as well, and a request from
- * anywhere is let in only when it carries `?key=<that value>`. The key rides
- * every link on the list page, so a friend given one URL can move between
- * accounts. Without the variable, the localhost rule above is the only door.
+ * For when it is on, see `devLoginEnabled` in src/lib/dev-login.ts.
  */
 export async function GET(request: Request) {
-  if (!enabled(request)) {
+  if (!devLoginEnabled(request)) {
     return new Response("Not found.", { status: 404 });
   }
 
@@ -76,29 +60,6 @@ export async function GET(request: Request) {
     `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${MAX_AGE}`
   );
   return new Response(null, { status: 303, headers });
-}
-
-function enabled(request: Request): boolean {
-  if (process.env.DEV_LOGIN !== "1") return false;
-  const shared = process.env.DEV_LOGIN_KEY;
-  const given = new URL(request.url).searchParams.get("key");
-  if (shared && shared.length >= 16 && given && sameSecret(given, shared)) return true;
-  const headers = request.headers;
-  if (headers.get("x-forwarded-host") && !isLocal(headers.get("x-forwarded-host")!)) {
-    return false;
-  }
-  return isLocal(headers.get("host") ?? new URL(request.url).host);
-}
-
-function sameSecret(a: string, b: string): boolean {
-  const x = Buffer.from(a);
-  const y = Buffer.from(b);
-  return x.length === y.length && timingSafeEqual(x, y);
-}
-
-function isLocal(host: string): boolean {
-  const name = host.replace(/:\d+$/, "");
-  return LOCAL_HOSTS.has(name);
 }
 
 function escape(s: string): string {

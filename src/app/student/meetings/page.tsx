@@ -86,10 +86,10 @@ export default async function StudentMeetingsPage({
   const wallNow = programWallClock(now);
   const [ledger, pastInterviews, interviews] = await Promise.all([
     studentLedger(profile.id),
-    interviewsForLog(profile.id, now),
+    interviewsForLog(user.id, now),
     prisma.peerInterview.findMany({
       where: {
-        OR: [{ hostId: profile.id }, { guestId: profile.id }],
+        OR: [{ hostId: user.id }, { guestId: user.id }],
         completedAt: null,
         slot: { startsAt: { gt: wallNow } },
       },
@@ -99,16 +99,9 @@ export default async function StudentMeetingsPage({
         guestId: true,
         template: true,
         slot: { select: { startsAt: true, minutes: true } },
-        host: {
-          select: {
-            user: { select: { id: true, name: true, avatarUpdatedAt: true } },
-          },
-        },
-        guest: {
-          select: {
-            user: { select: { id: true, name: true, avatarUpdatedAt: true } },
-          },
-        },
+        mentorId: true,
+        host: { select: { id: true, name: true, avatarUpdatedAt: true } },
+        guest: { select: { id: true, name: true, avatarUpdatedAt: true } },
       },
       orderBy: { slot: { startsAt: "asc" } },
     }),
@@ -171,8 +164,8 @@ export default async function StudentMeetingsPage({
         ) : (
           <ul className="divide-y divide-line">
             {interviews.map((i) => {
-              const side = sideOf(i, profile.id);
-              const other = side === "host" ? i.guest.user : i.host.user;
+              const side = sideOf(i, user.id);
+              const other = side === "host" ? i.guest : i.host;
               // "Booked" under a heading that says "Coming up" is the same word
               // twice; only a meeting that needs something (to mark) is flagged.
               const phase = interviewPhase({ slot: i.slot, completedAt: null }, now);

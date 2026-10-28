@@ -4,13 +4,17 @@ import { PersonCell } from "@/components/person-chip";
 import { ProgramChip } from "@/components/program-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { RowFold } from "@/components/ui/row-fold";
-import { StatusChip } from "@/components/ui/status-chip";
+import { DeadlineText, StatusChip } from "@/components/ui/status-chip";
 import { FILL_CELL, Table, Td, Tr, type Column } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import { sortEnrollments } from "@/lib/enrollments";
 import { HoursLeft } from "@/components/ui/hours-left";
 import { formatDate, formatDaysAgo, formatDuration } from "@/lib/format";
-import { studentStatuses, type ViewerContext } from "@/lib/status";
+import {
+  EXPIRY_WINDOW_DAYS,
+  studentStatuses,
+  type ViewerContext,
+} from "@/lib/status";
 import type { StudentWithHours } from "@/lib/queries";
 
 /**
@@ -35,12 +39,25 @@ import type { StudentWithHours } from "@/lib/queries";
  * of time and not have been seen for six weeks, and that is the thing worth
  * finding on a list.
  *
- * WHAT IS NOT HERE, on the owner's instruction (12 September 2026): a "Use by"
- * column, and every chip beside the name except "Not signed in". A roster
- * of forty rows wearing a red chip each is a roster nobody reads, and the
- * deadline that drives forfeiture is not a date a reader acts on from here —
- * it is on the student's own page, beside the grant it belongs to, and the
- * bell is what says whose is running out.
+ * "Use by" came back on 13 October 2026, at the admins' request: the mentor's
+ * caseload had it and the roster did not, and finding whose hours run out
+ * first meant opening forty student pages. It is the soonest date that still
+ * has unused hours behind it, with those minutes under it — never the
+ * student's whole Remaining, which is mostly grants running months later. It
+ * is a date, not a chip: quiet ink until the staff window, amber inside it.
+ *
+ * The cohort came back on 15 October 2026, on a program's own roster only, at
+ * Research's request: "can we sort our students within the program by
+ * cohort?" It is offered only where the program HAS cohorts, so the reason it
+ * went — a column empty in every row — still holds everywhere it is absent.
+ * It is a line under the name, not a column: the roster already fills its
+ * 816px beside the mentors rail, and a seventh column pushed Contact off the
+ * edge at every width. So it sorts from the Student heading ("Student ·
+ * Cohort"), and it does not filter: a cohort select is still not on the page.
+ *
+ * WHAT IS STILL NOT HERE, on the owner's instruction (12 September 2026):
+ * every chip beside the name except "Not signed in". A roster of forty rows
+ * wearing a red chip each is a roster nobody reads.
  */
 /**
  * The href, only if it is a web address.
@@ -68,7 +85,15 @@ const ICON_LINK =
  * What this table can be ordered by. The page says which of them it can
  * honour; `lib/sort.ts` does the ordering.
  */
-export const STUDENT_SORTS = ["student", "completed", "total", "remaining", "seen"] as const;
+export const STUDENT_SORTS = [
+  "student",
+  "completed",
+  "total",
+  "remaining",
+  "deadline",
+  "seen",
+  "cohort",
+] as const;
 export type StudentSort = (typeof STUDENT_SORTS)[number];
 
 /**
@@ -109,6 +134,7 @@ export function StudentsTable({
   href = "/students",
   from,
   sorts = [],
+  cohortOf,
   framed = true,
   empty,
 }: {
@@ -134,6 +160,12 @@ export function StudentsTable({
    * set in memory (`programs/[id]/page.tsx`) and can order by any of them.
    */
   sorts?: readonly StudentSort[];
+  /**
+   * The row's cohort, as this page names it — present only on a program's own
+   * roster, and only where that program has cohorts. Absent, no cohort line
+   * and no "Cohort" beside the Student heading.
+   */
+  cohortOf?: (s: StudentWithHours) => string | null;
   framed?: boolean;
   /** Pass an `EmptyState variant="no-results"` when a filter did the emptying. */
   empty?: React.ReactNode;
@@ -153,10 +185,14 @@ export function StudentsTable({
 
   const columns: Column[] = [
     // Only the name is offered, and only where the page can honour it. The
-    // other four are computed per row after the query has already sliced the
+    // others are computed per row after the query has already sliced the
     // roster into pages, so ordering by them here would order one page of
     // forty and call it the list.
-    { label: "Student", ...(on("student") ? { sort: "student" } : {}) },
+    {
+      label: "Student",
+      ...(on("student") ? { sort: "student" } : {}),
+      ...(cohortOf && on("cohort") ? { also: { label: "Cohort", sort: "cohort" } } : {}),
+    },
     // Folded into the student's own cell between `sm` and `xl`: with the rail
     // beside it a 1024px window gives the table ~770px, and a Program column
     // cost the name its width and the page a sideways scroll.
@@ -184,7 +220,30 @@ export function StudentsTable({
       ...(on("remaining") ? { sort: "remaining", sortDir: "desc" as const } : {}),
     },
     {
+      label: "Use by",
+      // Shown at every width since 16 October 2026. It was hidden from `sm`
+      // up to 1366px, which is most laptops, and the admins who asked for it
+      // could not find it there.
+      // Up first: soonest at the top is the whole reason to click it. Rows
+      // with nothing left to expire sit at the bottom either way (`lib/sort`).
+      ...(on("deadline") ? { sort: "deadline" } : {}),
+    },
+    {
       label: "Last session",
+      // Hidden from `sm` up to 1366px, in Use by's place. At 1280 (`xl`,
+      // where Program comes back) seven columns needed 1,050px of a 1,028px
+      // table: the names were cut to "Aziz K…" and Contact went off the edge,
+      // so one of the two dates gives way. A laptop reader asked for the one
+      // that loses hours; who has gone quiet is still on the student's page,
+      // on a wide screen, and on a phone in the fold.
+      //
+      // The same rule by the TABLE's width too (`@container`, on the frame
+      // below), because the screen's is not the roster's: a program's page
+      // sets it beside the mentors rail at 816px however wide the screen is,
+      // and there the six columns took 672px and left every name 57px —
+      // "Abdul…", "Khabi…" (17 October 2026). Under 57rem (912px) the name
+      // would get less than 15rem, so Last session gives way.
+      className: "sm:max-[1365px]:hidden sm:@max-[57rem]:hidden",
       // Down first: the question this column answers is "who has gone quiet",
       // and the most recent session is the top of that order — the same rule
       // the two figures beside it follow.
@@ -194,7 +253,8 @@ export function StudentsTable({
   ];
 
   return (
-    <Table columns={columns} framed={framed} label="Students">
+    // `@container` so Last session can give way by the roster's own width.
+    <Table columns={columns} framed={framed} label="Students" className="@container">
       {students.map((s, i) => {
         // ONE chip, and always the same one: has this person ever signed in.
         // It was the highest-severity status true of them, which put "Over by
@@ -220,6 +280,7 @@ export function StudentsTable({
         const overdrawn = s.remainingMinutes < 0;
         const visiting = !showProgram && s.enrollments.some((e) => e.exchangeId);
         const enrollments = sortEnrollments(s.enrollments);
+        const cohort = cohortOf?.(s) ?? null;
 
         const telegramHref = s.telegramUsername
           ? webHref(`https://t.me/${s.telegramUsername.replace(/^@/, "")}`)
@@ -319,6 +380,12 @@ export function StudentsTable({
                   className="mt-1.5 hidden flex-wrap gap-x-2 gap-y-1 pl-12 sm:max-xl:flex"
                 />
               )}
+              {/* Under the address, in line with it (avatar 32 + gap 10). */}
+              {cohort && (
+                <span title={cohort} className="mt-1 block truncate pl-12 text-xs text-muted-fg">
+                  {cohort}
+                </span>
+              )}
             </Td>
 
             {showProgram && (
@@ -330,7 +397,14 @@ export function StudentsTable({
                     string, because two enrollments is the case this column
                     exists for and "Global Admissions · Master's" is a sentence
                     the reader has to parse. */}
-                <ProgramChips enrollments={enrollments} className="flex-col items-start gap-y-1" />
+                {/* `*:flex-wrap`: a visit's "(on exchange)" may drop under ITS
+                    chip when the column is narrow. Kept on one line, chip and
+                    label were the widest thing in the table (~330px) and the
+                    Student column paid for it — names broken mid-word at 1366. */}
+                <ProgramChips
+                  enrollments={enrollments}
+                  className="flex-col items-start gap-y-1 *:flex-wrap *:gap-y-0.5"
+                />
               </Td>
             )}
 
@@ -350,7 +424,31 @@ export function StudentsTable({
               />
             </Td>
 
-            <Td label="Last session" className="whitespace-nowrap" data-fold>
+            <Td label="Use by" className="whitespace-nowrap" data-fold>
+              {/* The date, and under it only the minutes that date takes —
+                  "October 20 / 2h to use" beside 22h remaining says most of
+                  the time is safe. */}
+              {s.expiring ? (
+                <span className="flex flex-col">
+                  <DeadlineText
+                    deadline={s.expiring.date}
+                    now={viewer.now}
+                    within={EXPIRY_WINDOW_DAYS[viewer.audience]}
+                  />
+                  <span className="text-xs text-muted-fg tabular-nums">
+                    {formatDuration(s.expiring.minutes)} to use
+                  </span>
+                </span>
+              ) : (
+                <span className="text-muted-fg">—</span>
+              )}
+            </Td>
+
+            <Td
+              label="Last session"
+              className="whitespace-nowrap sm:max-[1365px]:hidden sm:@max-[57rem]:hidden"
+              data-fold
+            >
               {/* A dash for "nothing has happened", the one way every table
                   writes it — not "never" here and "—" in the next column.
                   Under the date, how long ago: "who has gone quiet" is the

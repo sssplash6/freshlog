@@ -35,7 +35,7 @@ export default async function ProgramMentorTasksPage({
 }) {
   const { id } = await params;
   const viewer = await requireProgramScope(id);
-  // Arrived from the header's "Set a mentor task": the form starts open.
+  // Arrived with `?new=1`: the form starts open.
   const startOpen = (await searchParams).new === "1";
 
   const [canWrite, team, tasks, enrollments] = await Promise.all([

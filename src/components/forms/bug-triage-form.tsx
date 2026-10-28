@@ -8,11 +8,15 @@ import { Field, Textarea, inputClasses } from "@/components/ui/field";
 import { setBugStatus } from "@/lib/actions/bugs";
 import type { ActionState } from "@/lib/actions/shared";
 import {
+  BUG_KINDS,
+  BUG_KIND_LABELS,
   BUG_RESOLUTION_MAX,
   BUG_STATUS,
   BUG_STATUSES,
   BUG_STATUS_LABELS,
+  isClosingStatus,
   resolutionPrefill,
+  type BugKind,
   type BugStatus,
 } from "@/lib/bugs";
 
@@ -31,20 +35,26 @@ import {
 export function BugTriageForm({
   id,
   status,
+  initialStatus = status,
+  kind,
   resolution,
   changelogDate,
 }: {
   id: string;
   status: BugStatus;
+  /** The status picked on the board, when it sent the admin here to finish it. */
+  initialStatus?: BugStatus;
+  kind: BugKind;
   resolution: string | null;
   changelogDate: string | null;
 }) {
   const [state, setState] = useState<ActionState>(null);
   const [saving, startSaving] = useTransition();
-  const [next, setNext] = useState<BugStatus>(status);
+  const [next, setNext] = useState<BugStatus>(initialStatus);
+  const [nextKind, setNextKind] = useState<BugKind>(kind);
   const failed = state && !state.ok ? state : null;
   const fieldError = (name: string) => (failed?.field === name ? failed.error : undefined);
-  const closing = next === BUG_STATUS.FIXED || next === BUG_STATUS.CLOSED;
+  const closing = isClosingStatus(next);
 
   function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,6 +67,21 @@ export function BugTriageForm({
   return (
     <form onSubmit={save} className="space-y-4 p-4 sm:p-5">
       <input type="hidden" name="id" value={id} />
+
+      <Field label="Kind">
+        <select
+          name="kind"
+          value={nextKind}
+          onChange={(event) => setNextKind(event.target.value as BugKind)}
+          className={inputClasses}
+        >
+          {BUG_KINDS.map((k) => (
+            <option key={k} value={k}>
+              {BUG_KIND_LABELS[k]}
+            </option>
+          ))}
+        </select>
+      </Field>
 
       <Field label="Status">
         <select

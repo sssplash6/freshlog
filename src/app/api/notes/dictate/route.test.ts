@@ -36,10 +36,10 @@ async function scene() {
   const host = await student({ programId: p.id, name: "Aziza" });
   const guest = await student({ programId: p.id, name: "Bekzod" });
   const slot = await prisma.interviewSlot.create({
-    data: { studentId: host.id, startsAt: new Date("2026-01-01T10:00:00Z"), minutes: 45 },
+    data: { userId: host.userId, startsAt: new Date("2026-01-01T10:00:00Z"), minutes: 45 },
   });
   const interview = await prisma.peerInterview.create({
-    data: { slotId: slot.id, hostId: host.id, guestId: guest.id, template: "visa" },
+    data: { slotId: slot.id, hostId: host.userId, guestId: guest.userId, template: "visa" },
   });
   return { p, host, guest, interview };
 }

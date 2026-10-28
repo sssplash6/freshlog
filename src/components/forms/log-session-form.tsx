@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { logSession } from "@/lib/actions/sessions";
 import type { ActionState } from "@/lib/actions/shared";
@@ -9,25 +9,20 @@ import { AttendancePicker } from "@/components/forms/attendance-picker";
 import { DictateButton } from "@/components/forms/dictate-button";
 import { TimeKindPicker } from "@/components/forms/time-kind-picker";
 import { AlertIcon } from "@/components/icons";
-import { Select } from "@/components/select";
+import { Select, type SelectOption } from "@/components/select";
 import { DateField } from "@/components/ui/date-field";
-import { GrowingField, inputClasses } from "@/components/ui/field";
+import { DurationField } from "@/components/ui/duration-field";
+import { GrowingField, Input } from "@/components/ui/field";
 import { Receipt } from "@/components/ui/receipt";
 import { SaveState, saveStateFrom } from "@/components/ui/save-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/cn";
 import { MAX_SESSION_MINUTES } from "@/lib/constants";
-import type { LogState } from "@/lib/queries";
+import type { LogGoal, LogState } from "@/lib/queries";
+import { MAX_TASK_LENGTH, NEW_AGENDA_PREFIX, TASK_OTHER, TASK_PRESETS } from "@/lib/tasks";
 import { programToday } from "@/lib/when";
 import { RequiredMark } from "@/components/ui/required-mark";
 
-/**
- * `min-h-11` for the same reason `Select` has it: 44px, and the two are
- * side by side. The select declares that height and an input derived its own
- * from padding and an inherited line-height, so the pair agreed only by
- * arithmetic that nobody was checking.
- */
-const inputClass = inputClasses;
 /**
  * Label above control, and the ONE gap between them.
  *
@@ -52,7 +47,7 @@ export type LogSessionStudent = {
   /** What logging for them would do to their balance — see `LogState`. */
   state: LogState;
   /** The mentor's own open agenda for this student, in the admin's order. */
-  goals: { value: string; label: string }[];
+  goals: LogGoal[];
   /**
    * The programs of theirs this mentor could be logging into, best first.
    *
@@ -66,7 +61,7 @@ export type LogSessionStudent = {
     label: string;
     balance: string;
     state: LogState;
-    goals: { value: string; label: string }[];
+    goals: LogGoal[];
   }[];
 };
 
@@ -94,6 +89,8 @@ export type LogSessionDraft = {
   studentProfileId?: string;
   programId?: string;
   assignmentId?: string;
+  /** Typed under "Something else…" in the agenda picker. */
+  agendaName?: string;
   minutes?: string;
   date?: string;
   note?: string;
@@ -169,6 +166,7 @@ export function LogSessionForm({
   /** The same form, empty — a link, so the back button still works. */
   againHref,
   from,
+  pageProgram,
   /** Whether this deployment has the keys for a spoken note. */
   canDictate = false,
 }: {
@@ -188,6 +186,14 @@ export function LogSessionForm({
   againHref?: string;
   /** The program the reader came through, kept on the link back to the student. */
   from?: string;
+  /**
+   * The program the reader is working in: the one this page is IN (opened from
+   * a program's own page), or the one they came through to the student. A fact
+   * about where they are rather than an answer about one student, so it is
+   * what a student's program starts at — wherever that student is in it — and
+   * the student's own last answer is not.
+   */
+  pageProgram?: string;
   canDictate?: boolean;
 }) {
     // The attempt counter is what lets the two SegmentedRadio pickers survive a
@@ -196,61 +202,76 @@ export function LogSessionForm({
   // unchecked while the component still believes it is on "Late", and the
   // mentor's answer is silently lost. Remounting them per attempt makes the
   // echoed value the one that wins.
-  const [{ state, attempt, errors: missing }, action, pending] = useActionState(
-    async (
-      prev: { state: ActionState; attempt: number; errors: FieldErrors },
-      formData: FormData
-    ) => {
-      // Checked here, before the round trip, and every field at once. The
-      // browser's own check fired on one field at a time in a tooltip that
-      // vanished on the next tap, while the fields the form drew itself
-      // answered in red under the control — two voices on one submit, and a
-      // footer promising "marked in red" over a Minutes box that was not.
-      const errors = checkFields(formData);
-      if (Object.keys(errors).length > 0) {
-        const values: Record<string, string> = {};
-        for (const [name, value] of formData.entries()) {
-          if (typeof value === "string") values[name] = value;
-        }
-        return {
-          state: { ok: false, error: "", values } as ActionState,
-          attempt: prev.attempt + 1,
-          errors,
-        };
+  const [{ state, attempt, errors: missing }, setOutcome] = useState({
+    state: null as ActionState,
+    attempt: 0,
+    errors: {} as FieldErrors,
+  });
+  const [pending, setPending] = useState(false);
+  // Read and set synchronously, so a second tap that lands before React has
+  // rendered the pending button still finds the first submit in flight.
+  const inFlight = useRef(false);
+
+  // A plain submit handler rather than a form action, and that is the fix for
+  // "Logging…" spinning long after the session was saved (October 2026). The
+  // action revalidates, so its response also carries the whole page
+  // re-rendered — shell, bell and all — and React holds a form action's
+  // pending state until every transition started inside it has committed.
+  // The receipt waited on the slowest query on the page, not on the save; on
+  // a slow evening mentors gave up, went back, and found the session there.
+  // Called from here, the result lands as soon as the server has written it,
+  // and the page refreshes behind the receipt in Next's own transition.
+  async function submit(formData: FormData) {
+    // Checked here, before the round trip, and every field at once. The
+    // browser's own check fired on one field at a time in a tooltip that
+    // vanished on the next tap, while the fields the form drew itself
+    // answered in red under the control — two voices on one submit, and a
+    // footer promising "marked in red" over a Minutes box that was not.
+    const errors = checkFields(formData);
+    if (Object.keys(errors).length > 0) {
+      const values: Record<string, string> = {};
+      for (const [name, value] of formData.entries()) {
+        if (typeof value === "string") values[name] = value;
       }
-      try {
-        return {
-          state: await logSession(prev.state, formData),
-          attempt: prev.attempt + 1,
-          errors: {},
-        };
-      } catch {
-        // A server action that never lands — a dropped connection, a proxy
-        // that ate the POST, an origin the deployment does not recognise —
-        // rejects here, and React renders nothing for a rejected action. The
-        // mentor pressed the button and the page sat there, which is the one
-        // failure they cannot report and cannot work around.
-        //
-        // Echo the fields back the way a refused submit does, so a retry does
-        // not start from an empty form.
-        const values: Record<string, string> = {};
-        for (const [name, value] of formData.entries()) {
-          if (typeof value === "string") values[name] = value;
-        }
-        return {
-          state: {
-            ok: false as const,
-            error:
-              "That did not reach the server, so nothing was logged. Check your connection and try again.",
-            values,
-          } as ActionState,
-          attempt: prev.attempt + 1,
-          errors: {},
-        };
+      setOutcome((prev) => ({
+        state: { ok: false, error: "", values } as ActionState,
+        attempt: prev.attempt + 1,
+        errors,
+      }));
+      return;
+    }
+    inFlight.current = true;
+    setPending(true);
+    const result = await send(formData);
+    inFlight.current = false;
+    setPending(false);
+    setOutcome((prev) => ({ state: result, attempt: prev.attempt + 1, errors: {} }));
+  }
+
+  async function send(formData: FormData): Promise<ActionState> {
+    try {
+      return await logSession(state, formData);
+    } catch {
+      // A server action that never lands — a dropped connection, a proxy
+      // that ate the POST, an origin the deployment does not recognise —
+      // rejects here, and React renders nothing for a rejected action. The
+      // mentor pressed the button and the page sat there, which is the one
+      // failure they cannot report and cannot work around.
+      //
+      // Echo the fields back the way a refused submit does, so a retry does
+      // not start from an empty form.
+      const values: Record<string, string> = {};
+      for (const [name, value] of formData.entries()) {
+        if (typeof value === "string") values[name] = value;
       }
-    },
-    { state: null as ActionState, attempt: 0, errors: {} as FieldErrors }
-  );
+      return {
+        ok: false as const,
+        error:
+          "That did not reach the server, so nothing was logged. Check your connection and try again.",
+        values,
+      } as ActionState;
+    }
+  }
   const page = mode === "page";
 
   // What the form opens with: the last failed attempt if there was one — React
@@ -297,14 +318,31 @@ export function LogSessionForm({
   // Reset with the student: last week's program is not an answer about this
   // one, and a stale id would be rejected by the action rather than silently
   // used — but a rejection the mentor cannot see the cause of is worse.
-  const [programId, setProgramId] = useState(opening.programId ?? "");
+  // Picking a student on a page that is "In Master's Program" went to the
+  // student's alphabetically first program, so a session could be logged in
+  // Global Admissions from the Master's page.
+  const startingProgram = (offered: readonly { value: string }[]) =>
+    pageProgram && offered.some((p) => p.value === pageProgram) ? pageProgram : "";
+  const [programId, setProgramId] = useState(
+    opening.programId ?? startingProgram(programs)
+  );
   const chosen =
     programs.find((p) => p.value === programId) ??
     (programs.length === 1 ? programs[0] : undefined);
   const goals = chosen?.goals ?? student?.goals ?? [];
   const balance = chosen?.balance ?? student?.balance;
   const logState = chosen?.state ?? student?.state;
-  const noGoals = Boolean(student) && Boolean(chosen) && goals.length === 0;
+  // What the agenda picker holds, for the box "Something else…" opens. Keyed
+  // like the picker, which remounts per student and program and so starts
+  // again from the draft.
+  const agendaKey = `${studentId}:${chosen?.value ?? ""}`;
+  const [agendaPick, setAgendaPick] = useState({
+    key: agendaKey,
+    value: opening.assignmentId ?? "",
+  });
+  const agendaValue =
+    agendaPick.key === agendaKey ? agendaPick.value : (opening.assignmentId ?? "");
+  const [agendaName, setAgendaName] = useState(opening.agendaName ?? "");
   // A student whose time is already spent, one way or the other.
   const warn = logState === "overdrawn" || logState === "expired";
   const minutesId = useId();
@@ -331,6 +369,7 @@ export function LogSessionForm({
       "studentProfileId",
       "programId",
       "assignmentId",
+      "agendaName",
       "minutes",
       "date",
       "note",
@@ -413,22 +452,57 @@ export function LogSessionForm({
    * choose one…", was also the first row of the list, so the list opened with
    * a ticked instruction.
    */
+  //
+  // It offered only what an admin had already put on the agenda, so a meeting
+  // about anything else — or with a student whose agenda was empty — could not
+  // say what it was for. Mentors asked to name it anyway: the presets and
+  // "Something else…" follow the student's own items, and picking one adds it
+  // to their agenda (or goes to the open item already called that).
+  const listed = new Set(goals.map((g) => g.purpose.trim().toLowerCase()));
+  const agendaOptions: SelectOption[] = student
+    ? [
+        ...goals.map((g) => ({ value: g.value, label: g.label, group: "On their agenda" })),
+        ...TASK_PRESETS.filter((p) => !listed.has(p.toLowerCase())).map((p) => ({
+          value: `${NEW_AGENDA_PREFIX}${p}`,
+          label: p,
+          group: "Add to their agenda",
+        })),
+        { value: TASK_OTHER, label: "Something else…", group: "Add to their agenda" },
+      ]
+    : [];
   const agendaField = (
     <div className="block min-w-0 text-sm">
       <span className={labelClass}>Agenda item worked on</span>
       <Select
         // Remount per student so the previous student's goal is never
         // left selected behind the new student's list.
-        key={`${studentId}:${chosen?.value ?? ""}`}
+        key={agendaKey}
         name="assignmentId"
         ariaLabel="Agenda item worked on"
+        invalid={Boolean(fieldErrors.assignmentId)}
         defaultValue={opening.assignmentId}
-        options={goals}
+        options={agendaOptions}
         required={false}
-        placeholder={
-          !student ? "Pick a student first" : noGoals ? "Nothing planned yet" : "None"
-        }
+        placeholder={!student ? "Pick a student first" : "None"}
+        onChange={(value) => {
+          setAgendaPick({ key: agendaKey, value });
+          touched({ assignmentId: value });
+        }}
       />
+      {agendaValue === TASK_OTHER && (
+        <Input
+          name="agendaName"
+          type="text"
+          aria-label="Name of the agenda item"
+          autoFocus
+          maxLength={MAX_TASK_LENGTH}
+          placeholder="Name the work"
+          value={agendaName}
+          onChange={(event) => setAgendaName(event.target.value)}
+          aria-invalid={Boolean(fieldErrors.assignmentId) || undefined}
+          className={cn("rise-in mt-2", fieldErrors.assignmentId && badInputClass)}
+        />
+      )}
       <FieldError message={fieldErrors.assignmentId} />
     </div>
   );
@@ -436,41 +510,21 @@ export function LogSessionForm({
   const minutesField = (
     <div className="block min-w-0 text-sm">
       <label htmlFor={minutesId} className={labelClass}>
-        Minutes
+        How long
         <RequiredMark />
       </label>
-      <div className="relative">
-        {/* Text with a numeric keypad, not `type="number"`: the number input
-            drew spinner arrows on focus and took a scroll-wheel nudge as an
-            edit. The unit sits in the box, so "90" can only mean minutes. */}
-        <input
-          id={minutesId}
-          name="minutes"
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          // No placeholder. A grey "90" in the box read as a value already
-          // given, and the mentor submitted a form that was then refused.
-          value={minutes}
-          onChange={(event) => setMinutes(event.target.value.replace(/\D/g, ""))}
-          // A pasted "1.5" used to lose its point and become 15 minutes — ten
-          // times what was meant. Anything that is not whole minutes is refused
-          // at the paste instead of being quietly reshaped into a different
-          // number.
-          onPaste={(event) => {
-            const pasted = event.clipboardData.getData("text").trim();
-            if (!/^\d+$/.test(pasted)) event.preventDefault();
-          }}
-          aria-invalid={Boolean(fieldErrors.minutes) || undefined}
-          className={cn(inputClass, "pr-12", fieldErrors.minutes && badInputClass)}
-        />
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-muted-fg"
-        >
-          min
-        </span>
-      </div>
+      {/* Hours and minutes, posted as one total in minutes. Either box may be
+          left empty, so "90" in Minutes alone still means 90. */}
+      <DurationField
+        id={minutesId}
+        name="minutes"
+        value={minutes}
+        onChange={(total) => {
+          setMinutes(total);
+          touched({ minutes: total });
+        }}
+        invalid={Boolean(fieldErrors.minutes)}
+      />
       {/* The lengths a mentor actually logs, one tap each. Most sessions are
           one of these four, and typing them on a phone keypad every week is
           the slowest part of the form. */}
@@ -577,7 +631,9 @@ export function LogSessionForm({
           placeholder={studentPlaceholder ?? "Choose a student"}
           onChange={(value) => {
             setStudentId(value);
-            setProgramId("");
+            setProgramId(
+              startingProgram(students.find((s) => s.profileId === value)?.programs ?? [])
+            );
             touched();
           }}
           // A mentor logs for the same few students week after week, and a
@@ -720,8 +776,11 @@ export function LogSessionForm({
   );
 
   if (page && state?.ok && state.receipt) {
+    // The student goes in as the DRAFT's field, not as `?student=`: that one
+    // means "opened from this student's page", and the page takes its Back
+    // from it. `againHref` already carries it when that is where they came from.
     const nextSessionHref = againHref
-      ? `${againHref}${againHref.includes("?") ? "&" : "?"}student=${encodeURIComponent(state.receipt.subject?.id ?? "")}`
+      ? `${againHref}${againHref.includes("?") ? "&" : "?"}studentProfileId=${encodeURIComponent(state.receipt.subject?.id ?? "")}`
       : undefined;
 
     return (
@@ -741,13 +800,20 @@ export function LogSessionForm({
   return (
     <form
       ref={formRef}
-      action={action}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (inFlight.current) return;
+        void submit(new FormData(event.currentTarget));
+      }}
       // The form checks itself (`checkFields`), so every missing answer is
       // named at once, under its own field, in one voice.
       noValidate
       onChange={(event) => {
         const target = event.target as unknown as HTMLInputElement;
         if (target.name === "timeKind") setKind(target.value);
+        // The duration boxes report their own total, which the DOM has not
+        // rendered yet; a draft read now would save the previous one.
+        if (target.dataset?.autosaveField) return;
         touched();
       }}
       // Both shapes sit on a white card. The fields are grey fills, and grey
@@ -815,6 +881,7 @@ export function LogSessionForm({
           </p>
         )}
         <SubmitButton
+          pending={pending}
           pendingText="Logging…"
           className="w-full sm:w-auto sm:min-w-40"
           disabled={students.length === 0}
@@ -838,7 +905,7 @@ function FieldError({ message }: { message?: string }) {
 
 type FieldErrors = Partial<Record<string, string>>;
 
-/** The lengths offered as one-tap answers under Minutes. */
+/** The lengths offered as one-tap answers under How long. */
 const MINUTE_PRESETS = [30, 45, 60, 90] as const;
 
 
@@ -857,11 +924,14 @@ function checkFields(data: FormData): FieldErrors {
   const minutes = text("minutes");
   if (!minutes) errors.minutes = "Enter how long it took.";
   else if (!/^\d+$/.test(minutes) || Number(minutes) < 1) {
-    errors.minutes = "Enter a whole number of minutes, 1 or more.";
+    errors.minutes = "Enter how long it took, 1 minute or more.";
   } else if (Number(minutes) > MAX_SESSION_MINUTES) {
     errors.minutes = `A session is at most ${MAX_SESSION_MINUTES} minutes (24 hours).`;
   }
   if (!text("date")) errors.date = "Choose the date it happened.";
+  if (text("assignmentId") === TASK_OTHER && !text("agendaName")) {
+    errors.assignmentId = "Name the agenda item, or pick None.";
+  }
   if (text("needsAck") && !data.get("acknowledgeOverdraw")) {
     errors.acknowledgeOverdraw = "Tick this to log it, or choose Extra below.";
   }

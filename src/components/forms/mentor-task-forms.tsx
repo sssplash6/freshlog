@@ -54,7 +54,7 @@ export function SetMentorTaskForm({
   programId: string;
   team: Person[];
   students: StudentOption[];
-  /** Start unfolded — the header's "Set a mentor task" lands here. */
+  /** Start unfolded — `?new=1` on the Mentor tasks tab. */
   defaultOpen?: boolean;
 }) {
   const [state, action, save] = useSaveState(setMentorTask);

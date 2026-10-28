@@ -4,12 +4,19 @@
  * dashboard draws can be tested without a database.
  *
  * Every total is whole MINUTES. "Hours" on the dashboard means COMPLETED plus
- * EXTRA — time a mentor actually spent with a student present — and the two are
- * always shown apart as well, so the ledger's own "Completed" is never inflated
- * by out-of-plan work. No-shows are counted, never summed into hours.
+ * EXTRA plus MISSED — every minute a mentor set aside for a student — and the
+ * three are always shown apart as well, so the ledger's own "Completed" is
+ * never inflated by out-of-plan work or by a meeting nobody came to.
+ *
+ * MISSED COUNTS (13 October 2026). A no-show is charged to the student's
+ * hours, and the mentor kept the slot: it was asked that it count for the
+ * mentor and the program too, but stay visible as its own part. Until then it
+ * was counted and never summed, so a mentor whose students missed meetings
+ * read short of the hours the ledger had already spent on them.
  */
 
 import type { AnalyticsRow } from "@/lib/analytics";
+import { DAY } from "@/lib/calendar";
 import { formatDuration } from "@/lib/format";
 
 const KIND_COMPLETED = 0;
@@ -17,9 +24,13 @@ const KIND_EXTRA = 1;
 const KIND_NO_SHOW = 2;
 
 export type Filter = {
-  year: number;
+  /** Left out for a window of chosen days, which may cross a new year. */
+  year?: number;
   /** 0–11, or null for the whole year. */
   month?: number | null;
+  /** First and last day of a chosen window, inclusive, as yyyymmdd. */
+  from?: number | null;
+  to?: number | null;
   program?: number | null;
   mentor?: number | null;
 };
@@ -30,6 +41,7 @@ export type Tally = {
   noShow: number;
   /** Attended sessions — no-shows are counted in `noShows`. */
   sessions: number;
+  /** Sessions the student did not come to; their minutes are `noShow`. */
   noShows: number;
 };
 
@@ -42,6 +54,21 @@ export type Totals = Tally & {
 export const yearOf = (day: number) => Math.floor(day / 10000);
 export const monthOf = (day: number) => Math.floor(day / 100) % 100 - 1;
 export const dateOf = (day: number) => day % 100;
+
+/** A UTC midnight as its day key, yyyymmdd. */
+export function dayKeyOf(ms: number): number {
+  const d = new Date(ms);
+  return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
+}
+
+export const msOfDay = (day: number) => Date.UTC(yearOf(day), monthOf(day), dateOf(day));
+
+/** The window as long as `from`..`to` that ends the day before it: what it is compared with. */
+export function windowBefore(from: number, to: number): [number, number] {
+  const start = msOfDay(from);
+  const days = Math.round((msOfDay(to) - start) / DAY) + 1;
+  return [dayKeyOf(start - days * DAY), dayKeyOf(start - DAY)];
+}
 
 export function emptyTally(): Tally {
   return { completed: 0, extra: 0, noShow: 0, sessions: 0, noShows: 0 };
@@ -59,13 +86,20 @@ function add(t: Tally, row: AnalyticsRow): void {
   t.sessions += 1;
 }
 
-/** Minutes a mentor spent with a student present, in plan or not. */
+/** Minutes a mentor set aside for students: in plan, extra, and missed. */
 export function hoursOf(t: Tally): number {
-  return t.completed + t.extra;
+  return t.completed + t.extra + t.noShow;
+}
+
+/** Every session in the tally, attended or missed. */
+export function meetingsOf(t: Tally): number {
+  return t.sessions + t.noShows;
 }
 
 export function matches(row: AnalyticsRow, f: Filter): boolean {
-  if (yearOf(row[3]) !== f.year) return false;
+  if (f.year != null && yearOf(row[3]) !== f.year) return false;
+  if (f.from != null && row[3] < f.from) return false;
+  if (f.to != null && row[3] > f.to) return false;
   if (f.month != null && monthOf(row[3]) !== f.month) return false;
   if (f.program != null && row[0] !== f.program) return false;
   if (f.mentor != null && row[1] !== f.mentor) return false;
@@ -89,10 +123,8 @@ export function totals(rows: readonly AnalyticsRow[]): Totals {
   const mentors = new Set<number>();
   for (const r of rows) {
     add(t, r);
-    if (r[5] !== KIND_NO_SHOW) {
-      students.add(r[2]);
-      mentors.add(r[1]);
-    }
+    students.add(r[2]);
+    mentors.add(r[1]);
   }
   return { ...t, hours: hoursOf(t), students: students.size, mentors: mentors.size };
 }
@@ -117,13 +149,18 @@ export function byDay(rows: readonly AnalyticsRow[], year: number, month: number
   return days;
 }
 
-/** Hours each program has ever delivered, ignoring the year: `[program]`. */
-export function hoursByProgram(
+/**
+ * Minutes each program's grant has ever paid for, ignoring the year:
+ * `[program]`. That is what the ledger draws — in-plan meetings, attended or
+ * missed — and not extra time, which charges nobody: read against the grant,
+ * extra time pushed a program past 100% of hours it had not spent.
+ */
+export function drawnByProgram(
   rows: readonly AnalyticsRow[],
   programCount: number
 ): number[] {
   const out = new Array<number>(programCount).fill(0);
-  for (const r of rows) if (r[5] !== KIND_NO_SHOW) out[r[0]] += r[4];
+  for (const r of rows) if (r[5] !== KIND_EXTRA) out[r[0]] += r[4];
   return out;
 }
 
@@ -133,9 +170,7 @@ export function monthsByProgram(
   programCount: number
 ): number[][] {
   const grid = Array.from({ length: programCount }, () => new Array<number>(12).fill(0));
-  for (const r of rows) {
-    if (r[5] !== KIND_NO_SHOW) grid[r[0]][monthOf(r[3])] += r[4];
-  }
+  for (const r of rows) grid[r[0]][monthOf(r[3])] += r[4];
   return grid;
 }
 
@@ -163,7 +198,6 @@ export function rankBy(
   }
   const trends = new Map<number, number[]>();
   for (const r of trendRows) {
-    if (r[5] === KIND_NO_SHOW) continue;
     let t = trends.get(r[key]);
     if (!t) trends.set(r[key], (t = new Array<number>(12).fill(0)));
     t[monthOf(r[3])] += r[4];
@@ -174,7 +208,7 @@ export function rankBy(
       ...totals(list),
       trend: trends.get(index) ?? new Array<number>(12).fill(0),
     }))
-    .sort((a, b) => b.hours - a.hours || b.sessions - a.sessions);
+    .sort((a, b) => b.hours - a.hours || meetingsOf(b) - meetingsOf(a));
 }
 
 /**
@@ -206,9 +240,7 @@ export function weeksOf(year: number): (number | null)[][] {
 /** Hours per day key. */
 export function hoursByDay(rows: readonly AnalyticsRow[]): Map<number, number> {
   const out = new Map<number, number>();
-  for (const r of rows) {
-    if (r[5] !== KIND_NO_SHOW) out.set(r[3], (out.get(r[3]) ?? 0) + r[4]);
-  }
+  for (const r of rows) out.set(r[3], (out.get(r[3]) ?? 0) + r[4]);
   return out;
 }
 

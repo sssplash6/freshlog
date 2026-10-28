@@ -17,13 +17,13 @@ async function scene() {
   const host = await student({ programId: p.id, name: "Aziza Karimova" });
   const guest = await student({ programId: p.id, name: "Bobur Aliyev" });
   const slot = await prisma.interviewSlot.create({
-    data: { studentId: host.id, startsAt: new Date("2026-10-20T15:00:00Z"), minutes: 45 },
+    data: { userId: host.userId, startsAt: new Date("2026-10-20T15:00:00Z"), minutes: 45 },
   });
   const interview = await prisma.peerInterview.create({
     data: {
       slotId: slot.id,
-      hostId: host.id,
-      guestId: guest.id,
+      hostId: host.userId,
+      guestId: guest.userId,
       template: "university-admissions",
       hostNotes: "host private note",
       guestNotes: "guest private note",
@@ -54,18 +54,18 @@ describe("interviewsOfStudent", () => {
     const { host, guest, interview } = await scene();
     await prisma.interviewAnswer.createMany({
       data: [
-        { interviewId: interview.id, studentId: host.id, questionIndex: 0, question: "Q?", text: "host answer" },
-        { interviewId: interview.id, studentId: guest.id, questionIndex: 0, question: "Q?", text: "guest answer" },
+        { interviewId: interview.id, userId: host.userId, questionIndex: 0, question: "Q?", text: "host answer" },
+        { interviewId: interview.id, userId: guest.userId, questionIndex: 0, question: "Q?", text: "guest answer" },
       ],
     });
     await prisma.interviewFeedback.createMany({
       data: [
-        { interviewId: interview.id, fromId: guest.id, summary: "sent", wentWell: "a", toImprove: "b", submittedAt: new Date() },
-        { interviewId: interview.id, fromId: host.id, summary: "host draft" },
+        { interviewId: interview.id, fromId: guest.userId, summary: "sent", wentWell: "a", toImprove: "b", submittedAt: new Date() },
+        { interviewId: interview.id, fromId: host.userId, summary: "host draft" },
       ],
     });
 
-    const [row] = await interviewsOfStudent(host.id);
+    const [row] = await interviewsOfStudent(host.userId);
     expect(row.notes).toBe("host private note");
     expect(row.partner.name).toBe("Bobur Aliyev");
     // A name and a face, never the classmate's address.
@@ -79,7 +79,7 @@ describe("interviewsOfStudent", () => {
 
   it("reads the guest's side from the guest's page", async () => {
     const { guest } = await scene();
-    const [row] = await interviewsOfStudent(guest.id);
+    const [row] = await interviewsOfStudent(guest.userId);
     expect(row.notes).toBe("guest private note");
     expect(row.partner.name).toBe("Aziza Karimova");
   });

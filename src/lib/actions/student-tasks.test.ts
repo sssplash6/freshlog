@@ -1,7 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { admin, grant, mentor, pairing, program, student, studentTask } from "@/test/db";
+import {
+  admin,
+  enroll,
+  grant,
+  mentor,
+  pairing,
+  program,
+  student,
+  studentTask,
+} from "@/test/db";
 
 /**
  * Who may move a task's progress.
@@ -30,7 +39,7 @@ vi.mock("@/lib/dal", () => ({
     actor.value ? prisma.user.findUnique({ where: { id: actor.value.id } }) : null,
 }));
 
-const { setStudentTask, setStudentTaskProgress } = await import(
+const { setProgramTask, setStudentTask, setStudentTaskProgress } = await import(
   "@/lib/actions/student-tasks"
 );
 
@@ -241,5 +250,96 @@ describe("setStudentTask email", () => {
 
     expect(state).toMatchObject({ ok: false });
     expect(outbox.mails).toHaveLength(0);
+  });
+});
+
+describe("setProgramTask", () => {
+  const task = { title: "Submit the activities list", dueOn: "2099-11-01" };
+
+  async function programScene() {
+    const p = await program("Full Support");
+    const home = await program("Imkon");
+    const khabiba = await student({ programId: p.id, name: "Khabiba" });
+    const aziz = await student({ programId: p.id, name: "Aziz" });
+    const waiting = await student({ programId: p.id, name: "Waiting", status: "PENDING" });
+    // Lent to Full Support for a few hours: a member here only as a visit.
+    const visitor = await student({ programId: home.id, name: "Visitor" });
+    const a = await admin("Valera");
+    await grant({ userId: a.id, programId: p.id });
+    const exchange = await prisma.programExchange.create({
+      data: {
+        studentId: visitor.id,
+        fromProgramId: home.id,
+        toProgramId: p.id,
+        minutes: 420,
+        deadline: new Date("2099-12-01"),
+        sentById: a.id,
+      },
+    });
+    const visit = await enroll({ studentId: visitor.id, programId: p.id });
+    await prisma.studentEnrollment.update({
+      where: { id: visit.id },
+      data: { exchangeId: exchange.id },
+    });
+    return { p, home, a, khabiba, aziz, waiting, visitor };
+  }
+
+  beforeEach(() => {
+    outbox.mails.length = 0;
+  });
+
+  it("sets one task for every approved student, exchange visitors included", async () => {
+    const { p, a, khabiba, aziz, waiting, visitor } = await programScene();
+    actor.value = a;
+
+    const state = await setProgramTask(null, form({ programId: p.id, ...task }));
+
+    expect(state).toMatchObject({ ok: true });
+    const rows = await prisma.studentTask.findMany({ where: { programId: p.id } });
+    expect(rows.map((r) => r.studentId).sort()).toEqual(
+      [khabiba.id, aziz.id, visitor.id].sort()
+    );
+    expect(rows.every((r) => r.mentorId === a.id && r.title === task.title)).toBe(true);
+    expect(rows.some((r) => r.studentId === waiting.id)).toBe(false);
+  });
+
+  it("tells and mails each student, and not their mentors", async () => {
+    const { p, a, khabiba } = await programScene();
+    const m = await mentor("Umid");
+    await pairing({ mentorId: m.id, programId: p.id });
+    actor.value = a;
+
+    await setProgramTask(null, form({ programId: p.id, ...task }));
+
+    const notices = await prisma.notification.findMany({ where: { type: "TASK_SET" } });
+    expect(notices).toHaveLength(3);
+    const khabibaUser = await prisma.user.findUniqueOrThrow({ where: { id: khabiba.userId } });
+    expect(outbox.mails.map((mail) => mail.to)).toContain(khabibaUser.email);
+    expect(outbox.mails).toHaveLength(3);
+    expect(outbox.mails.map((mail) => mail.to)).not.toContain(m.email);
+  });
+
+  it("refuses a mentor who works in the program but does not run it", async () => {
+    const { p } = await programScene();
+    const m = await mentor("Umid");
+    await pairing({ mentorId: m.id, programId: p.id });
+    actor.value = m;
+
+    const state = await setProgramTask(null, form({ programId: p.id, ...task }));
+
+    expect(state).toMatchObject({ ok: false });
+    expect(await prisma.studentTask.count()).toBe(0);
+  });
+
+  it("refuses an admin of another program", async () => {
+    const { p, home } = await programScene();
+    const other = await admin("Elsewhere");
+    await grant({ userId: other.id, programId: home.id });
+    actor.value = other;
+
+    const state = await setProgramTask(null, form({ programId: p.id, ...task }));
+
+    expect(state).toMatchObject({ ok: false });
+    expect(await prisma.studentTask.count()).toBe(0);
   });
 });

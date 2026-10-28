@@ -4,6 +4,8 @@ import {
   AssignMentorForm,
   CreateLevelForm,
   ClassHoursToggle,
+  TracksAdmissionsToggle,
+  SchedulesClassesToggle,
   DeleteCohortButton,
   DeleteLevelButton,
   DeleteProgramButton,
@@ -357,6 +359,25 @@ export default async function ProgramSettingsPage({
             />
           )}
           <ClassHoursToggle programId={program.id} classHours={program.classHours} />
+          {/* Off is the program's own call; on is a platform admin's, since
+              it opens students' applications to everybody here — see
+              `setProgramTracksAdmissions`. Where it is off and the reader
+              cannot turn it on, there is nothing to show. */}
+          {(program.tracksAdmissions || viewer.platformAdmin) && (
+            <TracksAdmissionsToggle
+              programId={program.id}
+              tracksAdmissions={program.tracksAdmissions}
+            />
+          )}
+          {/* Same rule as the applications toggle: off is the program's own
+              call, on is a platform admin's. This is what makes scheduling
+              exclusive to the department that asked for it. */}
+          {(program.schedulesClasses || viewer.platformAdmin) && (
+            <SchedulesClassesToggle
+              programId={program.id}
+              schedulesClasses={program.schedulesClasses}
+            />
+          )}
           <StandardHoursForm
             programId={program.id}
             standardMinutes={program.standardMinutes}

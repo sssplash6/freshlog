@@ -185,7 +185,9 @@ describe("moving time between mentors", () => {
     await expect(held(guzal.id, doston.id)).resolves.toBe(720);
   });
 
-  it("will not move time to the admin doing it", async () => {
+  // A mentor-admin writes their own hours like any other (905ec39), so they
+  // may take over a student's time from another mentor too.
+  it("moves time to the mentor-admin doing it", async () => {
     const { prog, boss, doston, guzal } = await setup();
     await prisma.user.update({ where: { id: boss.id }, data: { isMentor: true } });
     await allocation({ studentId: guzal.id, mentorId: doston.id, minutes: 720 });
@@ -201,6 +203,8 @@ describe("moving time between mentors", () => {
       })
     );
 
-    expect(state).toMatchObject({ ok: false });
+    expect(state).toMatchObject({ ok: true });
+    await expect(held(guzal.id, doston.id)).resolves.toBe(660);
+    await expect(held(guzal.id, boss.id)).resolves.toBe(60);
   });
 });

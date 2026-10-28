@@ -3,14 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { toDateInputValue } from "@/lib/format";
 import { programWallClock } from "@/lib/when";
-import { admin, program, student } from "@/test/db";
+import { allocation, mentor, program, student } from "@/test/db";
 
 /**
  * Students practising interviews on each other.
  *
- * What these pin is who may reach whom — a classmate is somebody sharing one
- * of your OWN programs, never one you are visiting — and that a time is
- * booked once, whoever presses first.
+ * What these pin is who may reach whom — any approved student, in any
+ * program — and that a time is booked once, whoever presses first.
  */
 const actor = vi.hoisted(() => ({ value: null as { id: string } | null }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
@@ -62,7 +61,7 @@ async function scene() {
   const host = await student({ programId: p.id, name: "Aziza Karimova" });
   const guest = await student({ programId: p.id, name: "Bekzod Tursunov" });
   const slot = await prisma.interviewSlot.create({
-    data: { studentId: host.id, startsAt: wallHoursFromNow(48), minutes: 45 },
+    data: { userId: host.userId, startsAt: wallHoursFromNow(48), minutes: 45 },
   });
   return { p, host, guest, slot };
 }
@@ -88,8 +87,8 @@ describe("bookInterview", () => {
     });
     expect(result).toEqual({ redirected: `REDIRECT /student/interviews/${interview.id}` });
     expect(interview).toMatchObject({
-      hostId: host.id,
-      guestId: guest.id,
+      hostId: host.userId,
+      guestId: guest.userId,
       template: "scholarship",
       completedAt: null,
     });
@@ -123,42 +122,17 @@ describe("bookInterview", () => {
     expect(await book(slot.id, "made-up")).toMatchObject({ ok: false });
   });
 
-  it("does not reach a student in a program the reader is not in", async () => {
-    const { slot } = await scene();
-    const outsider = await student({ programId: (await program("Imkon")).id });
+  it("books a student in another program", async () => {
+    const { host, slot } = await scene();
+    const outsider = await student({ programId: (await program("Freshman Scholars")).id });
     as(outsider);
 
-    const result = await book(slot.id);
+    await book(slot.id);
 
-    // The same sentence a missing time gets: an id says nothing about who exists.
-    expect(result).toEqual({
-      ok: false,
-      error: "That time isn't available any more. Pick another.",
+    expect(await prisma.peerInterview.findUniqueOrThrow({ where: { slotId: slot.id } })).toMatchObject({
+      hostId: host.userId,
+      guestId: outsider.userId,
     });
-    expect(await prisma.peerInterview.count()).toBe(0);
-  });
-
-  it("does not make a visiting student a classmate of the host program", async () => {
-    const { p, slot } = await scene();
-    const home = await program("Imkon");
-    const visitor = await student({ programId: home.id, name: "Visitor" });
-    const sender = await admin("Sender");
-    const exchange = await prisma.programExchange.create({
-      data: {
-        studentId: visitor.id,
-        fromProgramId: home.id,
-        toProgramId: p.id,
-        minutes: 420,
-        deadline: new Date(Date.now() + 30 * 24 * HOUR),
-        sentById: sender.id,
-      },
-    });
-    await prisma.studentEnrollment.create({
-      data: { studentId: visitor.id, programId: p.id, exchangeId: exchange.id },
-    });
-    as(visitor);
-
-    expect(await book(slot.id)).toMatchObject({ ok: false });
   });
 
   it("refuses the student's own time", async () => {
@@ -210,7 +184,7 @@ describe("addInterviewSlot / removeInterviewSlot", () => {
     );
 
     expect(result).toMatchObject({ ok: true });
-    expect(await prisma.interviewSlot.count({ where: { studentId: host.id } })).toBe(2);
+    expect(await prisma.interviewSlot.count({ where: { userId: host.userId } })).toBe(2);
   });
 
   it("will not withdraw a time a classmate booked", async () => {
@@ -248,7 +222,7 @@ describe("addInterviewSlot meeting link", () => {
     );
 
     expect(result).toMatchObject({ ok: true });
-    const slot = await prisma.interviewSlot.findFirstOrThrow({ where: { studentId: guest.id } });
+    const slot = await prisma.interviewSlot.findFirstOrThrow({ where: { userId: guest.userId } });
     expect(slot.meetingUrl).toBe("https://meet.google.com/abc-defg-hij");
   });
 
@@ -262,7 +236,7 @@ describe("addInterviewSlot meeting link", () => {
     );
 
     expect(result).toMatchObject({ ok: false });
-    expect(await prisma.interviewSlot.count({ where: { studentId: guest.id } })).toBe(0);
+    expect(await prisma.interviewSlot.count({ where: { userId: guest.userId } })).toBe(0);
   });
 });
 
@@ -271,10 +245,10 @@ describe("after booking", () => {
   async function heldScene() {
     const s = await scene();
     const past = await prisma.interviewSlot.create({
-      data: { studentId: s.host.id, startsAt: wallHoursFromNow(-2), minutes: 45 },
+      data: { userId: s.host.userId, startsAt: wallHoursFromNow(-2), minutes: 45 },
     });
     const interview = await prisma.peerInterview.create({
-      data: { slotId: past.id, hostId: s.host.id, guestId: s.guest.id, template: "visa" },
+      data: { slotId: past.id, hostId: s.host.userId, guestId: s.guest.userId, template: "visa" },
     });
     return { ...s, interview };
   }
@@ -316,7 +290,7 @@ describe("after booking", () => {
 
     expect(result).toMatchObject({ ok: true });
     const after = await prisma.peerInterview.findUniqueOrThrow({ where: { id: interview.id } });
-    expect(after.absentId).toBe(guest.id);
+    expect(after.absentId).toBe(guest.userId);
     expect(after.completedAt).toBeNull();
     const notice = await prisma.notification.findFirstOrThrow({
       where: { type: "PEER_INTERVIEW_ABSENT" },
@@ -364,7 +338,7 @@ describe("after booking", () => {
       ok: false,
     });
     const after = await prisma.peerInterview.findUniqueOrThrow({ where: { id: interview.id } });
-    expect(after.absentId).toBe(guest.id);
+    expect(after.absentId).toBe(guest.userId);
     expect(after.completedAt).toBeNull();
   });
 
@@ -424,10 +398,10 @@ describe("the guide", () => {
   async function liveScene(startsAt = wallHoursFromNow(-2)) {
     const s = await scene();
     const past = await prisma.interviewSlot.create({
-      data: { studentId: s.host.id, startsAt, minutes: 45 },
+      data: { userId: s.host.userId, startsAt, minutes: 45 },
     });
     const interview = await prisma.peerInterview.create({
-      data: { slotId: past.id, hostId: s.host.id, guestId: s.guest.id, template: "freshman-session-1" },
+      data: { slotId: past.id, hostId: s.host.userId, guestId: s.guest.userId, template: "freshman-session-1" },
     });
     return { ...s, interview };
   }
@@ -446,9 +420,9 @@ describe("the guide", () => {
     await answer(interview.id, "0", "Guest answer, edited");
 
     const rows = await prisma.interviewAnswer.findMany({ orderBy: { createdAt: "asc" } });
-    expect(rows.map((r) => [r.studentId, r.text])).toEqual([
-      [host.id, "Host answer"],
-      [guest.id, "Guest answer, edited"],
+    expect(rows.map((r) => [r.userId, r.text])).toEqual([
+      [host.userId, "Host answer"],
+      [guest.userId, "Guest answer, edited"],
     ]);
     expect(rows[0].question).toMatch(/^What are you reading/);
   });
@@ -493,7 +467,7 @@ describe("the guide", () => {
     expect(await submitInterviewFeedback(null, form({ interviewId: interview.id, ...FULL }))).toMatchObject({ ok: true });
 
     const fb = await prisma.interviewFeedback.findUniqueOrThrow({
-      where: { interviewId_fromId: { interviewId: interview.id, fromId: guest.id } },
+      where: { interviewId_fromId: { interviewId: interview.id, fromId: guest.userId } },
     });
     expect(fb).toMatchObject({ ...FULL });
     expect(fb.submittedAt).not.toBeNull();
@@ -549,7 +523,7 @@ describe("the guide", () => {
     expect(result).toMatchObject({ ok: false });
     expect(await prisma.peerInterview.count({ where: { id: interview.id } })).toBe(1);
     const fb = await prisma.interviewFeedback.findUniqueOrThrow({
-      where: { interviewId_fromId: { interviewId: interview.id, fromId: guest.id } },
+      where: { interviewId_fromId: { interviewId: interview.id, fromId: guest.userId } },
     });
     expect(fb.submittedAt).not.toBeNull();
     expect(await prisma.notification.count({ where: { type: "PEER_INTERVIEW_CANCELLED" } })).toBe(0);
@@ -564,7 +538,7 @@ describe("the guide", () => {
     const { guest, interview } = await liveScene(justStarted());
     as(guest);
     await submitInterviewFeedback(null, form({ interviewId: interview.id, ...FULL }));
-    const sent = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.id } });
+    const sent = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.userId } });
     await prisma.notification.deleteMany();
 
     expect(await edit(interview.id, { ...FULL, toImprove: "Slow down, and pause." })).toMatchObject({ ok: true });
@@ -583,7 +557,7 @@ describe("the guide", () => {
     await submitInterviewFeedback(null, form({ interviewId: interview.id, ...FULL }));
 
     expect(await edit(interview.id, { ...FULL, wentWell: "  " })).toMatchObject({ ok: false });
-    const fb = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.id } });
+    const fb = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.userId } });
     expect(fb.wentWell).toBe(FULL.wentWell);
   });
 
@@ -594,7 +568,7 @@ describe("the guide", () => {
     await submitInterviewFeedback(null, form({ interviewId: interview.id, ...FULL }));
 
     expect(await edit(interview.id, { ...FULL, summary: "changed" })).toMatchObject({ ok: false });
-    const fb = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.id } });
+    const fb = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.userId } });
     expect(fb.summary).toBe(FULL.summary);
   });
 
@@ -603,7 +577,7 @@ describe("the guide", () => {
     as(guest);
     await saveInterviewFeedback(null, form({ interviewId: interview.id, summary: "draft" }));
     expect(await edit(interview.id, FULL)).toMatchObject({ ok: false });
-    const draft = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.id } });
+    const draft = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.userId } });
     expect(draft.submittedAt).toBeNull();
 
     await submitInterviewFeedback(null, form({ interviewId: interview.id, ...FULL }));
@@ -611,7 +585,133 @@ describe("the guide", () => {
     expect(await edit(interview.id, { ...FULL, summary: "host rewrote it" })).toMatchObject({ ok: false });
     as(await student({ programId: p.id }));
     expect(await edit(interview.id, FULL)).toEqual({ ok: false, error: "That interview isn't one of yours." });
-    const fb = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.id } });
+    const fb = await prisma.interviewFeedback.findFirstOrThrow({ where: { fromId: guest.userId } });
     expect(fb.summary).toBe(FULL.summary);
+  });
+});
+
+describe("with a mentor", () => {
+  /** A mentor who has held a grant with Aziza, and a student they never met. */
+  async function mentorScene() {
+    const p = await program("Freshman Scholars");
+    const student1 = await student({ programId: p.id, name: "Aziza Karimova" });
+    const stranger = await student({ programId: p.id, name: "Bekzod Tursunov" });
+    const m = await mentor("Malika Mentor");
+    await allocation({ studentId: student1.id, mentorId: m.id, minutes: 60 });
+    const asMentor = () => {
+      actor.value = { id: m.id };
+    };
+    return { p, student: student1, stranger, m, asMentor };
+  }
+
+  async function bookAs(slotId: string, capacity: "student" | "mentor") {
+    try {
+      return await bookInterview(null, form({ slotId, template: "scholarship", as: capacity }));
+    } catch (error) {
+      return { redirected: (error as Error).message };
+    }
+  }
+
+  it("lets a mentor offer a time that only their own students can book", async () => {
+    const s = await mentorScene();
+    s.asMentor();
+    const start = wallHoursFromNow(48);
+    expect(
+      await addInterviewSlot(null, form({ date: toDateInputValue(start), time: "15:00", minutes: "45", as: "mentor" }))
+    ).toMatchObject({ ok: true });
+    const slot = await prisma.interviewSlot.findFirstOrThrow({ where: { userId: s.m.id } });
+    expect(slot.asMentor).toBe(true);
+
+    as(s.stranger);
+    expect(await bookAs(slot.id, "student")).toEqual({
+      ok: false,
+      error: "That time isn't available any more. Pick another.",
+    });
+
+    as(s.student);
+    const result = await bookAs(slot.id, "student");
+    const interview = await prisma.peerInterview.findUniqueOrThrow({ where: { slotId: slot.id } });
+    expect(result).toEqual({ redirected: `REDIRECT /student/interviews/${interview.id}` });
+    expect(interview).toMatchObject({ hostId: s.m.id, guestId: s.student.userId, mentorId: s.m.id });
+    // The mentor is sent to their own side's page.
+    const notice = await prisma.notification.findFirstOrThrow({ where: { userId: s.m.id } });
+    expect(notice.href).toBe(`/mentor/interviews/${interview.id}`);
+  });
+
+  it("lets a mentor book a time one of their students offered, and nobody else's", async () => {
+    const s = await mentorScene();
+    const mine = await prisma.interviewSlot.create({
+      data: { userId: s.student.userId, startsAt: wallHoursFromNow(48), minutes: 45 },
+    });
+    const theirs = await prisma.interviewSlot.create({
+      data: { userId: s.stranger.userId, startsAt: wallHoursFromNow(50), minutes: 45 },
+    });
+    s.asMentor();
+
+    expect(await bookAs(theirs.id, "mentor")).toMatchObject({ ok: false });
+    // A mentor is not a student, whatever the form says.
+    expect(await bookAs(mine.id, "student")).toMatchObject({ ok: false });
+
+    const result = await bookAs(mine.id, "mentor");
+    const interview = await prisma.peerInterview.findUniqueOrThrow({ where: { slotId: mine.id } });
+    expect(result).toEqual({ redirected: `REDIRECT /mentor/interviews/${interview.id}` });
+    expect(interview).toMatchObject({ hostId: s.student.userId, guestId: s.m.id, mentorId: s.m.id });
+  });
+
+  it("never pairs two mentors", async () => {
+    const s = await mentorScene();
+    const other = await mentor("Other Mentor");
+    const slot = await prisma.interviewSlot.create({
+      data: { userId: other.id, asMentor: true, startsAt: wallHoursFromNow(48), minutes: 45 },
+    });
+    s.asMentor();
+    expect(await bookAs(slot.id, "mentor")).toMatchObject({ ok: false });
+  });
+
+  it("has the student answer and the mentor write the feedback", async () => {
+    const s = await mentorScene();
+    const slot = await prisma.interviewSlot.create({
+      data: { userId: s.m.id, asMentor: true, startsAt: wallHoursFromNow(-1), minutes: 60 },
+    });
+    const interview = await prisma.peerInterview.create({
+      data: {
+        slotId: slot.id,
+        hostId: s.m.id,
+        guestId: s.student.userId,
+        mentorId: s.m.id,
+        template: "scholarship",
+      },
+    });
+    const full = { summary: "Clear.", wentWell: "Examples.", toImprove: "Pace." };
+
+    s.asMentor();
+    expect(
+      await saveInterviewAnswer(null, form({ interviewId: interview.id, questionIndex: "0", text: "x" }))
+    ).toMatchObject({ ok: false });
+
+    as(s.student);
+    expect(
+      await saveInterviewAnswer(null, form({ interviewId: interview.id, questionIndex: "0", text: "My answer" }))
+    ).toMatchObject({ ok: true });
+    expect(
+      await submitInterviewFeedback(null, form({ interviewId: interview.id, ...full }))
+    ).toMatchObject({ ok: false });
+
+    s.asMentor();
+    expect(
+      await submitInterviewFeedback(null, form({ interviewId: interview.id, ...full }))
+    ).toMatchObject({ ok: true });
+    const after = await prisma.peerInterview.findUniqueOrThrow({ where: { id: interview.id } });
+    expect(after.completedAt).not.toBeNull();
+    const notice = await prisma.notification.findFirstOrThrow({
+      where: { userId: s.student.userId, type: "PEER_INTERVIEW_FEEDBACK" },
+    });
+    expect(notice.href).toBe(`/student/interviews/${interview.id}`);
+
+    // Completed by the mentor's feedback, the student's guide is closed.
+    as(s.student);
+    expect(
+      await saveInterviewAnswer(null, form({ interviewId: interview.id, questionIndex: "0", text: "Later" }))
+    ).toMatchObject({ ok: false });
   });
 });

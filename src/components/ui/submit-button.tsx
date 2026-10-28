@@ -47,6 +47,7 @@ export function SubmitButton({
   size = "md",
   className,
   disabled = false,
+  pending: pendingProp,
 }: {
   children: React.ReactNode;
   pendingText?: React.ReactNode;
@@ -55,8 +56,11 @@ export function SubmitButton({
   className?: string;
   /** Off before there is anything the submit could succeed with. */
   disabled?: boolean;
+  /** For a form submitted by its own handler, which `useFormStatus` cannot see. */
+  pending?: boolean;
 }) {
-  const { pending } = useFormStatus();
+  const status = useFormStatus();
+  const pending = pendingProp ?? status.pending;
   return (
     <button
       type="submit"

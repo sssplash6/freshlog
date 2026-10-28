@@ -365,6 +365,7 @@ export const NOTIFICATION_TYPES = {
   PEER_INTERVIEW_ABSENT: "PEER_INTERVIEW_ABSENT", // to the other student: their partner marked them absent from a practice interview
   PEER_INTERVIEW_FEEDBACK: "PEER_INTERVIEW_FEEDBACK", // to the other student: their partner sent feedback on a practice interview
   WEEKLY_SUMMARY: "WEEKLY_SUMMARY", // to everyone who wants it: the Monday digest, in the feed too
+  DELETION_REQUESTED: "DELETION_REQUESTED", // to platform admins: somebody asked for their account to be deleted
 } as const;
 
 /**
@@ -478,6 +479,7 @@ export const CATEGORY_OF: Record<NotificationType, NotificationCategory> = {
   PEER_INTERVIEW_ABSENT: "SESSIONS",
   PEER_INTERVIEW_FEEDBACK: "SESSIONS",
   WEEKLY_SUMMARY: "ACCOUNTS",
+  DELETION_REQUESTED: "ACCOUNTS",
 };
 
 export type NotificationType =
@@ -527,6 +529,7 @@ export const NOTIFICATION_META: Record<
   PEER_INTERVIEW_ABSENT: { label: "Marked absent", tone: "warning" },
   PEER_INTERVIEW_FEEDBACK: { label: "Interview feedback", tone: "brand" },
   WEEKLY_SUMMARY: { label: "Weekly summary", tone: "plan" },
+  DELETION_REQUESTED: { label: "Account deletion", tone: "warning" },
 };
 
 /**

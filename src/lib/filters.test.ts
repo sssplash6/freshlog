@@ -16,6 +16,7 @@ import {
   notificationsWhere,
   presetHref,
   presetIsActive,
+  ratingLabel,
   readChoice,
   readDateWindow,
   readParam,
@@ -110,12 +111,31 @@ describe("hostile input", () => {
   });
 
   it("ignores a rating that is not one this product can store", () => {
-    for (const rating of ["0", "6", "four", "-1", "3.5"]) {
+    for (const rating of ["0", "6", "four", "-1", "3.5", "0-3", "2-6", "1-2-3"]) {
       expect(clauses(feedbackWhere({ rating }, {}, NOW))).toEqual([]);
     }
+  });
+
+  it("reads a bare rating as exactly that many stars", () => {
     expect(clauses(feedbackWhere({ rating: "3" }, {}, NOW))).toContainEqual({
-      rating: { lte: 3 },
+      rating: 3,
     });
+    expect(ratingLabel({ rating: "1" })).toBe("1 star");
+    expect(ratingLabel({ rating: "4" })).toBe("4 stars");
+  });
+
+  it("reads a dash as a window, whichever way round it is written", () => {
+    expect(clauses(feedbackWhere({ rating: "1-3" }, {}, NOW))).toContainEqual({
+      rating: { gte: 1, lte: 3 },
+    });
+    expect(clauses(feedbackWhere({ rating: "3-1" }, {}, NOW))).toContainEqual({
+      rating: { gte: 1, lte: 3 },
+    });
+    expect(ratingLabel({ rating: "1-3" })).toBe("3 stars or fewer");
+    expect(ratingLabel({ rating: "4-5" })).toBe("4 stars or more");
+    expect(ratingLabel({ rating: "2-4" })).toBe("2 to 4 stars");
+    expect(ratingLabel({ rating: "2-2" })).toBe("2 stars");
+    expect(ratingLabel({})).toBeUndefined();
   });
 });
 

@@ -17,10 +17,73 @@ import { NextRequest, NextResponse } from "next/server";
 // unless DEV_LOGIN=1 on a localhost request, so listing it here opens nothing
 // anywhere else — it has to be reachable signed-out because signing in is
 // what it is for.
-const PUBLIC_PATHS = ["/login", "/unsubscribe", "/api/email", "/api/dev-login"];
+//
+// /api/telegram is Telegram's webhook, which never carries a session. It
+// authorizes on the X-Telegram-Bot-Api-Secret-Token header instead (see its
+// route). Telegram does not follow redirects, so a bounce to /login would
+// silently drop every message from the group.
+//
+// /f is a partner school's feedback form, opened from a Telegram link by
+// students who have no account here; its pages authorize on a signed pass
+// cookie for a listed email instead (src/lib/partner-feedback.ts).
+//
+// /api/v1 is the freshlog app's API. The app carries a bearer token, never a
+// cookie, so bouncing it to /login would answer a phone with an HTML page. No
+// check happens here for it: every handler gates itself on its first line with
+// getCurrentUser, except the sign-in routes themselves, auth/token and
+// auth/signout, which say so in their own first-line comments, and auth/dev,
+// whose first line is the dev-login guard (devLoginEnabled).
+// src/app/api/v1/gates.test.ts holds every route there to this.
+//
+// /privacy and /support are the pages the App Store listing links to, read by
+// Apple's review and by anyone before they have an account. Static text.
+const PUBLIC_PATHS = [
+  "/login",
+  "/unsubscribe",
+  "/api/email",
+  "/api/dev-login",
+  "/api/telegram",
+  "/f",
+  "/api/v1",
+  "/privacy",
+  "/support",
+];
+
+/**
+ * The one spelling of a partner's link: its slug trimmed and lowercased, the
+ * way it is stored. Or null when `pathname` is already that spelling, or is
+ * not a partner link.
+ *
+ * The pages would render /f/CANA anyway (activePartner normalises), but the
+ * pass cookie is set on path /f/cana and browsers match cookie paths
+ * case-sensitively. A student on /f/CANA would check in, never send the
+ * cookie back, and be shown the email step forever. Done here rather than in
+ * the page so it is a real 307: under the root loading boundary, a page's
+ * redirect() arrives after the 200 has been sent.
+ */
+function canonicalPartnerPath(pathname: string): string | null {
+  const link = /^\/f\/([^/]+)(\/.*)?$/.exec(pathname);
+  if (!link) return null;
+  const [, raw, rest = ""] = link;
+  let slug: string;
+  try {
+    slug = encodeURIComponent(decodeURIComponent(raw).trim().toLowerCase());
+  } catch {
+    return null; // A malformed escape is the page's 404 to give, not ours.
+  }
+  return slug && slug !== raw ? `/f/${slug}${rest}` : null;
+}
 
 export default function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  const canonical = canonicalPartnerPath(pathname);
+  if (canonical) {
+    const url = req.nextUrl.clone();
+    url.pathname = canonical;
+    return NextResponse.redirect(url);
+  }
+
   const hasSessionCookie =
     req.cookies.has("authjs.session-token") ||
     req.cookies.has("__Secure-authjs.session-token");

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { FolderIcon, SendIcon } from "@/components/icons";
+import { ApplicationSection } from "@/components/application-section";
 import {
   AllocationsTable,
   timeByMentorEntries,
@@ -33,6 +34,7 @@ import { Callout } from "@/components/ui/callout";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FactList } from "@/components/ui/fact-list";
+import { CopyText } from "@/components/ui/copy-text";
 import { ExternalLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
@@ -48,6 +50,7 @@ import {
 import {
   adminScope,
   adminWriteScope,
+  applicationAccess,
   canAdministerStudent,
   canManageStudent,
   mentorHasWorkedWith,
@@ -57,7 +60,12 @@ import {
   scopeProgramFilter,
   studentScope,
 } from "@/lib/authz";
-import { enrollmentLabel, enrollmentsLabel, studiesIn } from "@/lib/enrollments";
+import {
+  enrollmentLabel,
+  enrollmentsLabel,
+  sortEnrollments,
+  studiesIn,
+} from "@/lib/enrollments";
 import { visibleExchanges } from "@/lib/exchanges";
 import { requireUser } from "@/lib/dal";
 import { deadlinePassed, soonestExpiry } from "@/lib/deadlines";
@@ -140,8 +148,43 @@ export default async function StudentWorkspacePage({
   // not read them by virtue of managing the student.
   const interviews =
     canActAsMentor(me) && (await mentorHasWorkedWith(me, profile))
-      ? await interviewsOfStudent(profile.id)
+      ? await interviewsOfStudent(profile.userId)
       : [];
+
+  // The university application, for a student in a program that tracks them,
+  // read by its admins and by the mentors who work with the student THERE —
+  // `applicationAccess` is narrower than this page's gate on purpose.
+  const appAccess = await applicationAccess(me, profile);
+  const application = appAccess.read
+    ? await Promise.all([
+        prisma.studentApplication.findUnique({ where: { studentId: profile.id } }),
+        prisma.studentUniversity.findMany({
+          where: { studentId: profile.id },
+          include: {
+            university: { select: { id: true, name: true, supplementalWords: true } },
+          },
+          orderBy: { createdAt: "asc" },
+        }),
+        appAccess.write
+          ? prisma.university.findMany({
+              orderBy: { name: "asc" },
+              select: { id: true, name: true, supplementalWords: true },
+            })
+          : Promise.resolve([]),
+        // A word count is the university's, for every student who lists it, so
+        // correcting one is an admin's — of any program that tracks them.
+        appAccess.write
+          ? adminWriteScope(me).then(async (scope) =>
+              (
+                await prisma.program.findMany({
+                  where: { tracksAdmissions: true },
+                  select: { id: true },
+                })
+              ).some((p) => scopeCovers(scope, p.id))
+            )
+          : Promise.resolve(false),
+      ])
+    : null;
 
   const lens = await profileOf(me);
   const viewer = {
@@ -230,6 +273,24 @@ export default async function StudentWorkspacePage({
       select: { id: true, name: true },
     }),
   ]);
+
+  // Each program's own figures, when the totals above add up more than one —
+  // so the page agrees, row by row, with the roster of every program it sums.
+  const byProgram =
+    enrollments.length > 1
+      ? await Promise.all(
+          sortEnrollments(enrollments).map(async (e) => {
+            const sum = await allocationSummary(profile.id, [e.programId]);
+            return {
+              id: e.programId,
+              name: e.exchangeId ? `${e.program.name} (on exchange)` : e.program.name,
+              allotted: sum.allotted,
+              completed: sum.completed,
+              remaining: sum.remaining,
+            };
+          })
+        )
+      : [];
 
   const name = profile.user.name ?? profile.user.email;
   const isPending = profile.user.status === USER_STATUS.PENDING;
@@ -478,10 +539,12 @@ export default async function StudentWorkspacePage({
         Allocate time
       </LinkButton>
     ) : null;
-  // The primary is always LAST — the right end, where every page keeps it. The
-  // mentor lens put its primary first and the program page put its own last,
-  // so the same two buttons swapped places between pages.
-  const headerButtons = primaryIsLog ? [allocateButton, logButton] : [logButton, allocateButton];
+  // Log a session is always LAST, in the right-hand corner, in either lens and
+  // on the program page too (12 October 2026, asked for in that order: "Log a
+  // session should always be in right corner, Allocate time to the left"). It
+  // had followed whichever button was primary, so the two swapped places
+  // between a mentor's view and an admin's.
+  const headerButtons = [allocateButton, logButton];
 
   return (
     <div className="space-y-4">
@@ -540,7 +603,7 @@ export default async function StudentWorkspacePage({
                 {headline.rest && <> · {headline.rest}</>}
               </span>
             )}
-            {profile.user.email}
+            <CopyText value={profile.user.email} />
             {handle && (
               <>
                 {" · "}
@@ -595,135 +658,173 @@ export default async function StudentWorkspacePage({
         )
       )}
 
-      {/* The tracking sheet's whole tab: what happened on the left, what the
-          student is doing about it on the right, the agenda the hours were
-          bought for underneath, and the balance across the top. It leads the
-          page because it is what the page is opened for — and it is the ONLY
-          place a session, a task or an agenda item renders, so nothing below
-          repeats a row. */}
-      <LedgerBoard
-        viewer={viewer}
-        sessions={ledger.sessions}
-        tasks={toStudentTaskEntries(ledger.tasks, {
-          mentorBase: "/mentors",
-          // Named only when the reader can see more than one of the student's
-          // programs, for the same reason the agenda names one: otherwise every
-          // row repeats a fact the page's own eyebrow already carries.
-          showProgram: enrollments.length > 1,
-        })}
-        assignments={ledger.assignments}
-        banks={timeByMentor.filter((entry) => entry.bank)}
-        // The pinned bank row is where the balance is read, so it is where an
-        // admin corrects it — the same ⋮ its "Time by mentor" row carries:
-        // total, use-by, removal. `bankAdmin` is the action's own rule, so the
-        // menu is the affordance for a gate that will agree with it.
-        renderBankActions={(bank) =>
-          bank.deadline && bankAdmin.has(bank.program.id) ? (
-            <AllocationRowActions
-              bank
+      {/* Progress leads the page, and for the programs that track an
+          application (Full Support) where it stands sits BESIDE it, from xl:
+          "these stats should be on the side, progress should still be the
+          most important part" (12 October 2026). It had been a full-width
+          band above the hours, which pushed Progress below the fold on the
+          one page opened to read it. Below xl the side column follows the
+          board, so a phone still reads Progress first. Nobody else's page
+          grows the column, and theirs keeps the board at full width. */}
+      <div
+        className={
+          application
+            ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start"
+            : "grid gap-4"
+        }
+      >
+        <div className="min-w-0 space-y-4">
+          {/* The tracking sheet's whole tab: what happened on the left, what the
+              student is doing about it on the right, the agenda the hours were
+              bought for underneath, and the balance across the top. It leads the
+              page because it is what the page is opened for — and it is the ONLY
+              place a session, a task or an agenda item renders, so nothing below
+              repeats a row. */}
+          <LedgerBoard
+            viewer={viewer}
+            sessions={ledger.sessions}
+            tasks={toStudentTaskEntries(ledger.tasks, {
+              mentorBase: "/mentors",
+              // Named only when the reader can see more than one of the student's
+              // programs, for the same reason the agenda names one: otherwise every
+              // row repeats a fact the page's own eyebrow already carries.
+              showProgram: enrollments.length > 1,
+            })}
+            assignments={ledger.assignments}
+            banks={timeByMentor.filter((entry) => entry.bank)}
+            // The pinned bank row is where the balance is read, so it is where an
+            // admin corrects it — the same ⋮ its "Time by mentor" row carries:
+            // total, use-by, removal. `bankAdmin` is the action's own rule, so the
+            // menu is the affordance for a gate that will agree with it.
+            renderBankActions={(bank) =>
+              bank.deadline && bankAdmin.has(bank.program.id) ? (
+                <AllocationRowActions
+                  bank
+                  studentProfileId={profile.id}
+                  programId={bank.program.id}
+                  mentorId=""
+                  mentorLabel="the hour bank"
+                  currentMinutes={bank.allocated}
+                  currentDeadline={toDateInputValue(bank.deadline)}
+                />
+              ) : null
+            }
+            totals={hours}
+            byProgram={byProgram}
+            mentorBase="/mentors"
+            // The board is where these rows are READ, so it is where they have to
+            // be correctable. Neither menu was here: a logged session had to be
+            // hunted down again on /sessions, and a task could not be corrected
+            // anywhere at all — `TaskRowActions` was written and never rendered.
+            //
+            // An admin of the row's program gets both. A mentor gets a session
+            // they logged themselves and a task assigned to them, which are the
+            // same two rules the server enforces in `requireSessionAuthority` and
+            // `assertTaskScope`; the menu is not the gate, it is the affordance
+            // for a gate that will agree with it.
+            renderSessionActions={(session) =>
+              writes || session.mentorId === me.id ? (
+                <SessionRowActions
+                  session={{
+                    id: session.id,
+                    minutes: session.minutes,
+                    date: toDateInputValue(session.date),
+                    attendance: attendanceOf(session),
+                    timeKind: timeKindOf(session),
+                    note: session.note,
+                    assignmentId: session.assignmentId,
+                  }}
+                  goals={sessionTasks[session.id] ?? []}
+                  canEdit={session.status !== SESSION_STATUS.VOIDED}
+                  canDelete={writes}
+                  student={name}
+                  mentor={session.mentor.name ?? session.mentor.email}
+                />
+              ) : null
+            }
+            renderAgendaActions={(task) =>
+              writes || task.mentorId === me.id ? (
+                <TaskRowActions
+                  task={{
+                    id: task.id,
+                    purpose: task.purpose,
+                    mentorId: task.mentorId,
+                    minuteLimit: task.minuteLimit,
+                    dueNote: task.dueNote,
+                    dueOn: task.dueOn,
+                    note: task.note,
+                    progress: task.progress,
+                    progressManual: task.progressManual,
+                  }}
+                  mentors={mentorOptions}
+                  canDelete={writes}
+                />
+              ) : null
+            }
+            // A task is the mentor's own word to the student, so the menu goes to
+            // the person who gave it — and to the admins of the program it was
+            // given in, who are who is left holding it when that mentor moves on.
+            // `assertTaskScope` enforces exactly this pair server-side.
+            renderTaskActions={(task) =>
+              ownsTask({ programId: task.programId, mentorId: task.mentor.id }) ? (
+                <StudentTaskRowActions
+                  task={{
+                    id: task.id,
+                    title: task.title,
+                    note: task.note,
+                    dueOn: task.dueOn,
+                  }}
+                />
+              ) : null
+            }
+            // The same pair again, and for the same reason: the mentor is who
+            // reads the draft. A student's own claim is still theirs to make on
+            // their home page — this is the person who just sat with them saying
+            // where the work actually got to, rather than a row that says 0% until
+            // somebody remembers to tap.
+            renderTaskProgress={(task) =>
+              ownsTask({ programId: task.programId, mentorId: task.mentor.id }) ? (
+                <TaskProgressControl
+                  taskId={task.id}
+                  percent={task.percent}
+                  done={task.completedAt != null}
+                  mine={false}
+                />
+              ) : null
+            }
+            taskForm={
+              assignableIn.length > 0 ? (
+                <SetStudentTaskForm
+                  studentProfileId={profile.id}
+                  programs={assignableIn.map((e) => ({
+                    value: e.programId,
+                    label: enrollmentLabel(e),
+                  }))}
+                />
+              ) : null
+            }
+          />
+        </div>
+
+        {application && (
+          <aside className="min-w-0 space-y-4">
+            <ApplicationSection
               studentProfileId={profile.id}
-              programId={bank.program.id}
-              mentorId=""
-              mentorLabel="the hour bank"
-              currentMinutes={bank.allocated}
-              currentDeadline={toDateInputValue(bank.deadline)}
-            />
-          ) : null
-        }
-        totals={hours}
-        mentorBase="/mentors"
-        // The board is where these rows are READ, so it is where they have to
-        // be correctable. Neither menu was here: a logged session had to be
-        // hunted down again on /sessions, and a task could not be corrected
-        // anywhere at all — `TaskRowActions` was written and never rendered.
-        //
-        // An admin of the row's program gets both. A mentor gets a session
-        // they logged themselves and a task assigned to them, which are the
-        // same two rules the server enforces in `requireSessionAuthority` and
-        // `assertTaskScope`; the menu is not the gate, it is the affordance
-        // for a gate that will agree with it.
-        renderSessionActions={(session) =>
-          writes || session.mentorId === me.id ? (
-            <SessionRowActions
-              session={{
-                id: session.id,
-                minutes: session.minutes,
-                date: toDateInputValue(session.date),
-                attendance: attendanceOf(session),
-                timeKind: timeKindOf(session),
-                note: session.note,
-                assignmentId: session.assignmentId,
+              application={{
+                sat: application[0]?.sat ?? null,
+                ielts: application[0]?.ielts ?? null,
+                school: application[0]?.school ?? null,
+                gpa: application[0]?.gpa ?? null,
+                essayStage: application[0]?.essayStage ?? null,
+                universities: application[1],
               }}
-              goals={sessionTasks[session.id] ?? []}
-              canEdit={session.status !== SESSION_STATUS.VOIDED}
-              canDelete={writes}
-              student={name}
-              mentor={session.mentor.name ?? session.mentor.email}
+              editable={appAccess.write}
+              canCorrectWords={application[3]}
+              universities={application[2]}
             />
-          ) : null
-        }
-        renderAgendaActions={(task) =>
-          writes || task.mentorId === me.id ? (
-            <TaskRowActions
-              task={{
-                id: task.id,
-                purpose: task.purpose,
-                mentorId: task.mentorId,
-                minuteLimit: task.minuteLimit,
-                dueNote: task.dueNote,
-                dueOn: task.dueOn,
-                note: task.note,
-                progress: task.progress,
-                progressManual: task.progressManual,
-              }}
-              mentors={mentorOptions}
-              canDelete={writes}
-            />
-          ) : null
-        }
-        // A task is the mentor's own word to the student, so the menu goes to
-        // the person who gave it — and to the admins of the program it was
-        // given in, who are who is left holding it when that mentor moves on.
-        // `assertTaskScope` enforces exactly this pair server-side.
-        renderTaskActions={(task) =>
-          ownsTask({ programId: task.programId, mentorId: task.mentor.id }) ? (
-            <StudentTaskRowActions
-              task={{
-                id: task.id,
-                title: task.title,
-                note: task.note,
-                dueOn: task.dueOn,
-              }}
-            />
-          ) : null
-        }
-        // The same pair again, and for the same reason: the mentor is who
-        // reads the draft. A student's own claim is still theirs to make on
-        // their home page — this is the person who just sat with them saying
-        // where the work actually got to, rather than a row that says 0% until
-        // somebody remembers to tap.
-        renderTaskProgress={(task) =>
-          ownsTask({ programId: task.programId, mentorId: task.mentor.id }) ? (
-            <TaskProgressControl
-              taskId={task.id}
-              percent={task.percent}
-              done={task.completedAt != null}
-              mine={false}
-            />
-          ) : null
-        }
-        taskForm={
-          assignableIn.length > 0 ? (
-            <SetStudentTaskForm
-              studentProfileId={profile.id}
-              programs={assignableIn.map((e) => ({
-                value: e.programId,
-                label: enrollmentLabel(e),
-              }))}
-            />
-          ) : null
-        }
-      />
+          </aside>
+        )}
+      </div>
 
       {interviews.length > 0 && (
         <StudentInterviews interviews={interviews} viewer={viewer} />
@@ -808,7 +909,7 @@ export default async function StudentWorkspacePage({
                         // `remaining` is already zero once a deadline passes.
                         unusedMinutes={Math.max(0, entry.remaining)}
                         transferTo={mentorOptions.filter(
-                          (m) => m.value !== entry.mentor?.id && m.value !== me.id
+                          (m) => m.value !== entry.mentor?.id
                         )}
                       />
                     ) : null

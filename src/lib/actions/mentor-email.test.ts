@@ -162,3 +162,65 @@ describe("registering a mentor on an address that has already signed in", () => 
     expect((result as { error: string }).error).toMatch(/already a student/);
   });
 });
+
+describe("registering a list of mentors at once", () => {
+  it("registers every row it can into the same programs, and names the rest", async () => {
+    const { createMentors } = await import("@/lib/actions/mentors");
+    const prog = await program("Intake");
+    actor.value = await platformAdmin("Registrar Three");
+    await prisma.user.create({
+      data: { email: "here@example.com", name: "Already Here", role: ROLES.MENTOR },
+    });
+
+    const data = new FormData();
+    for (const [email, first, last] of [
+      ["one@example.com", "First", "Mentor"],
+      ["two@example.com", "Second", "Mentor"],
+      ["here@example.com", "Already", "Here"],
+      ["bad-address", "Bad", "Address"],
+      ["solo@example.com", "Solo", ""],
+      ["ONE@example.com", "First", "Again"],
+    ]) {
+      data.append("email", email);
+      data.append("firstName", first);
+      data.append("lastName", last);
+    }
+    data.append("targets", `p:${prog.id}`);
+    const result = await createMentors(null, data);
+
+    expect(result).toMatchObject({ ok: true });
+    const message = (result as { message: string }).message;
+    expect(message).toMatch(/^2 mentors registered in Intake/);
+    expect(message).toMatch(/here@example\.com \(is already a mentor/);
+    expect(message).toMatch(/bad-address \(not a valid email\)/);
+    expect(message).toMatch(/solo@example\.com \(needs a first and last name\)/);
+    const made = await prisma.user.findMany({
+      where: { email: { in: ["one@example.com", "two@example.com"] } },
+      include: { mentorAssignments: true },
+    });
+    expect(made.map((u) => [u.name, u.role, u.mentorAssignments[0]?.programId])).toEqual(
+      expect.arrayContaining([
+        ["First Mentor", ROLES.MENTOR, prog.id],
+        ["Second Mentor", ROLES.MENTOR, prog.id],
+      ])
+    );
+  });
+
+  it("refuses the whole list when the programs are not the admin's", async () => {
+    const { createMentors } = await import("@/lib/actions/mentors");
+    const prog = await program("Not Theirs");
+    const outsider = await prisma.user.create({
+      data: { email: "outsider@example.com", name: "Out Sider", role: ROLES.ADMIN, status: USER_STATUS.ACTIVE },
+    });
+    actor.value = outsider;
+
+    const data = new FormData();
+    data.append("email", "new@example.com");
+    data.append("firstName", "New");
+    data.append("lastName", "Mentor");
+    data.append("targets", `p:${prog.id}`);
+
+    await expect(createMentors(null, data)).resolves.toMatchObject({ ok: false });
+    await expect(prisma.user.count({ where: { email: "new@example.com" } })).resolves.toBe(0);
+  });
+});

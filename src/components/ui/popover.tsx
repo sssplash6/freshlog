@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  createContext,
   useCallback,
+  useContext,
   useEffect,
   useId,
   useRef,
@@ -105,6 +107,18 @@ const MAX_HEIGHT = 10_000;
 
 export type PopoverContents = "actions" | "fields";
 
+const PopoverCloseContext = createContext<(() => void) | null>(null);
+
+/**
+ * Close the panel this is rendered inside, the way an item that acts in place
+ * needs to — null outside a panel. The children-as-a-function form hands over
+ * the same `close`, but a server component (the account menu) cannot pass a
+ * function, so a client item inside it reaches for this instead.
+ */
+export function usePopoverClose(): (() => void) | null {
+  return useContext(PopoverCloseContext);
+}
+
 function focusablesIn(panel: HTMLElement): HTMLElement[] {
   // offsetParent is a layout read, which is why this only ever runs from an
   // event handler or an effect — never during render.
@@ -195,9 +209,24 @@ export function Popover({
   }, [open, sheet]);
 
   const close = useCallback((restoreFocus: boolean) => {
+    // Blur first, while the panel is still mounted. An outside mousedown
+    // unmounts it before the browser moves focus, so the field inside never
+    // saw a blur — and an autosaving form, which saves on blur, dropped the
+    // edit without a word. Blurring here hands it its departure in time.
+    // By id rather than `panelRef`: `close` is handed to children in render.
+    const active = document.activeElement;
+    if (
+      active instanceof HTMLElement &&
+      document.getElementById(panelId)?.contains(active)
+    ) {
+      active.blur();
+    }
     setRestoring(restoreFocus);
     setOpen(false);
-  }, []);
+  }, [panelId]);
+  // What an item inside the panel closes it with: focus goes back to the
+  // trigger, because the item it was on is about to unmount.
+  const closeAndRestore = useCallback(() => close(true), [close]);
 
   // Sheets dismiss by dragging down, not only by tapping the dimmed page.
   useSwipeDownToDismiss(panelRef, open && sheet, () => close(false));
@@ -210,9 +239,13 @@ export function Popover({
   // fight the reader for their own cursor.
   // Nothing resets the flag: the effect fires on a transition, and it can only
   // transition into "closed and ours" by way of a `close` that said so.
+  // `preventScroll`: the trigger was on screen when it was pressed. A plain
+  // focus() let Safari honour the page's scroll-padding for the sticky top bar
+  // and scroll a trigger that lives IN that bar 66px up — which moved the page
+  // under a bug report's capture, and under the reader on every Escape.
   useEffect(() => {
     if (open || !restoring) return;
-    triggerRef.current?.focus();
+    triggerRef.current?.focus({ preventScroll: true });
   }, [open, restoring]);
 
   useEffect(() => {
@@ -446,9 +479,11 @@ export function Popover({
                   className="mx-auto mb-1.5 mt-1 h-1 w-9 rounded-full bg-line"
                 />
               )}
-              {typeof children === "function"
-                ? children({ close: () => close(true) })
-                : children}
+              <PopoverCloseContext value={closeAndRestore}>
+                {typeof children === "function"
+                  ? children({ close: closeAndRestore })
+                  : children}
+              </PopoverCloseContext>
               {/* Net-zero height (the negative margin eats it), stuck to the
                   panel's bottom edge while there is more to scroll to. */}
               {more && !sheet && (

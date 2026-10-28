@@ -1,4 +1,9 @@
 import { STUDENT_SORTS, StudentsTable } from "@/components/students-table";
+
+/** Every heading but Cohort, which only a program's own roster has. */
+const SORTS = STUDENT_SORTS.filter(
+  (k): k is Exclude<(typeof STUDENT_SORTS)[number], "cohort"> => k !== "cohort"
+);
 import { CreateLink } from "@/components/create-link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -78,10 +83,10 @@ export default async function StudentsPage({
       ...(readParam(params, "sort") ? { sort: readParam(params, "sort") } : {}),
       ...(readParam(params, "dir") ? { dir: readParam(params, "dir") } : {}),
     },
-    STUDENT_SORTS
+    SORTS
   );
   const nameOrder = asked?.dir === "desc" ? "desc" : "asc";
-  // The three the database cannot order by, because they are summed per row
+  // The figures the database cannot order by, because they are summed per row
   // after it has answered. Naming them here is what decides whether this page
   // pages in SQL or in JavaScript.
   const computedSort = asked != null && asked.key !== "student";
@@ -133,7 +138,7 @@ export default async function StudentsPage({
     // their program cell are summed from.
     //
     // NO `slice` WHEN THE READER ASKED FOR A COMPUTED ORDER, and that is the
-    // price of the three sortable figures. Completed, Remaining and Last
+    // price of the sortable figures. Completed, Remaining, Use by and Last
     // session are derived per row AFTER the query, so ordering by one of them
     // over a page the database has already chosen would order twenty-five rows
     // and call it the roster — a header that changes the URL and not the answer
@@ -175,6 +180,7 @@ export default async function StudentsPage({
         completed: (s) => s.completedMinutes,
         total: (s) => s.allottedMinutes,
         remaining: (s) => s.remainingMinutes,
+        deadline: (s) => s.expiring?.date,
         seen: (s) => s.lastSessionAt,
       })
     : visible;
@@ -283,7 +289,7 @@ export default async function StudentsPage({
             viewer={lens}
             // Filtered to one program, the student's page leads back to it.
             from={readParam(params, "program") || undefined}
-            sorts={STUDENT_SORTS}
+            sorts={SORTS}
           />
           {/* Only when there is a page to turn to: on one page it was the
               roster's size said a second time. */}

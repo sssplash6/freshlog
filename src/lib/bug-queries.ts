@@ -1,6 +1,13 @@
 import "server-only";
 
-import { BUG_STATUS, type BugStatus, type TriageFilter } from "@/lib/bugs";
+import {
+  BUG_STATUS,
+  diagnosticsLine,
+  OPEN_BUG_STATUSES,
+  isBugStatus,
+  isClosingStatus,
+  type TriageFilter,
+} from "@/lib/bugs";
 import { prisma } from "@/lib/prisma";
 import type { User } from "@/generated/prisma/client";
 
@@ -19,12 +26,13 @@ import type { User } from "@/generated/prisma/client";
  * is current.
  */
 
-const isResolved = (status: string) =>
-  status === BUG_STATUS.FIXED || status === BUG_STATUS.CLOSED;
+const isResolved = (status: string) => isBugStatus(status) && isClosingStatus(status);
 
 const reporterLabel = (
-  reporter: { name: string | null; email: string } | null
-): string => (reporter ? (reporter.name ?? reporter.email) : "Former user");
+  reporter: { name: string | null; email: string } | null,
+  telegramAuthor: string | null
+): string =>
+  reporter ? (reporter.name ?? reporter.email) : (telegramAuthor ?? "Former user");
 
 export async function myBugReports(userId: string) {
   const rows = await prisma.bugReport.findMany({
@@ -76,11 +84,20 @@ export async function bugReportFor(
       pagePath: true,
       reporterRole: true,
       reporterId: true,
+      kind: true,
+      source: true,
+      telegramAuthor: true,
+      originalText: true,
       status: true,
       resolution: true,
       resolvedAt: true,
       changelogDate: true,
       createdAt: true,
+      viewport: true,
+      theme: true,
+      userAgent: true,
+      build: true,
+      marks: true,
       reporter: { select: { name: true, email: true } },
       image: { select: { id: true } },
     },
@@ -88,46 +105,80 @@ export async function bugReportFor(
   if (!row) return null;
   if (!viewer.platformAdmin && row.reporterId !== viewer.id) return null;
 
-  const { reporter, image, reporterId, ...rest } = row;
+  const {
+    reporter,
+    image,
+    reporterId,
+    telegramAuthor,
+    originalText,
+    viewport,
+    theme,
+    build,
+    marks,
+    ...rest
+  } = row;
   void reporterId;
   return {
     ...rest,
+    // Where it was drawn, as one line; the raw user agent rides along for the
+    // line's tooltip, for anything the summary does not recognise.
+    diagnostics: diagnosticsLine({ viewport, theme, userAgent: row.userAgent, marks, build }),
     resolution:
       viewer.platformAdmin || isResolved(row.status) ? row.resolution : null,
     hasImage: image !== null,
-    reporterName: viewer.platformAdmin ? reporterLabel(reporter) : null,
+    reporterName: viewer.platformAdmin ? reporterLabel(reporter, telegramAuthor) : null,
+    // The sender's own words, beside the model's tidy description. Triagers
+    // only: a group message can name anybody.
+    originalText: viewer.platformAdmin ? originalText : null,
   };
 }
 
+/** How many Done and Won't do items the board shows under the columns. */
+export const FINISHED_ON_BOARD = 30;
+
+/**
+ * The board: everything still open, and the most recently finished. Platform
+ * admins only — anybody else gets two empty lists, whatever page asked.
+ */
 export async function triageList(
   viewer: Pick<User, "platformAdmin">,
   filter: TriageFilter
 ) {
-  if (!viewer.platformAdmin) return [];
+  if (!viewer.platformAdmin) return { open: [], finished: [] };
 
-  const open: BugStatus[] = [BUG_STATUS.PENDING, BUG_STATUS.IN_PROGRESS];
-  const where =
-    filter === "all"
-      ? {}
-      : filter === "open"
-        ? { status: { in: open } }
-        : { status: filter };
+  const kind = filter === "all" ? {} : { kind: filter };
+  const select = {
+    id: true,
+    title: true,
+    status: true,
+    kind: true,
+    source: true,
+    reporterRole: true,
+    telegramAuthor: true,
+    createdAt: true,
+    resolvedAt: true,
+    reporter: { select: { name: true, email: true } },
+  } as const;
 
-  const rows = await prisma.bugReport.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: 200,
-    select: {
-      id: true,
-      title: true,
-      status: true,
-      reporterRole: true,
-      createdAt: true,
-      reporter: { select: { name: true, email: true } },
-    },
-  });
-  return rows.map(({ reporter, ...r }) => ({
+  const [open, finished] = await Promise.all([
+    prisma.bugReport.findMany({
+      where: { ...kind, status: { in: OPEN_BUG_STATUSES } },
+      orderBy: { createdAt: "desc" },
+      take: 300,
+      select,
+    }),
+    prisma.bugReport.findMany({
+      where: { ...kind, status: { in: [BUG_STATUS.FIXED, BUG_STATUS.CLOSED] } },
+      orderBy: [{ resolvedAt: "desc" }, { createdAt: "desc" }],
+      take: FINISHED_ON_BOARD,
+      select,
+    }),
+  ]);
+  const label = ({ reporter, telegramAuthor, ...r }: (typeof open)[number]) => ({
     ...r,
-    reporterName: reporterLabel(reporter),
-  }));
+    reporterName: reporterLabel(reporter, telegramAuthor),
+  });
+  return { open: open.map(label), finished: finished.map(label) };
 }
+
+export type TriageCard = Awaited<ReturnType<typeof triageList>>["open"][number];

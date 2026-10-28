@@ -99,7 +99,9 @@ export function useAutosave(action: FormAction) {
             flush();
           },
         }
-      : save;
+      : save.kind === "saving"
+        ? { kind: "saving", shown: true }
+        : save;
 
   return { formProps, flush, save: state };
 }

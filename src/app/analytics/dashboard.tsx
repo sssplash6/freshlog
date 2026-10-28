@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { ChartIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, XIcon } from "@/components/icons";
+import { CalendarIcon, ChartIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, XIcon } from "@/components/icons";
 import { Button, buttonClasses } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/field";
+import { Popover } from "@/components/ui/popover";
 import { PageTitle, Section } from "@/components/ui/section";
 import type { AnalyticsData, AnalyticsMentor, AnalyticsProgram, AnalyticsRow } from "@/lib/analytics";
 import {
@@ -14,22 +16,28 @@ import {
   byMonth,
   change,
   dateOf,
+  dayKeyOf,
+  drawnByProgram,
   hoursByDay,
-  hoursByProgram,
   hoursOf,
+  meetingsOf,
   monthOf,
   monthsByProgram,
+  msOfDay,
   niceAxis,
   rankBy,
   select,
   shortHours,
   totals,
   weeksOf,
+  windowBefore,
   yearOf,
   yearsOf,
+  type Filter,
   type Ranked,
   type Tally,
 } from "@/lib/analytics-math";
+import { DAY, isoOf, msOf, weekday } from "@/lib/calendar";
 import { cn } from "@/lib/cn";
 import { formatDuration } from "@/lib/format";
 import { initials, personTone } from "@/lib/person-tone";
@@ -100,6 +108,19 @@ const HOURS = "var(--color-accent)";
 const EXTRA_OPACITY = 0.35;
 
 /**
+ * Missed time is the same hue again, striped: the student was charged and the
+ * mentor kept the slot, so it is hours, but not hours anybody spent together.
+ * The stripe is the ledger's own (`HoursBreakdown`), so "missed" looks the
+ * same on a student's page and here.
+ */
+function fillOf(color: string, striped?: boolean): string {
+  if (!striped) return color;
+  // Mixed toward the SURFACE, as in `HoursBreakdown`: on a dark card the light
+  // half of the stripe has to be the card's own ground.
+  return `repeating-linear-gradient(135deg, ${color} 0 4px, color-mix(in srgb, ${color} 40%, var(--color-surface)) 4px 8px)`;
+}
+
+/**
  * A program's colour on this page: its own, out of eight that are kept apart
  * (`--prog-0`…`--prog-7` in the stylesheet), so no two programs in a stack, a
  * legend or a row of cards share one.
@@ -128,7 +149,54 @@ function colorOf(data: AnalyticsData, program: number): string {
 }
 
 type Today = { year: number; month: number; day: number };
-type View = { year: number; month: number | null; program: number | null; mentor: number | null };
+type View = {
+  year: number;
+  month: number | null;
+  /** A window of chosen days, yyyymmdd, both ends kept. Never set with `month`. */
+  from: number | null;
+  to: number | null;
+  program: number | null;
+  mentor: number | null;
+};
+
+/** Which days the view reads: its window when it has one, else its month or its year. */
+function periodOf(view: View): Filter {
+  return view.from != null ? { from: view.from, to: view.to } : { year: view.year, month: view.month };
+}
+
+type Preset = { label: string; phrase: string; from: number; to: number };
+
+/** The same windows the list filters offer one click to (`DATE_PRESETS`), counted to today. */
+function presetsFor(today: Today): Preset[] {
+  const now = Date.UTC(today.year, today.month, today.day);
+  const end = dayKeyOf(now);
+  const back = (days: number) => dayKeyOf(now - (days - 1) * DAY);
+  return [
+    // The calendar week, Monday to today, as the lists count it.
+    { label: "This week", phrase: "this week", from: dayKeyOf(now - weekday(now) * DAY), to: end },
+    { label: "Last 30 days", phrase: "the last 30 days", from: back(30), to: end },
+    { label: "Last 90 days", phrase: "the last 90 days", from: back(90), to: end },
+  ];
+}
+
+/** "Sep 15–Oct 14", the year added only where it is not this one. */
+function spanOf(from: number, to: number, today: Today): string {
+  const crosses = yearOf(from) !== yearOf(to);
+  const day = (k: number) => `${MONTHS[monthOf(k)]} ${dateOf(k)}${crosses ? `, ${yearOf(k)}` : ""}`;
+  const tail = !crosses && yearOf(to) !== today.year ? `, ${yearOf(to)}` : "";
+  if (from === to) return day(from) + tail;
+  if (!crosses && monthOf(from) === monthOf(to)) return `${day(from)}–${dateOf(to)}${tail}`;
+  return `${day(from)}–${day(to)}${tail}`;
+}
+
+/** The period inside a sentence: "October", "2026", "the last 30 days", "Sep 3–17". */
+function periodLabel(view: View, today: Today): string {
+  if (view.from != null && view.to != null) {
+    const preset = presetsFor(today).find((p) => p.from === view.from && p.to === view.to);
+    return preset?.phrase ?? spanOf(view.from, view.to, today);
+  }
+  return view.month != null ? MONTHS_LONG[view.month] : String(view.year);
+}
 
 export function Dashboard({
   data,
@@ -172,15 +240,18 @@ export function Dashboard({
   const { year, month, program, mentor } = view;
   const accent = program != null ? colorOf(data, program) : DEFAULT;
 
-  // The scope of the current level for the whole year, and narrowed to the month.
+  // The scope of the current level for the whole year, and narrowed to the
+  // month or the chosen days. A window reads every row, not the year's: it
+  // may begin in December.
   const yearRows = useMemo(
     () => select(data.rows, { year, program, mentor }),
     [data.rows, year, program, mentor]
   );
   const periodRows = useMemo(
-    () => (month == null ? yearRows : select(yearRows, { year, month })),
-    [yearRows, year, month]
+    () => (month == null && view.from == null ? yearRows : select(data.rows, { ...periodOf(view), program, mentor })),
+    [yearRows, data.rows, view, program, mentor, month]
   );
+  const period = periodLabel(view, today);
 
   const years = useMemo(() => yearsOf(data.rows, today.year), [data.rows, today.year]);
   const latestWithData = years.find((y) => data.rows.some((r) => yearOf(r[3]) === y));
@@ -270,6 +341,7 @@ export function Dashboard({
                 <XIcon className="h-3.5 w-3.5" />
               </button>
             )}
+            <DatesPicker view={view} today={today} go={go} oldest={years[years.length - 1]} />
             <div className="inline-flex items-center rounded-lg bg-fill p-0.5">
               <button
                 type="button"
@@ -297,9 +369,15 @@ export function Dashboard({
         }
       />
 
-      {yearRows.length === 0 ? (
+      {/* The window's own rows count too: "Last 30 days" on January 3 ends in
+          a year with nothing in it yet, and its December is not nothing. */}
+      {yearRows.length === 0 && periodRows.length === 0 ? (
         <div className={cn(s.enter, "rounded-xl bg-surface shadow-sm")} key={`empty-${level}-${year}`}>
-          <EmptyState framed={false} icon={<ChartIcon />} title={`No sessions logged in ${year}`}>
+          <EmptyState
+            framed={false}
+            icon={<ChartIcon />}
+            title={`No sessions logged in ${view.from != null ? period : year}`}
+          >
             <p>
               {mentorRow
                 ? `${mentorRow.name} has no meetings on record here for this year.`
@@ -319,12 +397,14 @@ export function Dashboard({
         </div>
       ) : (
         <div key={`${level}`} className={cn(s.enter, "space-y-4")}>
-          {mentor != null && <MentorScope data={data} view={view} go={go} ranked={audience === "staff"} words={words} />}
+          {mentor != null && (
+            <MentorScope data={data} view={view} go={go} ranked={audience === "staff"} words={words} period={period} />
+          )}
           <Hero data={data} view={view} today={today} yearRows={yearRows} periodRows={periodRows} />
           <MonthsCard data={data} view={view} go={go} yearRows={yearRows} />
           {program == null && mentor == null && (
             <>
-              <ProgramCards data={data} view={view} go={go} last={last} words={words} />
+              <ProgramCards data={data} view={view} go={go} last={last} words={words} period={period} />
               <Leaderboard
                 data={data}
                 view={view}
@@ -333,6 +413,7 @@ export function Dashboard({
                   audience === "mentor" ? words.topMentor : words.top
                 }
                 ranked={audience === "staff"}
+                period={period}
                 periodRows={periodRows}
                 yearRows={yearRows}
                 limit={8}
@@ -349,6 +430,7 @@ export function Dashboard({
                 audience === "mentor" ? words.inOneMentor : words.inOne
               }
               ranked={audience === "staff"}
+              period={period}
               periodRows={periodRows}
               yearRows={yearRows}
               last={last}
@@ -358,6 +440,125 @@ export function Dashboard({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Which days to read, beside the year: a preset, or any two dates. A window
+ * lives in the URL as its two dates, so a link reads the same days tomorrow;
+ * it goes by a preset's name only while it still is that preset.
+ */
+function DatesPicker({
+  view,
+  today,
+  go,
+  oldest,
+}: {
+  view: View;
+  today: Today;
+  go: (next: Partial<View>) => void;
+  /** The earliest year with a session, the From field's floor. */
+  oldest: number;
+}) {
+  const { year, month, from, to } = view;
+  const presets = presetsFor(today);
+  const lit = presets.find((p) => p.from === from && p.to === to);
+  const now = dayKeyOf(Date.UTC(today.year, today.month, today.day));
+  // The fields show the days being read, whichever control chose them, so
+  // picking one end keeps the other.
+  const [a, b] =
+    from != null && to != null
+      ? [from, to]
+      : month != null
+        ? [year * 10000 + (month + 1) * 100 + 1, Math.min(dayKeyOf(Date.UTC(year, month + 1, 0)), now)]
+        : [year * 10000 + 101, Math.min(year * 10000 + 1231, now)];
+  const iso = (k: number) => isoOf(msOfDay(k));
+  const day = (v: string) => {
+    const ms = msOf(v);
+    return ms == null ? null : dayKeyOf(ms);
+  };
+
+  return (
+    <Popover
+      label="Dates"
+      contents="fields"
+      width="md"
+      triggerClassName={buttonClasses("secondary", "sm")}
+      trigger={
+        <>
+          <CalendarIcon className="h-4 w-4" />
+          {from != null && to != null ? (lit?.label ?? spanOf(from, to, today)) : "Dates"}
+        </>
+      }
+    >
+      {({ close }) => (
+        <div className="space-y-3 p-3">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Periods">
+            <button
+              type="button"
+              className={chip(from == null && month == null)}
+              aria-pressed={from == null && month == null}
+              onClick={() => {
+                go({ from: null, to: null, month: null });
+                close();
+              }}
+            >
+              Whole {year}
+            </button>
+            {presets.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                className={chip(p === lit)}
+                aria-pressed={p === lit}
+                onClick={() => {
+                  go({ from: p.from, to: p.to });
+                  close();
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <div className="space-y-2 border-t border-line pt-3 text-sm">
+            <div>
+              <span className="block text-muted-fg">From</span>
+              <DateField
+                key={a}
+                name="from"
+                label="Read from"
+                className="mt-1"
+                defaultValue={iso(a)}
+                min={`${oldest}-01-01`}
+                max={iso(b)}
+                required
+                onChange={(v) => {
+                  const k = day(v);
+                  if (k != null) go({ from: k, to: b });
+                }}
+              />
+            </div>
+            <div>
+              <span className="block text-muted-fg">To</span>
+              <DateField
+                key={b}
+                name="to"
+                label="Read to"
+                className="mt-1"
+                defaultValue={iso(b)}
+                min={iso(a)}
+                max={iso(now)}
+                required
+                onChange={(v) => {
+                  const k = day(v);
+                  if (k != null) go({ from: a, to: k });
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </Popover>
   );
 }
 
@@ -384,9 +585,16 @@ function useView(
     const m = Number(params.get("m"));
     const p = data.programs.findIndex((x) => x.id === params.get("p"));
     const u = data.mentors.findIndex((x) => x.id === params.get("u"));
+    // A window needs both ends, and one written backwards is the same window.
+    const a = msOf(params.get("from"));
+    const b = msOf(params.get("to"));
+    const range = a != null && b != null ? [dayKeyOf(Math.min(a, b)), dayKeyOf(Math.max(a, b))] : null;
     return {
-      year: Number.isInteger(y) && y > 2000 && y <= today.year ? y : today.year,
-      month: Number.isInteger(m) && m >= 1 && m <= 12 ? m - 1 : null,
+      // The charts read a whole year, so a window shows the one it ends in.
+      year: range ? yearOf(range[1]) : Number.isInteger(y) && y > 2000 && y <= today.year ? y : today.year,
+      month: !range && Number.isInteger(m) && m >= 1 && m <= 12 ? m - 1 : null,
+      from: range?.[0] ?? null,
+      to: range?.[1] ?? null,
       program: p >= 0 ? p : null,
       mentor:
         u >= 0
@@ -401,13 +609,22 @@ function useView(
     (next: Partial<View>) => {
       setNavigated(true);
       const v = { ...view, ...next };
+      // A window and a month are two answers to "which days": picking one
+      // drops the other, and stepping to another year leaves both behind.
+      if (next.from != null) v.month = null;
+      else if (next.month != null || next.year !== undefined) v.from = v.to = null;
       const q = new URLSearchParams();
       // Which frame this is was chosen on the server and is not part of the
       // view; carried so a reload after drilling lands in the same one.
       const frame = params.get("frame");
       if (frame) q.set("frame", frame);
-      if (v.year !== today.year) q.set("y", String(v.year));
-      if (v.month != null) q.set("m", String(v.month + 1));
+      if (v.from != null && v.to != null) {
+        q.set("from", isoOf(msOfDay(v.from)));
+        q.set("to", isoOf(msOfDay(v.to)));
+      } else {
+        if (v.year !== today.year) q.set("y", String(v.year));
+        if (v.month != null) q.set("m", String(v.month + 1));
+      }
       if (v.program != null) q.set("p", data.programs[v.program].id);
       if (v.mentor != null) q.set("u", data.mentors[v.mentor].id);
       const qs = q.toString();
@@ -464,7 +681,7 @@ function Hero({
   yearRows: AnalyticsRow[];
   periodRows: AnalyticsRow[];
 }) {
-  const { year, month, program, mentor } = view;
+  const { year, month, from, to, program, mentor } = view;
   const t = useMemo(() => totals(periodRows), [periodRows]);
 
   // What to compare against: the same stretch of time one step back, cut at
@@ -472,6 +689,11 @@ function Hero({
   // month against a whole one is a fall that did not happen.
   const compare = useMemo(() => {
     const scope = { program, mentor };
+    // Chosen days against as many days just before them.
+    if (from != null && to != null) {
+      const [a, b] = windowBefore(from, to);
+      return { before: totals(select(data.rows, { from: a, to: b, ...scope })).hours, now: t.hours, against: spanOf(a, b, today) };
+    }
     if (month != null) {
       const py = month === 0 ? year - 1 : year;
       const pm = month === 0 ? 11 : month - 1;
@@ -495,14 +717,15 @@ function Hero({
       now: t.hours,
       against: running ? `the same period of ${year - 1}` : String(year - 1),
     };
-  }, [data.rows, year, month, program, mentor, today, periodRows, t.hours]);
+  }, [data.rows, year, month, from, to, program, mentor, today, periodRows, t.hours]);
 
   const delta = change(compare.now, compare.before);
   // Counted up in MINUTES and printed the way every other total in the app
   // is: "110h 39m". It was decimal hours — "73.2 hours" over a bar labelled
   // "73h" and a footer saying "73h 10m" — one quantity in three formats.
   const minutesShown = useCountUp(t.hours);
-  const avg = t.sessions ? t.hours / t.sessions : 0;
+  const meetings = meetingsOf(t);
+  const avg = meetings ? t.hours / meetings : 0;
   const noShowRate = t.noShows / Math.max(1, t.sessions + t.noShows);
 
   // A mentor has no "mentors" figure; their busiest month says more.
@@ -547,24 +770,25 @@ function Hero({
         {/* In plan against extra, drawn. It was a sentence under the figure and
             the right two thirds of the card were empty; the split is the one
             thing about a period's hours that is a proportion, so it is a bar. */}
-        <PlanSplit completed={t.completed} extra={t.extra} />
+        <PlanSplit completed={t.completed} extra={t.extra} missed={t.noShow} />
       </div>
       {/* THREE figures under the lead, not six (October 2026). Six of equal
           weight is the stat strip DESIGN.md bans: nothing ranked, so nothing
-          read. Extra time is already the bar beside the lead; no-shows and
-          no-shows ride as the hint of the figure they qualify. */}
+          read. Extra and missed time are already the bar beside the lead; the
+          count of missed meetings rides as the hint of the figure it
+          qualifies. */}
       <dl className="grid grid-cols-3 gap-x-6 gap-y-3 border-t border-line px-4 py-3 sm:px-5">
         <Stat
           label="Sessions"
-          value={t.sessions.toLocaleString("en-US")}
+          value={meetings.toLocaleString("en-US")}
           hint={
             t.noShows > 0
-              ? `${formatDuration(avg)} on average · ${t.noShows} no-show${t.noShows === 1 ? "" : "s"} (${Math.round(noShowRate * 100)}%)`
+              ? `${formatDuration(avg)} on average · ${t.noShows} missed (${Math.round(noShowRate * 100)}%)`
               : `${formatDuration(avg)} on average`
           }
         />
         <Stat
-          label="Students met"
+          label="Students"
           value={t.students.toLocaleString("en-US")}
           hint={t.students ? `${formatDuration(t.hours / t.students)} each` : "—"}
         />
@@ -590,27 +814,28 @@ function Hero({
   );
 }
 
-/** Hours in plan against hours beyond it, as one proportional bar. */
-function PlanSplit({ completed, extra }: { completed: number; extra: number }) {
-  const total = completed + extra;
-  const extraPct = total > 0 ? (extra / total) * 100 : 0;
+/** Hours in plan, beyond it, and missed, as one proportional bar. */
+function PlanSplit({ completed, extra, missed }: { completed: number; extra: number; missed: number }) {
+  const total = completed + extra + missed;
+  const pct = (m: number) => (total > 0 ? (m / total) * 100 : 0);
   return (
     <div
       className="w-full min-w-0 sm:w-72 lg:w-80"
       role="img"
-      aria-label={`${formatDuration(completed)} in plan, ${formatDuration(extra)} extra`}
+      aria-label={`${formatDuration(completed)} in plan, ${formatDuration(extra)} extra, ${formatDuration(missed)} missed`}
     >
       <div className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-fill">
-        {total > 0 && (
-          <>
-            <span className="h-full rounded-full bg-accent" style={{ width: `${100 - extraPct}%` }} />
-            {extra > 0 && (
-              <span
-                className="h-full rounded-full bg-accent"
-                style={{ width: `${extraPct}%`, opacity: EXTRA_OPACITY }}
-              />
-            )}
-          </>
+        {completed > 0 && (
+          <span className="h-full rounded-full bg-accent" style={{ width: `${pct(completed)}%` }} />
+        )}
+        {extra > 0 && (
+          <span
+            className="h-full rounded-full bg-accent"
+            style={{ width: `${pct(extra)}%`, opacity: EXTRA_OPACITY }}
+          />
+        )}
+        {missed > 0 && (
+          <span className="h-full rounded-full" style={{ width: `${pct(missed)}%`, background: fillOf(HOURS, true) }} />
         )}
       </div>
       <div className="mt-2 flex justify-between gap-4 text-xs text-muted-fg">
@@ -619,6 +844,11 @@ function PlanSplit({ completed, extra }: { completed: number; extra: number }) {
         </span>
         <span>
           <span className="font-medium tabular-nums text-ink">{formatDuration(extra)}</span> extra
+        </span>
+        {/* Said even at nothing, as "extra" is: three figures that are always
+            there read as a key; one that comes and goes reads as an alert. */}
+        <span>
+          <span className="font-medium tabular-nums text-ink">{formatDuration(missed)}</span> missed
         </span>
       </div>
     </div>
@@ -654,18 +884,23 @@ function Delta({ value }: { value: number | null }) {
 
 /* ---------------------------------------------------------------- columns */
 
-type Segment = { key: string; label: string; value: number; color: string; opacity?: number };
+type Segment = { key: string; label: string; value: number; color: string; opacity?: number; striped?: boolean };
 type Column = {
   key: string;
   label: string;
   /** A narrower label for a narrow chart: "S" for "Sep". */
   short?: string;
   title: string; segments: Segment[]; tally: Tally; weekend?: boolean };
-type LegendItem = { label: string; color: string; opacity: number };
+type LegendItem = { label: string; color: string; opacity: number; striped?: boolean };
 
-/** How one level stacks its hours: by program, or in plan against extra. */
+/**
+ * How one level stacks its hours: by program, or in plan against extra — with
+ * missed time on top either way, striped, so it is counted in the bar's height
+ * and never mistaken for a program's delivered hours.
+ */
 function seriesFor(data: AnalyticsData, view: View, rows: AnalyticsRow[]) {
-  const programsHere = new Set(rows.filter((r) => r[5] !== 2).map((r) => r[0]));
+  const programsHere = new Set(rows.map((r) => r[0]));
+  const anyMissed = rows.some((r) => r[5] === 2);
   const byProgram = view.program == null && programsHere.size > 1;
   const color =
     view.program != null
@@ -675,8 +910,9 @@ function seriesFor(data: AnalyticsData, view: View, rows: AnalyticsRow[]) {
         : DEFAULT;
   const programs = [...programsHere].sort((a, b) => a - b);
 
-  const segments = (bucket: AnalyticsRow[], tally: Tally): Segment[] =>
-    byProgram
+  const missedColor = byProgram ? DEFAULT : color;
+  const segments = (bucket: AnalyticsRow[], tally: Tally): Segment[] => [
+    ...(byProgram
       ? programs.map((p) => ({
           key: String(p),
           label: data.programs[p].name,
@@ -686,14 +922,19 @@ function seriesFor(data: AnalyticsData, view: View, rows: AnalyticsRow[]) {
       : [
           { key: "plan", label: "In plan", color, value: tally.completed },
           { key: "extra", label: "Extra", color, value: tally.extra, opacity: EXTRA_OPACITY },
-        ];
+        ]),
+    { key: "missed", label: "Missed", color: missedColor, value: tally.noShow, striped: true },
+  ];
 
-  const legend: LegendItem[] = byProgram
-    ? programs.map((p) => ({ label: data.programs[p].name, color: colorOf(data, p), opacity: 1 }))
-    : [
-        { label: "In plan", color, opacity: 1 },
-        { label: "Extra, out of plan", color, opacity: EXTRA_OPACITY },
-      ];
+  const legend: LegendItem[] = [
+    ...(byProgram
+      ? programs.map((p) => ({ label: data.programs[p].name, color: colorOf(data, p), opacity: 1 }))
+      : [
+          { label: "In plan", color, opacity: 1 },
+          { label: "Extra, out of plan", color, opacity: EXTRA_OPACITY },
+        ]),
+    ...(anyMissed ? [{ label: "Missed, charged", color: missedColor, opacity: 1, striped: true }] : []),
+  ];
 
   return { segments, legend };
 }
@@ -805,7 +1046,7 @@ function Legend({ items, className }: { items: LegendItem[]; className?: string 
     <div className={cn("flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-fg", className)}>
       {items.map((l) => (
         <span key={l.label} className="inline-flex items-center gap-1.5">
-          <Dot color={l.color} opacity={l.opacity} />
+          <Dot color={l.color} opacity={l.opacity} striped={l.striped} />
           {l.label}
         </span>
       ))}
@@ -891,23 +1132,27 @@ function Columns({
                         .map((x) => (
                           <div key={x.key} className={s.tipRow}>
                             <span className={s.tipKey}>
-                              <Dot color={x.color} opacity={x.opacity} />
+                              <Dot color={x.color} opacity={x.opacity} striped={x.striped} />
                               {x.label}
                             </span>
                             <span className={s.tipVal}>{formatDuration(x.value)}</span>
                           </div>
                         ))}
-                      <div className={s.tipRow}>
-                        <span className={s.tipKey}>Sessions</span>
-                        <span className={s.tipVal}>{c.tally.sessions}</span>
-                      </div>
-                      {c.tally.noShows > 0 && (
-                        <div className={s.tipRow}>
-                          <span className={s.tipKey}>No-shows</span>
-                          <span className={s.tipVal}>{c.tally.noShows}</span>
+                      {/* The figure on the bar, so the rows above add up to something. */}
+                      {c.segments.filter((x) => x.value > 0).length > 1 && (
+                        <div className={cn(s.tipRow, s.tipTotal)}>
+                          <span>Total</span>
+                          <span className="tabular-nums">{formatDuration(total)}</span>
                         </div>
                       )}
-                      {total === 0 && c.tally.noShows === 0 && <div className="text-muted-fg">No sessions</div>}
+                      <div className={s.tipRow}>
+                        <span className={s.tipKey}>Sessions</span>
+                        <span className={s.tipVal}>
+                          {meetingsOf(c.tally)}
+                          {c.tally.noShows > 0 && `, ${c.tally.noShows} missed`}
+                        </span>
+                      </div>
+                      {total === 0 && <div className="text-muted-fg">No sessions</div>}
                       {hint && onSelect && selected !== i && <div className={s.tipHint}>{hint}</div>}
                     </div>
                   )}
@@ -920,7 +1165,7 @@ function Columns({
                           key={x.key}
                           className={s.seg}
                           style={{
-                            background: x.color,
+                            background: fillOf(x.color, x.striped),
                             opacity: x.opacity ?? 1,
                             height: grown ? Math.max(2, (x.value / axis.top) * height - 2) : 0,
                             ["--delay" as string]: `${i * (thin ? 12 : 35) + k * 40}ms`,
@@ -968,22 +1213,25 @@ function ProgramCards({
   go,
   last,
   words,
+  period,
 }: {
   words: Words;
   data: AnalyticsData;
   view: View;
   go: (next: Partial<View>) => void;
   last: number;
+  /** The period inside a sentence, from `periodLabel`. */
+  period: string;
 }) {
   const { year, month } = view;
   const yearRows = useMemo(() => select(data.rows, { year }), [data.rows, year]);
-  const periodRows = useMemo(() => (month == null ? yearRows : select(yearRows, { year, month })), [yearRows, year, month]);
+  const periodRows = useMemo(() => select(data.rows, periodOf(view)), [data.rows, view]);
   const ranked = useMemo(() => new Map(rankBy(periodRows, yearRows, 0).map((r) => [r.index, r])), [periodRows, yearRows]);
   const trends = useMemo(() => monthsByProgram(yearRows, data.programs.length), [yearRows, data.programs.length]);
-  // Progress against a program's grant is a stock question: the delivered
-  // hours are all-time, not the period's, so the gauge does not pretend the
-  // program is barely started when March is picked.
-  const delivered = useMemo(() => hoursByProgram(data.rows, data.programs.length), [data.rows, data.programs.length]);
+  // Progress against a program's grant is a stock question: the drawn hours
+  // are all-time, not the period's, so the gauge does not pretend the program
+  // is barely started when March is picked.
+  const drawn = useMemo(() => drawnByProgram(data.rows, data.programs.length), [data.rows, data.programs.length]);
 
   // Busiest first. A program with nothing logged in the period is not a card:
   // a full-height card of "0 min · 0 mentors · 0 students · 0 sessions" with
@@ -995,7 +1243,6 @@ function ProgramCards({
     .sort((a, b) => (b.r?.hours ?? 0) - (a.r?.hours ?? 0));
   const order = all.filter(({ r }) => (r?.hours ?? 0) > 0);
   const idle = all.filter(({ r }) => (r?.hours ?? 0) === 0);
-  const period = month != null ? MONTHS_LONG[month] : String(year);
 
   return (
     <section className="@container min-w-0">
@@ -1007,7 +1254,7 @@ function ProgramCards({
       </div>
       <div className={cn("grid gap-3", cardColumns(order.length))}>
         {order.map(({ p, i, r }, n) => {
-          const progress = p.granted > 0 ? delivered[i] / p.granted : 0;
+          const progress = p.granted > 0 ? drawn[i] / p.granted : 0;
           const color = colorOf(data, i);
           return (
             <button
@@ -1056,7 +1303,7 @@ function ProgramCards({
               <span className="mt-auto flex flex-wrap gap-x-1.5 text-xs tabular-nums text-muted-fg">
                 <span className="whitespace-nowrap">{count(r?.mentors ?? 0, "mentor")} ·</span>
                 <span className="whitespace-nowrap">{count(r?.students ?? 0, "student")} ·</span>
-                <span className="whitespace-nowrap">{count(r?.sessions ?? 0, "session")}</span>
+                <span className="whitespace-nowrap">{count(r ? meetingsOf(r) : 0, "session")}</span>
               </span>
             </button>
           );
@@ -1113,6 +1360,7 @@ function Leaderboard({
   go,
   title,
   ranked: withRank = true,
+  period,
   periodRows,
   yearRows,
   limit,
@@ -1129,6 +1377,8 @@ function Leaderboard({
    * place number against their colleagues'.
    */
   ranked?: boolean;
+  /** The period inside a sentence, from `periodLabel`. */
+  period: string;
   periodRows: AnalyticsRow[];
   yearRows: AnalyticsRow[];
   limit?: number;
@@ -1150,7 +1400,6 @@ function Leaderboard({
   );
   const shown = limit && !expanded && !needle ? found.slice(0, limit) : found;
   const top = ranked[0]?.hours ?? 0;
-  const period = view.month != null ? MONTHS_LONG[view.month] : String(view.year);
 
   return (
     <Section
@@ -1164,6 +1413,7 @@ function Leaderboard({
           items={[
             { label: "In plan", color: HOURS, opacity: 1 },
             { label: "Extra", color: HOURS, opacity: EXTRA_OPACITY },
+            { label: "Missed", color: HOURS, opacity: 1, striped: true },
           ]}
         />
       }
@@ -1275,10 +1525,17 @@ function MentorRow({
               style={{ width: grown ? `${r.extra * scale}%` : 0, background: HOURS, opacity: EXTRA_OPACITY }}
             />
           )}
+          {r.noShow > 0 && (
+            <span
+              className={s.barSeg}
+              style={{ width: grown ? `${r.noShow * scale}%` : 0, background: fillOf(HOURS, true) }}
+            />
+          )}
         </span>
         <span className="mt-1 min-w-0 truncate text-xs text-muted-fg">
-          {r.sessions} {r.sessions === 1 ? "session" : "sessions"} · {r.students} {r.students === 1 ? "student" : "students"}
-          {r.sessions ? ` · ${formatDuration(r.hours / r.sessions)} avg` : ""}
+          {meetingsOf(r)} {meetingsOf(r) === 1 ? "session" : "sessions"}
+          {r.noShows ? ` (${r.noShows} missed)` : ""} · {r.students} {r.students === 1 ? "student" : "students"}
+          {meetingsOf(r) ? ` · ${formatDuration(r.hours / meetingsOf(r))} avg` : ""}
         </span>
       </span>
       <span className="flex items-center gap-3">
@@ -1322,7 +1579,7 @@ function MentorDetail({
   const months = useMemo(() => byMonth(yearRows), [yearRows]);
   const students = useMemo(() => {
     const out = Array.from({ length: 12 }, () => new Set<number>());
-    for (const r of yearRows) if (r[5] !== 2) out[monthOf(r[3])].add(r[2]);
+    for (const r of yearRows) out[monthOf(r[3])].add(r[2]);
     return out.map((x) => x.size);
   }, [yearRows]);
   const maxMonth = Math.max(...months.map(hoursOf), 1);
@@ -1357,6 +1614,7 @@ function MentorDetail({
                 <th>Month</th>
                 <th>Hours</th>
                 <th>Sessions</th>
+                <th>Missed</th>
                 <th>Students</th>
                 <th>Avg</th>
                 <th>Change</th>
@@ -1389,9 +1647,10 @@ function MentorDetail({
                       <span className={s.inlineBar} style={{ width: (h / maxMonth) * 48, background: accent }} />
                       <span className="font-medium">{h ? formatDuration(h) : "—"}</span>
                     </td>
-                    <td>{m.sessions || "—"}</td>
+                    <td>{meetingsOf(m) || "—"}</td>
+                    <td>{m.noShow ? formatDuration(m.noShow) : "—"}</td>
                     <td>{students[i] || "—"}</td>
-                    <td>{m.sessions ? formatDuration(h / m.sessions) : "—"}</td>
+                    <td>{meetingsOf(m) ? formatDuration(h / meetingsOf(m)) : "—"}</td>
                     <td className="text-xs">
                       {i === firstMonth || i === running || (h === 0 && prev === 0) ? (
                         i === running ? <span className="text-muted-fg">so far</span> : ""
@@ -1410,6 +1669,14 @@ function MentorDetail({
   );
 }
 
+// Filter chips on the page ground, the way every other filter in the app
+// sits — a card around two chips was a box with nothing to hold.
+const chip = (on: boolean) =>
+  cn(
+    "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors",
+    on ? "bg-brand text-on-brand" : "bg-fill text-ink hover:bg-fill-strong"
+  );
+
 /** Which of the mentor's programs to read, and — for staff — where they stand in it. */
 function MentorScope({
   data,
@@ -1417,6 +1684,7 @@ function MentorScope({
   go,
   ranked = true,
   words,
+  period,
 }: {
   words: Words;
   data: AnalyticsData;
@@ -1424,8 +1692,10 @@ function MentorScope({
   go: (next: Partial<View>) => void;
   /** Staff see "#n of m mentors"; a mentor looking at a colleague needs no ranking. */
   ranked?: boolean;
+  /** The period inside a sentence, from `periodLabel`. */
+  period: string;
 }) {
-  const { year, month, program, mentor } = view;
+  const { year, program, mentor } = view;
 
   // Every program this mentor has hours in this year, for the switcher.
   const theirPrograms = useMemo(() => {
@@ -1435,20 +1705,13 @@ function MentorScope({
 
   // Where they stand among the mentors of the same scope.
   const standing = useMemo(() => {
-    const scopeRows = select(data.rows, { year, month, program });
+    const scopeRows = select(data.rows, { ...periodOf(view), program });
     const ranked = rankBy(scopeRows, scopeRows, 1);
     const at = ranked.findIndex((r) => r.index === mentor);
     return at < 0 ? null : { rank: at + 1, of: ranked.length };
-  }, [data.rows, year, month, program, mentor]);
+  }, [data.rows, view, program, mentor]);
 
   if (theirPrograms.length === 0) return null;
-  // Filter chips on the page ground, the way every other filter in the app
-  // sits — a card around two chips was a box with nothing to hold.
-  const chip = (on: boolean) =>
-    cn(
-      "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors",
-      on ? "bg-brand text-on-brand" : "bg-fill text-ink hover:bg-fill-strong"
-    );
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       {theirPrograms.length > 1 ? (
@@ -1477,8 +1740,7 @@ function MentorScope({
       {ranked && standing && (
         <span className="text-xs text-muted-fg">
           <span className="font-medium tabular-nums text-ink">#{standing.rank}</span> of {standing.of} mentors
-          {program != null ? ` in ${data.programs[program].name}` : ""} ·{" "}
-          {month != null ? MONTHS_LONG[month] : year}
+          {program != null ? ` in ${data.programs[program].name}` : ""} · {period}
         </span>
       )}
     </div>
@@ -1613,12 +1875,22 @@ function Sparkline({
 }
 
 /** A small round mark in a series colour — the app's program dot, any hue. */
-function Dot({ color, opacity, className }: { color: string; opacity?: number; className?: string }) {
+function Dot({
+  color,
+  opacity,
+  striped,
+  className,
+}: {
+  color: string;
+  opacity?: number;
+  striped?: boolean;
+  className?: string;
+}) {
   return (
     <span
       aria-hidden
       className={cn("h-2 w-2 shrink-0 rounded-full", className)}
-      style={{ background: color, opacity }}
+      style={{ background: fillOf(color, striped), opacity }}
     />
   );
 }

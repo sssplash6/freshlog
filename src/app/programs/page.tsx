@@ -84,6 +84,7 @@ export default async function ProgramsPage({
     prisma.program.findMany({
       where: inScope ? { id: inScope } : {},
       orderBy: { name: "asc" },
+      include: { _count: { select: { levels: true } } },
     }),
     studentsWithHours(
       inScope ? { enrollments: { some: { programId: inScope } } } : {},
@@ -114,6 +115,9 @@ export default async function ProgramsPage({
       id: program.id,
       name: program.name,
       colorIndex: program.colorIndex,
+      // Research is one row here and three places inside: the count says
+      // there is more behind the name than one roster.
+      levels: program._count.levels,
       students: totals.students,
       mentors: new Set(theirs.map((p) => p.mentorId)).size,
       remaining: totals.remaining,
@@ -210,11 +214,18 @@ export default async function ProgramsPage({
                     with the counts quiet underneath, instead of five stacked
                     labelled lines per program. */}
                 <span className="flex items-center justify-between gap-3">
-                  <ProgramChip
-                    program={p}
-                    href={`/programs/${p.id}`}
-                    className="min-h-11 font-semibold sm:min-h-0"
-                  />
+                  <span className="flex min-w-0 items-center gap-2">
+                    <ProgramChip
+                      program={p}
+                      href={`/programs/${p.id}`}
+                      className="min-h-11 font-semibold sm:min-h-0"
+                    />
+                    {p.levels > 0 && (
+                      <span className="shrink-0 text-xs text-muted-fg max-sm:hidden">
+                        {p.levels} {p.levels === 1 ? "level" : "levels"}
+                      </span>
+                    )}
+                  </span>
                   <Figure
                     size="inline"
                     value={formatRough(p.remaining)}
@@ -225,6 +236,7 @@ export default async function ProgramsPage({
                 <span className="-mt-2 block pb-1 text-xs text-muted-fg sm:hidden">
                   {p.students} {p.students === 1 ? "student" : "students"} · {p.mentors}{" "}
                   {p.mentors === 1 ? "mentor" : "mentors"}
+                  {p.levels > 0 && ` · ${p.levels} ${p.levels === 1 ? "level" : "levels"}`}
                   {p.forfeited > 0 && ` · ${formatRough(p.forfeited)} expired unused`}
                 </span>
               </Td>

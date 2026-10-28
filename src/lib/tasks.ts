@@ -29,6 +29,13 @@ export const TASK_BANK = "__bank__";
 export const TASK_OTHER = "__other__";
 
 /**
+ * What the session log's agenda picker submits for a NAME rather than an item
+ * already on the agenda: `new:Supplemental Essays`. Ids are cuids, which never
+ * hold a colon, so the two cannot be mistaken for each other.
+ */
+export const NEW_AGENDA_PREFIX = "new:";
+
+/**
  * 100, down from 200.
  *
  * An agenda item is a NAME — "Main essay", "Recommendation letters" — and it is
@@ -75,4 +82,28 @@ export function parseOptionalTaskField(
     return { error: `Keep it under ${MAX_TASK_LENGTH} characters.` };
   }
   return { value: value || null };
+}
+
+/**
+ * The agenda item a session log NAMES instead of picking: a preset
+ * (`new:<name>`) or whatever was typed under "Something else…". Null when the
+ * picker holds an existing item's id, or nothing.
+ */
+export function parseNewAgendaField(
+  raw: FormDataEntryValue | null,
+  rawName: FormDataEntryValue | null
+): { name: string } | { error: string } | null {
+  const picked = String(raw ?? "").trim();
+  const name =
+    picked === TASK_OTHER
+      ? String(rawName ?? "").trim()
+      : picked.startsWith(NEW_AGENDA_PREFIX)
+        ? picked.slice(NEW_AGENDA_PREFIX.length).trim()
+        : null;
+  if (name === null) return null;
+  if (!name) return { error: "Name the agenda item, or pick None." };
+  if (name.length > MAX_TASK_LENGTH) {
+    return { error: `Keep it under ${MAX_TASK_LENGTH} characters.` };
+  }
+  return { name };
 }

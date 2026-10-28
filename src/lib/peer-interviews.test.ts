@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  areClassmates,
   feedbackEditable,
   feedbackVisibleTo,
   formatSlotSpan,
@@ -59,27 +58,6 @@ describe("overlaps", () => {
 
   it("lets two times sit back to back", () => {
     expect(overlaps(nine, { startsAt: at("2026-09-04T10:00"), minutes: 30 })).toBe(false);
-  });
-});
-
-describe("areClassmates", () => {
-  it("is true when the two share one of their own programs", () => {
-    expect(
-      areClassmates(
-        [{ programId: "global" }, { programId: "imkon" }],
-        [{ programId: "imkon", exchangeId: null }]
-      )
-    ).toBe(true);
-  });
-
-  it("does not count a program either of them is only visiting", () => {
-    const visitor = [
-      { programId: "imkon", exchangeId: null },
-      { programId: "global", exchangeId: "ex1" },
-    ];
-    const local = [{ programId: "global", exchangeId: null }];
-    expect(areClassmates(visitor, local)).toBe(false);
-    expect(areClassmates(local, visitor)).toBe(false);
   });
 });
 

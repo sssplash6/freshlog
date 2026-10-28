@@ -6,7 +6,7 @@ import {
   SESSION_STATUS,
   USER_STATUS,
 } from "@/lib/constants";
-import { formatDate, formatDuration } from "@/lib/format";
+import { formatDate, formatDuration, toDateInputValue } from "@/lib/format";
 
 /**
  * Every state the product can be in, in one file.
@@ -72,6 +72,10 @@ export type StatusType =
   | "SESSION_UNCONFIRMED"
   | "SESSION_CONFIRMED"
   | "SESSION_DISPUTED"
+  // A meeting Google Meet measured, waiting to be logged, and the connection
+  // that brings them
+  | "MEETING_TO_LOG"
+  | "GOOGLE_RECONNECT"
   // A piece of planned work
   | "TASK_NOT_STARTED"
   | "TASK_IN_PROGRESS"
@@ -163,6 +167,7 @@ export const GROUP_OF: Record<StatusType, StatusGroup> = {
   SESSION_VOIDED: "SESSIONS",
   SESSION_UNCONFIRMED: "SESSIONS",
   SESSION_CONFIRMED: "SESSIONS",
+  MEETING_TO_LOG: "SESSIONS",
 
   TASK_NOT_STARTED: "TASKS",
   TASK_IN_PROGRESS: "TASKS",
@@ -180,6 +185,7 @@ export const GROUP_OF: Record<StatusType, StatusGroup> = {
   // of it blocks something else quietly.
   NO_MENTOR: "SETUP",
   BOOKING_LINK_MISSING: "SETUP",
+  GOOGLE_RECONNECT: "SETUP",
   MENTOR_UNASSIGNED: "SETUP",
   MENTOR_NAME_MISSING: "SETUP",
   PROGRAM_ARCHIVED: "SETUP",
@@ -246,6 +252,8 @@ export type Status = {
   at?: Date;
   /** Set only by `rollUp`. */
   count?: number;
+  /** The session a SESSION_UNCONFIRMED row asks about. A rolled-up row is about several, and has none. */
+  sessionId?: string;
 };
 
 export type ViewerContext = {
@@ -619,10 +627,13 @@ const META: Record<StatusType, Meta> = {
     },
   },
 
-  // Students only: nobody else reads a practice interview.
+  // Students, and staff on /interviews: whether two students met, never what
+  // they said. Mentors have no voice here.
   INTERVIEW_BOOKED: {
     severity: "neutral",
     voices: {
+      staff: { kind: "informational", label: () => "Booked" },
+      mentor: { kind: "informational", label: () => "Booked" },
       student: { kind: "informational", label: () => "Booked" },
     },
   },
@@ -633,6 +644,13 @@ const META: Record<StatusType, Meta> = {
   INTERVIEW_TO_MARK: {
     severity: "attention",
     voices: {
+      staff: { kind: "informational", label: () => "Not marked done" },
+      // A mentor in the interview does what a student in it does.
+      mentor: {
+        kind: "actionable",
+        label: () => "Not marked done",
+        explanation: () => "Start the interview, or mark it done to write your notes.",
+      },
       student: {
         kind: "actionable",
         label: () => "Not marked done",
@@ -644,6 +662,8 @@ const META: Record<StatusType, Meta> = {
   INTERVIEW_COMPLETED: {
     severity: "ok",
     voices: {
+      staff: { kind: "informational", label: () => "Completed" },
+      mentor: { kind: "informational", label: () => "Completed" },
       student: { kind: "informational", label: () => "Completed" },
     },
   },
@@ -653,6 +673,8 @@ const META: Record<StatusType, Meta> = {
   INTERVIEW_ABSENT: {
     severity: "neutral",
     voices: {
+      staff: { kind: "informational", label: () => "No-show" },
+      mentor: { kind: "informational", label: () => "Absent" },
       student: { kind: "informational", label: () => "Absent" },
     },
   },
@@ -746,6 +768,32 @@ const META: Record<StatusType, Meta> = {
       },
     },
     many: (n) => `${n} pairings have no booking link`,
+  },
+
+  // Mentor only, and only theirs: a meeting nobody else can log for them
+  // without the form, and a connection nobody else can make. No `many` — each
+  // meeting is its own row, because each is a different student and day, and
+  // a roll-up's dismiss would silence every meeting still to come.
+  MEETING_TO_LOG: {
+    severity: "attention",
+    voices: {
+      mentor: {
+        kind: "actionable",
+        label: () => "Meeting to log",
+        explanation: (d) => `${dur(d)} on ${when(d)}, measured by Google Meet.`,
+      },
+    },
+  },
+
+  GOOGLE_RECONNECT: {
+    severity: "attention",
+    voices: {
+      mentor: {
+        kind: "actionable",
+        label: () => "Google disconnected",
+        explanation: () => "Reconnect in Settings so your meetings keep arriving.",
+      },
+    },
   },
 
   MENTOR_UNASSIGNED: {
@@ -1249,6 +1297,51 @@ export function sessionStatuses(s: SessionStatusInput, v: ViewerContext): Status
   }
 
   return out.filter((x): x is Status => x !== null);
+}
+
+export type MeetDraftStatusInput = {
+  id: string;
+  student: { id: string; name: string };
+  program: { id: string; name: string } | null;
+  minutes: number;
+  /** The meeting's day, as UTC midnight — the way `Session.date` is stored. */
+  date: Date;
+  startsAt: Date;
+  attendance: string | null;
+};
+
+/**
+ * A meeting Google Meet measured and the mentor has not logged yet.
+ *
+ * The row links to the ordinary log form with the draft in its URL — the
+ * form's own draft mechanism — so saving it is the same act as logging by
+ * hand, under the same checks. `studentProfileId` rather than `?student=`,
+ * which would make the form's Back lead to the student instead of Home.
+ *
+ * The subject's id is the DRAFT's, not the student's: it is what a dismissal
+ * is keyed on, and dismissing one meeting must not silence that student's
+ * next one.
+ */
+export function meetDraftStatuses(d: MeetDraftStatusInput, v: ViewerContext): Status[] {
+  const q = new URLSearchParams({
+    studentProfileId: d.student.id,
+    minutes: String(d.minutes),
+    date: toDateInputValue(d.date),
+  });
+  if (d.program) q.set("programId", d.program.id);
+  if (d.attendance) q.set("attendance", d.attendance);
+  const row = status(
+    "MEETING_TO_LOG",
+    v,
+    { minutes: d.minutes, date: d.date },
+    {
+      href: `/sessions/new?${q}`,
+      subject: { kind: "student", id: d.id, name: d.student.name },
+      ...(d.program ? { program: d.program } : {}),
+      at: d.startsAt,
+    }
+  );
+  return row ? [row] : [];
 }
 
 // ---------------------------------------------------------------------------

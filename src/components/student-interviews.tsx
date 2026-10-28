@@ -47,7 +47,7 @@ export function StudentInterviews({
     <Section
       title="Practice interviews"
       count={interviews.length}
-      caption="What they rehearsed with a classmate."
+      caption="What they rehearsed with a classmate or a mentor."
     >
       <ul className="divide-y divide-line">
         {interviews.map((i) => {

@@ -11,9 +11,9 @@ import {
 import { enrollmentLabel } from "@/lib/enrollments";
 import { requireUser } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
-import { formatMinutes } from "@/lib/format";
+import { formatMinutes, toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { pastHours } from "@/lib/hours";
+import { bankRemaining, pastHours } from "@/lib/hours";
 import { studentLedger } from "@/lib/queries";
 import type { Metadata } from "next";
 
@@ -95,12 +95,22 @@ export default async function AllocateStudentTimePage({
         )
     )
   ).filter((id): id is string => id !== null);
-  const bankedPrograms = (
-    await prisma.hourAllocation.findMany({
-      where: { studentId: profile.id, isBank: true, programId: { in: visible } },
-      select: { programId: true },
-    })
-  ).map((b) => b.programId);
+  const bankRows = await prisma.hourAllocation.findMany({
+    where: { studentId: profile.id, isBank: true, programId: { in: visible } },
+  });
+  const bankedPrograms = bankRows.map((b) => b.programId);
+  // What each bank still has to give a mentor, and the date a share may not pass.
+  const banks = Object.fromEntries(
+    await Promise.all(
+      bankRows.map(
+        async (b) =>
+          [
+            b.programId,
+            { left: await bankRemaining(prisma, b), useBy: toDateInputValue(b.deadline) },
+          ] as const
+      )
+    )
+  );
   const pastByProgram = Object.fromEntries(
     await Promise.all(
       bankPrograms
@@ -130,6 +140,7 @@ export default async function AllocateStudentTimePage({
             paymentPrograms={paymentPrograms}
             bankPrograms={bankPrograms}
             bankedPrograms={bankedPrograms}
+            banks={banks}
             pastByProgram={pastByProgram}
           />
         </div>

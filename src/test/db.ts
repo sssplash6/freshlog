@@ -10,10 +10,16 @@ import { ROLES, SESSION_STATUS } from "@/lib/constants";
 
 /** Delete order matters: children before the rows they point at. */
 export async function resetDb() {
+  await prisma.studentUniversity.deleteMany();
+  await prisma.university.deleteMany();
+  await prisma.studentApplication.deleteMany();
   await prisma.interviewAnswer.deleteMany();
   await prisma.interviewFeedback.deleteMany();
   await prisma.peerInterview.deleteMany();
   await prisma.interviewSlot.deleteMany();
+  await prisma.meetDraft.deleteMany();
+  await prisma.googleConnection.deleteMany();
+  await prisma.scheduledClass.deleteMany();
   await prisma.session.deleteMany();
   await prisma.studentTask.deleteMany();
   await prisma.mentorTask.deleteMany();
@@ -27,8 +33,14 @@ export async function resetDb() {
   await prisma.studentEnrollment.deleteMany();
   await prisma.studentProfile.deleteMany();
   await prisma.avatarImage.deleteMany();
+  await prisma.telegramMessage.deleteMany();
   await prisma.bugReportImage.deleteMany();
   await prisma.bugReport.deleteMany();
+  await prisma.partnerFeedback.deleteMany();
+  await prisma.partnerMentor.deleteMany();
+  await prisma.partnerStudent.deleteMany();
+  await prisma.partnerStaff.deleteMany();
+  await prisma.feedbackPartner.deleteMany();
   await prisma.user.deleteMany();
   await prisma.cohort.deleteMany();
   await prisma.programLevel.deleteMany();
@@ -340,12 +352,25 @@ export async function bugReport(
     pagePath?: string | null;
     createdAt?: Date;
     image?: boolean;
+    kind?: string;
+    source?: string;
+    telegramAuthor?: string | null;
+    originalText?: string | null;
+    viewport?: string | null;
+    theme?: string | null;
+    userAgent?: string | null;
+    build?: string | null;
+    marks?: number | null;
   } = {}
 ) {
   return prisma.bugReport.create({
     data: {
       reporterId: opts.reporterId ?? null,
       reporterRole: opts.reporterRole ?? ROLES.STUDENT,
+      kind: opts.kind ?? "BUG",
+      source: opts.source ?? "APP",
+      telegramAuthor: opts.telegramAuthor ?? null,
+      originalText: opts.originalText ?? null,
       title: opts.title ?? "Hours look wrong",
       description: opts.description ?? "The total says 3h but I logged 4h.",
       pagePath: opts.pagePath ?? null,
@@ -353,10 +378,39 @@ export async function bugReport(
       resolution: opts.resolution ?? null,
       resolvedAt: opts.resolvedAt ?? null,
       changelogDate: opts.changelogDate ?? null,
+      viewport: opts.viewport ?? null,
+      theme: opts.theme ?? null,
+      userAgent: opts.userAgent ?? null,
+      build: opts.build ?? null,
+      marks: opts.marks ?? null,
       ...(opts.createdAt ? { createdAt: opts.createdAt } : {}),
       ...(opts.image
         ? { image: { create: { bytes: PNG_BYTES, mimeType: "image/png" } } }
         : {}),
     },
   });
+}
+
+export async function partner(
+  opts: { slug?: string; name?: string; active?: boolean } = {}
+) {
+  return prisma.feedbackPartner.create({
+    data: {
+      slug: opts.slug ?? `cana-${++seq}`,
+      name: opts.name ?? "Cana",
+      active: opts.active ?? true,
+    },
+  });
+}
+
+export async function partnerEmail(partnerId: string, email: string) {
+  return prisma.partnerStudent.create({ data: { partnerId, email } });
+}
+
+export async function partnerStaffEmail(partnerId: string, email: string) {
+  return prisma.partnerStaff.create({ data: { partnerId, email } });
+}
+
+export async function partnerMentor(partnerId: string, mentorId: string) {
+  return prisma.partnerMentor.create({ data: { partnerId, mentorId } });
 }

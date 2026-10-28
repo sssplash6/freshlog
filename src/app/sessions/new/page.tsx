@@ -5,6 +5,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle } from "@/components/ui/section";
 import {
   adminWriteScope,
+  canManageStudent,
+  mentorReaches,
   scopeIsEmpty,
   scopeProgramFilter,
 } from "@/lib/authz";
@@ -14,6 +16,7 @@ import { requireMentor, requireUser } from "@/lib/dal";
 import { dictationConfigured } from "@/lib/dictation";
 import { prisma } from "@/lib/prisma";
 import { logSessionOptions, mentorCaseload } from "@/lib/queries";
+import type { User } from "@/generated/prisma/client";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Log a session" };
@@ -146,6 +149,7 @@ export default async function LogSessionPage({
     studentProfileId: preselected,
     programId: lost ? undefined : (one("programId") ?? one("program")),
     assignmentId: lost ? undefined : one("assignmentId"),
+    agendaName: lost ? undefined : one("agendaName"),
     minutes: one("minutes"),
     date: one("date"),
         note: one("note"),
@@ -155,8 +159,17 @@ export default async function LogSessionPage({
 
   // An admin who does not mentor has no /mentor to go back to — the ledger is
   // where they came from and the only one of the three that will let them in.
-  const backStudent = draft.studentProfileId
-    ? students.find((s) => s.profileId === draft.studentProfileId)
+  //
+  // Back follows where the reader came FROM, which is not who the form has
+  // picked: `?student=` is the student page's own link, while the draft writes
+  // `studentProfileId` as the form is filled in. Back used to follow the
+  // draft, so an admin who opened this from a program's page, picked a student
+  // and logged was sent Back to that student without the program — and from
+  // there to the whole school's list.
+  const cameFrom = one("student");
+  const backStudent = cameFrom
+    ? (students.find((s) => s.profileId === cameFrom) ??
+      (await cameFromStudent(viewer, cameFrom)))
     : undefined;
   // `?from=`, passed on from a student page opened through a program's
   // roster, so the way back is still that page — whose Back is still the
@@ -169,6 +182,7 @@ export default async function LogSessionPage({
   const listHref = `/sessions${asked ? `?program=${encodeURIComponent(asked)}` : ""}`;
   // "Log another" keeps where this form came from, so its Back is the same.
   const againQuery = new URLSearchParams();
+  if (cameFrom) againQuery.set("student", cameFrom);
   if (from) againQuery.set("from", from);
   if (fromList) againQuery.set("back", "sessions");
   if (asked) againQuery.set("program", asked);
@@ -262,10 +276,39 @@ export default async function LogSessionPage({
           draft={draft}
                     correctBase="/sessions"
           againHref={againHref}
-          from={from}
+          // The receipt links the student, and that page's Back needs to know
+          // which program it was reached through: the one the reader came
+          // from, or — opened from a program's own page — that program.
+          from={from ?? (program && administers && (scope === "ALL" || scope.has(program.id)) ? program.id : undefined)}
+          pageProgram={program?.id ?? from}
           canDictate={dictationConfigured()}
         />
       )}
     </div>
   );
+}
+
+/**
+ * The student a `?student=` link came from, when the form cannot offer them.
+ *
+ * An admin names the mentor before the picker has anybody in it, so an admin
+ * who pressed Log a session on a student's page arrives with an empty picker
+ * and the student only in the URL — and Back, which needed the picker's row,
+ * fell through to Home or to Sessions. Back is where the reader came from, not
+ * who the form can offer. Asked with the student page's own gate, so a link
+ * never names a student this reader could not open.
+ */
+async function cameFromStudent(viewer: User, profileId: string | undefined) {
+  if (!profileId) return undefined;
+  const profile = await prisma.studentProfile.findUnique({
+    where: { id: profileId },
+    include: { user: true, enrollments: { select: { programId: true } } },
+  });
+  if (!profile) return undefined;
+  const opens =
+    (await canManageStudent(viewer, profile)) ||
+    (canActAsMentor(viewer) && (await mentorReaches(viewer, profile)));
+  return opens
+    ? { profileId: profile.id, label: profile.user.name ?? profile.user.email }
+    : undefined;
 }

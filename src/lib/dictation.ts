@@ -126,6 +126,12 @@ async function ask(
     },
     body: JSON.stringify({
       model: MODEL,
+      // The model thinks before it writes, and the thinking is paid out of
+      // max_tokens. Left to itself it once spent 1,441 of these 1,500 thinking
+      // about an 86-second answer and wrote two sentences of it (October
+      // 2026). Writing down what was said needs no thinking: at "minimal" it
+      // spends none, and the same answer comes back whole in about 360.
+      reasoning: { effort: "minimal" },
       max_tokens: 1500,
       messages: [
         { role: "system", content: PROMPTS[kind] },
@@ -163,9 +169,16 @@ async function ask(
   }
 
   const result = (await response.json()) as {
-    choices?: { message?: { content?: string } }[];
+    choices?: { finish_reason?: string; message?: { content?: string } }[];
   };
-  return (result.choices?.[0]?.message?.content ?? "").trim();
+  const choice = result.choices?.[0];
+  // Ran out of tokens mid-transcript. What did arrive reads as if the speaker
+  // stopped there, which is worse than no transcript: an answer's partner
+  // judges it as given, and nobody can tell the end is missing.
+  if (choice?.finish_reason === "length") {
+    throw new Error("OpenRouter stopped at max_tokens before the transcript ended");
+  }
+  return (choice?.message?.content ?? "").trim();
 }
 
 /**

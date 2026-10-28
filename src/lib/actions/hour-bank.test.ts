@@ -110,9 +110,8 @@ describe("granting an hour bank", () => {
     });
   });
 
-  it("refuses time beside a bank, which no meeting would draw", async () => {
+  it("refuses unassigned time beside a bank, which no meeting would draw", async () => {
     const { prog, kid } = await setup();
-    const m = await mentor();
     await addBank(kid, prog, { includePrevious: "no" });
 
     const state = await setMentorAllocation(
@@ -120,7 +119,6 @@ describe("granting an hour bank", () => {
       form({
         studentProfileId: kid.id,
         programId: prog.id,
-        mentorId: m.id,
         mode: "add",
         minutes: "60",
         deadline: "2027-06-01",
@@ -128,6 +126,124 @@ describe("granting an hour bank", () => {
     );
 
     expect(state).toMatchObject({ ok: false, error: expect.stringContaining("hour bank") });
+  });
+});
+
+describe("giving a mentor a share of the bank", () => {
+  const give = (
+    kid: { id: string },
+    prog: { id: string },
+    mentorId: string,
+    extra: Record<string, string> = {}
+  ) =>
+    setMentorAllocation(
+      null,
+      form({
+        studentProfileId: kid.id,
+        programId: prog.id,
+        mentorId,
+        mode: "add",
+        minutes: "120",
+        deadline: "2027-06-01",
+        ...extra,
+      })
+    );
+
+  it("moves the minutes out of the bank, so the student's total does not change", async () => {
+    const { prog, kid } = await setup();
+    const sega = await mentor("Sega");
+    await addBank(kid, prog, { includePrevious: "no" });
+
+    await expect(give(kid, prog, sega.id)).resolves.toMatchObject({ ok: true });
+
+    const bank = await prisma.hourAllocation.findFirstOrThrow({ where: { isBank: true } });
+    const share = await prisma.hourAllocation.findFirstOrThrow({ where: { mentorId: sega.id } });
+    expect(bank.minutes).toBe(480);
+    expect(share).toMatchObject({ minutes: 120, fromBankShare: true, isBank: false });
+    expect((await allocationSummary(kid.id)).allotted).toBe(600);
+  });
+
+  it("is held to what the bank has left, to its date, and to its admins", async () => {
+    const { prog, kid } = await setup();
+    const sega = await mentor("Sega");
+    await addBank(kid, prog, { minutes: "100", includePrevious: "no" });
+
+    await expect(give(kid, prog, sega.id)).resolves.toMatchObject({
+      ok: false,
+      error: expect.stringContaining("left to give"),
+    });
+    await expect(
+      give(kid, prog, sega.id, { minutes: "60", deadline: "2027-07-01" })
+    ).resolves.toMatchObject({ ok: false, error: expect.stringContaining("runs out") });
+
+    await prisma.programStaff.updateMany({ data: { role: "LEADER" } });
+    await expect(give(kid, prog, sega.id, { minutes: "60" })).resolves.toMatchObject({
+      ok: false,
+      error: expect.stringContaining("admin"),
+    });
+    await expect(prisma.hourAllocation.count({ where: { mentorId: sega.id } })).resolves.toBe(0);
+  });
+
+  it("is drawn by that mentor's meetings, while everybody else's draw the bank", async () => {
+    const { prog, kid } = await setup();
+    const [sega, other] = [await mentor("Sega"), await mentor("Other")];
+    await pairing({ mentorId: sega.id, programId: prog.id });
+    await pairing({ mentorId: other.id, programId: prog.id });
+    await addBank(kid, prog, { includePrevious: "no" });
+    await give(kid, prog, sega.id);
+
+    for (const [who, minutes] of [
+      [sega, "45"],
+      [other, "30"],
+    ] as const) {
+      actor.value = who;
+      const state = await logSession(
+        null,
+        form({ studentProfileId: kid.id, minutes, date: "2026-09-03" })
+      );
+      expect(state).toMatchObject({ ok: true });
+    }
+
+    const hours = await allocationSummary(kid.id);
+    expect(hours.perMentor.find((r) => r.mentor?.id === sega.id)).toMatchObject({
+      completed: 45,
+      remaining: 75,
+    });
+    expect(hours.perMentor.find((r) => r.bank)).toMatchObject({ completed: 30, remaining: 450 });
+  });
+
+  it("gives back only what is unused when cut, and everything when removed", async () => {
+    const { prog, boss, kid } = await setup();
+    const sega = await mentor("Sega");
+    await pairing({ mentorId: sega.id, programId: prog.id });
+    await addBank(kid, prog, { includePrevious: "no" });
+    await give(kid, prog, sega.id);
+    const bankMinutes = async () =>
+      (await prisma.hourAllocation.findFirstOrThrow({ where: { isBank: true } })).minutes;
+
+    // Cut to 90: 30 go back.
+    await expect(
+      give(kid, prog, sega.id, { mode: "set", minutes: "90" })
+    ).resolves.toMatchObject({ ok: true });
+    expect(await bankMinutes()).toBe(510);
+
+    // Removed with nothing logged: the rest goes back.
+    await expect(
+      removeMentorAllocation(
+        null,
+        form({ studentProfileId: kid.id, programId: prog.id, mentorId: sega.id })
+      )
+    ).resolves.toMatchObject({ ok: true });
+    expect(await bankMinutes()).toBe(600);
+
+    // Once Sega has used 60, the share can't be cut below it.
+    await give(kid, prog, sega.id);
+    actor.value = sega;
+    await logSession(null, form({ studentProfileId: kid.id, minutes: "60", date: "2026-09-03" }));
+    actor.value = boss;
+    await expect(
+      give(kid, prog, sega.id, { mode: "set", minutes: "30" })
+    ).resolves.toMatchObject({ ok: false, error: expect.stringContaining("already used") });
   });
 });
 

@@ -61,6 +61,18 @@
      accent stays for fills (progress bars, rings). */
   --color-accent-ink: #a35200;
 
+  /* ---- Essay stages ---------------------------------------------------- *
+   * The one place colour is spent on progress, by request (October 2026):
+   * an application's essays move Brainstorming → Writing → Finalizing → Done,
+   * and the mentors who follow twenty of them read the stage at a glance by
+   * its colour. FILLS only, on the stage bar (components/essay-stage.tsx),
+   * and the stage is always named in words beside it — never colour alone.
+   * Nothing else may use them: a green here is not "good" anywhere else. */
+  --color-stage-brainstorming: #e0a800;
+  --color-stage-writing: #2f6fd6;
+  --color-stage-finalizing: #7cc96b;
+  --color-stage-done: #2e8b3e;
+
   --color-ink: #1c1c1e; /* primary text */
   --color-muted-fg: #63636a; /* secondary text — 4.66:1 on the strongest fill (#e3e3e9) */
   /* What cannot be pressed or chosen, as a COLOUR rather than an opacity.
@@ -173,13 +185,42 @@
      nowhere it visibly stopped — the "no clear separation" complaint. One
      token, so every resting card, table and stat strip gets the same edge
      (the dark theme's ring below already did this). */
-  --shadow-sm: 0 0 0 1px rgb(0 0 0 / 0.09), 0 1px 3px rgb(0 0 0 / 0.05);
-  --shadow-lg: 0 8px 30px rgb(0 0 0 / 0.12), 0 0 0 0.5px rgb(0 0 0 / 0.05);
-  --shadow-xl: 0 24px 60px rgb(0 0 0 / 0.18), 0 0 0 0.5px rgb(0 0 0 / 0.06);
+  /* October 2026, depth: the edge alone, plus a 1px drop at 5%, was still
+     invisible as a shadow — a white card on #f2f2f7 is only 1.12:1, so the
+     page read as one flat sheet of outlined boxes. Each step is now the edge
+     plus two shadows doing two jobs, which is how a surface looks lifted
+     rather than outlined:
+
+       contact   tight and darker — where the card meets the page
+       ambient   wide, soft and pulled IN by a negative spread, so it falls
+                 below the card and never leaks out to the sides
+
+     The negative spread is also what lets one token serve a 400px card and a
+     32px segmented-control thumb: the ambient layer shrinks with the box
+     instead of becoming a halo around it.
+
+     The canvas itself is NOT darkened to add contrast. Secondary text sits
+     directly on it near the AA floor, so a deeper ground would fail every
+     caption on the site. Depth has to come from the shadow.
+
+     THE VALUES LIVE IN `--elev-*`, NOT HERE. Tailwind v4 copies a theme
+     shadow's literal into the utility (`.shadow-sm { --tw-shadow: 0 0 0 1px
+     … }`), so a `--shadow-sm` redefined under `[data-theme="dark"]` never
+     reached a single card: the dark block below had been setting shadows that
+     nothing read, and every dark card wore the light theme's black edge,
+     which on #121417 is invisible. Pointing the token at a plain custom
+     property keeps the reference live — the utility emits
+     `--tw-shadow: var(--elev-sm)` and dark's `--elev-sm` is what resolves. */
+  --shadow-sm: var(--elev-sm);
+  --shadow-lg: var(--elev-lg);
+  --shadow-xl: var(--elev-xl);
   /* A control's moving part — a switch's knob, a selected segment's thumb —
      lifted a hair off its track. It was Tailwind's stock `shadow-md`, the one
      untokenised shadow left (October 2026). */
-  --shadow-control: 0 1px 2px rgb(0 0 0 / 0.12), 0 0 0 0.5px rgb(0 0 0 / 0.06);
+  --shadow-control: var(--elev-control);
+  /* The staff rail's right edge: it is a fixed layer over the page, so it
+     casts sideways — a 1px edge and a long soft fall onto the canvas. */
+  --shadow-rail: var(--elev-rail);
   /* The soft halo round a focused text field, under its brand border. */
   --shadow-focus: 0 0 0 4px var(--focus-halo);
 
@@ -306,6 +347,23 @@
 :root {
   color-scheme: light;
 
+  /* The light elevation values — see the note on `--shadow-sm` in @theme for
+     why they are here and not there. Each is the edge, a contact shadow and
+     an ambient one pulled in by a negative spread. */
+  --elev-sm:
+    0 0 0 1px rgb(0 0 0 / 0.09), 0 1px 3px rgb(0 0 0 / 0.09),
+    0 10px 28px -8px rgb(0 0 0 / 0.18);
+  /* Each step has to clear the one below it, or elevation stops being a
+     hierarchy: lg's ambient layer is ~1.8x sm's reach and xl's ~2.5x. */
+  --elev-lg:
+    0 0 0 0.5px rgb(0 0 0 / 0.08), 0 4px 8px rgb(0 0 0 / 0.08),
+    0 20px 44px -8px rgb(0 0 0 / 0.28);
+  --elev-xl:
+    0 0 0 0.5px rgb(0 0 0 / 0.08), 0 8px 16px rgb(0 0 0 / 0.08),
+    0 40px 96px -16px rgb(0 0 0 / 0.38);
+  --elev-control: 0 1px 2px rgb(0 0 0 / 0.12), 0 0 0 0.5px rgb(0 0 0 / 0.06);
+  --elev-rail: 1px 0 0 rgb(0 0 0 / 0.03), 8px 0 28px -14px rgb(0 0 0 / 0.16);
+
   /* The ambient wash at the top of every page: brand blue from the left, hours
      orange from the right, each fading out inside the first screen. Peaks are
      held low enough that secondary text on the canvas stays above AA under
@@ -350,7 +408,10 @@
      brand navy the way its "branded surface" overlay does. Elevation is a
      lighter surface, one step (~1.1:1) per layer, never a jump. */
   --color-canvas: #121417;
-  --color-surface: #1b1e23;
+  /* October 2026: one step up from #1b1e23, so a card is 1.16:1 off the ground
+     instead of 1.10 — the canvas stays #121417 because `theme-color` in
+     layout.tsx repeats it. Ink on the card is 12.8:1 and secondary text 6.2:1. */
+  --color-surface: #1d2127;
   --color-line: #2c3038;
   --color-head: #23272e;
   --color-stripe: rgb(255 255 255 / 0.025);
@@ -390,6 +451,11 @@
   --color-danger-soft: #37262b;
   --color-danger-line: #5a3136;
   --color-danger-ink: #f28f8f; /* the only red for text, on the card */
+
+  --color-stage-brainstorming: #e6c04a;
+  --color-stage-writing: #6ea0ec;
+  --color-stage-finalizing: #8fd47f;
+  --color-stage-done: #4bb05b;
 
   /* Each soft is its own dot laid at 24% over the card, so every tint sits
      the same distance above the surface; each ink clears 6:1 on it. */
@@ -439,10 +505,17 @@
   /* A shadow barely reads on a dark ground, so the edge does the work: a
      faint white hairline and a top highlight, the way Linear and GitHub draw
      a card, with the drop shadow kept only for things that float. */
-  --shadow-sm: 0 0 0 1px rgb(255 255 255 / 0.08), inset 0 1px 0 rgb(255 255 255 / 0.03);
-  --shadow-lg: 0 0 0 1px rgb(255 255 255 / 0.07), 0 12px 32px -8px rgb(0 0 0 / 0.55);
-  --shadow-xl: 0 0 0 1px rgb(255 255 255 / 0.08), 0 24px 60px -12px rgb(0 0 0 / 0.65);
-  --shadow-control: 0 0 0 1px rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.5);
+  --elev-sm:
+    0 0 0 1px rgb(255 255 255 / 0.08), inset 0 1px 0 rgb(255 255 255 / 0.07),
+    0 10px 28px -6px rgb(0 0 0 / 0.7);
+  --elev-lg:
+    0 0 0 1px rgb(255 255 255 / 0.1), inset 0 1px 0 rgb(255 255 255 / 0.07),
+    0 20px 44px -8px rgb(0 0 0 / 0.78);
+  --elev-xl:
+    0 0 0 1px rgb(255 255 255 / 0.11), inset 0 1px 0 rgb(255 255 255 / 0.07),
+    0 40px 96px -16px rgb(0 0 0 / 0.88);
+  --elev-control: 0 0 0 1px rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.5);
+  --elev-rail: 1px 0 0 rgb(0 0 0 / 0.25), 8px 0 28px -12px rgb(0 0 0 / 0.55);
 }
 
 /* DensityToggle's labels, keyed off the same attribute the boot script sets.
@@ -854,7 +927,7 @@ body {
 }
 
 /* Only the control that triggered an autosave acknowledges the request. */
-.autosave-editor[data-saving-field="minutes"] input[name="minutes"],
+.autosave-editor[data-saving-field="minutes"] input[data-autosave-field="minutes"],
 .autosave-editor[data-saving-field="date"] input[name="date"],
 .autosave-editor[data-saving-field="note"] textarea[name="note"],
 .autosave-editor[data-saving-field="assignmentId"] select,

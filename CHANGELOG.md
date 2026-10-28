@@ -4,7 +4,162 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-28
+
+### New
+- **A privacy policy and a support page.** www.freshlog.net/privacy says what freshlog keeps and who handles it, and /support says how to get help. Both open without signing in.
+
+## 2026-10-27
+
+### New
+- **Delete your account from the freshlog app.** Under Account, Delete account asks us to remove it, and we do within 30 days. Until then you can take it back from the same place. Platform admins are told who asked, with a link to their page.
+
+## 2026-10-26
+
+### New
+- **Mentors can run practice interviews.** Mentors have an Interviews page: offer times your students can book, or book a time one of your students offered. You ask the questions and send the feedback; the student answers.
+- **Practise an interview with your mentor.** Under Interviews, your mentors who have offered times are listed above your classmates. Book one the same way you book a classmate.
+- **Practise with students from any program.** Interviews now lists every student, each with their program, so a Freshman Scholars student can book someone from Global Admissions and the other way round.
+- **Click any Feedback figure to open it.** A star's bar shows only ratings of that star, Written ratings or Meetings rated shows that kind alone, and Need attention jumps to those mentors. A score tile in the feed does the same for its star.
+- **Sort the mentors on Feedback.** Click a column heading to order by name, combined score, number of ratings, lowest recent rating or last rated. Every mentor is listed; nothing is folded away.
+- **Chips above the Feedback filters.** Written, Meetings and Low narrow the page in one tap, and a mentor who also holds a staff grant gets Mine. The Rating filter can pick one star exactly as well as "3 stars or fewer".
+- **A combined score for each program on Feedback.** Under the overview, each program you can read gets one line with its score, worst first, and what it is made of. Click a line to see that program's ratings only.
+
+### Fixed
+- **Log session no longer hangs on "Logging…".** The confirmation now appears as soon as the session is saved, instead of waiting for the whole page to reload. You no longer need to go back to check it went through.
+- **Your own ratings stay anonymous to you.** A mentor who also administers a program could see who wrote a rating about them by filtering Feedback to themselves. The writer's name is now hidden there, as the rating form promised.
+- **Sign in to the app with another Google account.** The page that asks you to continue into the app now has "Use another account", so you're no longer stuck with whichever account this browser last used.
+- **Your students lists only your students.** A student whose time has not been given to any mentor yet showed up under Your students for every mentor in their program, as if they were yours. They now sit in their own Time to claim list below it. You can still open them and log a session, and logging one makes that time yours.
+
+## 2026-10-25
+
+### New
+- **Copy a student's email in one click.** On a student's page, click their email address to copy it. It says Copied for a moment so you know it worked.
+- **A clearer Feedback page.** It opens on the combined score, a bar for each star from 1 to 5, and how many mentors need attention. Those mentors get cards that say why, above everyone else. Written and meeting ratings sit side by side, each led by its score.
+
+### Fixed
+- **Students list names stay readable.** On a laptop, a student on exchange no longer squeezes the Student column: names were breaking mid-word and "Not signed in" sat on top of them. "(on exchange)" now drops under its program when space is tight.
+
+## 2026-10-24
+
+### New
+- **One combined score per mentor on Feedback.** Each mentor's score now counts every rating, from the mentor form and from single meetings, so mentors rated only on meetings appear too. Your own score includes your meeting ratings as a number; you still don't see which meeting got which rating, or what was written.
+- **Partner staff can read their feedback.** A partner's settings now have a Staff list. Staff on it open the partner's staff link, enter their email, and see every rating their students left, with the averages and filters admins have, read-only.
+
+## 2026-10-23
+
+### New
+- **Meeting ratings on the Feedback page.** The stars and comments students leave on a single meeting now appear on Feedback, under Meeting ratings, for the programs you lead or administer. They follow the same filters as mentor ratings. Mentor ratings stay anonymous, and you never see the ratings of your own meetings.
+- **Grant time in hours and minutes, and confirm it.** Correcting a mentor's allocation now has an Hours box and a Minutes box, so 3 h no longer has to be typed as 180. A Confirm button saves it at once and shows the time it was saved; leaving the menu still saves as before.
+
+### Fixed
+- **Edits no longer vanish when you tap away.** Changing hours, a deadline or an agenda item in a ⋮ menu and then tapping outside it closed the menu without saving, so the change only stuck after a few tries. It now saves as the menu closes.
+- **You always hear back about a save.** Fields that save themselves now say "Saving…" while they do, and if a menu closes before the answer comes back, a message at the bottom of the screen says it saved, or why it didn't.
+
+## 2026-10-22
+
+### New
+- **Partner schools can now leave feedback.** Admins set up a partner — Cana is the first — paste in its students' emails and pick its mentors; students open the partner's link, enter their email, and rate a mentor or a session. Every rating is on the partner's page, with filters.
+- **Log time in hours and minutes.** When you log or edit a session, How long now has an Hours box and a Minutes box, so 1 h 30 min no longer has to be worked out as 90. Typing minutes alone still works.
+
+## 2026-10-21
+
+### New
+- **Report a bug by drawing on the screen.** Report a bug in your account menu now takes a picture of the page you're on, so you can circle what's wrong, cover anything private, write one line and send it without leaving the page.
+
+### Fixed
+- **Closing a menu keeps your place.** In Safari, closing a menu at the top of the page no longer scrolls what you were reading up a little.
+
+## 2026-10-20
+
+### New
+- **Name the agenda item when you log.** Logging a session, you can now pick a standard agenda item or type your own under Something else, even if none was set up for the student. It is added to their agenda with no hours planned, and an admin can give it hours later.
+
+## 2026-10-19
+
+### New
+- **Month totals in Analytics.** Pointing at a month in Month by month now ends its list with the month's total hours, the same figure shown on top of the bar.
+- **Pick the dates Analytics reads.** Dates, beside the year, offers This week, Last 30 days, Last 90 days, or any two days you choose. The totals, programs and mentor rankings then cover only those days, compared with the same number of days just before.
+
+### Fixed
+- **Speak writes down everything you said.** A longer spoken answer or note sometimes came back as only its first sentence or two, stopping mid-sentence. It now comes back whole, and if it ever can't, you're asked to try again instead of being given half.
+
+## 2026-10-17
+
+### New
+- **Research on the agenda list.** When you allocate time, Research is now one of the agenda items you can pick.
+
+### Fixed
+- **Student names show in full.** On a program's student list, beside the mentors, names were cut to their first few letters. They now show in full; to make room, Last session shows there only on a phone, in each student's details. Anywhere a long name still doesn't fit, it goes onto a second line.
+
+## 2026-10-16
+
+### Fixed
+- **Use by shows on laptops.** The Students list now shows when each student's hours run out on laptop-sized screens too, where it was hidden before, so you can sort by it to see the soonest first. To make room, Last session now shows only on wider screens.
+
+## 2026-10-15
+
+### New
+- **Sort a program's students by cohort.** In a program that has cohorts, each student's cohort now shows under their name. Click Cohort, beside Student at the top of the list, to put each cohort's students together.
+
+## 2026-10-14
+
+### New
+- **Schedule classes (SAT).** SAT mentors get a Classes page: book a class out of a student's hours with you and see their classes and hours by month. A class holds its time until you mark it held. A platform admin can switch it on for other programs in their settings.
+
+## 2026-10-13
+
+### New
+- **Interview prep for admins.** A new Interview prep page lists your students' practice interviews: who is meeting whom and when, and afterwards whether it happened or who didn't join. A table shows how many each student has held and for how long. Their answers, notes and feedback stay private to them and their mentors.
+- **Give a mentor time from a student's hour bank.** On Allocate time for a student with an hour bank, pick a mentor: the minutes come out of the bank and become that mentor's time, which their meetings use. Others still draw on the bank. Lowering or removing a mentor's time puts the unused minutes back.
+- **Meetings arrive from Google Meet.** Mentors can connect Google in Settings. When a Meet call with a student ends, it waits in Needs you with the minutes and attendance measured from the call, ready to check and log.
+- **Add students from a list.** On a program's Add students, choose Paste or import a list. Paste rows from a spreadsheet or the addresses from an email, or pick an Excel or CSV file. Each person becomes a row you can check and correct before adding.
+- **Register mentors from a list.** Register a mentor now has Register several from a list. Type, paste or import their names and addresses, pick the programs once, and register them all together. Anyone who can't be registered is named, and the rest still go in.
+- **Use by on the Students list.** Admins now see when each student's next hours run out, and how much time expires then, the way mentors already do on their own list. Sort by it to put the soonest first.
+
+### Fixed
+- **Missed meetings count in Analytics.** When a student misses a meeting, its time now counts toward the mentor's and the program's hours, shown striped as "Missed" beside in-plan and extra time. This applies to past missed meetings too. Each mentor's month table has a Missed column.
+- **Analytics agrees with the rest of the app.** A meeting logged as extra is counted as extra even when the student didn't come, as it is on the mentor's own page. Sessions now include missed ones. A program's share of its total hours counts only the time its students' hours paid for, not extra time.
+- **Mentors' Home counts hour-bank meetings.** Time an admin gives a mentor out of a student's hour bank now appears as that student's row on the mentor's Home. Meetings drawn from a student's hour bank now count in the mentor's Completed, as they already did on the admin's page for that mentor.
+- **Move a student's time to yourself.** An admin who also mentors now appears in the list when moving a student's unused time from another mentor, and can move their own time to someone else.
+
+### Fixed
+- **Move a student's time to yourself.** An admin who also mentors now appears in the list when moving a student's unused time from another mentor, and can move their own time to someone else.
+
+## 2026-10-12
+
+### New
+- **Bugs and requests from the Telegram group.** Bugs and feature requests posted in the team's Telegram group, voice notes and screenshots included, are now filed automatically, and small talk is left out. A 👀 on your message means it was picked up, and the bot replies under it once it is done.
+- **A board for triage.** Platform admins now see every report as a board with New, In progress and In review columns, and the most recently finished reports underneath. A card moves from its own status menu. Bugs and feature requests can be viewed separately, and a report filed as the wrong kind can be switched.
+
+### Fixed
+- **Clearer report statuses.** Your bug reports now read New, In progress, In review, Done or Won't do.
+- **Log a session sits in the corner.** On a program's page and a student's page, Log a session is now always the right-most button, with Allocate time on the left. A program's Set a task sends the task to its students; tasks for mentors are set on the Mentor tasks tab.
+- **Progress leads a Full Support student's page.** Their application and universities now sit in a column beside Progress on a wide screen, instead of above it. On a narrower screen they come after the sessions, tasks and agenda.
+- **Adding a university takes one line.** The university, its supplemental word count, Primary and the round now sit side by side with the Add button, without the notes under each field. After an add, Primary is no longer left ticked on screen while the form has actually cleared it.
+
+## 2026-10-11
+
+### New
+- **A Full Support student's application.** A Full Support student's page now opens with their SAT, IELTS, school and GPA, and the motivational essay's stage: Brainstorming, Writing, Finalizing or Done. Their mentors and the program's admins can edit these, and tap the bar to move the essay to a new stage.
+- **Each student's universities.** List the universities a student is applying to, with one marked as their primary choice and its round (ED, REA or EA) if they have one. Each university tracks its supplemental essays through the same four stages.
+- **Word counts entered once.** The first time anyone adds a university, they enter its supplemental word count. After that, search for it and the count fills in. Program admins can correct a count, and the correction applies to every student who lists that university.
+- **Set one task for a whole program.** Admins can press Set a task on a program to give every student in it the same task in one go, including students there on exchange. Each student gets their own copy and is told about it.
+- **Program pages lead with students.** A program's student list is the first thing on its page again, with the program's mentors in a column beside it on a wide screen. Its latest sessions are listed under the students, with a link to all of them.
+- **Programs show their levels.** On the Programs list, a program with levels, like Research, says how many it has beside its name.
+- **Your students by level.** Mentors who work only in the Research Institute can narrow Your students on Home to one level, and see each student's level beside their name.
+- **Your level on Home.** Students in the Research Institute see their level and cohort beside the greeting on Home.
+
+### Fixed
+- **Allocate time works with an hour bank.** For a student whose hours are in an hour bank, Allocate time now adds to the bank straight away, instead of asking for a mentor and then refusing. Any mentor in the program can log meetings against the bank.
+- **Allocate time says Loading while it saves.** The button reads Loading… while your allocation is being saved.
+- **Each program's hours on a student's page.** A student's page adds up every program they are in, while a program's student list counts only its own. So the two could disagree, with nothing saying why. The Progress card now lists each program's completed, remaining and total hours, matching that program's list.
+- **Back goes where you came from after logging.** Logging a session from a program's page, or from a student you opened through one, now takes you back to that program instead of the full student list. The session is also logged in that program unless you pick another.
+
 ## 2026-10-09
+
+### New
+- **Cards and menus have depth.** Cards, tables, menus and the side menu now cast a soft shadow, so they stand off the page instead of reading as one flat sheet. In dark mode, cards also sit a step lighter than the background.
 
 ### Fixed
 - **Clicking a student opens that student.** In Safari, clicking any row in Your students on Home, or in your Programs list, opened the last row instead. Each row now opens its own.

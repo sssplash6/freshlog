@@ -14,6 +14,7 @@ import { soonestExpiry } from "@/lib/deadlines";
 import { formatDate, formatMinutes } from "@/lib/format";
 import { mentorsWhere } from "@/lib/filters";
 import { unallocatedExchanges } from "@/lib/exchanges";
+import { googleConfigured } from "@/lib/google";
 import { allocationSummary, type AllocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import type { Profile } from "@/lib/profile";
@@ -23,12 +24,14 @@ import {
   mentorCaseload,
   studentLedger,
   studentsWithHours,
+  type CaseloadStudent,
 } from "@/lib/queries";
 import {
   aboutMe,
   attentionList,
   dismissalKey,
   exchangeStatuses,
+  meetDraftStatuses,
   mentorStatuses,
   notDismissed,
   programStatuses,
@@ -436,7 +439,7 @@ async function mentorAttention(user: User): Promise<Attention> {
   };
   const dismissed = await dismissedBy(user.id);
   const { students, assignments } = await mentorCaseload(user.id);
-  const [ratings, sent] = await Promise.all([
+  const [ratings, sent, meetings] = await Promise.all([
     prisma.mentorFeedback.aggregate({
       where: { mentorId: user.id },
       _avg: { rating: true },
@@ -446,6 +449,7 @@ async function mentorAttention(user: User): Promise<Attention> {
     // has taken on yet. Nothing for them to do about it — the host allocates —
     // but they are the one who promised it, and the one the student will ask.
     unallocatedExchanges({ sentBy: user.id }),
+    meetRows(user.id, viewer),
   ]);
   const programCount = new Set(assignments.map((a) => a.programId)).size;
 
@@ -467,34 +471,7 @@ async function mentorAttention(user: User): Promise<Attention> {
       // /settings — not on the page other people read about them.
       s.type === "BOOKING_LINK_MISSING" ? { ...s, href: "/settings" } : s
     ),
-    ...students.flatMap((s) =>
-      studentStatuses(
-        {
-          id: s.profile.id,
-          name: s.profile.user.name,
-          email: s.profile.user.email,
-          accountStatus: s.profile.user.status,
-          telegramUsername: s.profile.telegramUsername,
-          // Deliberately this mentor's own numbers, not the student's total: a
-          // mentor is told about the hours THEY hold, because those are the
-          // ones they can spend. Someone else's expiring allocation is an
-          // admin's row.
-          allottedMinutes: s.allocated,
-          remainingMinutes: s.remaining,
-          forfeitedMinutes: s.expired
-            ? Math.max(0, s.allocated - s.completed - s.missed)
-            : 0,
-          // A bank is not unassigned time: every meeting draws it, whoever holds it.
-          poolMinutes: s.bank ? 0 : (s.pool ?? 0),
-          // Already one grant, so the pair is this row's own remaining and its
-          // own date — the aggregate confusion cannot arise here.
-          expiring: soonestExpiry([s], viewer.now),
-          mentorCount: 1,
-          program: { id: s.program.id, name: s.program.name },
-        },
-        viewer
-      ).map((row) => ({ ...row, href: `/students/${s.profile.id}` }))
-    ),
+    ...students.flatMap((s) => caseloadStatuses(s, viewer)),
     ...sent.flatMap((e) =>
       exchangeStatuses(
         {
@@ -511,6 +488,7 @@ async function mentorAttention(user: User): Promise<Attention> {
         viewer
       )
     ),
+    ...meetings,
   ];
 
   const live = rows.filter(notDismissed(dismissed));
@@ -521,6 +499,111 @@ async function mentorAttention(user: User): Promise<Attention> {
     dismissible: true,
   empty: "No active issues.",
   };
+}
+
+/**
+ * What is true of one caseload row, in a mentor's words: the rows
+ * `mentorAttention` lists for it above, and the statuses the freshlog app
+ * (src/lib/api/v1/mentor-home.ts) picks each row's most serious from.
+ */
+export function caseloadStatuses(s: CaseloadStudent, viewer: ViewerContext): Status[] {
+  return studentStatuses(
+    {
+      id: s.profile.id,
+      name: s.profile.user.name,
+      email: s.profile.user.email,
+      accountStatus: s.profile.user.status,
+      telegramUsername: s.profile.telegramUsername,
+      // Deliberately this mentor's own numbers, not the student's total: a
+      // mentor is told about the hours THEY hold, because those are the
+      // ones they can spend. Someone else's expiring allocation is an
+      // admin's row.
+      allottedMinutes: s.allocated,
+      remainingMinutes: s.remaining,
+      forfeitedMinutes: s.expired
+        ? Math.max(0, s.allocated - s.completed - s.missed)
+        : 0,
+      // A bank is not unassigned time: every meeting draws it, whoever holds it.
+      poolMinutes: s.bank ? 0 : (s.pool ?? 0),
+      // Already one grant, so the pair is this row's own remaining and its
+      // own date — the aggregate confusion cannot arise here.
+      expiring: soonestExpiry([s], viewer.now),
+      mentorCount: 1,
+      program: { id: s.program.id, name: s.program.name },
+    },
+    viewer
+  ).map((row) => ({ ...row, href: `/students/${s.profile.id}` }));
+}
+
+/** How long a measured meeting waits to be logged before it stops asking. */
+const MEET_DRAFT_DAYS = 14;
+
+/**
+ * The meetings Google Meet measured that this mentor has not logged, and
+ * whether their Google connection needs them.
+ *
+ * A draft is done once a session exists for the same student on the same
+ * day — logged from the draft or by hand, either way the meeting is in the
+ * ledger, and the draft is only ever a suggestion of one. Nothing marks it;
+ * it is a question this asks each time, like every other row in the list.
+ */
+async function meetRows(mentorId: string, viewer: ViewerContext): Promise<Status[]> {
+  if (!googleConfigured()) return [];
+  const [connection, drafts] = await Promise.all([
+    prisma.googleConnection.findUnique({
+      where: { userId: mentorId },
+      select: { failedAt: true },
+    }),
+    prisma.meetDraft.findMany({
+      where: {
+        mentorId,
+        createdAt: { gte: new Date(viewer.now.getTime() - MEET_DRAFT_DAYS * 86_400_000) },
+      },
+      include: { student: { include: { user: { select: { name: true, email: true } } } } },
+    }),
+  ]);
+  const rows: Status[] = [];
+  if (connection?.failedAt) {
+    const row = status("GOOGLE_RECONNECT", viewer, {}, { href: "/settings#google" });
+    if (row) rows.push(row);
+  }
+  if (drafts.length === 0) return rows;
+
+  const [logged, programs] = await Promise.all([
+    prisma.session.findMany({
+      where: {
+        mentorId,
+        studentId: { in: [...new Set(drafts.map((d) => d.studentId))] },
+        date: { in: [...new Set(drafts.map((d) => d.date.getTime()))].map((t) => new Date(t)) },
+      },
+      select: { studentId: true, date: true },
+    }),
+    prisma.program.findMany({
+      where: { id: { in: drafts.flatMap((d) => (d.programId ? [d.programId] : [])) } },
+      select: { id: true, name: true },
+    }),
+  ]);
+  const done = new Set(logged.map((s) => `${s.studentId}:${s.date.getTime()}`));
+  const programOf = new Map(programs.map((p) => [p.id, p]));
+
+  for (const d of drafts) {
+    if (done.has(`${d.studentId}:${d.date.getTime()}`)) continue;
+    rows.push(
+      ...meetDraftStatuses(
+        {
+          id: d.id,
+          student: { id: d.studentId, name: d.student.user.name ?? d.student.user.email },
+          program: (d.programId && programOf.get(d.programId)) || null,
+          minutes: d.minutes,
+          date: d.date,
+          startsAt: d.startsAt,
+          attendance: d.attendance,
+        },
+        viewer
+      )
+    );
+  }
+  return rows;
 }
 
 /* ------------------------------------------------------------------ *
@@ -712,6 +795,10 @@ export async function studentRows(
             },
             href: "/student/meetings",
             at: s.date,
+            // Which session the row asks about, for the app, which cannot follow
+            // the link above. The website ignores it, and a roll-up, which is a
+            // new object about several sessions, carries none.
+            sessionId: s.id,
           },
         ]
       : [];

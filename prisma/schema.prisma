@@ -65,6 +65,15 @@ model User {
   // comparison of dates against `changelogSeenAt` never could. Null until the
   // first visit; the createdAt floor above applies until then.
   changelogSeen   String?
+  // The Google account's own id (the `sub` Google signs in with). It is how a
+  // Google Meet participant — who arrives as `users/<id>`, never as an email —
+  // is recognised as this person. Recorded at sign-in; null until their next.
+  googleId        String?   @unique
+  // When they asked, in the app, for their account to be deleted (App Store
+  // rule 5.1.1(v)). A platform admin deletes it by hand within the days the
+  // app promises (ACCOUNT_DELETION_DAYS); null when nothing is asked, and back
+  // to null if they take it back first.
+  deletionRequestedAt DateTime?
 
   studentProfile      StudentProfile?          @relation("StudentUser")
   createdStudents     StudentProfile[]         @relation("CreatedBy")
@@ -73,6 +82,7 @@ model User {
   staffGrants         ProgramStaff[]           @relation("StaffGrantUser")
   grantsMade          ProgramStaff[]           @relation("StaffGrantCreatedBy")
   mentorSessions      Session[]                @relation("SessionMentor")
+  mentorClasses       ScheduledClass[]         @relation("ClassMentor")
   hourAllocations     HourAllocation[]         @relation("AllocationMentor")
   assignments         Assignment[]             @relation("AssignmentMentor")
   createdAssignments  Assignment[]             @relation("AssignmentCreatedBy")
@@ -91,6 +101,23 @@ model User {
   exchangesReturned   ProgramExchange[]        @relation("ExchangeReturnedBy")
   bugsReported        BugReport[]              @relation("BugReporter")
   bugsTriaged         BugReport[]              @relation("BugTriager")
+  applicationEdits    StudentApplication[]     @relation("ApplicationUpdatedBy")
+  universitiesAdded   University[]             @relation("UniversityCreatedBy")
+  googleConnection    GoogleConnection?
+  meetDrafts          MeetDraft[]              @relation("MeetDraftMentor")
+  apiTokens           ApiToken[]
+  apiSignInCodes      ApiSignInCode[]
+  deviceTokens        DeviceToken[]
+  pushPreferences     PushPreference[]
+  partnerMentorships  PartnerMentor[]
+  partnerFeedback     PartnerFeedback[]        @relation("PartnerFeedbackMentor")
+  // Practice interviews, as either side: a student, or a mentor interviewing
+  // a student they work with.
+  interviewSlots      InterviewSlot[]
+  interviewsHosted    PeerInterview[]          @relation("InterviewHost")
+  interviewsBooked    PeerInterview[]          @relation("InterviewGuest")
+  interviewAnswers    InterviewAnswer[]
+  interviewFeedback   InterviewFeedback[]
 }
 
 // One profile picture, stored in the database rather than on disk so it travels
@@ -136,6 +163,18 @@ model Program {
   // A group is an ordinary student record underneath, so ledgers, deadlines and
   // scoping are the ones every other program has. Off by default.
   classHours        Boolean               @default(false)
+  // Does this program follow its students' university APPLICATIONS — a
+  // snapshot of scores, the motivational essay's stage, and a list of
+  // universities with a supplemental essay each? A column for the reason
+  // `hourBank` is one: Full Support is the program an admin switched it on
+  // for, not the one with that name. Off by default.
+  tracksAdmissions  Boolean               @default(false)
+  // Do this program's mentors schedule CLASSES in the platform — a dated time
+  // for a student, reserved out of the hours that student holds with them, and
+  // totalled by month? A column for the reason `hourBank` is one: SAT is the
+  // department an admin switched it on for, not the one with that name. Off by
+  // default, and a platform admin's to turn on — see `setProgramSchedulesClasses`.
+  schedulesClasses  Boolean               @default(false)
   // The standard grant: every student who joins this program is given
   // `standardMinutes` — in their unassigned pool, or in their hour bank where
   // `hourBank` is on — to use within `standardDays` of joining. Both set or both null (off). It is how a program that is one
@@ -172,6 +211,7 @@ model Program {
   // sum somebody has to remember to filter.
   hourAllocations   HourAllocation[]
   sessions          Session[]
+  scheduledClasses  ScheduledClass[]
   assignments       Assignment[]
   studentTasks      StudentTask[]
   mentorTasks       MentorTask[]
@@ -324,18 +364,17 @@ model StudentProfile {
   createdBy         User                  @relation("CreatedBy", fields: [createdById], references: [id])
   enrollments       StudentEnrollment[]
   sessions          Session[]
+  meetDrafts        MeetDraft[]
+  scheduledClasses  ScheduledClass[]
   hourAllocations   HourAllocation[]
   assignments       Assignment[]
   tasks             StudentTask[]
   allotmentChanges  HourAllotmentChange[]
   mentorFeedback    MentorFeedback[]
   exchanges         ProgramExchange[]
-  interviewSlots    InterviewSlot[]
   mentorTasks       MentorTaskStudent[]
-  interviewsHosted  PeerInterview[]       @relation("InterviewHost")
-  interviewsBooked  PeerInterview[]       @relation("InterviewGuest")
-  interviewAnswers  InterviewAnswer[]
-  interviewFeedback InterviewFeedback[]
+  application       StudentApplication?
+  universities      StudentUniversity[]
 }
 
 // One student, in one program — the membership fact, and nothing else.
@@ -662,8 +701,17 @@ model HourAllocation {
   // The student's HOUR BANK in this program: no mentor, and the row every
   // `Session.fromBank` meeting draws down. One per (student, program). Not the
   // unassigned pool, which is also mentor-less but is carved into a mentor's own
-  // allocation by the first meeting; nothing is ever carved out of a bank.
+  // allocation by the first meeting. A bank is carved only by an admin, into a
+  // mentor's share (`fromBankShare`), never by a meeting.
   isBank        Boolean  @default(false)
+  // A MENTOR's time an admin handed out of this student's hour bank in this
+  // program. The minutes left the bank when it was granted and go back to it
+  // when it is cut or removed, so the bank plus its shares is the student's
+  // whole balance. Meetings with this mentor draw this row, not the bank;
+  // meetings with a mentor who holds no share still draw the bank. False on
+  // every row granted before 13 October 2026, including the per-mentor time a
+  // bank was created beside: that time was never the bank's to take back.
+  fromBankShare Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -765,6 +813,8 @@ model Session {
   program    Program          @relation(fields: [programId], references: [id])
   mentor     User             @relation("SessionMentor", fields: [mentorId], references: [id])
   exchange   ProgramExchange? @relation(fields: [exchangeId], references: [id], onDelete: SetNull)
+  // The class this meeting delivered, when it was marked held against it.
+  scheduledClass ScheduledClass?
   // SetNull, not Cascade: deleting a goal must never delete the time that was
   // already delivered against it. The session survives, minus its goal.
   assignment Assignment?      @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
@@ -773,6 +823,45 @@ model Session {
   @@index([programId])
   @@index([exchangeId])
   @@index([studentId, programId, mentorId])
+}
+
+// A class a mentor put in the diary: a dated time for one student, in one
+// program, reserved out of the hours that student holds with that mentor.
+//
+// Only programs with `schedulesClasses` switched on offer it. A class is a PLAN,
+// not a meeting: it draws nothing down. The ledger moves when the mentor logs
+// the meeting as a Session, as it always has, and `sessionId` is the join
+// between the two — so "scheduled" and "delivered" are read side by side, per
+// student per month, without a second balance that could disagree with the first.
+//
+//   SCHEDULED  in the diary; its minutes are RESERVED against the allocation
+//   HELD       delivered; `sessionId` names the session that charged the hours
+//   CANCELLED  gave its minutes back; kept, so the month still says it happened
+model ScheduledClass {
+  id        String   @id @default(cuid())
+  studentId String
+  // Which program's hours this class is reserved from. Stored for the reason
+  // `Session.programId` is: a student in two programs has two balances.
+  programId String
+  mentorId  String
+  startsAt  DateTime
+  minutes   Int
+  status    String   @default("SCHEDULED")
+  // What the class is for, in the mentor's words. Optional.
+  topic     String?
+  // The meeting that delivered it. Unique: one class is one session.
+  sessionId String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  program Program        @relation(fields: [programId], references: [id])
+  mentor  User           @relation("ClassMentor", fields: [mentorId], references: [id])
+  session Session?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([programId, startsAt])
+  @@index([studentId, programId, mentorId])
+  @@index([mentorId, startsAt])
 }
 
 // Audit log of admin changes to a student's per-mentor allocation, in minutes.
@@ -818,6 +907,11 @@ model Notification {
   // When it was read. `read` stays for the unread badge and the unsubscribe
   // path; this is the half that lets a feed say "new since you last looked".
   readAt    DateTime?
+  // When the push sweeper (src/lib/push.ts) dealt with this row: sent to the
+  // reader's phones, or passed over (no phone, Push off, too old). Null until
+  // then. The migration that added it set it on every row already there, so
+  // no notice from before push existed is ever pushed.
+  pushedAt  DateTime?
 
   user  User  @relation(fields: [userId], references: [id])
   // SetNull so removing a staff account never deletes the history of what they
@@ -825,6 +919,7 @@ model Notification {
   actor User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([userId, read])
+  @@index([pushedAt])
 }
 
 // What one person wants to hear about, per category, and where.
@@ -881,23 +976,30 @@ model MentorFeedback {
   mentor  User           @relation("FeedbackMentor", fields: [mentorId], references: [id])
 }
 
-// A time one student has offered for a practice interview with a classmate.
+// A time somebody has offered for a practice interview.
 //
 // Students rehearse admissions interviews on each other: one offers a few
-// times, a classmate who shares one of their own programs books one and picks
-// the questions. Nothing here touches the ledger — no hours, no mentor, no
-// program column. It is not a meeting a mentor arranges (that left the product
-// on 15 Sep 2026, with the old `Interview` table); it is two students
-// practising. The two of them read these rows, and so does any mentor who has
-// ever held a grant, a session or a task with either student (`mentorHasWorkedWith`,
-// read by `interviewsOfStudent`) — never another student, never an admin by role.
+// times, any other approved student books one and picks the questions. A
+// mentor may take part too, with a student they have worked with
+// (`mentorHasWorkedWith`): either offers a time and the other books it, and
+// the mentor asks the questions. Nothing here touches the ledger — no hours, no
+// program column. The two people in an interview read its rows, and so does any
+// mentor who has ever held a grant, a session or a task with the student
+// (`interviewsOfStudent`) — never another student, never an admin by role.
+//
+// Every party is a USER, not a student profile, because a mentor has none.
+// `asMentor` is the capacity the time was offered in — a person who is both a
+// student and a mentor offers one kind or the other — and decides who may book
+// it: a student's time is for students and for their mentors, a mentor's only
+// for their students.
 //
 // `startsAt` is the program's wall clock in a UTC field, the convention
 // lib/when.ts documents: the student types "15:00" meaning 15:00 Tashkent,
 // and every reader is handed back that same 15:00.
 model InterviewSlot {
   id         String   @id @default(cuid())
-  studentId  String
+  userId     String
+  asMentor   Boolean  @default(false)
   startsAt   DateTime
   minutes    Int
   // Where the two students meet — a Meet or Zoom link, https only, optional.
@@ -906,16 +1008,16 @@ model InterviewSlot {
   meetingUrl String?
   createdAt  DateTime @default(now())
 
-  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   // Null while the time is open. Being booked IS this row existing: the slot
   // has no flag of its own that could disagree with it.
   interview PeerInterview?
 
-  @@unique([studentId, startsAt])
+  @@unique([userId, startsAt])
   @@index([startsAt])
 }
 
-// One booked practice interview between two students.
+// One booked practice interview: two students, or a mentor and a student.
 //
 // Unique on the slot, which is what makes a time bookable once: two classmates
 // pressing Book at the same moment meet this constraint, not a race. Cancelling
@@ -925,19 +1027,24 @@ model InterviewSlot {
 // one column, as `StudentTask.completedAt` is, because two would let them
 // disagree. Either student may set it.
 //
-// Absent is `absentId`: the student who did not join, named by the one who did.
-// It is a student id rather than a flag per side so that only one of the two can
+// Absent is `absentId`: the person who did not join, named by the one who did.
+// It is a user id rather than a flag per side so that only one of the two can
 // ever be absent. An absent interview is closed but not completed — there is
 // nothing to write notes about — and the actions refuse to do both.
 //
 // Notes are per side and private to their writer: what one student thought of
 // the other's answers is theirs to keep, not something the other reads.
+//
+// `mentorId` is set when one side is a mentor — it is then hostId or guestId,
+// as `absentId` is. The mentor asks and writes the feedback; the student
+// answers and writes none.
 model PeerInterview {
   id          String    @id @default(cuid())
   slotId      String    @unique
-  // The student who offered the time, and the one who took it.
+  // The user who offered the time, and the one who took it.
   hostId      String
   guestId     String
+  mentorId    String?
   // An id from INTERVIEW_TEMPLATES in lib/interview-templates.ts. Fixed by the
   // product; students choose one and never write their own.
   template    String
@@ -950,8 +1057,8 @@ model PeerInterview {
   updatedAt   DateTime  @updatedAt
 
   slot     InterviewSlot       @relation(fields: [slotId], references: [id], onDelete: Cascade)
-  host     StudentProfile      @relation("InterviewHost", fields: [hostId], references: [id], onDelete: Cascade)
-  guest    StudentProfile      @relation("InterviewGuest", fields: [guestId], references: [id], onDelete: Cascade)
+  host     User                @relation("InterviewHost", fields: [hostId], references: [id], onDelete: Cascade)
+  guest    User                @relation("InterviewGuest", fields: [guestId], references: [id], onDelete: Cascade)
   answers  InterviewAnswer[]
   feedback InterviewFeedback[]
 
@@ -960,14 +1067,15 @@ model PeerInterview {
 }
 
 // One student's own answer to one question, typed or dictated. Private to the
-// student who gave it: no page or action selects it for the partner.
+// student who gave it and their mentors: no page or action selects it for the
+// partner. A mentor interviewing a student asks, and has no answers.
 //
 // `question` is the wording at the time, so editing a template never relabels
 // an answer already given.
 model InterviewAnswer {
   id            String   @id @default(cuid())
   interviewId   String
-  studentId     String
+  userId        String
   questionIndex Int
   question      String
   text          String
@@ -975,12 +1083,12 @@ model InterviewAnswer {
   updatedAt     DateTime @updatedAt
 
   interview PeerInterview  @relation(fields: [interviewId], references: [id], onDelete: Cascade)
-  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([interviewId, studentId, questionIndex])
+  @@unique([interviewId, userId, questionIndex])
 }
 
-// What one student says about their partner's answers. A draft is its author's
+// What one side says about their partner's answers. A draft is its author's
 // alone; `submittedAt` is the moment it becomes the partner's to read. After it
 // the author may still correct the wording until 30 minutes past the slot's end
 // (FEEDBACK_EDIT_MINUTES), and then the row does not change.
@@ -996,7 +1104,7 @@ model InterviewFeedback {
   updatedAt   DateTime  @updatedAt
 
   interview PeerInterview  @relation(fields: [interviewId], references: [id], onDelete: Cascade)
-  from      StudentProfile @relation(fields: [fromId], references: [id], onDelete: Cascade)
+  from      User           @relation(fields: [fromId], references: [id], onDelete: Cascade)
 
   @@unique([interviewId, fromId])
 }
@@ -1008,30 +1116,76 @@ model InterviewFeedback {
 // title and description can name a student, so they are never selected by the
 // public list. `resolution` is the public fix line when FIXED and a note
 // private to the reporter and triagers when CLOSED.
+//
+// Reports arrive two ways: the in-app form, and the team's Telegram group,
+// where a bot reads every message and keeps the ones that are a bug or a
+// feature request (lib/telegram-intake.ts). A Telegram sender is matched to an
+// account by their username when a student profile holds it; otherwise
+// `reporterId` is null and `telegramAuthor` is the only name there is.
 model BugReport {
-  id            String    @id @default(cuid())
+  id             String    @id @default(cuid())
   // SetNull: removing an account never removes what they reported.
-  reporterId    String?
-  reporterRole  String // the role at the time, for triage
-  title         String
-  description   String
+  reporterId     String?
+  reporterRole   String // the role at the time, for triage; TELEGRAM for an unmatched sender
+  kind           String    @default("BUG") // BUG | FEATURE
+  source         String    @default("APP") // APP | TELEGRAM
+  title          String
+  description    String
   // A path only, validated by sanitizePagePath — never a URL.
-  pagePath      String?
-  status        String    @default("PENDING") // PENDING | IN_PROGRESS | FIXED | CLOSED
-  resolution    String?
-  resolvedAt    DateTime?
+  pagePath       String?
+  // Filled only by a report drawn on the screen. The browser sends all of
+  // them but `build`, so all of them but `build` are untrusted and pass
+  // through readDiagnostics, which drops what does not fit rather than
+  // refusing the report. `build` is the server's own commit, never the form's.
+  viewport       String? // "1061×1084 @2x"
+  theme          String? // light | dark
+  userAgent      String?
+  build          String?
+  marks          Int?
+  status         String    @default("PENDING") // PENDING | IN_PROGRESS | IN_REVIEW | FIXED | CLOSED
+  // What the sender wrote or said, verbatim — the description is the model's
+  // tidy version of it, and a triager settling "is that what they meant?"
+  // needs the words. Voice notes are stored as their transcript, never audio.
+  telegramAuthor String?
+  originalText   String?
+  resolution     String?
+  resolvedAt     DateTime?
   // YYYY-MM-DD, the changelog entry a fix shipped in.
-  changelogDate String?
-  triagedById   String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  changelogDate  String?
+  triagedById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  reporter  User?           @relation("BugReporter", fields: [reporterId], references: [id], onDelete: SetNull)
-  triagedBy User?           @relation("BugTriager", fields: [triagedById], references: [id], onDelete: SetNull)
+  reporter  User?             @relation("BugReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  triagedBy User?             @relation("BugTriager", fields: [triagedById], references: [id], onDelete: SetNull)
   image     BugReportImage?
+  messages  TelegramMessage[]
 
   @@index([reporterId, createdAt])
   @@index([status, createdAt])
+}
+
+// Every group message the bot has read, by id — kept or not. Two jobs:
+//
+//   - Telegram redelivers an update it thinks we missed, and the unique key is
+//     what makes a redelivery a no-op instead of a second report.
+//   - A reply in the group names the message it answers. When that message
+//     belongs to a report, the reply is folded into it rather than judged on
+//     its own, so "same on my phone" lands on the bug it is about.
+//
+// A message that was chatter keeps its ids and nothing else: its words are
+// never stored.
+model TelegramMessage {
+  id        String   @id @default(cuid())
+  chatId    String
+  messageId Int
+  reportId  String?
+  createdAt DateTime @default(now())
+
+  report BugReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@unique([chatId, messageId])
+  @@index([reportId])
 }
 
 // One screenshot per report, in its own table for the reason AvatarImage is:
@@ -1044,4 +1198,286 @@ model BugReportImage {
   mimeType String
 
   report BugReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+}
+
+// ── University applications ─────────────────────────────────────────────
+//
+// What a student is applying with, for the programs that set
+// `tracksAdmissions`. One record per STUDENT, not per enrollment: the
+// application is theirs, and it must survive the ordinary move from Pre-Full
+// Support into Full Support without being re-typed. Who may read it is still a
+// question about programs — see `applicationAccess` in lib/authz.ts.
+
+// The snapshot and the motivational essay. Created on the first save, so a
+// student nobody has touched has no row and reads as "not started".
+model StudentApplication {
+  id          String   @id @default(cuid())
+  studentId   String   @unique
+  sat         Int? // 400–1600
+  ielts       Float? // 0–9, in halves
+  school      String?
+  // Free text, as the student's school writes it: scales differ (4.0, 5,
+  // 100%) and a number column would have to pick one.
+  gpa         String?
+  // BRAINSTORMING | WRITING | FINALIZING | DONE, or null for not started
+  // (lib/applications.ts).
+  essayStage  String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  updatedBy User?          @relation("ApplicationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+// The shared list of universities, each with its supplemental essays' total
+// word count. Entered ONCE, by whoever first adds the university to a
+// student's list; after that it is picked, and the count comes with it. Only a
+// program admin corrects a count, and the correction reaches every student who
+// lists it — the count is the university's, not the student's.
+model University {
+  id                String   @id @default(cuid())
+  name              String
+  // `name` lowercased and trimmed, so "Princeton University" is entered once
+  // however it is typed.
+  nameKey           String   @unique
+  supplementalWords Int
+  createdById       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  createdBy User?               @relation("UniversityCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  students  StudentUniversity[]
+}
+
+// One university on one student's list, with its supplemental essay's stage.
+// At most one per student is `isPrimary`; only the primary carries a `round`.
+model StudentUniversity {
+  id           String   @id @default(cuid())
+  studentId    String
+  universityId String
+  isPrimary    Boolean  @default(false)
+  // ED | REA | EA, or null. Optional, and only on the primary.
+  round        String?
+  // The same four stages as the motivational essay, or null for not started.
+  essayStage   String?
+  createdAt    DateTime @default(now())
+
+  student    StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  university University     @relation(fields: [universityId], references: [id])
+
+  @@unique([studentId, universityId])
+}
+
+// A mentor's Google Calendar and Meet, connected so that a meeting they held
+// arrives in Freshlog already measured. Read-only on Google's side: nothing
+// here can create, change or join a meeting.
+//
+// Its own grant, not the sign-in's. Students sign in with Google too, and must
+// never be asked for their calendar; and a mentor who disconnects here is
+// still signed in.
+model GoogleConnection {
+  userId       String    @id
+  // The Google account that granted access. Always the mentor's own sign-in
+  // address — a connection made from any other account is refused.
+  googleEmail  String
+  // AES-256-GCM under GOOGLE_TOKEN_KEY (lib/google/tokens.ts). A database
+  // backup must not be a key to every mentor's calendar.
+  refreshToken String
+  scope        String
+  createdAt    DateTime  @default(now())
+  // The last run that reached Google for this mentor, successful or not.
+  lastSyncAt   DateTime?
+  // Set when Google refused the stored grant — revoked, password changed,
+  // expired. The sync skips the mentor and their Needs-you list says to
+  // reconnect, until they do.
+  failedAt     DateTime?
+  lastError    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// A meeting Google Meet saw, measured and waiting for the mentor to log it.
+//
+// NOT a Session. A draft charges nothing and moves no balance: the only way
+// time leaves an allocation is still the mentor saving the ordinary log form,
+// which this pre-fills. So every rule that form enforces — reach, the
+// program's allocation, an exchange's cap, the student's answer — still holds,
+// because nothing here goes around it.
+model MeetDraft {
+  id         String   @id @default(cuid())
+  mentorId   String
+  studentId  String
+  // Which program the meeting belongs to, when only one could be meant: the
+  // only program in which this mentor holds time with this student. Null when
+  // there are two or none, and the mentor picks — never a guess, because a
+  // guess here spends one program's hours out of another's grant.
+  programId  String?
+  // The Calendar event. With the mentor and the student, what makes a re-run
+  // of the sync find the same draft instead of writing a second.
+  eventId    String
+  // When the meeting was booked to start, and the day it falls on in the
+  // calendar's own time zone (UTC midnight, the way Session.date is stored).
+  startsAt   DateTime
+  date       DateTime
+  // Measured from Meet's join and leave times, not the booking: the time both
+  // the mentor and the student were in the call, rounded to five minutes.
+  minutes    Int
+  // ATTENDED | LATE | ABSENT, or null when Meet could not say which of the
+  // people in the call was the student.
+  attendance String?
+  createdAt  DateTime @default(now())
+
+  mentor  User           @relation("MeetDraftMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([mentorId, eventId, studentId])
+  @@index([mentorId, date])
+}
+
+/// A bearer token for the freshlog app. Only its SHA-256 is stored (src/lib/api/tokens.ts).
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  deviceName String?
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  devices    DeviceToken[]
+
+  @@index([userId])
+}
+
+/// A one-time code that hands a web sign-in to the app, bound to a PKCE challenge.
+model ApiSignInCode {
+  codeHash    String   @id
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge   String
+  redirectUri String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+// A partner school whose students rate our mentors and sessions through a public
+// link, /f/<slug>, without an account here. The partner is NOT a program and its
+// feedback is NOT a student's feedback in the AGENTS.md sense, so none of these
+// four tables carries a `programId` or touches the ledger.
+model FeedbackPartner {
+  id        String   @id @default(cuid())
+  slug      String   @unique // the deep link: /f/<slug>; lowercase a-z, 0-9, "-"
+  name      String // "Cana"
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  students PartnerStudent[]
+  staff    PartnerStaff[]
+  mentors  PartnerMentor[]
+  feedback PartnerFeedback[]
+}
+
+// An email allowed through a partner's form. Stored trimmed and lowercased.
+// Removing a row stops new feedback from that address; what it already wrote
+// stays, because PartnerFeedback copies the email rather than pointing here.
+model PartnerStudent {
+  id        String   @id @default(cuid())
+  partnerId String
+  email     String // stored trimmed and lowercased
+  createdAt DateTime @default(now())
+
+  partner FeedbackPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([partnerId, email])
+}
+
+// An email allowed into a partner's read-only staff view (/f/<slug>/staff):
+// the school's own coordinators, who read what their students said. A list of
+// its own, not a flag on PartnerStudent — being able to rate a mentor must
+// never be enough to read everybody's ratings.
+model PartnerStaff {
+  id        String   @id @default(cuid())
+  partnerId String
+  email     String // stored trimmed and lowercased
+  createdAt DateTime @default(now())
+
+  partner FeedbackPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([partnerId, email])
+}
+
+// The mentors a partner's students may rate: the ticked ones. Unticking removes
+// the mentor from the dropdown; their feedback stays and is still filterable.
+model PartnerMentor {
+  partnerId String
+  mentorId  String
+
+  partner FeedbackPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  mentor  User            @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+
+  @@id([partnerId, mentorId])
+}
+
+enum PartnerFeedbackKind {
+  MENTOR
+  SESSION
+}
+
+// One piece of feedback from a partner's student. MENTOR rates a mentor;
+// SESSION rates a numbered session and carries the student's name.
+model PartnerFeedback {
+  id            String              @id @default(cuid())
+  partnerId     String
+  kind          PartnerFeedbackKind
+  studentEmail  String // copied, not a FK: removing an email from the list keeps its feedback
+  mentorId      String? // MENTOR only
+  sessionNumber Int? // SESSION only, >= 1
+  name          String? // SESSION only, required there
+  rating        Int // 1-5
+  comment       String
+  createdAt     DateTime            @default(now())
+
+  partner FeedbackPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  mentor  User?           @relation("PartnerFeedbackMentor", fields: [mentorId], references: [id])
+
+  @@index([partnerId, createdAt])
+}
+
+/// A phone the app pushes to: its Expo push token, for the sign-in it came with.
+/// Ending that sign-in (signing out, a revoked or expired ApiToken deleted)
+/// ends its pushes, so a phone handed to somebody else stops hearing the last
+/// person's news. The sweeper also skips a sign-in that is revoked or expired.
+model DeviceToken {
+  id         String   @id @default(cuid())
+  /// "ExponentPushToken[…]", one row per phone and app install.
+  token      String   @unique
+  /// "ios" | "android"
+  platform   String
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiTokenId String
+  apiToken   ApiToken @relation(fields: [apiTokenId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@index([apiTokenId])
+}
+
+/// One category's Push switch. No row is the default, on: a person who
+/// installed the app and allowed notifications wants them. A table of its own
+/// rather than a column on NotificationPreference, whose writer deletes a row
+/// it finds at the email default and would take a Push setting with it.
+model PushPreference {
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// A NOTIFICATION_CATEGORY.
+  category String
+  on       Boolean
+
+  @@id([userId, category])
 }

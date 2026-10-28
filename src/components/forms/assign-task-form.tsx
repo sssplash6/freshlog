@@ -36,6 +36,7 @@ export function AssignTaskForm({
   paymentPrograms = [],
   bankPrograms = [],
   bankedPrograms = [],
+  banks = {},
   pastByProgram = {},
 }: {
   studentProfileId: string;
@@ -60,6 +61,8 @@ export function AssignTaskForm({
   bankPrograms?: readonly string[];
   /** The programs where this student already holds a bank: topped up, not created. */
   bankedPrograms?: readonly string[];
+  /** Per banked program: what the bank still has to give, and its use-by date. */
+  banks?: Record<string, { left: number; useBy: string }>;
   /** Per program: what the student was allocated and has logged before any bank. */
   pastByProgram?: Record<string, { allocated: number; logged: number }>;
 }) {
@@ -75,7 +78,16 @@ export function AssignTaskForm({
   // The bank is picked as the agenda, and takes the mentor, the note and the
   // money with it: it is one balance for every mentor, and nobody is asked what
   // was paid for it.
-  const isBank = agenda === TASK_BANK && bankPrograms.includes(programId);
+  //
+  // Once the student HOLDS a bank in this program, the form does one of two
+  // things (freshmanac, 13 October 2026): with no mentor it adds to the bank,
+  // and with one it gives that mentor a share OUT of the bank, which their
+  // meetings then draw. So the mentor stays on offer, the agenda's "Hour bank"
+  // does not, and the bank's top-up is what an empty mentor means.
+  const banked = bankedPrograms.includes(programId) && bankPrograms.includes(programId);
+  const bank = banked ? banks[programId] : undefined;
+  const sharing = banked && mentorId !== "";
+  const isBank = (banked && !sharing) || (agenda === TASK_BANK && bankPrograms.includes(programId));
   const showAmountPaid = !isBank && paymentPrograms.includes(programId);
   const openTasks = openTasksByMentor[`${programId}:${mentorId}`] ?? [];
 
@@ -89,8 +101,11 @@ export function AssignTaskForm({
       {programs.length === 1 && (
         <input type="hidden" name="programId" value={programs[0].value} />
       )}
+      {banked && !sharing && <input type="hidden" name="bank" value="1" />}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Hidden when empty — a banked student in one program has no program,
+          mentor or agenda to pick — so its margin goes with it. */}
+      <div className="mb-3 grid gap-3 empty:hidden sm:grid-cols-2 lg:grid-cols-3">
         {programs.length > 1 && (
           <div className="min-w-0">
             <span className={labelClass}>
@@ -107,7 +122,7 @@ export function AssignTaskForm({
             </div>
           </div>
         )}
-        {!isBank && (
+        {(banked || !isBank) && (
           <div className="min-w-0">
             <span className={labelClass}>Mentor</span>
             <div className="mt-1">
@@ -115,25 +130,32 @@ export function AssignTaskForm({
                 name="mentorId"
                 ariaLabel="Mentor"
                 options={mentors}
-                placeholder="No one yet — decide later"
+                placeholder={banked ? "None — add to the hour bank" : "No one yet — decide later"}
                 required={false}
                 onChange={setMentorId}
               />
             </div>
+            {bank && (
+              <p className="mt-1 text-xs text-muted-fg">
+                {formatDuration(Math.max(0, bank.left))} left in the hour bank to give
+              </p>
+            )}
           </div>
         )}
 
         {/* Remounted per mentor: their open tasks lead the list, and a task
             picked for one mentor must never be left selected under another's.
             The "" key is the unassigned pool's own open tasks. */}
-        <TaskPicker
-          key={`${programId}:${mentorId}`}
-          className="lg:col-span-2"
-          optional
-          openTasks={openTasks}
-          bankOption={bankPrograms.includes(programId)}
-          onPick={setAgenda}
-        />
+        {(!banked || sharing) && (
+          <TaskPicker
+            key={`${programId}:${mentorId}`}
+            className="lg:col-span-2"
+            optional
+            openTasks={openTasks}
+            bankOption={!banked && bankPrograms.includes(programId)}
+            onPick={setAgenda}
+          />
+        )}
 
       </div>
 
@@ -148,7 +170,7 @@ export function AssignTaskForm({
           student, and the submit button where it does not: a program with no
           money field had an empty cell under its deadline and its own action
           orphaned below the form. */}
-      <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_16rem]">
         {isBank ? (
           <BankChoice
             created={!bankedPrograms.includes(programId)}
@@ -193,7 +215,16 @@ export function AssignTaskForm({
               Use by<RequiredMark />
             </span>
             <div className="mt-1">
-              <DateField name="deadline" label="Use by" required />
+              {/* Remounted per choice: a share starts at the bank's own date,
+                  which it may not outlive. */}
+              <DateField
+                key={sharing ? "share" : "grant"}
+                name="deadline"
+                label="Use by"
+                required
+                defaultValue={sharing ? bank?.useBy : undefined}
+                max={sharing ? bank?.useBy : undefined}
+              />
             </div>
           </div>
 
@@ -222,7 +253,7 @@ export function AssignTaskForm({
           cell, an auto-width one under it — so the same form moved its button
           between programs. */}
       <div className="mt-3 flex justify-end">
-        <SubmitButton pendingText="Allocating…">Allocate time</SubmitButton>
+        <SubmitButton pendingText="Loading…">Allocate time</SubmitButton>
       </div>
       <SaveState state={save} />
     </form>
@@ -244,7 +275,8 @@ function BankChoice({
   if (!created || !past || (past.allocated === 0 && past.logged === 0)) {
     return (
       <p className="self-center text-sm text-muted-fg">
-        These minutes are added to their hour bank. Every meeting draws from it.
+        These minutes are added to their hour bank. To give a mentor part of the
+        bank instead, pick them above.
       </p>
     );
   }

@@ -1,17 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import type { AnalyticsRow } from "@/lib/analytics";
+import { kindOf, SESSION_KIND, type AnalyticsRow } from "@/lib/analytics";
 import {
   byDay,
   byMonth,
   change,
-  hoursByProgram,
+  drawnByProgram,
+  hoursByDay,
+  meetingsOf,
   niceAxis,
   rankBy,
   select,
   shortHours,
   totals,
   weeksOf,
+  windowBefore,
   yearsOf,
 } from "@/lib/analytics-math";
 
@@ -26,21 +29,32 @@ const ROWS: AnalyticsRow[] = [
 ];
 
 describe("totals", () => {
-  it("counts completed and extra as hours, and no-shows apart", () => {
+  it("counts completed, extra and missed as hours, each kept apart", () => {
     const t = totals(select(ROWS, { year: 2026 }));
     expect(t.completed).toBe(270);
     expect(t.extra).toBe(30);
-    expect(t.hours).toBe(300);
     expect(t.noShow).toBe(60);
+    expect(t.hours).toBe(360);
     expect(t.noShows).toBe(1);
     expect(t.sessions).toBe(4);
+    expect(meetingsOf(t)).toBe(5);
   });
 
-  it("counts a student or mentor only when somebody actually met", () => {
+  it("counts the student and mentor of a missed meeting", () => {
     const t = totals(select(ROWS, { year: 2026, program: 0 }));
-    // student 2 was a no-show, so they were not served
-    expect(t.students).toBe(2);
+    // student 2 missed, but the mentor held the time for them
+    expect(t.students).toBe(3);
     expect(t.mentors).toBe(2);
+  });
+
+  it("credits a mentor whose only meeting in the period was missed", () => {
+    const missedOnly = ROWS.filter((r) => r[3] === 20260211);
+    const ranked = rankBy(missedOnly, missedOnly, 1);
+    expect(ranked.map((r) => r.index)).toEqual([1]);
+    expect(ranked[0].hours).toBe(60);
+    expect(ranked[0].noShow).toBe(60);
+    expect(ranked[0].trend[1]).toBe(60);
+    expect(hoursByDay(ROWS).get(20260211)).toBe(60);
   });
 });
 
@@ -48,6 +62,17 @@ describe("select", () => {
   it("narrows by month, program and mentor together", () => {
     const rows = select(ROWS, { year: 2026, month: 0, program: 0, mentor: 0 });
     expect(rows).toHaveLength(2);
+  });
+
+  it("narrows to a window of days, both ends kept, across a new year", () => {
+    expect(select(ROWS, { from: 20250910, to: 20260105 })).toHaveLength(3);
+    expect(select(ROWS, { from: 20260106, to: 20260210, program: 0 })).toHaveLength(1);
+  });
+
+  it("compares a window with the same number of days just before it", () => {
+    expect(windowBefore(20260915, 20261014)).toEqual([20260816, 20260914]);
+    expect(windowBefore(20260101, 20260107)).toEqual([20251225, 20251231]);
+    expect(windowBefore(20260301, 20260301)).toEqual([20260228, 20260228]);
   });
 });
 
@@ -73,11 +98,12 @@ describe("rankBy", () => {
   });
 });
 
-describe("hoursByProgram", () => {
-  it("sums each program's delivered hours across every year, no-shows apart", () => {
-    // program 0: 60 + 30 extra + 90, the 60-minute no-show excluded
+describe("drawnByProgram", () => {
+  it("sums what each program's grant paid for, across every year", () => {
+    // program 0: 60 + 90 + the 60-minute missed meeting, which the ledger
+    // charged like any other; the 30 extra minutes charged nobody
     // program 1: 120 this year + 45 last year — the grant gauge is all-time
-    expect(hoursByProgram(ROWS, 2)).toEqual([180, 165]);
+    expect(drawnByProgram(ROWS, 2)).toEqual([210, 165]);
   });
 });
 
@@ -104,5 +130,15 @@ describe("helpers", () => {
     expect(shortHours(0)).toBe("0 min");
     expect(shortHours(1100)).toBe("18h");
     expect(niceAxis(7 * 60)).toEqual({ top: 8 * 60, step: 2 * 60 });
+  });
+});
+
+describe("kindOf", () => {
+  it("asks the plan first, as the ledger does", () => {
+    expect(kindOf({ withinPlan: true, attended: true })).toBe(SESSION_KIND.COMPLETED);
+    expect(kindOf({ withinPlan: true, attended: false })).toBe(SESSION_KIND.NO_SHOW);
+    // out of plan charges nobody, so it is extra whether or not they came
+    expect(kindOf({ withinPlan: false, attended: false })).toBe(SESSION_KIND.EXTRA);
+    expect(kindOf({ withinPlan: false, attended: true })).toBe(SESSION_KIND.EXTRA);
   });
 });

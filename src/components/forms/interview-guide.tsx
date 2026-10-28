@@ -20,20 +20,38 @@ import {
   INTERVIEW_RUBRIC,
   INTERVIEW_TURNS,
 } from "@/lib/interview-templates";
-import { NOTES_MAX } from "@/lib/peer-interviews";
+import {
+  NOTES_MAX,
+  answers as answersQuestions,
+  givesFeedback,
+  type InterviewPart,
+} from "@/lib/peer-interviews";
+
+/** What the question step says, by part: peers take turns, a mentor asks, a student answers. */
+const QUESTION_CAPTION: Record<InterviewPart, string> = {
+  peer: INTERVIEW_TURNS,
+  interviewer: "Ask the question, then listen. Note what to say in your feedback.",
+  interviewee: "Answer your mentor's question out loud.",
+};
 
 type Feedback = { summary: string; wentWell: string; toImprove: string };
 
 /**
  * One screen at a time, in the order the session is run: introductions, the
- * rubric, each question, then feedback. Each student moves at their own pace;
+ * rubric, each question, then feedback. Each side moves at their own pace;
  * the two coordinate by talking.
+ *
+ * With a mentor the sides differ (`part`): the mentor sees each question with
+ * no answer box and ends on the feedback, the student answers and ends on the
+ * last question.
  *
  * Everything typed is saved as the box loses focus and again on Next, so a
  * closed tab loses at most the box being typed in.
  */
 export function InterviewGuide({
   interviewId,
+  base,
+  part,
   partner,
   meetingUrl,
   questions,
@@ -42,6 +60,9 @@ export function InterviewGuide({
   canDictate,
 }: {
   interviewId: string;
+  /** This side's interview pages, where the guide hands back. */
+  base: string;
+  part: InterviewPart;
   partner: string;
   meetingUrl: string | null;
   questions: readonly string[];
@@ -50,7 +71,13 @@ export function InterviewGuide({
   canDictate: boolean;
 }) {
   const router = useRouter();
-  const steps = ["intro", "rubric", ...questions.map((_, i) => `q${i}`), "feedback"];
+  const steps = [
+    "intro",
+    "rubric",
+    ...questions.map((_, i) => `q${i}`),
+    ...(givesFeedback(part) ? ["feedback"] : []),
+  ];
+  const answering = answersQuestions(part);
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>(savedAnswers);
   const [feedback, setFeedback] = useState<Feedback>(savedFeedback);
@@ -92,6 +119,7 @@ export function InterviewGuide({
 
   function saveCurrent() {
     if (qIndex === null && current !== "feedback") return;
+    if (qIndex !== null && !answering) return;
     const key = current;
     const stepIndex = step;
     const value = qIndex !== null ? (answers[qIndex] ?? "") : JSON.stringify(feedback);
@@ -144,7 +172,7 @@ export function InterviewGuide({
       try {
         const result = await send(submitInterviewFeedback, feedback);
         if (result?.ok) {
-          router.push(`/student/interviews/${interviewId}`);
+          router.push(`${base}/${interviewId}`);
         } else {
           setSubmitError(result?.error ?? "Could not send. Try again.");
         }
@@ -186,35 +214,39 @@ export function InterviewGuide({
       )}
 
       {qIndex !== null && (
-        <Section title={`3. Interview practice · question ${qIndex + 1} of ${questions.length}`} caption={INTERVIEW_TURNS}>
+        <Section title={`3. Interview practice · question ${qIndex + 1} of ${questions.length}`} caption={QUESTION_CAPTION[part]}>
           <div className="space-y-3 px-4 py-2 sm:px-5">
             <p className="text-base font-semibold text-ink">{questions[qIndex]}</p>
-            <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="text-muted-fg">Your answer</span>
-              {canDictate && (
-                <DictateButton
-                  interviewId={interviewId}
-                  purpose="answer"
-                  onText={(text) =>
-                    setAnswers((was) => {
-                      const before = (was[qIndex] ?? "").trim();
-                      const combined = before ? `${before} ${text}` : text;
-                      // maxLength on the field only stops typing past it — a
-                      // dictated chunk appended in one go bypasses it.
-                      return { ...was, [qIndex]: combined.slice(0, NOTES_MAX) };
-                    })
-                  }
+            {answering && (
+              <>
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="text-muted-fg">Your answer</span>
+                  {canDictate && (
+                    <DictateButton
+                      interviewId={interviewId}
+                      purpose="answer"
+                      onText={(text) =>
+                        setAnswers((was) => {
+                          const before = (was[qIndex] ?? "").trim();
+                          const combined = before ? `${before} ${text}` : text;
+                          // maxLength on the field only stops typing past it — a
+                          // dictated chunk appended in one go bypasses it.
+                          return { ...was, [qIndex]: combined.slice(0, NOTES_MAX) };
+                        })
+                      }
+                    />
+                  )}
+                </div>
+                <GrowingField
+                  aria-label="Your answer"
+                  placeholder="Press Speak and answer out loud, or type"
+                  value={answers[qIndex] ?? ""}
+                  maxLength={NOTES_MAX}
+                  onChange={(e) => setAnswers((was) => ({ ...was, [qIndex]: e.target.value }))}
+                  onBlur={saveCurrent}
                 />
-              )}
-            </div>
-            <GrowingField
-              aria-label="Your answer"
-              placeholder="Press Speak and answer out loud, or type"
-              value={answers[qIndex] ?? ""}
-              maxLength={NOTES_MAX}
-              onChange={(e) => setAnswers((was) => ({ ...was, [qIndex]: e.target.value }))}
-              onBlur={saveCurrent}
-            />
+              </>
+            )}
           </div>
         </Section>
       )}
@@ -262,6 +294,17 @@ export function InterviewGuide({
               {submitPending ? "Sending…" : `Send feedback to ${partner}`}
             </Button>
           </div>
+        ) : step === steps.length - 1 ? (
+          // The student a mentor interviews ends here: the feedback is the
+          // mentor's to write.
+          <Button
+            onClick={() => {
+              saveCurrent();
+              router.push(`${base}/${interviewId}`);
+            }}
+          >
+            Finish
+          </Button>
         ) : (
           <Button onClick={() => go(step + 1)}>Next</Button>
         )}

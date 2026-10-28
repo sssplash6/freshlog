@@ -202,6 +202,7 @@ export function Section({
   count,
   caption,
   action,
+  bare = false,
   children,
   className,
   ...props
@@ -211,6 +212,11 @@ export function Section({
   count?: number;
   caption?: React.ReactNode;
   action?: React.ReactNode;
+  /**
+   * The heading without the card, for a group whose children are cards of
+   * their own — a grid of them inside one more surface would be a box in a box.
+   */
+  bare?: boolean;
 }) {
   return (
     <section className="min-w-0" {...props}>
@@ -249,7 +255,7 @@ export function Section({
       </div>
       {/* The same edge a framed `Table` has, so a table reads the same
           whether it sits in a section or on the page. */}
-      <div className={cn("overflow-clip rounded-xl bg-surface shadow-sm", className)}>
+      <div className={cn(!bare && "overflow-clip rounded-xl bg-surface shadow-sm", className)}>
         {children}
       </div>
     </section>
