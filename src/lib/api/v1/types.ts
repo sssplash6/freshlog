@@ -540,7 +540,23 @@ export type ProgramRow = {
   forfeited: number;
   /** Negative when its students are overdrawn. */
   remaining: number;
+  /** `remaining` and `forfeited` as the Programs page says them, rounded ("130+ hours"); `forfeited` null at 0. */
+  rough: { remaining: string; forfeited: string | null };
   can: { write: boolean };
+};
+
+/** GET /api/v1/mentor/programs: a mentor's programs, as the website's /programs lists them for a mentor. */
+export type MentorProgramRow = {
+  id: string;
+  name: string;
+  colorIndex: number;
+  /** The cohort their first pairing there names, if any. */
+  cohort: string | null;
+  /** Their students there, each once. */
+  students: number;
+  completed: number;
+  /** Negative when overdrawn; an expired grant counts only what it is over. */
+  remaining: number;
 };
 
 /** GET /api/v1/admin/home: what /admin shows. 404 to a reader with no program to read. */

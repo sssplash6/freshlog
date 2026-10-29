@@ -95,7 +95,11 @@ export function mentorProgramRows(
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function MentorPrograms({ mentorId }: { mentorId: string }) {
+/**
+ * A mentor's programs, read once for this page and the freshlog app
+ * (`/api/v1/mentor/programs`): their pairings and their caseload, as rows.
+ */
+export async function mentorProgramsOf(mentorId: string): Promise<MentorProgramRow[]> {
   const [pairings, caseload] = await Promise.all([
     prisma.mentorAssignment.findMany({
       where: { mentorId },
@@ -104,7 +108,11 @@ export async function MentorPrograms({ mentorId }: { mentorId: string }) {
     }),
     mentorCaseload(mentorId),
   ]);
-  const shown = mentorProgramRows(pairings, caseload.students);
+  return mentorProgramRows(pairings, caseload.students);
+}
+
+export async function MentorPrograms({ mentorId }: { mentorId: string }) {
+  const shown = await mentorProgramsOf(mentorId);
 
   const columns: Column[] = [
     { label: "Program" },

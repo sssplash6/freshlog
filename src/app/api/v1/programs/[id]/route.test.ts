@@ -165,7 +165,10 @@ describe("GET and POST /api/v1/programs, GET programs/options", () => {
   it("lists the reader's programs, and is a 404 to a reader with none", async () => {
     const { p, nodira } = await setUp();
     actor.value = { id: nodira.id };
-    expect((await (await list.GET()).json()).map((row: { program: { id: string } }) => row.program.id)).toEqual([p.id]);
+    const rows = await (await list.GET()).json();
+    expect(rows.map((row: { program: { id: string } }) => row.program.id)).toEqual([p.id]);
+    // The Programs page's own rounded words, beside the exact minutes.
+    expect(rows[0].rough).toEqual({ remaining: expect.any(String), forfeited: null });
     actor.value = { id: (await mentor("Just A Mentor")).id };
     expect((await list.GET()).status).toBe(404);
   });

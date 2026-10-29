@@ -1,5 +1,7 @@
 import "server-only";
 
+import { formatRough } from "@/lib/format";
+
 import type { Reader } from "@/lib/api/v1/sessions";
 import { toTodoRows } from "@/lib/api/v1/todo";
 import type { AdminHome, ProgramRow, TodoRow } from "@/lib/api/v1/types";
@@ -79,6 +81,8 @@ export function programRows(reader: Reader, school: School): ProgramRow[] {
       used: totals.completed + totals.missed,
       forfeited: totals.forfeited,
       remaining: totals.remaining,
+      // The Programs page's own words for both, rounded as it rounds them (`formatRough`).
+      rough: { remaining: formatRough(totals.remaining), forfeited: totals.forfeited > 0 ? formatRough(totals.forfeited) : null },
       can: { write: scopeCovers(reader.write, p.id) },
     };
   });
