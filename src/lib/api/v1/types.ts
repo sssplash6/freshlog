@@ -382,8 +382,12 @@ export type StudentGrant = {
 export type StudentHome = {
   /** Minutes over every grant: given, completed and missed (together used), left, lost to expiry, and given on top of the plan. */
   hours: { allotted: number; completed: number; missed: number; used: number; remaining: number; forfeited: number; extra: number };
-  /** The soonest live grant to expire, with only the minutes that expire then. */
-  expiring: { minutes: number; day: string } | null;
+  /**
+   * The soonest live grant to expire, with only the minutes that expire then.
+   * `soon` and `daysLeft` are the page's own use-by line (`DeadlineText` in the
+   * student's window): warn-coloured, with today, tomorrow or "in N days".
+   */
+  expiring: { minutes: number; day: string; daysLeft: number; soon: boolean } | null;
   grants: StudentGrant[];
   /**
    * freshform's "things to check" in its order, as the page draws it

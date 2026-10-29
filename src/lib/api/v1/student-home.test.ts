@@ -144,7 +144,7 @@ describe("studentHomeFor: the figures", () => {
     // 800 minutes are left in all, but only the 200 behind the tenth day expire on it.
     const home = await homeOf(st);
     expect(home.hours.remaining).toBe(800);
-    expect(home.expiring).toEqual({ minutes: 200, day: toDateInputValue(dayIn(10)) });
+    expect(home.expiring).toEqual({ minutes: 200, day: toDateInputValue(dayIn(10)), daysLeft: 10, soon: true });
   });
 
   it("answers a student with no time yet with nothing to show for it", async () => {

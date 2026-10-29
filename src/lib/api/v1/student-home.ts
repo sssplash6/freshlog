@@ -14,7 +14,7 @@ import { interviewsForLog } from "@/lib/student-interviews";
 import { allocationSummary, type AllocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { assignmentsForStudentWhere, studentLedger, type LedgerSession } from "@/lib/queries";
-import { sessionStatuses, type ViewerContext } from "@/lib/status";
+import { EXPIRY_WINDOW_DAYS, sessionStatuses, type ViewerContext } from "@/lib/status";
 import { daysAway, programToday } from "@/lib/when";
 import type { User } from "@/generated/prisma/client";
 
@@ -93,7 +93,13 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
       extra: hours.extra,
     },
     expiring: hours.expiring
-      ? { minutes: hours.expiring.minutes, day: toDateInputValue(hours.expiring.date) }
+      ? {
+          minutes: hours.expiring.minutes,
+          day: toDateInputValue(hours.expiring.date),
+          // The page's DeadlineText for it: soon within the student's window, said as today, tomorrow or in N days.
+          daysLeft: daysAway(hours.expiring.date, now),
+          soon: hours.expiring.date.getTime() >= now.getTime() && daysAway(hours.expiring.date, now) <= EXPIRY_WINDOW_DAYS.student,
+        }
       : null,
     grants: hours.perMentor.map((grant) => toGrant(grant, bookingUrlOf, now)),
     todo,
