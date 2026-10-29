@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { admin, grant, mentor, pairing, platformAdmin, program } from "@/test/db";
+import { admin, allocation, grant, mentor, pairing, platformAdmin, program, student } from "@/test/db";
 
 /** Editing a mentor, as the website's Edit fold on their page does, and their card for a colleague. */
 const actor = vi.hoisted(() => ({ value: null as { id: string } | null }));
@@ -83,5 +83,23 @@ describe("GET /api/v1/mentors/:id/card", () => {
     expect(body.pairings).toHaveLength(1);
     actor.value = { id: (await mentor("Stranger")).id };
     expect((await card(new Request("http://test"), ctx(akmal.id))).status).toBe(404);
+  });
+});
+
+describe("GET /api/v1/mentors/:id/card, to a student", () => {
+  it("gives the pairings that reach them, Book only where they hold time to book on, else the email", async () => {
+    const ga = await program("Global Admissions");
+    const akmal = await mentor("Akmal Karimov");
+    await pairing({ mentorId: akmal.id, programId: ga.id });
+    await prisma.mentorAssignment.updateMany({ where: { mentorId: akmal.id }, data: { calendlyUrl: "https://cal.test/akmal" } });
+    const aziz = await student({ programId: ga.id, name: "Aziz Tursunov" });
+    actor.value = { id: aziz.userId };
+    // Paired in their program and holding none of their time: the email, as the website's card.
+    expect((await (await card(new Request("http://test"), ctx(akmal.id))).json()).pairings[0]).toMatchObject({ bookingUrl: null });
+    await allocation({ studentId: aziz.id, mentorId: akmal.id, minutes: 120 });
+    expect((await (await card(new Request("http://test"), ctx(akmal.id))).json()).pairings[0]).toMatchObject({ bookingUrl: "https://cal.test/akmal" });
+    // A student nobody approved yet has no card.
+    await prisma.user.update({ where: { id: aziz.userId }, data: { status: "PENDING" } });
+    expect((await card(new Request("http://test"), ctx(akmal.id))).status).toBe(403);
   });
 });

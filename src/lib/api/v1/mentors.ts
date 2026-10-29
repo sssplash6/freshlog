@@ -8,8 +8,9 @@ import type { MentorBatchRegistration, MentorCard, MentorEdit, MentorEditRequest
 import { programOptionsFor } from "@/lib/api/v1/programs";
 import { nameOf } from "@/lib/api/v1/sessions";
 import { canAdministerMentor, scopeCovers } from "@/lib/authz";
-import { canActAsMentor, ROLES } from "@/lib/constants";
-import { mentorAssignments } from "@/lib/queries";
+import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
+import { allocationSummary, canBookOn } from "@/lib/hours";
+import { assignmentsForStudentWhere, mentorAssignments } from "@/lib/queries";
 import type { User } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -142,17 +143,45 @@ export async function mentorEditForm(reader: Reader, id: string, body: Record<st
 }
 
 /**
- * Another mentor's card, as the website's `/mentors/[id]` gives a mentor who
- * shares a program with them and doesn't run it: their pairings in the
- * programs the reader works in, each with Book (their booking link) or their
- * email. Null when they share none, and for no such mentor alike.
+ * A mentor's card, as the website's `/mentors/[id]` gives somebody who doesn't
+ * manage them (`MentorCard` on the page):
+ *
+ * - **a student**, whose account is active: the mentor's pairings that reach
+ *   them (`assignmentsForStudentWhere`), each with Book only where the student
+ *   still holds time with them there they can book on (`canBookOn`), else the
+ *   mentor's email;
+ * - **another mentor**: the mentor's pairings in the programs the reader works
+ *   in, each with Book or the email.
+ *
+ * Null when none reaches them, and for no such mentor alike.
  */
 export async function mentorCardFor(viewer: User, id: string): Promise<MentorCard | null> {
   const mentor = await prisma.user.findUnique({ where: { id } });
-  if (!mentor || !canActAsMentor(mentor) || viewer.id === mentor.id || !canActAsMentor(viewer)) return null;
-  const mine = await prisma.mentorAssignment.findMany({ where: { mentorId: viewer.id }, select: { programId: true } });
-  const shared = new Set(mine.map((a) => a.programId));
-  const visible = (await mentorAssignments(mentor.id)).filter((a) => shared.has(a.programId));
+  if (!mentor || !canActAsMentor(mentor) || viewer.id === mentor.id) return null;
+  let visible: Awaited<ReturnType<typeof mentorAssignments>>;
+  let bookableIn: Set<string> | null = null;
+  if (viewer.role === ROLES.STUDENT) {
+    const profile = await prisma.studentProfile.findUnique({
+      where: { userId: viewer.id },
+      include: { enrollments: { select: { programId: true, levelId: true, cohortId: true } } },
+    });
+    if (!profile || viewer.status !== USER_STATUS.ACTIVE) return null;
+    const [pairings, hours] = await Promise.all([
+      prisma.mentorAssignment.findMany({
+        where: { mentorId: mentor.id, ...assignmentsForStudentWhere(profile) },
+        include: { program: true, cohort: true, level: true },
+        orderBy: { createdAt: "asc" },
+      }),
+      allocationSummary(profile.id),
+    ]);
+    visible = pairings;
+    bookableIn = new Set(hours.perMentor.flatMap((h) => (h.mentor?.id === mentor.id && canBookOn(h) ? [h.program.id] : [])));
+  } else {
+    if (!canActAsMentor(viewer)) return null;
+    const mine = await prisma.mentorAssignment.findMany({ where: { mentorId: viewer.id }, select: { programId: true } });
+    const shared = new Set(mine.map((a) => a.programId));
+    visible = (await mentorAssignments(mentor.id)).filter((a) => shared.has(a.programId));
+  }
   if (visible.length === 0) return null;
   return {
     mentor: { id: mentor.id, name: nameOf(mentor), email: mentor.email },
@@ -160,7 +189,7 @@ export async function mentorCardFor(viewer: User, id: string): Promise<MentorCar
       id: a.id,
       program: { id: a.program.id, name: a.program.name, colorIndex: a.program.colorIndex },
       label: [a.program.name, a.level?.name, a.cohort?.name].filter(Boolean).join(" / "),
-      bookingUrl: a.calendlyUrl ?? null,
+      bookingUrl: a.calendlyUrl && (!bookableIn || bookableIn.has(a.programId)) ? a.calendlyUrl : null,
     })),
   };
 }

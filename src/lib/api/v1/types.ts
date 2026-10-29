@@ -1041,10 +1041,11 @@ export type MentorEdit = {
  */
 export type MentorEditRequest = { name?: string; email?: string; targets?: MentorRegistration["targets"] };
 /**
- * GET /api/v1/mentors/:id/card: another mentor, as the website's mentor page
- * shows them to a mentor who shares a program with them: their pairings in the
- * reader's programs, each with Book (`bookingUrl`) or else their email. A 404
- * when they share none.
+ * GET /api/v1/mentors/:id/card: a mentor, as the website's mentor page shows
+ * them to somebody who doesn't manage them. To a student: the pairings that
+ * reach them, with Book (`bookingUrl`) only where they still hold time to book
+ * on there, else the email. To another mentor: the pairings in the programs
+ * they share, with Book or the email. A 404 when none reaches the reader.
  */
 export type MentorCard = {
   mentor: PersonRef & { email: string };
