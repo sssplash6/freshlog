@@ -5,12 +5,10 @@ import { BookInterviewForm } from "@/components/forms/interview-forms";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
 import { studiesIn } from "@/lib/enrollments";
-import { mayBook } from "@/lib/interview-partners";
 import type { InterviewViewer } from "@/lib/interview-viewer";
 import { INTERVIEW_TEMPLATES } from "@/lib/interview-templates";
 import { formatSlotDay, formatSlotSpan } from "@/lib/peer-interviews";
-import { prisma } from "@/lib/prisma";
-import { programWallClock } from "@/lib/when";
+import { interviewPersonData } from "@/lib/screens/interviews";
 
 /**
  * Somebody to practise with, as the reader sees them: their name, their own
@@ -23,40 +21,13 @@ import { programWallClock } from "@/lib/when";
  * both answer 404, so an id cannot be used to learn who exists.
  */
 export async function InterviewPerson({ viewer, id }: { viewer: InterviewViewer; id: string }) {
-  const { user, as, base, now } = viewer;
+  const { user, as, base } = viewer;
   if (id === user.id) redirect(base);
 
-  const person = await prisma.user.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      name: true,
-      role: true,
-      status: true,
-      isMentor: true,
-      avatarUpdatedAt: true,
-      studentProfile: {
-        select: {
-          enrollments: {
-            select: { programId: true, exchangeId: true, program: { select: { name: true } } },
-          },
-        },
-      },
-      interviewSlots: {
-        where: { startsAt: { gt: programWallClock(now) }, interview: null },
-        select: { id: true, asMentor: true, startsAt: true, minutes: true },
-        orderBy: { startsAt: "asc" },
-      },
-    },
-  });
-  if (!person?.name?.trim()) notFound();
-
-  // Each kind of time asked once: a student-who-mentors offers both.
-  const [asStudent, asMentor] = await Promise.all([
-    mayBook(user, as, { asMentor: false, user: person }),
-    mayBook(user, as, { asMentor: true, user: person }),
-  ]);
-  if (!asStudent && !asMentor) notFound();
+  const found = await interviewPersonData(viewer, id);
+  if (!found) notFound();
+  const { person, asStudent, asMentor } = found;
+  if (!person.name) notFound();
 
   const name = person.name;
   const first = name.split(" ")[0] || name;

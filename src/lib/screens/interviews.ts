@@ -1,6 +1,6 @@
 import { ROLES, USER_STATUS } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/format";
-import { mentorsOfStudent, studentsOfMentor } from "@/lib/interview-partners";
+import { mayBook, mentorsOfStudent, studentsOfMentor } from "@/lib/interview-partners";
 import type { InterviewViewer } from "@/lib/interview-viewer";
 import { MAX_DAYS_AHEAD } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
@@ -125,3 +125,45 @@ function partnerOf(row: {
   };
 }
 
+/**
+ * Somebody to practise with, as `InterviewPerson` reads them (moved unchanged
+ * from src/components/interviews/interview-person.tsx): the person, and
+ * whether the reader may book their student times and their mentor times.
+ * Null for "may not" and "no such person" alike, which the page answers 404.
+ */
+export async function interviewPersonData(viewer: InterviewViewer, id: string) {
+  const { user, as, now } = viewer;
+  const person = await prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      role: true,
+      status: true,
+      isMentor: true,
+      avatarUpdatedAt: true,
+      studentProfile: {
+        select: {
+          enrollments: {
+            select: { programId: true, exchangeId: true, program: { select: { name: true } } },
+          },
+        },
+      },
+      interviewSlots: {
+        where: { startsAt: { gt: programWallClock(now) }, interview: null },
+        select: { id: true, asMentor: true, startsAt: true, minutes: true },
+        orderBy: { startsAt: "asc" },
+      },
+    },
+  });
+  if (!person?.name?.trim()) return null;
+
+  // Each kind of time asked once: a student-who-mentors offers both.
+  const [asStudent, asMentor] = await Promise.all([
+    mayBook(user, as, { asMentor: false, user: person }),
+    mayBook(user, as, { asMentor: true, user: person }),
+  ]);
+  if (!asStudent && !asMentor) return null;
+
+  return { person, asStudent, asMentor };
+}

@@ -56,6 +56,8 @@ async function main() {
   const programs = Object.fromEntries((await prisma.program.findMany()).map((p) => [p.name, p.id]));
   const student = await prisma.studentProfile.findFirstOrThrow({ where: { user: { email: "jasur@student.example.com" } } });
   const mentor = await prisma.user.findUniqueOrThrow({ where: { email: "dilnoza@freshman.academy" } });
+  // Whose people pages to read: a classmate, a mentor, and a student with no profile if there is one.
+  const people = await prisma.user.findMany({ where: { email: { in: ["jasur@student.example.com", "dilnoza@freshman.academy", "madina@student.example.com"] } }, orderBy: { email: "asc" } });
   const pages = [
     "/mentor",
     "/admin",
@@ -85,6 +87,8 @@ async function main() {
     "/classes?month=2026-11",
     "/student/interviews",
     "/mentor/interviews",
+    ...people.map((u) => `/student/interviews/people/${u.id}`),
+    ...people.map((u) => `/mentor/interviews/people/${u.id}`),
   ].filter((p) => !filter || p.includes(filter));
 
   mkdirSync(out, { recursive: true });
