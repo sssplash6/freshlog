@@ -6,13 +6,9 @@ import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
-import { ROLES, USER_STATUS } from "@/lib/constants";
-import { toDateInputValue } from "@/lib/format";
-import { mentorsOfStudent, studentsOfMentor } from "@/lib/interview-partners";
 import type { InterviewViewer } from "@/lib/interview-viewer";
 import { templateName } from "@/lib/interview-templates";
 import {
-  MAX_DAYS_AHEAD,
   PHASE_STATUS,
   formatSlotDay,
   formatSlotSpan,
@@ -20,19 +16,9 @@ import {
   interviewPhase,
   sideOf,
 } from "@/lib/peer-interviews";
-import { prisma } from "@/lib/prisma";
+import { interviewsHomeData, type Partner } from "@/lib/screens/interviews";
 import { status } from "@/lib/status";
-import { programToday, programWallClock } from "@/lib/when";
 
-const DAY = 24 * 60 * 60 * 1000;
-
-type Partner = {
-  id: string;
-  name: string | null;
-  avatarUpdatedAt: Date | null;
-  programs: string[];
-  open: number;
-};
 
 /**
  * Practising interviews: the ones booked, the times this person offers, and
@@ -49,54 +35,9 @@ type Partner = {
 export async function InterviewsHome({ viewer }: { viewer: InterviewViewer }) {
   const { user, as, base, now } = viewer;
   const context = { audience: as, userId: user.id, now } as const;
-  const wallNow = programWallClock(now);
+  const { mySlots, open, completed, named, offering, quiet, mentorsOffering, today, tomorrow, lastDay } = await interviewsHomeData(viewer);
 
-  const [interviews, mySlots, partners, mentors] = await Promise.all([
-    prisma.peerInterview.findMany({
-      where: { OR: [{ hostId: user.id }, { guestId: user.id }] },
-      select: {
-        id: true,
-        hostId: true,
-        guestId: true,
-        template: true,
-        completedAt: true,
-        absentId: true,
-        slot: { select: { startsAt: true, minutes: true } },
-        host: { select: { id: true, name: true, avatarUpdatedAt: true } },
-        guest: { select: { id: true, name: true, avatarUpdatedAt: true } },
-      },
-      orderBy: { slot: { startsAt: "asc" } },
-    }),
-    prisma.interviewSlot.findMany({
-      where: { userId: user.id, asMentor: as === "mentor", startsAt: { gt: wallNow } },
-      select: {
-        id: true,
-        startsAt: true,
-        minutes: true,
-        interview: { select: { id: true, guest: { select: { name: true } } } },
-      },
-      orderBy: { startsAt: "asc" },
-    }),
-    as === "mentor" ? myStudents(user.id, wallNow) : classmates(user.id, wallNow),
-    as === "student" ? mentorsOfStudent(user.id, wallNow) : Promise.resolve([]),
-  ]);
-
-  const open = interviews.filter((i) => !i.completedAt && !i.absentId);
-  const completed = interviews.filter((i) => i.completedAt || i.absentId).reverse();
-
-  const named = partners.filter((p) => p.name?.trim());
-  const byName = (a: Partner, b: Partner) => (a.name ?? "").localeCompare(b.name ?? "");
-  const offering = named.filter((p) => p.open > 0).sort(byName);
-  const quiet = named.filter((p) => p.open === 0).sort(byName);
-  const mentorsOffering: Partner[] = mentors
-    .filter((m) => m.interviewSlots.length > 0)
-    .map((m) => ({ ...m, programs: [], open: m.interviewSlots.length }));
-
-  const today = programToday(now);
-  const tomorrow = toDateInputValue(new Date(wallNow.getTime() + DAY));
-  const lastDay = toDateInputValue(new Date(wallNow.getTime() + MAX_DAYS_AHEAD * DAY));
-
-  const row = (i: (typeof interviews)[number]) => {
+  const row = (i: (typeof open)[number]) => {
     const other = sideOf(i, user.id) === "host" ? i.guest : i.host;
     // "Booked" is the ordinary state of a row under "Coming up", and "Done" is
     // the heading of the list a finished one sits in: only an interview that
@@ -243,53 +184,6 @@ export async function InterviewsHome({ viewer }: { viewer: InterviewViewer }) {
       )}
     </div>
   );
-}
-
-/** Every other approved student, with their own programs and open student times. */
-async function classmates(userId: string, wallNow: Date): Promise<Partner[]> {
-  const rows = await prisma.user.findMany({
-    where: {
-      id: { not: userId },
-      role: ROLES.STUDENT,
-      status: USER_STATUS.ACTIVE,
-      name: { not: null },
-    },
-    select: {
-      id: true,
-      name: true,
-      avatarUpdatedAt: true,
-      studentProfile: {
-        select: {
-          enrollments: { where: { exchangeId: null }, select: { program: { select: { name: true } } } },
-        },
-      },
-      interviewSlots: {
-        where: { asMentor: false, startsAt: { gt: wallNow }, interview: null },
-        select: { id: true },
-      },
-    },
-  });
-  return rows.map(partnerOf);
-}
-
-async function myStudents(mentorId: string, wallNow: Date): Promise<Partner[]> {
-  return (await studentsOfMentor(mentorId, wallNow)).map(partnerOf);
-}
-
-function partnerOf(row: {
-  id: string;
-  name: string | null;
-  avatarUpdatedAt: Date | null;
-  studentProfile: { enrollments: { program: { name: string } }[] } | null;
-  interviewSlots: unknown[];
-}): Partner {
-  return {
-    id: row.id,
-    name: row.name,
-    avatarUpdatedAt: row.avatarUpdatedAt,
-    programs: row.studentProfile?.enrollments.map((e) => e.program.name) ?? [],
-    open: row.interviewSlots.length,
-  };
 }
 
 /** Somebody to book, with their programs: the list runs across every program. */
