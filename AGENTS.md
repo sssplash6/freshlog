@@ -142,3 +142,36 @@ tooling — add nothing.
 - One short paragraph or bullet per change, written for the student, mentor or
   admin who will read it: what they can now do, or what no longer goes wrong.
   No file names, no function names, no commit-message prose.
+
+## Pages the app mirrors
+
+The freshlog app shows these pages from `/api/v1`, and reads them through the
+same code the page does, kept in `src/lib/screens`:
+
+| Page | Its data |
+|---|---|
+| `/student` | `screens/student-home.ts` |
+| `/mentor` | `screens/mentor-home.ts` |
+| `/students/[id]`, its allocate page | `screens/student-record.ts`, `screens/program-allocate.ts` |
+| `/programs/[id]` | `screens/program.ts` |
+| `/mentors/[id]` | `screens/mentor-record.ts` |
+| `/feedback` | `screens/feedback.ts` |
+| `/classes` | `screens/classes.ts` |
+| `/changelog` | `screens/changelog.ts` |
+| `/student/interviews`, `/mentor/interviews`, their people pages | `screens/interviews.ts` |
+| `/analytics` | `lib/analytics-view.ts` and `lib/analytics-math.ts`, which the app copies whole |
+
+So a change to what one of these pages shows is made in its `screens` module,
+not in the page, and the app's answer changes with it. Then:
+
+- Run its route's tests under `src/app/api/v1`; they pin what the app reads.
+- A move of a page's data into `src/lib/screens` must render the same: take
+  `npx tsx scripts/parity/pages.ts <dir>` before and after against a local
+  `DEV_LOGIN=1 next dev -p 3101`, and diff the two directories.
+- A change to a rule the app works out itself (Tashkent's day, the window a
+  session is asked about in, a task's due and overdue) regenerates the app's
+  answer sheets: `npx tsx scripts/parity/golden.ts <app>/src/__tests__/golden`.
+- A change to `src/lib/api/v1/types.ts`, `roster-import.ts`, `format.ts`,
+  `calendar.ts`, `analytics-math.ts` or `analytics-view.ts` is copied into the
+  app with its `npm run sync-contract`, whose pre-push check refuses a push
+  while its copies differ from this repo's `origin/main`.
