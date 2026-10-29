@@ -212,7 +212,25 @@ describe("a plan item's mentor, an admin's", () => {
     expect((await stored(a.id)).mentorId).toBeNull();
   });
 
-  it("refuses a mentor not paired in the item's program on its field", async () => {
+  it("offers an admin every mentor in the programs they run, as the student page's picker, and takes one from another of them", async () => {
+    const { p, m, a } = await setUp();
+    const imkon = await program("Imkon");
+    const sardor = await mentor("Sardor Aliev");
+    await pairing({ mentorId: sardor.id, programId: imkon.id });
+    const boss = await admin("Program Admin");
+    await grant({ userId: boss.id, programId: p.id });
+    await grant({ userId: boss.id, programId: imkon.id });
+    actor.value = { id: boss.id };
+    const body = await (await get(a.id)).json();
+    expect(body.mentorChoices.map((x: { name: string }) => x.name).sort()).toEqual(["Akmal Karimov", "Sardor Aliev"]);
+    expect((await patch(a.id, { mentor: sardor.id })).status).toBe(200);
+    expect((await stored(a.id)).mentorId).toBe(sardor.id);
+    // The item's own mentor is offered no choices.
+    actor.value = { id: m.id };
+    expect((await (await get(a.id)).json()).mentorChoices).toEqual([]);
+  });
+
+  it("refuses a mentor in none of the admin's programs on its field", async () => {
     const { p, m, a } = await setUp();
     const stranger = await mentor("Stranger");
     const boss = await admin("Program Admin");

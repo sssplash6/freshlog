@@ -2,11 +2,11 @@ import { deleteAssignment, updateAssignment } from "@/lib/actions/assignments";
 import { bodyOf } from "@/lib/api/v1/body";
 import { planItemEditForm, planItemEditOf } from "@/lib/api/v1/plan-forms";
 import { fromAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
-import { readerFor } from "@/lib/api/v1/sessions";
+import { nameOf, readerFor } from "@/lib/api/v1/sessions";
 import { planItemFor, storedPlanItem } from "@/lib/api/v1/work";
-import { scopeCovers } from "@/lib/authz";
+import { scopeCovers, scopeProgramFilter } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
-import { programTeam } from "@/lib/mentor-tasks";
+import { mentorsIn } from "@/lib/screens/student-record";
 import { programToday } from "@/lib/when";
 
 const NOT_YOURS = "That plan item is not yours to change.";
@@ -28,9 +28,18 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (!user) return signInAgain();
   if (user.status !== "ACTIVE") return inactive();
   const { id } = await params;
-  const item = await planItemFor(await readerFor(user), id);
+  const reader = await readerFor(user);
+  const item = await planItemFor(reader, id);
   if (!item) return refused("Not found.", 404);
-  return ok({ item, today: programToday() });
+  return ok({ item, mentorChoices: item.can.delete ? await mentorChoicesFor(reader) : [], today: programToday() });
+}
+
+/**
+ * Whom an admin may hand a plan item to: the student page's picker, every
+ * mentor in the programs they run (`mentorsIn`), as the website's offers.
+ */
+async function mentorChoicesFor(reader: Awaited<ReturnType<typeof readerFor>>) {
+  return (await mentorsIn(scopeProgramFilter(reader.read))).map((m) => ({ id: m.id, name: nameOf(m) }));
 }
 
 /**
@@ -44,8 +53,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
  *
  * `mentor` hands the item to somebody else, which the action tells both of. It
  * is an admin's of the item's program: anyone else who names one gets a 403 in
- * `NOT_YOURS`. The mentor must be paired in the item's program, which the
- * action does not ask, so the route does; null takes it off everybody.
+ * `NOT_YOURS`. The mentor must be one the website's picker offers (a mentor in
+ * a program the admin runs), which the action does not ask, so the route does;
+ * null takes it off everybody.
  *
  * The item is read first, as GET reads it: one the person may not see is
  * answered like one that was never made, whatever the body says. One they may
@@ -71,8 +81,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (asked.edit.mentor !== undefined) {
     const reader = await readerFor(user);
     if (!scopeCovers(reader.write, item.program.id)) return refused(NOT_YOURS, 403);
-    const team = await programTeam(item.program.id);
-    if (asked.edit.mentor !== null && !team.some((m) => m.id === asked.edit.mentor)) {
+    const choices = await mentorChoicesFor(reader);
+    if (asked.edit.mentor !== null && !choices.some((m) => m.id === asked.edit.mentor)) {
       return refused("That isn't a valid value.", 400, { field: "mentor" });
     }
   }

@@ -545,14 +545,24 @@ export type ApiPlanItem = {
 /** GET /api/v1/tasks/:id. `today` is the earliest due day a new value may take. */
 export type TaskDetail = { task: ApiTask; today: string };
 /** GET /api/v1/plan-items/:id. */
-export type PlanItemDetail = { item: ApiPlanItem; today: string };
+/**
+ * `mentorChoices`: whom an admin of the item's program may hand it to, the
+ * student page's picker (every mentor in the programs they run); empty for
+ * anyone else.
+ */
+export type PlanItemDetail = { item: ApiPlanItem; mentorChoices: PersonRef[]; today: string };
 
 /** POST /api/v1/tasks. */
 export type TaskCreate = { studentProfileId: string; programId: string; title: string; due: string; note?: string };
 /** PATCH /api/v1/tasks/:id. What is left out keeps its stored value; `note: null` clears it. */
 export type TaskEdit = { title?: string; due?: string; note?: string | null };
 /** POST /api/v1/tasks/:id/progress: finish it, or set a percent (which reopens a finished one). */
-export type TaskProgress = { done: true } | { percent: number };
+/**
+ * POST /api/v1/tasks/:id/progress: done, a percentage, or the website's "Not
+ * finished after all" (`reopen`), which puts a finished task back at 75% and
+ * tells the mentor it was reopened.
+ */
+export type TaskProgress = { done: true } | { percent: number } | { reopen: true };
 /** PATCH /api/v1/plan-items/:id. What is left out keeps its stored value; null clears it. */
 export type PlanItemEdit = {
   purpose?: string;
@@ -626,6 +636,12 @@ export type StudentWork = {
   plan: ApiPlanItem[];
   /** Programs this reader may set this student a task in. Empty: no Add. */
   canSetTaskIn: ProgramRef[];
+  /**
+   * How many of each there are: the student page's board sends at most 60 of
+   * either, as the website's does, and says how many there are in all.
+   */
+  taskCount: number;
+  planCount: number;
   today: string;
 };
 

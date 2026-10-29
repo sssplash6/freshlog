@@ -9,6 +9,9 @@ import { prisma } from "@/lib/prisma";
 import { studentLedger } from "@/lib/queries";
 import { programToday } from "@/lib/when";
 
+/** The most of either list the student page's board sends: its `ROW_CAP`. */
+const BOARD_ROWS = 60;
+
 /**
  * One student's tasks and plan items, as the website's `/students/[id]` shows
  * them to `reader`, or null when that page would be a 404.
@@ -51,9 +54,18 @@ export async function studentWorkFor(
     Promise.all(enrollments.map(async (e) => ((await assertTaskAssigner(reader.user, profile, e.programId)) === null ? e.program : null))),
   ]);
 
+  const work = workOf(reader, { id: profile.id, userId: profile.userId, user: profile.user }, ledger, now);
+  // The page's board sends at most 60 of each list and counts the rest (`ROW_CAP`): tasks open then done, plan items
+  // not finished then finished, the finished filling what is left of the 60.
+  const open = work.plan.filter((item) => item.progress !== "DONE");
+  const done = work.plan.filter((item) => item.progress === "DONE");
   return {
     student: { id: profile.id, userId: profile.userId, name: nameOf(profile.user) },
-    ...workOf(reader, { id: profile.id, userId: profile.userId, user: profile.user }, ledger, now),
+    ...work,
+    tasks: work.tasks.slice(0, BOARD_ROWS),
+    plan: [...open.slice(0, BOARD_ROWS), ...done.slice(0, Math.max(BOARD_ROWS - open.length, 0))],
+    taskCount: work.tasks.length,
+    planCount: work.plan.length,
     canSetTaskIn: assignable.flatMap((program) =>
       program ? [{ id: program.id, name: program.name, colorIndex: program.colorIndex }] : []
     ),

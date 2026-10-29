@@ -87,6 +87,17 @@ describe("POST /api/v1/tasks/:id/progress", () => {
     expect(await stored(t.id)).toMatchObject({ percent: 75, completedAt: null });
   });
 
+  it("reopens a finished task at 75% with the website's Not finished after all, and tells the mentor so", async () => {
+    const { st, m, t } = await setUp();
+    await prisma.studentTask.update({ where: { id: t.id }, data: { percent: 100, completedAt: new Date() } });
+    actor.value = { id: st.userId };
+    const res = await post(t.id, { reopen: true });
+    expect(res.status).toBe(200);
+    expect(await stored(t.id)).toMatchObject({ percent: 75, completedAt: null });
+    const notices = await prisma.notification.findMany({ where: { type: "TASK_MOVED", userId: m.id } });
+    expect(notices.at(-1)?.message).toMatch(/reopened .* it isn't finished after all\.$/);
+  });
+
   it("refuses a body with no percent on field \"percent\", and a finished task stays finished", async () => {
     const { m, t } = await setUp();
     await prisma.studentTask.update({ where: { id: t.id }, data: { percent: 100, completedAt: new Date() } });

@@ -63,6 +63,23 @@ describe("studentWorkFor", () => {
     expect(work?.plan.map((i) => i.id)).toEqual([a.id, b.id, d.id]);
   });
 
+  it("sends at most 60 of each list, as the page's board, and says how many there are", async () => {
+    const { st, m } = await world();
+    for (let i = 0; i < 62; i++) await studentTask({ studentId: st.id, mentorId: m.id, title: `Task ${i}`, dueInDays: i + 1 });
+    for (let i = 0; i < 3; i++) {
+      const item = await assignment({ studentId: st.id, mentorId: m.id, purpose: `Done ${i}`, position: i });
+      await prisma.assignment.update({ where: { id: item.id }, data: { progress: "DONE" } });
+    }
+    for (let i = 0; i < 59; i++) await assignment({ studentId: st.id, mentorId: m.id, purpose: `Open ${i}`, position: 10 + i });
+    const work = await studentWorkFor(await asReader(m.id), st.id, NOW);
+    expect(work?.tasks).toHaveLength(60);
+    expect(work?.taskCount).toBe(62);
+    // The open items first, then the finished filling what is left of the 60.
+    expect(work?.plan).toHaveLength(60);
+    expect(work?.plan.filter((i) => i.progress === "DONE")).toHaveLength(1);
+    expect(work?.planCount).toBe(62);
+  });
+
   it("an admin sees only their programs' rows, and no trace of the other program", async () => {
     const { p, st, m } = await world();
     const other = await program("Master's Program");

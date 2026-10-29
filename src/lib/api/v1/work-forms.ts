@@ -114,8 +114,9 @@ export function taskEditForm(current: ApiTask, edit: TaskEdit): FormData | { fie
 }
 
 /**
- * `setStudentTaskProgress`'s FormData: `{ done: true }` finishes the task, and
- * `{ percent }` (a whole number, 0 to 100) sets how far along it is.
+ * `setStudentTaskProgress`'s FormData: `{ done: true }` finishes the task,
+ * `{ percent }` (a whole number, 0 to 100) sets how far along it is, and
+ * `{ reopen: true }` is the website's "Not finished after all".
  *
  * Anything else is refused on `percent`, an empty body above all: the action
  * reads a missing percent as 0 and would send a finished task back to the start.
@@ -123,9 +124,14 @@ export function taskEditForm(current: ApiTask, edit: TaskEdit): FormData | { fie
  * choose between.
  */
 export function taskProgressForm(taskId: string, body: unknown): FormData | { field: string } {
-  const { done, percent } = (body ?? {}) as { done?: unknown; percent?: unknown };
+  const { done, percent, reopen } = (body ?? {}) as { done?: unknown; percent?: unknown; reopen?: unknown };
   const form = new FormData();
   form.set("taskId", taskId);
+  // The website's "Not finished after all": back to 75%, and the mentor is told.
+  if (reopen === true && done === undefined && percent === undefined) {
+    form.set("intent", "reopen");
+    return form;
+  }
   if (done === true && percent === undefined) {
     form.set("intent", "done");
     return form;
