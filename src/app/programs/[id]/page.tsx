@@ -9,26 +9,19 @@ import { STUDENT_SORTS, StudentsTable } from "@/components/students-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { ArrowLink } from "@/components/ui/link";
-import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
+import { PAGE_SIZE, Pagination } from "@/components/ui/pagination";
 import { Section } from "@/components/ui/section";
 import { canManageProgram } from "@/lib/authz";
-import { SESSION_STATUS, USER_STATUS } from "@/lib/constants";
+import { USER_STATUS } from "@/lib/constants";
 import { requireProgramScope } from "@/lib/dal";
 import { formatDuration } from "@/lib/format";
 import { programExchanges } from "@/lib/exchanges";
-import {
-  activeFilterCount,
-  readParam,
-  readTimeState,
-  studentsWhere,
-  type SearchParams,
-} from "@/lib/filters";
+import { activeFilterCount, readParam, type SearchParams } from "@/lib/filters";
 import { prisma } from "@/lib/prisma";
 import { programTone } from "@/lib/program-tone";
+import { programPeople, programRecent, programRoster } from "@/lib/screens/program";
 import { toSessionEntries } from "@/lib/session-entries";
-import { applySort, readSort } from "@/lib/sort";
-import { studentsWithHours } from "@/lib/queries";
-import { timeStateHolds, type ViewerContext } from "@/lib/status";
+import { type ViewerContext } from "@/lib/status";
 
 import {
   mentorPool,
@@ -45,8 +38,6 @@ export const metadata: Metadata = { title: "Program" };
 
 /** Past ten, a list of mentors is a page of its own. */
 const MENTORS_SHOWN = 10;
-/** Enough to see what has been happening; the rest is Sessions' job. */
-const RECENT_SESSIONS = 6;
 
 /**
  * A program IS its roster.
@@ -84,7 +75,6 @@ export default async function ProgramPage({
   const { id } = await params;
   const user = await requireProgramScope(id);
   const query = await searchParams;
-  const page = parsePage(readParam(query, "page"));
   // One instant, shared with the layout above: a use-by date must not be
   // judged twice by two sections reading the clock separately.
   const now = requestNow();
@@ -105,16 +95,7 @@ export default async function ProgramPage({
       programExchanges(id),
       programGrants(id),
       mentorPool(),
-      prisma.session.findMany({
-        where: { programId: id, status: SESSION_STATUS.ACTIVE },
-        include: {
-          mentor: true,
-          student: { include: { user: true } },
-          assignment: { select: { id: true, purpose: true } },
-        },
-        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-        take: RECENT_SESSIONS,
-      }),
+      programRecent(id),
       // Who a task for everyone reaches — the action's own set, counted only
       // when the form is open.
       settingTask
@@ -124,69 +105,11 @@ export default async function ProgramPage({
         : Promise.resolve(0),
     ]);
 
-  const where = studentsWhere(
-    query,
-    { audience: "staff", userId: user.id, programIds: [id] },
-    now
-  );
-  // THE WHOLE FILTERED SET, then the order, then the page — in that sequence
-  // and not the database's. Completed and Remaining are computed per row from
-  // the grants and the sessions behind them (`studentsWithHours`), so they do
-  // not exist until the rows are in memory: letting SQL take twenty-five rows
-  // first and ordering those would order one page of forty and call it the
-  // list. A program's roster is the size of a program, and the layout above
-  // already reads every row of it for the figures in the masthead.
-  const matching = await studentsWithHours(where, {
-    now,
-    // This page IS one program, so the hours on it are that program's.
-    programIds: [id],
+  // The roster as `lib/screens/program.ts` reads it, for this page and the app alike.
+  const { page, total, students, level, cohortOf } = await programRoster(user.id, id, query, now, {
+    levels,
+    cohorts,
   });
-  const asked = readSort(
-    {
-      ...(readParam(query, "sort") ? { sort: readParam(query, "sort") } : {}),
-      ...(readParam(query, "dir") ? { dir: readParam(query, "dir") } : {}),
-    },
-    STUDENT_SORTS
-  );
-  // The `?time=` chip asks the bell's question, so it gets the bell's answer:
-  // `studentsWhere` can only see that a grant's date is in the window, and
-  // `timeStateHolds` asks whether its minutes survived to it. The figures here
-  // are already this program's.
-  const timeFilter = readTimeState(query);
-  const visible = timeFilter
-    ? matching.filter((s) =>
-        timeStateHolds(timeFilter, s, { audience: "staff", now })
-      )
-    : matching;
-  // The level this roster is narrowed to, when the tab above names one of
-  // this program's — anything else in `?level=` already matched nobody.
-  const level = levels.find((l) => l.id === readParam(query, "level")) ?? null;
-  // A cohort as this roster names it. Under a level tab the level goes without
-  // saying; on "All students" it leads, because "Fall 2026" under Emerging and
-  // under Advanced are two intakes — and leading, it sorts them level by level.
-  const cohortOf =
-    cohorts.length > 0
-      ? (s: (typeof matching)[number]) => {
-          const here = s.byProgram.get(id);
-          if (!here?.cohort) return null;
-          return here.level && !level
-            ? `${here.level.name} · ${here.cohort.name}`
-            : here.cohort.name;
-        }
-      : undefined;
-  const ordered = asked
-    ? applySort(visible, asked, {
-        student: (s) => s.user.name ?? s.user.email,
-        completed: (s) => s.completedMinutes,
-        total: (s) => s.allottedMinutes,
-        remaining: (s) => s.remainingMinutes,
-        deadline: (s) => s.expiring?.date,
-        seen: (s) => s.lastSessionAt,
-        cohort: (s) => cohortOf?.(s),
-      })
-    : visible;
-  const total = ordered.length;
-  const students = ordered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const lent = [...exchanges.hosted, ...exchanges.sent];
   // The student link keeps this program, so the student page's Back returns
@@ -201,38 +124,8 @@ export default async function ProgramPage({
   );
   const basePath = `/programs/${program.id}`;
 
-  // One line per MENTOR: somebody paired with three cohorts of this program is
-  // one person teaching here, not three rows. The cohort names themselves are
-  // not on the line — programs are flat by default, so on a list of fourteen
-  // it was one bare date beside one name, reading as a mystery rather than a
-  // fact. Settings is where a pairing's cohort is set and shown.
-  //
-  // EVERYONE WHO WORKS HERE, not only everyone paired to teach: somebody who
-  // administers this program without a pairing in it belongs on the one list
-  // of its people, and leaving them off made a program run by one admin who
-  // does not mentor read as a program with nobody in it. The pairings lead,
-  // in the order they were made, and the admins who teach nothing follow.
-  const mentors = new Map<
-    string,
-    {
-      mentor: { id: string; name: string | null; email: string; avatarUpdatedAt?: Date | null };
-      /** Paired to teach here. False for an admin who only administers it. */
-      teaches: boolean;
-    }
-  >();
-  for (const p of pairings) {
-    const held = mentors.get(p.mentorId);
-    mentors.set(p.mentorId, held ?? { mentor: p.mentor, teaches: true });
-  }
-  for (const grant of grants) {
-    if (!mentors.has(grant.user.id)) {
-      mentors.set(grant.user.id, { mentor: grant.user, teaches: false });
-    }
-  }
-  const mentorRows = [...mentors.values()];
-  const superAdminIds = new Set(
-    grants.filter((grant) => grant.role === "ADMIN").map((grant) => grant.user.id),
-  );
+  // Everyone who works here, as `lib/screens/program.ts` lists them.
+  const { mentorRows, superAdminIds } = programPeople(pairings, grants);
   const spilled = mentorRows.length - MENTORS_SHOWN;
   // Adding a mentor is offered where the list of them is, not only a tab away
   // in Settings. Removing stays in Settings, beside the cohort each pairing
