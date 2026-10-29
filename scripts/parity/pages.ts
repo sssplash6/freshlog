@@ -75,6 +75,9 @@ async function main() {
     "/feedback?meetings=2",
     "/mentors",
     `/mentors/${mentor.id}`,
+    `/mentors/${mentor.id}?period=30d`,
+    `/mentors/${mentor.id}?period=all`,
+    `/mentors/${mentor.id}?period=custom&from=2026-09-01&to=2026-10-15`,
     "/analytics",
   ].filter((p) => !filter || p.includes(filter));
 

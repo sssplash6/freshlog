@@ -15,7 +15,7 @@ import {
   type RatingKind,
   type SearchParams,
 } from "@/lib/filters";
-import { mentorStandings, overallStanding } from "@/lib/mentor-standing";
+import { mentorStandings, overallStanding, type MentorStanding } from "@/lib/mentor-standing";
 import { prisma } from "@/lib/prisma";
 import { applySort, readSort } from "@/lib/sort";
 import type { Prisma, User } from "@/generated/prisma/client";
@@ -121,6 +121,16 @@ export function tallyStars(rows: readonly (readonly [number | null, number])[]):
     if (score !== null && score >= 1 && score <= 5) counts[score - 1] += n;
   }
   return counts;
+}
+
+/** Why a mentor is in the attention group, in the words of the two rules. */
+export function lowReasons(mentor: Pick<MentorStanding, "average" | "lowestRecent">): string[] {
+  const reasons: string[] = [];
+  if (mentor.average < LOW_AVERAGE) reasons.push(`Average under ${LOW_AVERAGE}`);
+  if (mentor.lowestRecent !== null && mentor.lowestRecent <= LOW_RATING) {
+    reasons.push(`Rated ${mentor.lowestRecent} in the last ${RECENT_DAYS} days`);
+  }
+  return reasons;
 }
 
 /** A mentor reading their own: what `OwnRatings` reads. */

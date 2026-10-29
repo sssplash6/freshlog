@@ -19,6 +19,7 @@ import {
   KIND_PRESETS,
   LOW_AVERAGE,
   LOW_RATING,
+  lowReasons,
   MEETING_PAGE,
   MINE,
   RATING_OPTIONS,
@@ -981,15 +982,6 @@ function ProgramLine({
   );
 }
 
-/** Why a mentor is in the attention group, in the words of the two rules. */
-function lowReasons(mentor: MentorCard): string[] {
-  const reasons: string[] = [];
-  if (mentor.average < LOW_AVERAGE) reasons.push(`Average under ${LOW_AVERAGE}`);
-  if (mentor.lowestRecent !== null && mentor.lowestRecent <= LOW_RATING) {
-    reasons.push(`Rated ${mentor.lowestRecent} in the last ${RECENT_DAYS} days`);
-  }
-  return reasons;
-}
 
 /**
  * A mentor somebody should look at: who, the score, and the reason on screen —
