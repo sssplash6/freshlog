@@ -44,13 +44,16 @@ describe("GET /api/v1/admin/home", () => {
     expect((await res.json()).code).toBe("inactive");
   });
 
-  it("answers a reader with no grant like a page that does not exist", async () => {
+  it("tells staff with no grant why their home is empty, as /admin does, and is a 404 to a mentor", async () => {
     await school();
     const nobody = await admin("No Grants");
     actor.value = { id: nobody.id };
     const res = await GET();
-    expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ ok: false, error: "Not found." });
+    expect(res.status).toBe(200);
+    const home = await res.json();
+    expect(home.unscoped).toEqual({ label: expect.any(String), explanation: expect.any(String) });
+    expect(home.programs).toEqual([]);
+    expect(home.todo).toEqual([]);
     const m = await mentor("Just A Mentor");
     actor.value = { id: m.id };
     expect((await GET()).status).toBe(404);
@@ -105,7 +108,27 @@ describe("GET /api/v1/admin/home", () => {
     expect(home.programs.every((row: { can: { write: boolean } }) => row.can.write === false)).toBe(true);
   });
 
-  it("lists running programs first, then archived, each by name", async () => {
+  it("offers Approve on a pending student only to an admin who may approve, and counts each program's own", async () => {
+    const { p } = await school();
+    const nodira = await admin("Nodira Aliyeva");
+    await grant({ userId: nodira.id, programId: p.id });
+    actor.value = { id: nodira.id };
+    const home = await (await GET()).json();
+    const pending = (h: { todo: { type: string; approve?: boolean }[] }) => h.todo.filter((r) => r.type === "STUDENT_PENDING_APPROVAL");
+    expect(pending(home).every((r) => r.approve === true)).toBe(true);
+    expect(home.programs[0]).toMatchObject({ pending: 1, expiring: 1 });
+    expect(home.summary).toMatchObject({ pending: 1, expiring: 1 });
+    expect(home.updated).toEqual(expect.any(String));
+    expect(home.unscoped).toBeNull();
+    const lola = await admin("Lola Leader");
+    await grant({ userId: lola.id, programId: p.id, role: "LEADER" });
+    actor.value = { id: lola.id };
+    const theirs = await (await GET()).json();
+    expect(pending(theirs).length).toBeGreaterThan(0);
+    expect(pending(theirs).every((r) => r.approve === false)).toBe(true);
+  });
+
+  it("lists every program by name, archived ones among them, as /admin does", async () => {
     const boss = await platformAdmin("Head");
     await prisma.program.create({ data: { name: "Zeta" } });
     await prisma.program.create({ data: { name: "alpha", status: "ARCHIVED" } });
@@ -113,9 +136,9 @@ describe("GET /api/v1/admin/home", () => {
     actor.value = { id: boss.id };
     const home = await (await GET()).json();
     expect(home.programs.map((row: { program: { name: string }; archived: boolean }) => [row.program.name, row.archived])).toEqual([
+      ["alpha", true],
       ["Beta", false],
       ["Zeta", false],
-      ["alpha", true],
     ]);
   });
 

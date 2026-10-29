@@ -71,6 +71,9 @@ describe("GET /api/v1/students", () => {
       expiring: { minutes: 300, day: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), daysLeft: expect.any(Number) },
       lastSession: null,
       openable: true,
+      onExchange: false,
+      telegram: null,
+      folderUrl: null,
     });
     expect(JSON.stringify(page)).not.toContain("Sitora");
   });
@@ -100,6 +103,10 @@ describe("GET /api/v1/students", () => {
     actor.value = { id: nodira.id };
     // Sitora's expired grant leaves her nothing, as Malika has nothing.
     expect(await names("?sort=remaining")).toEqual(["Malika Saidova", "Sitora Nazarova", "Aziz Tursunov"]);
+    // The website's first click on Remaining, Completed and Last session is descending, and the app asks so.
+    expect(await names("?sort=remaining&dir=desc")).toEqual(["Aziz Tursunov", "Malika Saidova", "Sitora Nazarova"]);
+    expect(await names("?sort=student&dir=desc")).toEqual(["Sitora Nazarova", "Malika Saidova", "Aziz Tursunov"]);
+    expect((await names("?sort=completed&dir=desc")).length).toBe(3);
   });
 
   it("refuses a word it doesn't know on its field", async () => {

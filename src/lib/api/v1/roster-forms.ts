@@ -12,7 +12,8 @@ import type { RosterQuery } from "@/lib/api/v1/types";
 
 const STATUSES = isOneOf<NonNullable<RosterQuery["status"]>>(["pending", "not-signed-in"]);
 const TIMES = isOneOf<NonNullable<RosterQuery["time"]>>(["none", "expiring", "expired"]);
-const SORTS = isOneOf<NonNullable<RosterQuery["sort"]>>(["student", "remaining", "deadline", "seen"]);
+const SORTS = isOneOf<NonNullable<RosterQuery["sort"]>>(["student", "completed", "remaining", "deadline", "seen"]);
+const DIRS = isOneOf<NonNullable<RosterQuery["dir"]>>(["asc", "desc"]);
 
 /** The query, or the first field that is not one of its words. A blank value is no value. */
 export function rosterQueryFrom(params: URLSearchParams): RosterQuery | { field: string } {
@@ -35,6 +36,11 @@ export function rosterQueryFrom(params: URLSearchParams): RosterQuery | { field:
   if (sort !== undefined) {
     if (!SORTS(sort)) return { field: "sort" };
     query.sort = sort;
+  }
+  const dir = text("dir");
+  if (dir !== undefined) {
+    if (!DIRS(dir)) return { field: "dir" };
+    query.dir = dir;
   }
   const page = text("page");
   if (page !== undefined) {

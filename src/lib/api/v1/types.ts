@@ -277,6 +277,12 @@ export type TodoRow = {
   sessionId: string | null;
   /** A session to log, prefilled (ALLOCATION_EXPIRING, MEETING_TO_LOG). */
   log: { studentProfileId: string; programId: string | null; minutes: number | null; day: string | null; attendance: Attendance | null } | null;
+  /**
+   * The staff's STUDENT_PENDING_APPROVAL rows only: whether the reader may
+   * approve them (an ADMIN grant on one of their programs). A Leader or Sales
+   * grant reads, and freshform would refuse the Approve.
+   */
+  approve?: boolean;
 };
 /** One student, in one program, that the mentor holds time with, has met, or plans with. freshform's order. */
 export type CaseloadRow = {
@@ -566,6 +572,9 @@ export type ProgramRow = {
   forfeited: number;
   /** Negative when its students are overdrawn. */
   remaining: number;
+  /** Students in it nobody has approved; and with time that runs out within the staff's window (the roster's `time=expiring`). */
+  pending: number;
+  expiring: number;
   /** `remaining` and `forfeited` as the Programs page says them, rounded ("130+ hours"); `forfeited` null at 0. */
   rough: { remaining: string; forfeited: string | null };
   can: { write: boolean };
@@ -592,7 +601,7 @@ export type AdminHome = {
    * has approved; `expiring`, those with time that runs out within 14 days.
    */
   summary: { remaining: number; students: number; programs: number; pending: number; expiring: number };
-  /** Active first, then archived, each by name. */
+  /** Every program the reader reads, by name, archived ones among them, as /admin lists them. */
   programs: ProgramRow[];
   /** The staff's list, in its order. No row carries `log`: an admin's answer to time running out is a grant. */
   todo: TodoRow[];
@@ -600,6 +609,13 @@ export type AdminHome = {
   unread: number;
   platformAdmin: boolean;
   today: string;
+  /** The page's freshness stamp, "Oct 29, 14:05": when this answer was read, in Tashkent. */
+  updated: string;
+  /**
+   * Staff with no program granted: /admin's STAFF_UNSCOPED, in its words, and
+   * nothing else in the answer. Null for everyone else.
+   */
+  unscoped: { label: string; explanation: string } | null;
 };
 
 /** GET /api/v1/students: the query, every field optional. */
@@ -615,8 +631,10 @@ export type RosterQuery = {
   status?: "pending" | "not-signed-in";
   /** No time at all, time that runs out within 14 days, or time lost to a use-by. */
   time?: "none" | "expiring" | "expired";
-  /** `student` is by name; the others put the most urgent first. */
-  sort?: "student" | "remaining" | "deadline" | "seen";
+  /** The roster's column headers, as /students sorts them. */
+  sort?: "student" | "completed" | "remaining" | "deadline" | "seen";
+  /** Left out, ascending. The website's first click on Completed, Remaining and Last session is descending. */
+  dir?: "asc" | "desc";
   /** 1-based. */
   page?: number;
 };
@@ -638,6 +656,11 @@ export type RosterRow = {
   lastSession: string | null;
   /** False for a student in no program, whom only a platform admin is shown and nobody can open. */
   openable: boolean;
+  /** Some of their programs are a visit from another program: the website's "(on exchange)". */
+  onExchange: boolean;
+  /** Their Telegram handle and folder link, the row's two icons on the website. */
+  telegram: string | null;
+  folderUrl: string | null;
 };
 /** 25 rows a page. `shown` counts every row the filter matches, on every page. `programs` is the program menu. */
 export type RosterPage = { rows: RosterRow[]; page: number; pages: number; shown: number; programs: ProgramRef[]; today: string };

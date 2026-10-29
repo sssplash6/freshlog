@@ -44,7 +44,8 @@ export async function rosterFor(reader: Reader, query: RosterQuery, now: Date = 
   };
   const where = studentsWhere(params, { audience: "staff", userId: reader.user.id, programIds }, now);
   const page = query.page ?? 1;
-  const sort = query.sort && query.sort !== "student" ? query.sort : null;
+  // By name, the database orders; by name backwards, and any figure, the rows are ordered here.
+  const sort = query.sort && (query.sort !== "student" || query.dir === "desc") ? query.sort : null;
   const readAll = sort !== null || query.time !== undefined;
 
   const [programs, matching, total] = await Promise.all([
@@ -73,7 +74,9 @@ export async function rosterFor(reader: Reader, query: RosterQuery, now: Date = 
   const shown = time ? visible.length : total;
   // The most urgent first: the least left, the soonest to run out, the longest since a session.
   const ordered = sort
-    ? applySort(visible, { key: sort, dir: "asc" }, {
+    ? applySort(visible, { key: sort, dir: query.dir ?? "asc" }, {
+        student: (s) => s.user.name ?? s.user.email,
+        completed: (s) => s.completedMinutes,
         remaining: (s) => s.remainingMinutes,
         deadline: (s) => s.expiring?.date,
         seen: (s) => s.lastSessionAt,
@@ -109,6 +112,9 @@ export function toRosterRow(s: StudentWithHours, now: Date): RosterRow {
     // `canManageStudent` turns away a student in no program, even for a
     // platform admin, who is the only reader such a row reaches.
     openable: s.enrollments.length > 0,
+    onExchange: s.enrollments.some((e) => e.exchangeId != null),
+    telegram: s.telegramUsername,
+    folderUrl: s.folderUrl,
   };
 }
 
@@ -128,6 +134,7 @@ export async function programRosterFor(program: Program, reader: Reader, query: 
     status: query.status,
     time: query.time,
     sort: query.sort,
+    dir: query.dir,
     page: query.page ? String(query.page) : undefined,
   };
   const { page, total, students } = await programRoster(reader.user.id, program.id, params, now, { levels, cohorts });

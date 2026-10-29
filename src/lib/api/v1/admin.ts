@@ -6,13 +6,13 @@ import type { Reader } from "@/lib/api/v1/sessions";
 import { toTodoRows } from "@/lib/api/v1/todo";
 import type { AdminHome, ProgramRow, TodoRow } from "@/lib/api/v1/types";
 import { staffAttention } from "@/lib/attention";
-import { scopeCovers, scopeProgramFilter } from "@/lib/authz";
+import { scopeCovers, scopeIsEmpty, scopeProgramFilter } from "@/lib/authz";
 import { PROGRAM_STATUS, USER_STATUS } from "@/lib/constants";
 import { programTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { studentsWithHours, type StudentWithHours } from "@/lib/queries";
-import { EXPIRY_WINDOW_DAYS } from "@/lib/status";
-import { daysAway, programToday } from "@/lib/when";
+import { status as statusOf, timeStateHolds } from "@/lib/status";
+import { formatProgramStamp, programToday } from "@/lib/when";
 
 /**
  * What /admin shows a program admin, for the freshlog app: the school in a few
@@ -63,10 +63,12 @@ export async function schoolOf(reader: Reader, now: Date = new Date()): Promise<
  * student's combined row, which would put another program's hours in this
  * total and count a two-program student twice.
  */
-export function programRows(reader: Reader, school: School): ProgramRow[] {
+export function programRows(reader: Reader, school: School, { archivedLast = true }: { archivedLast?: boolean } = {}): ProgramRow[] {
   const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
   const archived = (p: { status: string }) => p.status === PROGRAM_STATUS.ARCHIVED;
-  const programs = [...school.programs].sort((a, b) => Number(archived(a)) - Number(archived(b)) || byName(a, b));
+  // /programs keeps archived ones apart, last; /admin lists every program by name, archived ones among them.
+  const programs = [...school.programs].sort((a, b) => (archivedLast ? Number(archived(a)) - Number(archived(b)) : 0) || byName(a, b));
+  const lens = { audience: "staff" as const, now: school.now };
   return programs.map((p) => {
     const totals = programTotals(school.students.flatMap((s) => {
       const figures = s.byProgram.get(p.id);
@@ -81,6 +83,13 @@ export function programRows(reader: Reader, school: School): ProgramRow[] {
       used: totals.completed + totals.missed,
       forfeited: totals.forfeited,
       remaining: totals.remaining,
+      // The home's two counts for this program: nobody has approved them, and time runs out (the roster's
+      // `time=expiring` rule, asked of this program's figures).
+      pending: school.students.filter((s) => s.user.status === USER_STATUS.PENDING && s.byProgram.has(p.id)).length,
+      expiring: school.students.filter((s) => {
+        const figures = s.byProgram.get(p.id);
+        return figures != null && timeStateHolds("expiring", figures, lens);
+      }).length,
       // The Programs page's own words for both, rounded as it rounds them (`formatRough`).
       rough: { remaining: formatRough(totals.remaining), forfeited: totals.forfeited > 0 ? formatRough(totals.forfeited) : null },
       can: { write: scopeCovers(reader.write, p.id) },
@@ -101,15 +110,47 @@ export async function staffTodo(reader: Reader, school: School): Promise<{ todo:
   // lens cookie, and an admin who is also a student would be handed their own list.
   const attention = await staffAttention(reader.user, {
     now: school.now,
-    programs: school.programs.map(({ id, name }) => ({ id, name })),
+    // By name, as /admin reads them before it builds the list: which program rows come first follows.
+    programs: [...school.programs]
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
+      .map(({ id, name }) => ({ id, name })),
     students: school.students,
   });
   const rows = await toTodoRows(attention.statuses);
-  return { todo: rows.map((row) => ({ ...row, log: null })), spilled: attention.spilled };
+  // Approving is for an admin of one of the student's programs (`approveStudent`); a Leader or Sales grant reads only.
+  const approvable = new Set(
+    school.students.filter((s) => s.enrollments.some((e) => scopeCovers(reader.write, e.program.id))).map((s) => s.id)
+  );
+  return {
+    todo: rows.map((row) => ({
+      ...row,
+      log: null,
+      ...(row.type === "STUDENT_PENDING_APPROVAL" && row.subject?.kind === "student" ? { approve: approvable.has(row.subject.id) } : {}),
+    })),
+    spilled: attention.spilled,
+  };
 }
 
-/** The admin's home. The route has already turned away a reader with nothing to read. */
+/**
+ * The admin's home. The route has already turned away a reader with nothing to
+ * read, except staff with no grant: /admin tells them why (STAFF_UNSCOPED), and
+ * so does this, with nothing else.
+ */
 export async function adminHomeFor(reader: Reader, now: Date = new Date()): Promise<AdminHome> {
+  if (scopeIsEmpty(reader.read) && !reader.user.platformAdmin) {
+    const unscoped = statusOf("STAFF_UNSCOPED", { audience: "staff", userId: reader.user.id, now });
+    return {
+      summary: { remaining: 0, students: 0, programs: 0, pending: 0, expiring: 0 },
+      programs: [],
+      todo: [],
+      todoSpilled: 0,
+      unread: await prisma.notification.count({ where: { userId: reader.user.id, read: false } }),
+      platformAdmin: false,
+      today: programToday(now),
+      updated: formatProgramStamp(now),
+      unscoped: { label: unscoped?.label ?? "No programs granted", explanation: unscoped?.explanation ?? "A platform admin grants you a program to work in." },
+    };
+  }
   const school = await schoolOf(reader, now);
   const [{ todo, spilled }, unread] = await Promise.all([
     staffTodo(reader, school),
@@ -124,18 +165,17 @@ export async function adminHomeFor(reader: Reader, now: Date = new Date()): Prom
       students: overall.students,
       programs: school.programs.length,
       pending: students.filter((s) => s.user.status === USER_STATUS.PENDING).length,
-      // The staff's window, as ALLOCATION_EXPIRING reckons it: today counts.
-      expiring: students.filter((s) => {
-        if (!s.expiring) return false;
-        const days = daysAway(s.expiring.date, now);
-        return days >= 0 && days <= EXPIRY_WINDOW_DAYS.staff;
-      }).length,
+      // The roster's own `time=expiring` rule, so the count and the list it opens agree to the hour.
+      expiring: students.filter((s) => timeStateHolds("expiring", s, { audience: "staff", now })).length,
     },
-    programs: programRows(reader, school),
+    programs: programRows(reader, school, { archivedLast: false }),
     todo,
     todoSpilled: spilled,
     unread,
     platformAdmin: reader.user.platformAdmin,
     today: programToday(now),
+    // The page's freshness stamp, its subtitle: "Updated Oct 29, 14:05".
+    updated: formatProgramStamp(now),
+    unscoped: null,
   };
 }
