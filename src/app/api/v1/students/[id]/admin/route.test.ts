@@ -75,7 +75,7 @@ describe("GET /api/v1/students/:id/admin", () => {
       }),
     ]);
     expect(JSON.stringify(body)).not.toContain("Master");
-    expect(body.can).toEqual({ approve: false, reject: false, allocate: true, reach: false });
+    expect(body.can).toEqual({ approve: false, reject: false, allocate: true, reach: false, rename: true });
     expect(body.student).toMatchObject({ name: "Aziz Tursunov", telegram: null, folderUrl: null });
   });
 
@@ -101,7 +101,8 @@ describe("GET /api/v1/students/:id/admin", () => {
     actor.value = { id: leader.id };
     const body = await (await get(aziz.id)).json();
     expect(body.approved).toBe(false);
-    expect(body.can).toEqual({ approve: false, reject: false, allocate: false, reach: false });
+    expect(body.can).toEqual({ approve: false, reject: false, allocate: false, reach: false, rename: false });
+    expect(body.manage).toBeNull();
     expect(body.grants.every((g: { can: Record<string, boolean> }) => !g.can.edit && !g.can.transfer && !g.can.remove)).toBe(true);
   });
 

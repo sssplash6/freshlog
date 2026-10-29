@@ -855,9 +855,40 @@ export type AdminStudent = {
    * their programs. `allocate`: the reader may grant them time. `reach`: the
    * reader mentors them.
    */
-  can: { approve: boolean; reject: boolean; allocate: boolean; reach: boolean };
+  can: { approve: boolean; reject: boolean; allocate: boolean; reach: boolean; rename: boolean };
+  /**
+   * The page's Details changes, for a reader who may change one of their
+   * programs (null otherwise): each of their enrolments the reader reads, to
+   * move or take off; the programs they may be enrolled in or moved to
+   * (archived ones too, so a move shows where they are); and whether any
+   * session that counts stands in the way of deleting them.
+   */
+  manage: {
+    enrollments: { id: string; program: ProgramRef; levelId: string | null; cohortId: string | null; label: string }[];
+    choices: ProgramChoice[];
+    hasSessions: boolean;
+  } | null;
   today: string;
 };
+/**
+ * PATCH /api/v1/students/:id: one of a student's details a request, each the
+ * website's own action (the name `setStudentName`, which a mentor who reaches
+ * them may use too; the email, Telegram handle and folder link, an admin of
+ * one of their programs). An empty folder clears it. Answers WriteResult.
+ * DELETE /api/v1/students/:id is `deleteStudent`, refused once a session that
+ * counts was logged for them.
+ */
+export type StudentDetailsEdit = { name: string } | { email: string } | { telegram: string } | { folder: string };
+/**
+ * Where a student is enrolled: a program, and its level or cohort where it has
+ * them. POST /api/v1/students/:id/enrollments adds one (`enrollStudent`);
+ * PATCH /api/v1/enrollments/:id moves one (`moveStudent`); DELETE
+ * /api/v1/enrollments/:id takes them off one (`unenrollStudent`).
+ */
+export type EnrollmentTarget = { program: string; level?: string; cohort?: string };
+/** POST /api/v1/programs/:id/tasks: the same task for every student in the program (`setProgramTask`). */
+export type ProgramTask = { title: string; due: string; note?: string };
+/* DELETE /api/v1/sessions/:id is `deleteSession`: an admin's, which takes the hours back too. */
 /** One row of "Time by mentor": a mentor's grant, the hour bank, or time nobody has been chosen for yet. */
 export type AdminGrant = {
   program: ProgramRef;

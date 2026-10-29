@@ -1,4 +1,4 @@
-import { editSession } from "@/lib/actions/sessions";
+import { deleteSession, editSession } from "@/lib/actions/sessions";
 import { bodyOf } from "@/lib/api/v1/body";
 import { fromAction, inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { editForm, editOf } from "@/lib/api/v1/session-forms";
@@ -59,4 +59,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const asked = editOf(body);
   if ("field" in asked) return refused("That isn't a valid value.", 400, { field: asked.field });
   return fromAction(await editSession(null, editForm(session, asked.edit, await storedNote(session.id))));
+}
+
+/**
+ * Deletes a session outright: the website's `deleteSession`, an admin's, which
+ * takes the hours back and tells the student and the mentor. It answers an id
+ * that finds nothing and one in a program the reader doesn't run in the same
+ * words, so deleting can't be used to find a session.
+ */
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getCurrentUser();
+  if (!user) return signInAgain();
+  if (!mayUse(user)) return inactive();
+  const form = new FormData();
+  form.set("sessionId", (await params).id);
+  return fromAction(await deleteSession(null, form));
 }

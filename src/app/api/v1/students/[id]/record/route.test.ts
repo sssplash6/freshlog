@@ -56,7 +56,7 @@ describe("GET /api/v1/students/:id/record", () => {
     expect(body.grants.every((g: { amountPaid: unknown; can: Record<string, boolean> }) => g.amountPaid === null && !g.can.edit)).toBe(true);
     expect(body.history).toEqual([]);
     expect(body.paid).toBeNull();
-    expect(body.can).toEqual({ approve: false, reject: false, allocate: false, reach: true });
+    expect(body.can).toEqual({ approve: false, reject: false, allocate: false, reach: true, rename: true });
     // In the mentor's lens, the headline is their own time with them.
     expect(body.headline).toMatchObject({ figure: "13h remaining with you", danger: false });
     expect(body.log).toEqual({ can: true, reason: null, warns: false });

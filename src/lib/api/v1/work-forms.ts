@@ -1,5 +1,5 @@
 import { isText } from "@/lib/api/v1/session-forms";
-import type { ApiTask, TaskCreate, TaskEdit } from "@/lib/api/v1/types";
+import type { ApiTask, ProgramTask, TaskCreate, TaskEdit } from "@/lib/api/v1/types";
 import { toDateInputValue } from "@/lib/format";
 import { MAX_TASK_NOTE, MAX_TASK_TITLE } from "@/lib/student-tasks";
 
@@ -63,6 +63,22 @@ export function taskCreateForm(body: unknown): FormData | { field: string } {
 
   const form = new FormData();
   form.set("studentProfileId", studentProfileId);
+  form.set("programId", programId);
+  form.set("title", title);
+  form.set("dueOn", due);
+  form.set("note", isText(note) ? note : "");
+  return form;
+}
+
+/** `setProgramTask`'s form for a task for every student in `programId`, or the first field that isn't a valid value. */
+export function programTaskForm(programId: string, body: unknown): FormData | { field: string } {
+  const { title, due, note } = (body ?? {}) as Partial<Record<keyof ProgramTask, unknown>>;
+  if (!isText(title)) return { field: "title" };
+  if (!isDay(due)) return { field: "due" };
+  if (note === null) return { field: "note" };
+  const bad = badField({ title, due, note });
+  if (bad) return { field: bad };
+  const form = new FormData();
   form.set("programId", programId);
   form.set("title", title);
   form.set("dueOn", due);

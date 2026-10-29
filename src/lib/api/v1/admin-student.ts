@@ -4,12 +4,12 @@ import { nameOf, type Reader } from "@/lib/api/v1/sessions";
 import type { AdminGrant, AdminStudent, GrantChange } from "@/lib/api/v1/types";
 import { timeByMentorEntries, toAllocationEntries } from "@/components/allocation-row";
 import { canAdministerStudent, canManageStudent, mentorReaches, scopeCovers, scopeProgramFilter, staffLevel, studentScope } from "@/lib/authz";
-import { canActAsMentor, USER_STATUS } from "@/lib/constants";
-import { sortEnrollments } from "@/lib/enrollments";
+import { canActAsMentor, SESSION_STATUS, USER_STATUS } from "@/lib/constants";
+import { enrollmentLabel, sortEnrollments } from "@/lib/enrollments";
 import { toDateInputValue } from "@/lib/format";
 import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
-import { studentLedger } from "@/lib/queries";
+import { programOptions, studentLedger, toProgramOptions } from "@/lib/queries";
 import { logAdvice, mentorsIn, programLines, studentHeadline } from "@/lib/screens/student-record";
 import { daysAway, programToday } from "@/lib/when";
 
@@ -209,7 +209,23 @@ export async function studentRecordFor(
       // The website's "Allocate time": the reader may change one of the student's programs, and a mentor works in theirs.
       allocate: writes && inScope.length > 0,
       reach: reaches,
+      // The pencil on the name: both readers of the page own it (`StudentNameChange`).
+      rename: writes || reaches,
     },
+    manage: writes
+      ? {
+          enrollments: sortEnrollments([...enrollments]).map((e) => ({
+            id: e.id,
+            program: programRef(e.program),
+            levelId: e.levelId,
+            cohortId: e.cohortId,
+            label: enrollmentLabel(e),
+          })),
+          // Archived included, as the page's: a student may be in one, and the move has to show where they are.
+          choices: toProgramOptions(await programOptions(scopeProgramFilter(reader.read), true)),
+          hasSessions: ledger.sessions.some((s) => s.status !== SESSION_STATUS.VOIDED),
+        }
+      : null,
     today: programToday(now),
   };
 }
