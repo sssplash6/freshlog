@@ -135,6 +135,25 @@ describe("POST /api/v1/sessions", () => {
     });
   });
 
+  it("names a new plan item while logging, adds it to the student's agenda and logs against it, as the website's Something else", async () => {
+    const { m, st, body } = await world();
+    const res = await post({ ...body, newPlanItem: "Scholarship essay" });
+    expect(res.status).toBe(200);
+    const { receipt } = await res.json();
+    const item = await prisma.assignment.findFirstOrThrow({ where: { studentId: st.id, purpose: "Scholarship essay" } });
+    expect((await readBack(m, receipt.id))?.task).toEqual({ id: item.id, purpose: "Scholarship essay" });
+  });
+
+  it("refuses a new plan item beside a picked one, and an empty name in the action's words", async () => {
+    const { body } = await world();
+    const both = await post({ ...body, newPlanItem: "Essay", assignmentId: "a1" });
+    expect(both.status).toBe(400);
+    expect((await both.json()).field).toBe("newPlanItem");
+    const empty = await post({ ...body, newPlanItem: "  " });
+    expect(empty.status).toBe(400);
+    expect((await empty.json()).error).toBe("Name the agenda item, or pick None.");
+  });
+
   it("asks which program when the student is in two of the mentor's, and logs in the one it is told", async () => {
     const { m, st, body } = await world();
     const masters = await program("Master's Program");

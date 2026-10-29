@@ -95,6 +95,24 @@ describe("GET /api/v1/log-options", () => {
     expect(body.students[0].programs[0]).toMatchObject({ state: "ready", allocated: 600, remaining: 600 });
   });
 
+  it("offers the website's plan item presets, and narrows to one program's students with ?program=", async () => {
+    const ga = await program("Global Admissions");
+    const ms = await program("Master's Program");
+    const m = await mentor("Akmal Karimov");
+    await pairing({ mentorId: m.id, programId: ga.id });
+    await pairing({ mentorId: m.id, programId: ms.id });
+    const aziz = await student({ programId: ga.id, name: "Aziz Tursunov" });
+    const bek = await student({ programId: ms.id, name: "Bekzod Aliev" });
+    await allocation({ studentId: aziz.id, mentorId: m.id, minutes: 600 });
+    await allocation({ studentId: bek.id, mentorId: m.id, minutes: 600 });
+    actor.value = { id: m.id };
+    const all = await (await GET()).json();
+    expect(all.planPresets.length).toBeGreaterThan(0);
+    expect(all.students.map((s: { name: string }) => s.name).sort()).toEqual(["Aziz Tursunov", "Bekzod Aliev"]);
+    const one = await (await route(new Request(`http://test/api/v1/log-options?program=${ms.id}`))).json();
+    expect(one.students.map((s: { name: string }) => s.name)).toEqual(["Bekzod Aliev"]);
+  });
+
   describe("?mentor=, on a mentor's behalf", () => {
     async function twoPrograms() {
       const ga = await program("Global Admissions");

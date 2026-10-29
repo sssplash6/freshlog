@@ -92,6 +92,26 @@ describe("POST /api/v1/sessions/:id/answer", () => {
     expect(await stored(s.id)).toMatchObject({ studentAnswer: "CONFIRMED", studentNote: null, studentRating: null });
   });
 
+  it("a confirmation takes the website's stars and its Anything to add, and a dispute keeps no stars", async () => {
+    const { st, s } = await logged();
+    actor.value = { id: st.userId };
+    expect((await post(s.id, { answer: "CONFIRMED", rating: 4, note: "Clear and useful." })).status).toBe(200);
+    expect(await stored(s.id)).toMatchObject({ studentAnswer: "CONFIRMED", studentRating: 4, studentNote: "Clear and useful." });
+    expect((await post(s.id, { answer: "DISPUTED", rating: 5, note: "It was 30 minutes." })).status).toBe(200);
+    expect(await stored(s.id)).toMatchObject({ studentAnswer: "DISPUTED", studentRating: null });
+  });
+
+  it("refuses stars that aren't a whole 1 to 5, on rating", async () => {
+    const { st, s } = await logged();
+    actor.value = { id: st.userId };
+    for (const rating of [0, 6, 2.5, "5"]) {
+      const res = await post(s.id, { answer: "CONFIRMED", rating });
+      expect(res.status).toBe(400);
+      expect((await res.json()).field).toBe("rating");
+    }
+    expect((await stored(s.id)).studentAnswer).toBeNull();
+  });
+
   it("a dispute carries the student's words to the mentor", async () => {
     const { st, m, s } = await logged();
     actor.value = { id: st.userId };

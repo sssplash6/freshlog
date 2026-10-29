@@ -17,6 +17,7 @@ import { mentorsWhere } from "@/lib/filters";
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { logSessionOptions, mentorCaseload, type CaseloadStudent, type MentorCaseload } from "@/lib/queries";
+import { TASK_OTHER, TASK_PRESETS } from "@/lib/tasks";
 import { programToday } from "@/lib/when";
 import type { User } from "@/generated/prisma/client";
 
@@ -48,7 +49,7 @@ const RECENT_KEPT = 8;
 export async function logOptionsFor(
   user: User,
   now: Date = new Date(),
-  onBehalf?: { programIds: readonly string[] | undefined }
+  onBehalf?: { programIds: readonly string[] | undefined; program?: string }
 ): Promise<LogOptions> {
   const inScope = onBehalf?.programIds ? { programId: { in: [...onBehalf.programIds] } } : {};
   const [caseload, latest] = await Promise.all([
@@ -60,7 +61,10 @@ export async function logOptionsFor(
       select: { studentId: true, programId: true, minutes: true },
     }),
   ]);
-  return { today: programToday(now), students: studentsOf(caseload, onBehalf?.programIds), recent: recentOf(latest) };
+  const students = studentsOf(caseload, onBehalf?.programIds);
+  // `?program=`, from a program's page: the website's log page offers only the students in it.
+  const inProgram = onBehalf?.program ? students.filter((s) => s.programs.some((p) => p.program.id === onBehalf.program)) : students;
+  return { today: programToday(now), students: inProgram, recent: recentOf(latest), planPresets: [...TASK_PRESETS] };
 }
 
 /**
@@ -180,10 +184,12 @@ const FIELDS: readonly Field[] = [
  * may change some program, which is what `logSession` asks of somebody logging
  * for somebody else. Anybody else has it ignored, not honoured, and logs as
  * themselves, as before. The action decides the rest: the mentor is active,
- * reaches the student, and works in a program the admin may change. The same
- * goes for `agendaName`, which names a new plan item and is never sent. Right
- * type is all that is checked: wording and ranges (whole minutes, a real day,
- * not in the future) are the action's to say, in the website's words.
+ * reaches the student, and works in a program the admin may change.
+ * `newPlanItem` is the website's "Add to their agenda": it becomes the form's
+ * "Something else…" with its `agendaName`, which the action reads as a preset or
+ * a typed name alike, and is refused beside an `assignmentId`. Right type is all
+ * that is checked: wording and ranges (whole minutes, a real day, not in the
+ * future) are the action's to say, in the website's words.
  */
 export function logForm(body: Record<string, unknown>, mayNameMentor = false): FormData | { field: string } {
   const form = new FormData();
@@ -193,6 +199,12 @@ export function logForm(body: Record<string, unknown>, mayNameMentor = false): F
     if (request === "mentor" && !mayNameMentor) continue;
     if (!accepts(value)) return { field: request };
     form.set(name, String(value));
+  }
+  const named = body.newPlanItem;
+  if (named !== undefined) {
+    if (!isText(named) || body.assignmentId !== undefined) return { field: "newPlanItem" };
+    form.set("assignmentId", TASK_OTHER);
+    form.set("agendaName", named);
   }
   return form;
 }

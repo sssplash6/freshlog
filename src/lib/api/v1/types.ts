@@ -239,8 +239,13 @@ export type SessionEdit = {
   /** A plan item. One a session already has can't be taken off it. */
   assignmentId?: string;
 };
-/** POST /api/v1/sessions/:id/answer. A dispute needs a note. */
-export type SessionAnswerRequest = { answer: StudentAnswer; note?: string };
+/**
+ * POST /api/v1/sessions/:id/answer. A dispute needs a note. A confirmation may
+ * carry the website's "How did it go?" stars (`rating`, 1 to 5) and its
+ * "Anything to add?" note; the stars become the meeting's rating, and a dispute
+ * keeps none.
+ */
+export type SessionAnswerRequest = { answer: StudentAnswer; note?: string; rating?: number };
 /** What a write answers when it worked: the website's own sentence, and for a log, the session it made (`receipt.id`). */
 export type WriteResult = { ok: true; message?: string; receipt?: { id: string; headline: string; notes: string[] } };
 
@@ -258,6 +263,12 @@ export type LogOptions = {
   students: LogStudent[];
   /** The mentor's latest sessions, newest first, one per student and program, at most 8: the quick picks and the usual length. */
   recent: { studentProfileId: string; programId: string; minutes: number }[];
+  /**
+   * The website's plan item presets, which a log may name to add one to the
+   * student's agenda (`LogSessionRequest.newPlanItem`): offered where the
+   * student's open items don't already hold one of that name.
+   */
+  planPresets: string[];
 };
 export type LogStudent = { id: string; name: string; programs: LogProgram[] };
 export type LogProgram = {
@@ -291,6 +302,13 @@ export type LogSessionRequest = {
   note?: string;
   /** A plan item from `LogProgram.goals`. */
   assignmentId?: string;
+  /**
+   * A plan item to add to the student's agenda and log this against, by name:
+   * a preset (`LogOptions.planPresets`) or one the mentor typed, as the
+   * website's "Something else…". An open item already called that is used
+   * instead. Not with `assignmentId`.
+   */
+  newPlanItem?: string;
   /**
    * The mentor who held it, when an admin logs it on their behalf (a User.id
    * from `GET log-mentors`). Honoured only for a reader who may change some

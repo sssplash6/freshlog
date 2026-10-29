@@ -133,21 +133,32 @@ export function editForm(current: ApiSession, edit: SessionEdit, storedNote: str
  * they confirm; the app does not, so a rating in the body goes nowhere.
  */
 export function answerOf(body: Record<string, unknown>): { request: SessionAnswerRequest } | { field: string } {
-  const { answer, note } = body;
+  const { answer, note, rating } = body;
   if (!isAnswer(answer)) return { field: "answer" };
-  if (note === undefined) return { request: { answer } };
-  if (!isText(note)) return { field: "note" };
-  return { request: { answer, note } };
+  if (note !== undefined && !isText(note)) return { field: "note" };
+  // The website's stars: a whole 1 to 5, or none.
+  if (rating !== undefined && rating !== null && !(Number.isInteger(rating) && (rating as number) >= 1 && (rating as number) <= 5)) {
+    return { field: "rating" };
+  }
+  return {
+    request: {
+      answer,
+      ...(note !== undefined ? { note: note as string } : {}),
+      ...(typeof rating === "number" ? { rating } : {}),
+    },
+  };
 }
 
 /**
- * `answerSession`'s FormData: the session, the answer, and the student's words
- * when they gave some. No rating. A dispute with no words is the action's to
- * refuse, so an empty note is sent as it is.
+ * `answerSession`'s FormData: the session, the answer, the student's words
+ * when they gave some, and their stars. A dispute with no words is the action's
+ * to refuse, so an empty note is sent as it is; a dispute's stars the action
+ * drops.
  */
 export function answerForm(sessionId: string, body: SessionAnswerRequest): FormData {
   const form = sessionForm(sessionId);
   form.set("answer", body.answer);
   if (typeof body.note === "string") form.set("studentNote", body.note);
+  if (typeof body.rating === "number") form.set("studentRating", String(body.rating));
   return form;
 }

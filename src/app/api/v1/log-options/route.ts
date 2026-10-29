@@ -17,7 +17,8 @@ export const dynamic = "force-dynamic";
  * route that does not exist, so the answer says nothing about who mentors.
  *
  * `?mentor=` is an admin logging on that mentor's behalf: the mentor's own
- * options, narrowed to the programs the admin may change. A mentor the admin
+ * options, narrowed to the programs the admin may change. `?program=`, from a
+ * program's page, narrows to the students in it. A mentor the admin
  * may not log for, and a reader who may change no program, are answered the
  * same way, as one that does not exist.
  */
@@ -25,13 +26,16 @@ export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
   if (user.status !== "ACTIVE") return inactive();
-  const named = new URL(request.url).searchParams.get("mentor")?.trim();
+  const params = new URL(request.url).searchParams;
+  const named = params.get("mentor")?.trim();
+  // `?program=`, from a program's page: only the students in it, as the website's log page offers them.
+  const program = params.get("program")?.trim() || undefined;
   if (named) {
     const reader = await readerFor(user);
     const mentor = await onBehalfMentor(reader, named);
     if (!mentor) return refused("Not found.", 404);
-    return ok(await logOptionsFor(mentor, new Date(), { programIds: scopeProgramFilter(reader.write) }));
+    return ok(await logOptionsFor(mentor, new Date(), { programIds: scopeProgramFilter(reader.write), program }));
   }
   if (!canActAsMentor(user)) return refused("Not found.", 404);
-  return ok(await logOptionsFor(user));
+  return ok(await logOptionsFor(user, new Date(), program ? { programIds: undefined, program } : undefined));
 }
