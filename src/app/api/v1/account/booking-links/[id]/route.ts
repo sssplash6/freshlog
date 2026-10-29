@@ -1,7 +1,7 @@
 import { setBookingLink } from "@/lib/actions/mentors";
 import { bookingLinkForm, onField } from "@/lib/api/v1/account-forms";
 import { bodyOf } from "@/lib/api/v1/body";
-import { fromAction, inactive, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, refused, signInAgain } from "@/lib/api/v1/respond";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 
@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const { id } = await params;
   const mine = await prisma.mentorAssignment.findFirst({ where: { id, mentorId: user.id }, select: { id: true } });
   if (!mine) return refused("Not found.", 404);

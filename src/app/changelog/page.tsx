@@ -15,6 +15,7 @@ import { inStudentLens } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import { formatDate } from "@/lib/format";
 import { profileOf } from "@/lib/profile";
+import { pastWeek } from "@/lib/screens/changelog";
 
 import { FreshChip, MarkChangelogSeen } from "./seen";
 import type { Metadata } from "next";
@@ -167,21 +168,6 @@ export default async function ChangelogPage() {
 
 /** How many of the newest days start open; the rest fold. */
 const OPEN_DAYS = 3;
-
-const DAY_MS = 86_400_000;
-
-/** What shipped in the seven days up to now, across every entry. */
-function pastWeek(entries: ChangelogEntry[], now = Date.now()) {
-  const since = now - 7 * DAY_MS;
-  let added = 0;
-  let fixed = 0;
-  for (const e of entries) {
-    if (new Date(`${e.date}T00:00:00.000Z`).getTime() < since) continue;
-    added += e.new.length;
-    fixed += e.fixed.length;
-  }
-  return { new: added, fixed };
-}
 
 function summary(entry: ChangelogEntry): string {
   const parts: string[] = [];

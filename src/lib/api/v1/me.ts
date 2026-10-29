@@ -8,6 +8,9 @@ import { navLevel } from "@/lib/nav";
 import { prisma } from "@/lib/prisma";
 import type { User } from "@/generated/prisma/client";
 
+/** The roles whose home /admin is, as `requireStaff` lets them in (src/lib/dal.ts). */
+const STAFF = new Set<string>([ROLES.ADMIN, ROLES.DEPT_LEADER, ROLES.SALES]);
+
 /**
  * What /api/v1/me says about somebody: who they are, which parts of the app they
  * may use, and what they still have to set up before the first of those works.
@@ -30,9 +33,11 @@ export async function meFor(user: User): Promise<MeResponse> {
   // The order is where the website sends somebody who has not picked a side: a
   // student to the student side, else a person who administers to the admin side
   // (a mentor who was granted a program lands there too), else the mentor side.
+  // Staff with no grant yet have the admin side too, as `requireStaff` lets them
+  // into /admin, whose home says only that nothing is granted.
   const roles: ApiRole[] = [];
   if (user.role === ROLES.STUDENT) roles.push("student");
-  if (!scopeIsEmpty(scope)) roles.push("admin");
+  if (STAFF.has(user.role) || !scopeIsEmpty(scope)) roles.push("admin");
   if (canActAsMentor(user)) roles.push("mentor");
 
   return {
@@ -72,13 +77,17 @@ function onboardingFor(
       }
       return user.status === USER_STATUS.PENDING ? "pending-approval" : null;
     case "mentor":
-      if (!user.name?.trim()) return "mentor-name";
-      return user.status === USER_STATUS.UNASSIGNED ? "unassigned" : null;
+      // A mentor no program has taken on yet has their home, as on the website:
+      // it says they are waiting for a program (MENTOR_UNASSIGNED), and `mayUse`
+      // lets them in. Only the name is theirs to finish (`requireMentor`).
+      return user.name?.trim() ? null : "mentor-name";
     case "admin":
       // An admin is created with a name, and their grants are somebody else's
-      // to give, so there is nothing for them to finish. That makes it null
-      // whatever their status or name, so null does not mean ACTIVE: the app
-      // reads `status` too (see `Onboarding` in src/lib/api/v1/types.ts).
-      return null;
+      // to give, so there is nothing for them to finish, bar a mentor who was
+      // granted a program before giving their name: /onboarding asks them for
+      // it, as it asks any mentor. Otherwise null whatever their status, so null
+      // does not mean ACTIVE: the app reads `status` too (see `Onboarding` in
+      // src/lib/api/v1/types.ts).
+      return canActAsMentor(user) && !user.name?.trim() ? "mentor-name" : null;
   }
 }

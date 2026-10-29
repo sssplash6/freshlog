@@ -27,7 +27,7 @@ describe("POST /api/v1/statuses/dismiss", () => {
 
   it("answers 403 inactive to an account that isn't active", async () => {
     const m = await mentor("Akmal Karimov");
-    await prisma.user.update({ where: { id: m.id }, data: { status: "UNASSIGNED" } });
+    await prisma.user.update({ where: { id: m.id }, data: { status: "PENDING" } });
     actor.value = { id: m.id };
     const res = await post({ type: "BALANCE_NONE", subjectId: "" });
     expect(res.status).toBe(403);

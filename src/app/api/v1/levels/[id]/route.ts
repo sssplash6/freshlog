@@ -2,7 +2,7 @@ import { deleteLevel, setLevelStandardHours } from "@/lib/actions/programs";
 import { bodyOf } from "@/lib/api/v1/body";
 import { isStandard, setStandard } from "@/lib/api/v1/program-forms";
 import { programGate } from "@/lib/api/v1/programs";
-import { fromAction, inactive, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor } from "@/lib/api/v1/sessions";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
@@ -30,7 +30,7 @@ async function levelGate(user: Parameters<typeof readerFor>[0], id: string) {
 export async function PATCH(request: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const gate = await levelGate(user, (await params).id);
   if ("refusal" in gate) return gate.refusal;
   const body = await bodyOf(request);
@@ -46,7 +46,7 @@ export async function PATCH(request: Request, { params }: Params) {
 export async function DELETE(_request: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const gate = await levelGate(user, (await params).id);
   if ("refusal" in gate) return gate.refusal;
   const form = new FormData();

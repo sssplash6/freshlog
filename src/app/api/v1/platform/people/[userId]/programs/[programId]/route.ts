@@ -1,6 +1,6 @@
 import { removeProgramGrant, setProgramGrant } from "@/lib/actions/grants";
 import { bodyOf } from "@/lib/api/v1/body";
-import { fromAction, inactive, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, refused, signInAgain } from "@/lib/api/v1/respond";
 import { isText } from "@/lib/api/v1/session-forms";
 import type { AccessChange } from "@/lib/api/v1/types";
 import { getCurrentUser } from "@/lib/dal";
@@ -33,7 +33,7 @@ const formOf = (userId: string, programId: string) => {
 export async function PUT(request: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const { userId, programId } = await params;
   if (!(await found(user.platformAdmin, userId, programId))) return refused("Not found.", 404);
   const { level } = ((await bodyOf(request)) ?? {}) as Partial<Record<keyof AccessChange, unknown>>;
@@ -47,7 +47,7 @@ export async function PUT(request: Request, { params }: Params) {
 export async function DELETE(_request: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const { userId, programId } = await params;
   if (!(await found(user.platformAdmin, userId, programId))) return refused("Not found.", 404);
   return fromAction(await removeProgramGrant(null, formOf(userId, programId)));

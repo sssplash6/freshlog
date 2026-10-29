@@ -1,5 +1,5 @@
 import { mentorHomeFor } from "@/lib/api/v1/mentor-home";
-import { inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { canActAsMentor } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/dal";
 
@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   if (!canActAsMentor(user)) return refused("Not found.", 404);
   // The page's own tabs and order, by its own names; the page ignores what it doesn't know, and so does this.
   const query = new URL(request.url).searchParams;

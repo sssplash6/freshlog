@@ -4,7 +4,7 @@ import { managedStudent } from "@/lib/api/v1/admin-student";
 import { bodyOf } from "@/lib/api/v1/body";
 import { grantForm } from "@/lib/api/v1/grant-forms";
 import { grantOptionsFor } from "@/lib/api/v1/grants";
-import { fromAction, inactive, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor } from "@/lib/api/v1/sessions";
 import { getCurrentUser } from "@/lib/dal";
 
@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const { id } = await params;
   const reader = await readerFor(user);
   const managed = await managedStudent(reader, id);

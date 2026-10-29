@@ -1,6 +1,6 @@
 import { classmateFor } from "@/lib/api/v1/classmates";
 import { NOT_A_STUDENT, practiceStudent } from "@/lib/api/v1/practice";
-import { inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { getCurrentUser } from "@/lib/dal";
 
 // Reads the token and the database on every request; never prerender. On
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const me = await practiceStudent(user);
   if (!me) return refused(NOT_A_STUDENT, 403);
   const { id } = await params;

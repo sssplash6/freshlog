@@ -1,7 +1,7 @@
 import { createProgram } from "@/lib/actions/programs";
 import { programRows, schoolOf } from "@/lib/api/v1/admin";
 import { bodyOf } from "@/lib/api/v1/body";
-import { fromAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor } from "@/lib/api/v1/sessions";
 import { isText } from "@/lib/api/v1/session-forms";
 import { scopeIsEmpty } from "@/lib/authz";
@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const reader = await readerFor(user);
   if (scopeIsEmpty(reader.read)) return refused("Not found.", 404);
   return ok(programRows(reader, await schoolOf(reader)));
@@ -34,7 +34,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   if (!user.platformAdmin) return refused("Not found.", 404);
   const body = await bodyOf(request);
   if (!body) return refused("Send the program as JSON.", 400);

@@ -55,6 +55,46 @@ describe("GET /api/v1/inbox", () => {
     expect(next.nextCursor).toBeNull();
   });
 
+  it("narrows to a category, counts the chips over the whole feed, and breaks unread down deadlines first", async () => {
+    const aziz = await student();
+    const notice = (category: string, read: boolean, message = category) =>
+      prisma.notification.create({ data: { userId: aziz.userId, type: "TASK_SET", category, read, message } });
+    await notice("SESSIONS", false);
+    await notice("SESSIONS", false);
+    await notice("SESSIONS", true);
+    await notice("DEADLINES", false);
+    await notice("HOURS", true);
+    actor.value = { id: aziz.userId };
+    const all: InboxPage = await (await get()).json();
+    expect(all.unread).toBe(3);
+    expect(all.unreadBy).toEqual([
+      { category: "DEADLINES", label: "Deadlines", count: 1 },
+      { category: "SESSIONS", label: "Sessions", count: 2 },
+    ]);
+    // The website's chip order, the categories the reader has anything in.
+    expect(all.categories.map((c) => [c.category, c.count])).toEqual([["SESSIONS", 3], ["HOURS", 1], ["DEADLINES", 1]]);
+    const hours: InboxPage = await (await get("?category=HOURS")).json();
+    expect(hours.items.map((i) => i.category)).toEqual(["HOURS"]);
+    expect(hours.unread).toBe(3);
+    const bad = await get("?category=EVERYTHING");
+    expect(bad.status).toBe(400);
+    expect(await bad.json()).toMatchObject({ field: "category" });
+  });
+
+  it("hands out only a link the website's /n/[id] would follow", async () => {
+    const aziz = await student();
+    for (const href of ["//evil.example/x", "/\\evil.example", "https://evil.example", "/student"])
+      await prisma.notification.create({ data: { userId: aziz.userId, type: "TASK_SET", message: href, href } });
+    actor.value = { id: aziz.userId };
+    const page: InboxPage = await (await get()).json();
+    expect(Object.fromEntries(page.items.map((i) => [i.message, i.href]))).toEqual({
+      "//evil.example/x": null,
+      "/\\evil.example": null,
+      "https://evil.example": null,
+      "/student": "/student",
+    });
+  });
+
   it("answers a bad cursor 400 with field cursor", async () => {
     const aziz = await student();
     actor.value = { id: aziz.userId };

@@ -6,6 +6,7 @@ import type { CaseloadRow, MentorHome } from "@/lib/api/v1/types";
 import { caseloadStatuses } from "@/lib/attention";
 import { canActAsMentor } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/format";
+import { unreadOf } from "@/lib/api/v1/inbox";
 import { prisma } from "@/lib/prisma";
 import { type CaseloadStudent } from "@/lib/queries";
 import { forfeitedOf, mentorHomeView, type MentorHomeParams } from "@/lib/screens/mentor-home";
@@ -43,7 +44,7 @@ export async function mentorHomeFor(user: User, params: MentorHomeParams = {}, n
     mentorHomeView(user, params, now, async () => "mentor"),
     // The ledger's own rule, so this is what its `answer=disputed` lists.
     prisma.session.count({ where: { AND: [{ mentorId: user.id }, DISPUTED] } }),
-    prisma.notification.count({ where: { userId: user.id, read: false } }),
+    unreadOf(user.id),
   ]);
   const { viewer } = view;
   const row = (s: CaseloadStudent) => toCaseloadRow(s, viewer, view);
@@ -81,7 +82,7 @@ export async function mentorHomeFor(user: User, params: MentorHomeParams = {}, n
       dir: view.asked?.dir ?? null,
     },
     columns: { program: view.showProgram, level: view.showLevel },
-    unread,
+    ...unread,
     // How many rows the website's cap left out of To do, so a capped list cannot
     // read as a whole one.
     todoSpilled: view.attention.spilled,

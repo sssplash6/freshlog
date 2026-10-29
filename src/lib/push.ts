@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { PushData } from "@/lib/api/v1/types";
-import { neutralHref } from "@/lib/notify";
+import { followableHref } from "@/lib/api/v1/inbox";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -137,7 +137,7 @@ export async function sweepPushes(now: Date, send: Sender): Promise<SweepResult>
         body: row.message,
         badge: unreadOf.get(row.userId) ?? 0,
         sound: "default",
-        data: { notification: row.id, href: row.href ? neutralHref(row.href) : null },
+        data: { notification: row.id, href: followableHref(row.href) },
       });
     }
   }

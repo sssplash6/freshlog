@@ -1,4 +1,4 @@
-import { inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import type { ApiAnalytics } from "@/lib/api/v1/types";
 import { analyticsData, instituteAnalyticsData } from "@/lib/analytics";
 import { canActAsMentor, ROLES } from "@/lib/constants";
@@ -24,7 +24,7 @@ const READERS: string[] = [ROLES.ADMIN, ROLES.DEPT_LEADER, ROLES.SALES, ROLES.ME
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   if (!READERS.includes(user.role)) return refused("Not found.", 404);
 
   const lens = await profileOf(user);

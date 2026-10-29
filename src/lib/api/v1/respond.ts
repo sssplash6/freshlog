@@ -1,5 +1,6 @@
 import type { ActionState } from "@/lib/actions/shared";
 import type { CreatedResult, WriteResult } from "@/lib/api/v1/types";
+import { canActAsMentor, USER_STATUS } from "@/lib/constants";
 
 /**
  * The answers /api/v1 gives the freshlog app. Every one is JSON, bar the 204
@@ -49,13 +50,25 @@ export function signInAgain(): Response {
   return json({ ok: false, error: "Sign in again.", code: "unauthenticated" }, 401);
 }
 
-/** The words a PENDING or UNASSIGNED account is given; see `inactive`. */
+/**
+ * Whether the account may use the API past its sign-in: an ACTIVE one, or a
+ * mentor no program has taken on yet (UNASSIGNED), whom the website lets in
+ * wherever a mentor goes, with nobody in their caseload and "Waiting for a
+ * program" on their home (no gate in src/lib/dal.ts looks at `status`). A
+ * student nobody approved (PENDING), and a status this build doesn't know,
+ * wait. Every handler's own checks (scope, pairings, the actions) still hold.
+ */
+export function mayUse(user: { status: string; role: string; isMentor?: boolean | null }): boolean {
+  return user.status === USER_STATUS.ACTIVE || (user.status === USER_STATUS.UNASSIGNED && canActAsMentor(user));
+}
+
+/** The words an account `mayUse` turns away is given; see `inactive`. */
 export const INACTIVE = "Your account isn't active yet.";
 
 /**
- * 403 `{ ok: false, error: INACTIVE, code: "inactive" }`: the account is PENDING
- * or UNASSIGNED. The app asks /me again and shows the waiting screen, so its
- * `code` is part of the contract with it.
+ * 403 `{ ok: false, error: INACTIVE, code: "inactive" }`: the account may not
+ * use the API yet (`mayUse`): a PENDING student. The app asks /me again and
+ * shows the waiting screen, so its `code` is part of the contract with it.
  */
 export function inactive(): Response {
   return refused(INACTIVE, 403, { code: "inactive" });

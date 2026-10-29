@@ -87,7 +87,7 @@ describe("PATCH /api/v1/sessions/:id", () => {
 
   it("answers 403 inactive to an account that isn't active, and changes nothing", async () => {
     const { m, s } = await logged();
-    await prisma.user.update({ where: { id: m.id }, data: { status: "UNASSIGNED" } });
+    await prisma.user.update({ where: { id: m.id }, data: { status: "PENDING" } });
     actor.value = { id: m.id };
     const res = await patch(s.id, { minutes: 45 });
     expect(res.status).toBe(403);

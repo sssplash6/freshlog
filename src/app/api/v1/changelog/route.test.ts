@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readChangelog } from "@/lib/changelog";
 import { prisma } from "@/lib/prisma";
+import { pastWeek } from "@/lib/screens/changelog";
 import { mentor, student } from "@/test/db";
 
 /** What's new: the website's changelog, and what the reader has seen of it. */
@@ -37,6 +38,13 @@ describe("GET /api/v1/changelog and POST changelog/seen", () => {
     expect([...days].sort((a, b) => (a.day < b.day ? 1 : -1))).toEqual(days);
     const first = days.find((d: { new: unknown[] }) => d.new.length > 0);
     expect(Object.keys(first.new[0]).sort()).toEqual(["detail", "headline"]);
+  });
+
+  it("counts the past seven days as the page's figures do", async () => {
+    actor.value = { id: (await mentor()).id };
+    const { week } = await (await GET()).json();
+    const p = pastWeek(await readChangelog());
+    expect(week).toEqual({ added: p.new, fixed: p.fixed });
   });
 
   it("marks days unseen until the reader has opened it, then none", async () => {

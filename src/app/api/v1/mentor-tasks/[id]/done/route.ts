@@ -1,7 +1,7 @@
 import { setMentorTaskDone } from "@/lib/actions/mentor-tasks";
 import { bodyOf } from "@/lib/api/v1/body";
 import { mentorShareFor } from "@/lib/api/v1/mentor-tasks";
-import { fromAction, inactive, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, refused, signInAgain } from "@/lib/api/v1/respond";
 import { getCurrentUser } from "@/lib/dal";
 
 // Reads the token and the database on every request; never prerender. On
@@ -20,9 +20,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  // A mentor no program has taken on yet still sees and ticks what an admin gave
-  // them, as the website's mentor page lets them; a student nobody approved doesn't.
-  if (user.status !== "ACTIVE" && user.status !== "UNASSIGNED") return inactive();
+  if (!mayUse(user)) return inactive();
   const { id } = await params;
   const share = await mentorShareFor(user, id);
   if (!share) return refused("Not found.", 404);

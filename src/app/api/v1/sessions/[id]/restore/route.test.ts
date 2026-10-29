@@ -43,7 +43,7 @@ describe("POST /api/v1/sessions/:id/restore", () => {
 
   it("answers 403 inactive to an account that isn't active, and restores nothing", async () => {
     const { m, s } = await voided();
-    await prisma.user.update({ where: { id: m.id }, data: { status: "UNASSIGNED" } });
+    await prisma.user.update({ where: { id: m.id }, data: { status: "PENDING" } });
     actor.value = { id: m.id };
     const res = await post(s.id);
     expect(res.status).toBe(403);

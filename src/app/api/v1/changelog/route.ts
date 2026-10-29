@@ -1,5 +1,5 @@
 import { changelogFor } from "@/lib/api/v1/changelog-view";
-import { inactive, ok, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, ok, signInAgain } from "@/lib/api/v1/respond";
 import { getCurrentUser } from "@/lib/dal";
 
 // Reads the token and the database on every request; never prerender. On
@@ -10,6 +10,6 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   return ok(await changelogFor(user));
 }

@@ -25,10 +25,22 @@ describe("GET /api/v1/mentor/home", () => {
     expect((await GET(new Request("http://test/api/v1/mentor/home"))).status).toBe(401);
   });
 
-  it("answers 403 inactive to a mentor no program has taken on yet", async () => {
+  it("gives a mentor no program has taken on yet their home, which says they wait for a program, as the website's", async () => {
     const m = await prisma.user.update({
       where: { id: (await mentor("Akmal Karimov")).id },
       data: { status: "UNASSIGNED" },
+    });
+    actor.value = { id: m.id };
+    const res = await GET(new Request("http://test/api/v1/mentor/home"));
+    expect(res.status).toBe(200);
+    const home = await res.json();
+    expect(home.todo.map((t: { type: string }) => t.type)).toContain("MENTOR_UNASSIGNED");
+  });
+
+  it("answers 403 inactive to an account that isn't active", async () => {
+    const m = await prisma.user.update({
+      where: { id: (await mentor("Akmal Karimov")).id },
+      data: { status: "PENDING" },
     });
     actor.value = { id: m.id };
     const res = await GET(new Request("http://test/api/v1/mentor/home"));

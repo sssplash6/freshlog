@@ -1,4 +1,4 @@
-import { inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor } from "@/lib/api/v1/sessions";
 import { studentWorkFor } from "@/lib/api/v1/student-work";
 import { getCurrentUser } from "@/lib/dal";
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const { id } = await params;
   const work = await studentWorkFor(await readerFor(user), id);
   if (!work) return refused("Not found.", 404);

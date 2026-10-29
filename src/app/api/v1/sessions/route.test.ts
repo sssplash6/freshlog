@@ -57,7 +57,7 @@ describe("GET /api/v1/sessions", () => {
   it("answers 403 inactive to an account that isn't active, even about sessions of its own", async () => {
     const { aziz, akmal } = await ledger();
     await prisma.user.update({ where: { id: aziz.userId }, data: { status: "PENDING" } });
-    await prisma.user.update({ where: { id: akmal.id }, data: { status: "UNASSIGNED" } });
+    await prisma.user.update({ where: { id: akmal.id }, data: { status: "PENDING" } });
     for (const id of [aziz.userId, akmal.id]) {
       actor.value = { id };
       const res = await get();

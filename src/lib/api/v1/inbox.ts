@@ -1,9 +1,15 @@
 import "server-only";
 
 import type { InboxItem, InboxPage, InboxQuery } from "@/lib/api/v1/types";
-import { NOTIFICATION_META } from "@/lib/constants";
+import {
+  NOTIFICATION_CATEGORY,
+  NOTIFICATION_CATEGORY_LABELS,
+  NOTIFICATION_META,
+  type NotificationCategory,
+} from "@/lib/constants";
 import { neutralHref } from "@/lib/notify";
 import { prisma } from "@/lib/prisma";
+import { summarizeUnread } from "@/lib/unread";
 import type { Prisma } from "@/generated/prisma/client";
 
 /**
@@ -17,9 +23,48 @@ import type { Prisma } from "@/generated/prisma/client";
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
 
+/** The order the website's chips read in (`/notifications`' CATEGORY_ORDER): what changes most often, first. */
+const CATEGORY_ORDER: NotificationCategory[] = [
+  NOTIFICATION_CATEGORY.SESSIONS,
+  NOTIFICATION_CATEGORY.HOURS,
+  NOTIFICATION_CATEGORY.TASKS,
+  NOTIFICATION_CATEGORY.DEADLINES,
+  NOTIFICATION_CATEGORY.ACCOUNTS,
+];
+const isCategory = (value: string): value is NotificationCategory => (CATEGORY_ORDER as string[]).includes(value);
+
+/**
+ * A notice's link as the website's `/n/[id]` follows it: only an in-app path
+ * (`inAppPath` there: never `//host` or `/\host`, which a browser reads as
+ * another site), with old shapes rewritten (`neutralHref`). Null for any other.
+ */
+export function followableHref(href: string | null): string | null {
+  if (!href || !href.startsWith("/") || href.startsWith("//") || href.startsWith("/\\")) return null;
+  return neutralHref(href);
+}
+
+/**
+ * What the bell's number is made of, as the website's shell reads it
+ * (`summarizeUnread`): the total, and the deadlines in it, which the bell's
+ * name calls out.
+ */
+export async function unreadOf(userId: string): Promise<{ unread: number; unreadDeadlines: number }> {
+  const { total, urgent } = await unreadSummaryOf(userId);
+  return { unread: total, unreadDeadlines: urgent };
+}
+
+async function unreadSummaryOf(userId: string) {
+  const rows = await prisma.notification.groupBy({ by: ["category"], where: { userId, read: false }, _count: true });
+  return summarizeUnread(rows.map((r) => ({ category: r.category, count: r._count })));
+}
+
 /** The query string's inbox fields; the route reads them off the URL. */
 export function inboxQueryFrom(params: URLSearchParams): InboxQuery {
-  return { cursor: params.get("cursor") ?? undefined, limit: params.get("limit") ?? undefined };
+  return {
+    cursor: params.get("cursor") ?? undefined,
+    limit: params.get("limit") ?? undefined,
+    category: params.get("category") ?? undefined,
+  };
 }
 
 /** Where the page before ended: the instant and id of its last row, and not the row itself. */
@@ -71,7 +116,7 @@ function toInboxItem(row: Row): InboxItem {
     // Old rows hold types the product has dropped; the website calls those "Update".
     title: NOTIFICATION_META[row.type]?.label ?? "Update",
     message: row.message,
-    href: row.href ? neutralHref(row.href) : null,
+    href: followableHref(row.href),
     actor: row.actor ? { id: row.actor.id, name: row.actor.name ?? row.actor.email } : null,
     read: row.read,
     at: row.createdAt.toISOString(),
@@ -89,20 +134,28 @@ export async function inboxPage(
   }
   const limit = limitOf(query.limit);
   if (limit === null) return { refused: "Send a page size from 1 to 100.", field: "limit" };
-  const [rows, unread] = await Promise.all([
+  if (query.category !== undefined && !isCategory(query.category)) return { refused: "Pick a category.", field: "category" };
+  const [rows, unread, byCategory] = await Promise.all([
     prisma.notification.findMany({
-      where: { userId, ...(cursor ? after(cursor) : {}) },
+      where: { userId, ...(query.category ? { category: query.category } : {}), ...(cursor ? after(cursor) : {}) },
       include: { actor: { select: { id: true, name: true, email: true } } },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
     }),
-    prisma.notification.count({ where: { userId, read: false } }),
+    unreadSummaryOf(userId),
+    // Counted across the whole feed, as the website's chips are: a chip is a category the reader has anything in.
+    prisma.notification.groupBy({ by: ["category"], where: { userId }, _count: true }),
   ]);
   const items = rows.slice(0, limit);
+  const countOf = new Map(byCategory.map((c) => [c.category, c._count]));
   return {
     items: items.map(toInboxItem),
     nextCursor: rows.length > limit ? cursorAfter(items[items.length - 1]) : null,
-    unread,
+    unread: unread.total,
+    unreadBy: unread.parts,
+    categories: CATEGORY_ORDER.flatMap((category) =>
+      countOf.has(category) ? [{ category, label: NOTIFICATION_CATEGORY_LABELS[category], count: countOf.get(category)! }] : []
+    ),
   };
 }
 

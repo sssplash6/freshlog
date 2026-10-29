@@ -1,6 +1,6 @@
 import { removeInterviewSlot } from "@/lib/actions/interviews";
 import { NOT_A_STUDENT, practiceStudent } from "@/lib/api/v1/practice";
-import { fromAction, inactive, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, refused, signInAgain } from "@/lib/api/v1/respond";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const me = await practiceStudent(user);
   if (!me) return refused(NOT_A_STUDENT, 403);
   const { id } = await params;

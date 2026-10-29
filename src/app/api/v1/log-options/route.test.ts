@@ -28,10 +28,10 @@ const NOT_FOUND = { ok: false, error: "Not found." };
 describe("GET /api/v1/log-options", () => {
   it("answers 401 with no user", async () => expect((await GET()).status).toBe(401));
 
-  it("answers 403 inactive to a mentor no program has taken on", async () => {
+  it("answers 403 inactive to an account that isn't active", async () => {
     const m = await prisma.user.update({
       where: { id: (await mentor("Akmal Karimov")).id },
-      data: { status: "UNASSIGNED" },
+      data: { status: "PENDING" },
     });
     actor.value = { id: m.id };
     const res = await GET();

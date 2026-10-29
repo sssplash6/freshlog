@@ -1,7 +1,7 @@
 import { logSession } from "@/lib/actions/sessions";
 import { bodyOf } from "@/lib/api/v1/body";
 import { logForm } from "@/lib/api/v1/log";
-import { fromAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor, scopeFor, sessionsPage, sessionsQueryFrom } from "@/lib/api/v1/sessions";
 import { adminWriteScope, scopeIsEmpty } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const reader = await readerFor(user);
   const query = sessionsQueryFrom(new URL(request.url).searchParams);
   if (!(await scopeFor(reader, query))) return refused("Not found.", 404);
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const body = await bodyOf(request);
   if (!body) return refused("Send the session as JSON.", 400);
   const form = logForm(body, !scopeIsEmpty(await adminWriteScope(user)));

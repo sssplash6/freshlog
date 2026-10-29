@@ -1,7 +1,7 @@
 import { reportBug } from "@/lib/actions/bugs";
 import { multipartOf } from "@/lib/api/v1/account-forms";
 import { bugsFor } from "@/lib/api/v1/bug-view";
-import { fromCreatingAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromCreatingAction, inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import type { CreatedResult } from "@/lib/api/v1/types";
 import { readDiagnostics } from "@/lib/bugs";
 import { getCurrentUser } from "@/lib/dal";
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   return ok(await bugsFor(user));
 }
 
@@ -34,7 +34,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const form = await multipartOf(request);
   if (!form) return refused("Send the report as multipart/form-data.", 400);
   form.delete("from");

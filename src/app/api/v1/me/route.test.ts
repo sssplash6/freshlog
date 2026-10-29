@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { mentor, student } from "@/test/db";
+import { grant, mentor, program, student } from "@/test/db";
 
 /**
  * /me is how somebody who is not active yet learns why. So it answers 200 to
@@ -48,7 +48,21 @@ describe("GET /api/v1/me", () => {
     actor.value = { id: m.id };
     const res = await GET();
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ id: m.id, status: "UNASSIGNED", onboarding: "unassigned" });
+    // Their home opens, as the website's /mentor does, and says they wait for a program.
+    expect(await res.json()).toMatchObject({ id: m.id, status: "UNASSIGNED", roles: ["mentor"], onboarding: null });
+  });
+
+  it("gives staff with no grant yet the admin side, as /admin lets them in", async () => {
+    const a = await prisma.user.create({ data: { email: "nogrant@test.invalid", name: "Nodira Aliyeva", role: "DEPT_LEADER", status: "ACTIVE" } });
+    actor.value = { id: a.id };
+    expect(await (await GET()).json()).toMatchObject({ roles: ["admin"], onboarding: null });
+  });
+
+  it("asks a mentor granted a program before giving their name for it", async () => {
+    const m = await prisma.user.update({ where: { id: (await mentor("Akmal Karimov")).id }, data: { name: null } });
+    await grant({ userId: m.id, programId: (await program("Global Admissions")).id });
+    actor.value = { id: m.id };
+    expect(await (await GET()).json()).toMatchObject({ roles: ["admin", "mentor"], onboarding: "mentor-name" });
   });
 
   it("answers a set-up student with who they are and nothing left to do", async () => {

@@ -20,13 +20,16 @@ export type ApiRole = "student" | "mentor" | "admin";
  * - `student-profile`: no student record yet, no name, or no Telegram username
  * - `mentor-name`: no name
  * - `pending-approval`: registered, and staff have not approved the account yet
- * - `unassigned`: a mentor no program has taken on yet
+ * - `unassigned`: no longer sent. A mentor no program has taken on yet has
+ *   the mentor home, as on the website (it says "Waiting for a program"), with
+ *   `status` UNASSIGNED; a build that waits on it is told so by `status`.
  * - `no-access`: no role at all, so there is no home to open
  *
- * `null` when it needs nothing, and always when `roles[0]` is "admin": a person
- * whose first role is admin gets `null` whatever their status or name. So
- * `null` does not mean the account is ACTIVE, and the app must read
- * `MeResponse.status` too.
+ * `null` when it needs nothing. When `roles[0]` is "admin" it is `null`
+ * whatever their status, bar `mentor-name` for a mentor granted a program
+ * before giving their name. So `null` does not mean the account is ACTIVE, and
+ * the app must read `MeResponse.status` too: ACTIVE, or UNASSIGNED for a
+ * mentor, opens a home; PENDING waits.
  */
 export type Onboarding = "student-profile" | "mentor-name" | "pending-approval" | "unassigned" | "no-access" | null;
 
@@ -415,6 +418,8 @@ export type MentorHome = {
   columns: { program: boolean; level: boolean };
   /** Unread notifications, the bell's badge. Filled by Task F6. */
   unread: number;
+  /** Of `unread`, the deadlines, which the bell's name calls out as the website's does. */
+  unreadDeadlines: number;
   /** Rows freshform's 10-row cap on the To do list left out. Filled by Task F6. */
   todoSpilled: number;
 };
@@ -480,6 +485,8 @@ export type StudentHome = {
   meetings: { count: number; latest: HomeMeeting[] };
   /** Unread notifications, the bell's badge. Filled by Task F6. */
   unread: number;
+  /** Of `unread`, the deadlines, which the bell's name calls out as the website's does. */
+  unreadDeadlines: number;
   /** Today in the program's zone, "YYYY-MM-DD". The app never takes it from the phone. */
   today: string;
 };
@@ -626,10 +633,27 @@ export type InboxItem = {
   /** ISO instant. */
   at: string;
 };
-/** GET /api/v1/inbox. `unread` counts the whole feed. */
-export type InboxPage = { items: InboxItem[]; nextCursor: string | null; unread: number };
-/** `limit` is 1 to 100, 25 when left out; any other value is a 400 on field `limit`, as a bad `cursor` is on `cursor`. */
-export type InboxQuery = { cursor?: string; limit?: string };
+/** A notification category and how many: HOURS, SESSIONS, TASKS, DEADLINES or ACCOUNTS, with the website's label. */
+export type InboxCategoryCount = { category: string; label: string; count: number };
+/**
+ * GET /api/v1/inbox. `unread` counts the whole feed; `unreadBy` is what it is
+ * made of, as the website's bell panel lists it: deadlines first, then the
+ * largest. `categories` are the website's filter chips: each category the
+ * reader has anything in, over the whole feed, in the website's order.
+ */
+export type InboxPage = {
+  items: InboxItem[];
+  nextCursor: string | null;
+  unread: number;
+  unreadBy: InboxCategoryCount[];
+  categories: InboxCategoryCount[];
+};
+/**
+ * `limit` is 1 to 100, 25 when left out; any other value is a 400 on field
+ * `limit`, as a bad `cursor` is on `cursor`. `category` narrows the feed to
+ * one of the five; another is a 400 on `category`.
+ */
+export type InboxQuery = { cursor?: string; limit?: string; category?: string };
 /** POST /api/v1/statuses/dismiss and /restore: a To do row, by `TodoRow.type` and `TodoRow.subject?.id ?? ""`. */
 export type StatusKey = { type: string; subjectId: string };
 
@@ -712,6 +736,8 @@ export type AdminHome = {
   todo: TodoRow[];
   todoSpilled: number;
   unread: number;
+  /** Of `unread`, the deadlines, which the bell's name calls out as the website's does. */
+  unreadDeadlines: number;
   platformAdmin: boolean;
   today: string;
   /** The page's freshness stamp, "Oct 29, 14:05": when this answer was read, in Tashkent. */
@@ -1343,8 +1369,12 @@ export type BookingLinkText = { url: string };
 export type ChangelogItem = { headline: string | null; detail: string };
 /** One day of the changelog. `unseen` when it holds something this person hasn't read (`isUnseen`). */
 export type ChangelogDay = { day: string; unseen: boolean; new: ChangelogItem[]; fixed: ChangelogItem[] };
-/** `GET /api/v1/changelog`, newest day first. `POST /api/v1/changelog/seen` marks it read (204). */
-export type ApiChangelog = { days: ChangelogDay[] };
+/**
+ * `GET /api/v1/changelog`, newest day first. `POST /api/v1/changelog/seen` marks it read (204).
+ * `week` is the page's "Past seven days": items added and fixed. The page leaves the fixed figure out for a
+ * student, as a staff matter; the app does the same in the student's role.
+ */
+export type ApiChangelog = { week: { added: number; fixed: number }; days: ChangelogDay[] };
 
 export type BugStatus = "PENDING" | "IN_PROGRESS" | "IN_REVIEW" | "FIXED" | "CLOSED";
 /**

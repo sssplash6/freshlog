@@ -1,6 +1,6 @@
 import { setStudentTask } from "@/lib/actions/student-tasks";
 import { bodyOf } from "@/lib/api/v1/body";
-import { fromAction, inactive, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, refused, signInAgain } from "@/lib/api/v1/respond";
 import { taskCreateForm } from "@/lib/api/v1/work-forms";
 import { getCurrentUser } from "@/lib/dal";
 
@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const body = await bodyOf(request);
   if (!body) return refused("Send the task as JSON.", 400);
   const form = taskCreateForm(body);

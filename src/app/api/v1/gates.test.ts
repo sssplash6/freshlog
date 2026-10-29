@@ -16,15 +16,16 @@ import { describe, expect, it } from "vitest";
  * - the user gate, which is three statements, exactly:
  *     const user = await getCurrentUser();
  *     if (!user) return signInAgain();
- *     if (user.status !== "ACTIVE") return inactive();
+ *     if (!mayUse(user)) return inactive();
  * - `if (!devLoginEnabled(request)) return …`, about the handler's own request
  * - a place on UNGATED below, under the comment that says why
  *
  * The third statement is what keeps an account that isn't active yet out. A
  * PENDING student and an UNASSIGNED mentor sign in like anyone, `getCurrentUser`
- * finds them by their token, and no gate in src/lib/dal.ts looks at `status`. A
- * handler that serves them on purpose opens with the first statement alone and
- * goes on ANY_STATUS below, with the reason.
+ * finds them by their token, and no gate in src/lib/dal.ts looks at `status`.
+ * `mayUse` lets the mentor in, as the website does, and keeps the student
+ * waiting. A handler that serves a waiting account on purpose opens with the
+ * first statement alone and goes on ANY_STATUS below, with the reason.
  *
  * A handler is written `export async function GET(…)`. One exported any other
  * way (`export const GET = …`, `export { get as GET }`) cannot be read here, so
@@ -58,8 +59,6 @@ const ANY_STATUS: Record<string, string> = {
   "onboarding POST": "the answer to that form, which is how a pending account gets as far as waiting",
   "account/deletion POST": "asking for your account to be deleted, which the App Store asks for any account, active or not",
   "account/deletion DELETE": "taking that back, from wherever it was asked",
-  "mentor-tasks GET": "a mentor no program has taken on yet still sees what an admin gave them, as on the website; it refuses every other inactive account",
-  "mentor-tasks/[id]/done POST": "and still ticks it, as on the website; it refuses every other inactive account",
 };
 
 const isExported = (node: ts.HasModifiers) =>
@@ -136,20 +135,18 @@ function isSignedOutGate(statement: ts.Statement): boolean {
   );
 }
 
-/** `if (user.status !== "ACTIVE") return inactive();`, with no else. */
+/** `if (!mayUse(user)) return inactive();`, with no else. */
 function isInactiveGate(statement: ts.Statement): boolean {
   if (!ts.isIfStatement(statement) || statement.elseStatement) return false;
   const { expression: test, thenStatement } = statement;
+  if (!ts.isPrefixUnaryExpression(test) || test.operator !== ts.SyntaxKind.ExclamationToken) return false;
+  const call = test.operand;
   return (
-    ts.isBinaryExpression(test) &&
-    test.operatorToken.kind === ts.SyntaxKind.ExclamationEqualsEqualsToken &&
-    ts.isPropertyAccessExpression(test.left) &&
-    // Not `user?.status`: it means the same here, but it is not the line every handler has.
-    test.left.questionDotToken === undefined &&
-    isUser(test.left.expression) &&
-    test.left.name.text === "status" &&
-    ts.isStringLiteral(test.right) &&
-    test.right.text === "ACTIVE" &&
+    ts.isCallExpression(call) &&
+    ts.isIdentifier(call.expression) &&
+    call.expression.text === "mayUse" &&
+    call.arguments.length === 1 &&
+    isUser(call.arguments[0]) &&
     returnsCall(thenStatement, "inactive")
   );
 }
@@ -195,7 +192,7 @@ function check(where: string, text: string): { handlers: string[]; problems: str
           refuse(`${name} must follow the user gate with \`if (!user) return signInAgain();\`, and has: ${second ? said(second) : "nothing"}`);
         } else if (!third || !isInactiveGate(third)) {
           refuse(
-            `${name} must follow that with \`if (user.status !== "ACTIVE") return inactive();\`, or be on ANY_STATUS, and has: ${third ? said(third) : "nothing"}`
+            `${name} must follow that with \`if (!mayUse(user)) return inactive();\`, or be on ANY_STATUS, and has: ${third ? said(third) : "nothing"}`
           );
         }
       }
@@ -253,7 +250,7 @@ describe("/api/v1", () => {
 });
 
 describe("the check itself", () => {
-  const GATE = 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status !== "ACTIVE") return inactive();';
+  const GATE = 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (!mayUse(user)) return inactive();';
 
   it.each([
     ["the full three-statement gate", "x GET", `export async function GET() {\n  ${GATE}\n  return ok(1);\n}`],
@@ -284,20 +281,22 @@ describe("the check itself", () => {
 
   it.each([
     ["no status check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  return ok(user);'],
-    ["the status check first", 'const user = await getCurrentUser();\n  if (user?.status !== "ACTIVE") return inactive();\n  if (!user) return signInAgain();'],
-    ["another status", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status !== "PENDING") return inactive();'],
-    ["another answer", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status !== "ACTIVE") return ok(null);'],
-    ["another answer to a signed-out request", 'const user = await getCurrentUser();\n  if (!user) return inactive();\n  if (user.status !== "ACTIVE") return inactive();'],
-    ["an answer that is not returned", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status !== "ACTIVE") inactive();'],
-    ["an optional chain in the status check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user?.status !== "ACTIVE") return inactive();'],
+    ["the status check first", 'const user = await getCurrentUser();\n  if (!mayUse(user)) return inactive();\n  if (!user) return signInAgain();'],
+    // The line every handler had before `mayUse`: it keeps out the mentor the website lets in.
+    ["the old status check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status !== "ACTIVE") return inactive();'],
+    ["another check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (!isActive(user)) return inactive();'],
+    ["another answer", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (!mayUse(user)) return ok(null);'],
+    ["another answer to a signed-out request", 'const user = await getCurrentUser();\n  if (!user) return inactive();\n  if (!mayUse(user)) return inactive();'],
+    ["an answer that is not returned", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (!mayUse(user)) inactive();'],
     // Each of these is the gate with one thing changed, so each holds one condition of the check.
-    ["the status check turned round", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status === "ACTIVE") return inactive();'],
-    ["another name in the signed-out check", 'const user = await getCurrentUser();\n  if (!account) return signInAgain();\n  if (user.status !== "ACTIVE") return inactive();'],
-    ["another name in the status check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (account.status !== "ACTIVE") return inactive();'],
-    ["an else on the signed-out check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  else log(user);\n  if (user.status !== "ACTIVE") return inactive();'],
-    ["an else on the status check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status !== "ACTIVE") return inactive();\n  else log(user);'],
-    ["an argument to signInAgain", 'const user = await getCurrentUser();\n  if (!user) return signInAgain(user);\n  if (user.status !== "ACTIVE") return inactive();'],
-    ["an argument to inactive", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (user.status !== "ACTIVE") return inactive(user);'],
+    ["the status check turned round", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (mayUse(user)) return inactive();'],
+    ["another name in the signed-out check", 'const user = await getCurrentUser();\n  if (!account) return signInAgain();\n  if (!mayUse(user)) return inactive();'],
+    ["another name in the status check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (!mayUse(account)) return inactive();'],
+    ["a second argument to mayUse", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (!mayUse(user, true)) return inactive();'],
+    ["an else on the signed-out check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  else log(user);\n  if (!mayUse(user)) return inactive();'],
+    ["an else on the status check", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (!mayUse(user)) return inactive();\n  else log(user);'],
+    ["an argument to signInAgain", 'const user = await getCurrentUser();\n  if (!user) return signInAgain(user);\n  if (!mayUse(user)) return inactive();'],
+    ["an argument to inactive", 'const user = await getCurrentUser();\n  if (!user) return signInAgain();\n  if (!mayUse(user)) return inactive(user);'],
   ])("refuses a user gate with %s", (_, body) => {
     expect(check("x", `export async function GET() {\n  ${body}\n}`).problems).not.toEqual([]);
   });

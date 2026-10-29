@@ -1,5 +1,5 @@
 import { mentorProgramsOf } from "@/app/programs/mentor-programs";
-import { inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import type { MentorProgramRow } from "@/lib/api/v1/types";
 import { canActAsMentor } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/dal";
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   if (!canActAsMentor(user)) return refused("Not found.", 404);
   return ok<MentorProgramRow[]>(await mentorProgramsOf(user.id));
 }

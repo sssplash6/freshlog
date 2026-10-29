@@ -1,4 +1,4 @@
-import { inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { studentHomeFor } from "@/lib/api/v1/student-home";
 import { getCurrentUser } from "@/lib/dal";
 
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const home = await studentHomeFor(user);
   if (!home) return refused("Not found.", 404);
   // /student sends them to onboarding first; so does this.

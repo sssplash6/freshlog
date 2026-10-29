@@ -76,12 +76,11 @@ describe("meFor: who and which roles", () => {
     expect(await meFor(user)).toMatchObject({ roles: ["student", "admin", "mentor"], onboarding: null });
   });
 
-  it("does not let the ADMIN role alone make somebody an admin", async () => {
+  it("gives staff with no grant yet the admin side, as `requireStaff` lets them into /admin", async () => {
     const none = await admin("Nodira Aliyeva");
-    expect(await meFor(none)).toMatchObject({ roles: [], onboarding: "no-access" });
-    // The mentor flag is still a way in, and the only one this person has.
+    expect(await meFor(none)).toMatchObject({ roles: ["admin"], onboarding: null });
     const flagged = await prisma.user.update({ where: { id: none.id }, data: { isMentor: true } });
-    expect(await meFor(flagged)).toMatchObject({ roles: ["mentor"], onboarding: null });
+    expect(await meFor(flagged)).toMatchObject({ roles: ["admin", "mentor"], onboarding: null });
   });
 });
 
@@ -121,9 +120,9 @@ describe("meFor: what a student still has to do", () => {
 });
 
 describe("meFor: what a mentor still has to do", () => {
-  it("tells an unassigned mentor so", async () => {
+  it("opens an unassigned mentor's home, as the website's, with the status that says they wait", async () => {
     const m = await prisma.user.update({ where: { id: (await mentor("Akmal Karimov")).id }, data: { status: "UNASSIGNED" } });
-    expect((await meFor(m)).onboarding).toBe("unassigned");
+    expect(await meFor(m)).toMatchObject({ status: "UNASSIGNED", onboarding: null });
   });
 
   it.each([null, "", "   "])("asks a mentor whose name is %j for it", async (name) => {
@@ -143,14 +142,14 @@ describe("meFor: what a mentor still has to do", () => {
     expect(await meFor(await mentor("Akmal Karimov"))).toMatchObject({ roles: ["mentor"], onboarding: null });
   });
 
-  it("judges only the first role: a mentor who administers is not held back by what a mentor needs", async () => {
+  it("asks a mentor who administers for their name too, as /onboarding asks any mentor", async () => {
     const p = await program();
     const m = await prisma.user.update({
       where: { id: (await mentor()).id },
       data: { name: null, status: "UNASSIGNED" },
     });
     await grant({ userId: m.id, programId: p.id });
-    expect(await meFor(m)).toMatchObject({ roles: ["admin", "mentor"], onboarding: null });
+    expect(await meFor(m)).toMatchObject({ roles: ["admin", "mentor"], onboarding: "mentor-name" });
   });
 
   it("gives an admin nothing to set up, even without a name", async () => {

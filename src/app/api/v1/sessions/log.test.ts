@@ -56,7 +56,7 @@ describe("POST /api/v1/sessions", () => {
 
   it("answers 403 inactive to an account that isn't active, and logs nothing", async () => {
     const { m, body } = await world();
-    await prisma.user.update({ where: { id: m.id }, data: { status: "UNASSIGNED" } });
+    await prisma.user.update({ where: { id: m.id }, data: { status: "PENDING" } });
     const res = await post(body);
     expect(res.status).toBe(403);
     expect((await res.json()).code).toBe("inactive");

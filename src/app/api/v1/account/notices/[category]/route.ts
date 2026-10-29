@@ -1,7 +1,7 @@
 import { setNotificationPreference } from "@/lib/actions/email-prefs";
 import { noticeCategory, noticeForm } from "@/lib/api/v1/account-forms";
 import { bodyOf } from "@/lib/api/v1/body";
-import { inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import type { WriteResult } from "@/lib/api/v1/types";
 import { getCurrentUser } from "@/lib/dal";
 
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export async function PUT(request: Request, { params }: { params: Promise<{ category: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const category = noticeCategory((await params).category);
   if (!category) return refused("Not found.", 404);
   const form = noticeForm(category, await bodyOf(request));

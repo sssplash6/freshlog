@@ -1,6 +1,6 @@
 import { setPlatformAdmin } from "@/lib/actions/grants";
 import { bodyOf } from "@/lib/api/v1/body";
-import { fromAction, inactive, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, refused, signInAgain } from "@/lib/api/v1/respond";
 import type { PlatformAdminChange } from "@/lib/api/v1/types";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export async function PUT(request: Request, { params }: { params: Promise<{ userId: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const { userId } = await params;
   if (!user.platformAdmin || !(await prisma.user.findUnique({ where: { id: userId }, select: { id: true } }))) {
     return refused("Not found.", 404);

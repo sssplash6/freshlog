@@ -1,6 +1,6 @@
 import { bearerFrom, liveTokenId } from "@/lib/api/tokens";
 import { bodyOf } from "@/lib/api/v1/body";
-import { inactive, noContent, refused, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, noContent, refused, signInAgain } from "@/lib/api/v1/respond";
 import { isText } from "@/lib/api/v1/session-forms";
 import type { DeviceRegistration, DeviceRemoval } from "@/lib/api/v1/types";
 import { getCurrentUser } from "@/lib/dal";
@@ -23,7 +23,7 @@ const PLATFORMS = ["ios", "android"];
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const bearer = bearerFrom(request.headers.get("authorization"));
   // A cookie-signed request has no sign-in of the app's to tie a phone to.
   const apiTokenId = bearer ? await liveTokenId(bearer) : null;
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const { token } = ((await bodyOf(request)) ?? {}) as Partial<Record<keyof DeviceRemoval, unknown>>;
   if (!isText(token)) return refused("That isn't a push token.", 400, { field: "token" });
   await prisma.deviceToken.deleteMany({ where: { token, userId: user.id } });

@@ -2,7 +2,7 @@ import { createMentor, createMentors } from "@/lib/actions/mentors";
 import { bodyOf } from "@/lib/api/v1/body";
 import { mentorListFor } from "@/lib/api/v1/mentor-list";
 import { batchRegistrationForm, registrationForm } from "@/lib/api/v1/mentors";
-import { fromAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor } from "@/lib/api/v1/sessions";
 import { scopeIsEmpty } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const reader = await readerFor(user);
   if (scopeIsEmpty(reader.read)) return refused("Not found.", 404);
   return ok(await mentorListFor(reader, Object.fromEntries(new URL(request.url).searchParams)));
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const body = await bodyOf(request);
   if (!body) return refused("Send the mentor as JSON.", 400);
   const reader = await readerFor(user);

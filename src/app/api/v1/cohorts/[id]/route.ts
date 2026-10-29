@@ -1,6 +1,6 @@
 import { deleteCohort } from "@/lib/actions/programs";
 import { programGate } from "@/lib/api/v1/programs";
-import { fromAction, inactive, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor } from "@/lib/api/v1/sessions";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const cohort = await prisma.cohort.findUnique({ where: { id: (await params).id }, select: { id: true, programId: true } });
   if (!cohort) return refused("Not found.", 404);
   const gate = await programGate(await readerFor(user), cohort.programId, { write: true });

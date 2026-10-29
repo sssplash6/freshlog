@@ -1,5 +1,5 @@
 import { programOptionsFor } from "@/lib/api/v1/programs";
-import { inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor } from "@/lib/api/v1/sessions";
 import { scopeIsEmpty } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const reader = await readerFor(user);
   if (scopeIsEmpty(reader.write)) return refused("Not found.", 404);
   return ok(await programOptionsFor(reader));

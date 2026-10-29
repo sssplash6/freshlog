@@ -1,7 +1,7 @@
 import { submitMentorFeedback } from "@/lib/actions/feedback";
 import { bodyOf } from "@/lib/api/v1/body";
 import { ratingsFor } from "@/lib/api/v1/ratings";
-import { fromAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { isText } from "@/lib/api/v1/session-forms";
 import type { RateMentor } from "@/lib/api/v1/types";
 import { ROLES } from "@/lib/constants";
@@ -22,7 +22,7 @@ const studentOf = async (userId: string) =>
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const profile = user.role === ROLES.STUDENT ? await studentOf(user.id) : null;
   if (!profile) return refused(NOT_A_STUDENT, 403);
   return ok(await ratingsFor(profile.id));
@@ -35,7 +35,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const { mentor, rating, comment } = ((await bodyOf(request)) ?? {}) as Partial<Record<keyof RateMentor, unknown>>;
   if (!isText(mentor) || !mentor) return refused("Pick one of your mentors.", 400, { field: "mentor" });
   if (typeof rating !== "number" || !Number.isInteger(rating) || rating < 1 || rating > 5) {

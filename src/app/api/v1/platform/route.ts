@@ -1,5 +1,5 @@
 import { platformFor } from "@/lib/api/v1/platform";
-import { inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { getCurrentUser } from "@/lib/dal";
 
 // Reads the token and the database on every request; never prerender. On
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const platform = await platformFor(user);
   if (!platform) return refused("Not found.", 404);
   return ok(platform);

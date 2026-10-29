@@ -1,5 +1,5 @@
 import { mentorTasksFor } from "@/lib/api/v1/mentor-tasks";
-import { inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { getCurrentUser } from "@/lib/dal";
 
 // Reads the token and the database on every request; never prerender. On
@@ -16,9 +16,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  // A mentor no program has taken on yet still sees and ticks what an admin gave
-  // them, as the website's mentor page lets them; a student nobody approved doesn't.
-  if (user.status !== "ACTIVE" && user.status !== "UNASSIGNED") return inactive();
+  if (!mayUse(user)) return inactive();
   const tasks = await mentorTasksFor(user);
   if (!tasks) return refused("Not found.", 404);
   return ok(tasks);

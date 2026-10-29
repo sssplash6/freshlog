@@ -3,7 +3,7 @@ import { programRefusal } from "@/lib/api/v1/admin-gates";
 import { managedStudent } from "@/lib/api/v1/admin-student";
 import { bodyOf } from "@/lib/api/v1/body";
 import { transferForm } from "@/lib/api/v1/grant-forms";
-import { fromAction, inactive, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor } from "@/lib/api/v1/sessions";
 import { getCurrentUser } from "@/lib/dal";
 
@@ -25,7 +25,7 @@ const GONE = "That allocation no longer exists.";
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const { id } = await params;
   const reader = await readerFor(user);
   if (!(await managedStudent(reader, id))) return refused("Not found.", 404);

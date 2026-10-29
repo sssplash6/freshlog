@@ -1,6 +1,6 @@
 import { editSession } from "@/lib/actions/sessions";
 import { bodyOf } from "@/lib/api/v1/body";
-import { fromAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { editForm, editOf } from "@/lib/api/v1/session-forms";
 import { readerFor, sessionFor, storedNote } from "@/lib/api/v1/sessions";
 import { getCurrentUser } from "@/lib/dal";
@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const { id } = await params;
   const session = await sessionFor(await readerFor(user), id);
   if (!session) return refused("Not found.", 404);
@@ -50,7 +50,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const { id } = await params;
   const session = await sessionFor(await readerFor(user), id);
   if (!session) return refused("Not found.", 404);

@@ -2,7 +2,7 @@ import { updateMentor } from "@/lib/actions/mentors";
 import { bodyOf } from "@/lib/api/v1/body";
 import { mentorRecordFor } from "@/lib/api/v1/mentor-record";
 import { mentorEditForm } from "@/lib/api/v1/mentors";
-import { fromAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor } from "@/lib/api/v1/sessions";
 import { getCurrentUser } from "@/lib/dal";
 
@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const query = Object.fromEntries(new URL(request.url).searchParams);
   const record = await mentorRecordFor(user, (await params).id, query);
   if (!record) return refused("Not found.", 404);
@@ -35,7 +35,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const body = await bodyOf(request);
   if (!body) return refused("Send the changes as JSON.", 400);
   const form = await mentorEditForm(await readerFor(user), (await params).id, body);

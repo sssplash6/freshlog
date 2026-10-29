@@ -9,6 +9,7 @@ import { staffAttention } from "@/lib/attention";
 import { scopeCovers, scopeIsEmpty, scopeProgramFilter } from "@/lib/authz";
 import { PROGRAM_STATUS, USER_STATUS } from "@/lib/constants";
 import { programTotals } from "@/lib/hours";
+import { unreadOf } from "@/lib/api/v1/inbox";
 import { prisma } from "@/lib/prisma";
 import { studentsWithHours, type StudentWithHours } from "@/lib/queries";
 import { status as statusOf, timeStateHolds } from "@/lib/status";
@@ -144,7 +145,7 @@ export async function adminHomeFor(reader: Reader, now: Date = new Date()): Prom
       programs: [],
       todo: [],
       todoSpilled: 0,
-      unread: await prisma.notification.count({ where: { userId: reader.user.id, read: false } }),
+      ...(await unreadOf(reader.user.id)),
       platformAdmin: false,
       today: programToday(now),
       updated: formatProgramStamp(now),
@@ -152,10 +153,7 @@ export async function adminHomeFor(reader: Reader, now: Date = new Date()): Prom
     };
   }
   const school = await schoolOf(reader, now);
-  const [{ todo, spilled }, unread] = await Promise.all([
-    staffTodo(reader, school),
-    prisma.notification.count({ where: { userId: reader.user.id, read: false } }),
-  ]);
+  const [{ todo, spilled }, unread] = await Promise.all([staffTodo(reader, school), unreadOf(reader.user.id)]);
   const { students } = school;
   // Over the combined rows, as the website's strip sums them: each student once.
   const overall = programTotals(students);
@@ -171,7 +169,7 @@ export async function adminHomeFor(reader: Reader, now: Date = new Date()): Prom
     programs: programRows(reader, school, { archivedLast: false }),
     todo,
     todoSpilled: spilled,
-    unread,
+    ...unread,
     platformAdmin: reader.user.platformAdmin,
     today: programToday(now),
     // The page's freshness stamp, its subtitle: "Updated Oct 29, 14:05".

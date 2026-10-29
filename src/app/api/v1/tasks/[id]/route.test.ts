@@ -87,7 +87,7 @@ describe("PATCH /api/v1/tasks/:id", () => {
 
   it("answers 403 inactive to an account that isn't active, and changes nothing", async () => {
     const { m, t } = await setUp();
-    await prisma.user.update({ where: { id: m.id }, data: { status: "UNASSIGNED" } });
+    await prisma.user.update({ where: { id: m.id }, data: { status: "PENDING" } });
     actor.value = { id: m.id };
     const res = await patch(t.id, { title: "New" });
     expect(res.status).toBe(403);
@@ -186,7 +186,7 @@ describe("DELETE /api/v1/tasks/:id", () => {
 
   it("answers 403 inactive to an account that isn't active, and deletes nothing", async () => {
     const { m, t } = await setUp();
-    await prisma.user.update({ where: { id: m.id }, data: { status: "UNASSIGNED" } });
+    await prisma.user.update({ where: { id: m.id }, data: { status: "PENDING" } });
     actor.value = { id: m.id };
     const res = await del(t.id);
     expect(res.status).toBe(403);

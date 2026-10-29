@@ -1,5 +1,5 @@
 import { logOptionsFor, onBehalfMentor } from "@/lib/api/v1/log";
-import { inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor } from "@/lib/api/v1/sessions";
 import { scopeProgramFilter } from "@/lib/authz";
 import { canActAsMentor } from "@/lib/constants";
@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const params = new URL(request.url).searchParams;
   const named = params.get("mentor")?.trim();
   // `?program=`, from a program's page: only the students in it, as the website's log page offers them.

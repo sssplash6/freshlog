@@ -2,7 +2,7 @@ import { createStudents } from "@/lib/actions/students";
 import { addStudentsForm } from "@/lib/api/v1/add-students";
 import { bodyOf } from "@/lib/api/v1/body";
 import { programGate } from "@/lib/api/v1/programs";
-import { fromAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { programRosterFor } from "@/lib/api/v1/roster";
 import { rosterQueryFrom } from "@/lib/api/v1/roster-forms";
 import { readerFor } from "@/lib/api/v1/sessions";
@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const reader = await readerFor(user);
   const gate = await programGate(reader, (await params).id, { write: false });
   if ("refusal" in gate) return gate.refusal;
@@ -39,7 +39,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const gate = await programGate(await readerFor(user), (await params).id, { write: true });
   if ("refusal" in gate) return gate.refusal;
   const body = await bodyOf(request);

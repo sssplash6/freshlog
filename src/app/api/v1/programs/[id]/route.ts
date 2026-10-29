@@ -2,7 +2,7 @@ import { deleteProgram } from "@/lib/actions/programs";
 import { bodyOf } from "@/lib/api/v1/body";
 import { programEditOf } from "@/lib/api/v1/program-forms";
 import { programDetailFor, programGate } from "@/lib/api/v1/programs";
-import { fromAction, fromRedirectingAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, fromRedirectingAction, inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor } from "@/lib/api/v1/sessions";
 import { getCurrentUser } from "@/lib/dal";
 
@@ -20,7 +20,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function GET(_request: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const reader = await readerFor(user);
   const gate = await programGate(reader, (await params).id, { write: false });
   if ("refusal" in gate) return gate.refusal;
@@ -35,7 +35,7 @@ export async function GET(_request: Request, { params }: Params) {
 export async function PATCH(request: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const reader = await readerFor(user);
   const gate = await programGate(reader, (await params).id, { write: true });
   if ("refusal" in gate) return gate.refusal;
@@ -58,7 +58,7 @@ export async function PATCH(request: Request, { params }: Params) {
 export async function DELETE(_request: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const reader = await readerFor(user);
   const gate = await programGate(reader, (await params).id, { write: true });
   if ("refusal" in gate) return gate.refusal;

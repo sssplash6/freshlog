@@ -1,4 +1,4 @@
-import { inactive, refused, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, refused, signInAgain } from "@/lib/api/v1/respond";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const { id } = await params;
   const image = await prisma.avatarImage.findUnique({
     where: { userId: id },

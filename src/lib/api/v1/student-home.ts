@@ -12,6 +12,7 @@ import { agendaLists, isFirstRun, withoutRepeats } from "@/lib/screens/student-h
 import { meetingCount, meetingLog } from "@/lib/session-entries";
 import { interviewsForLog } from "@/lib/student-interviews";
 import { allocationSummary, type AllocationSummary } from "@/lib/hours";
+import { unreadOf } from "@/lib/api/v1/inbox";
 import { prisma } from "@/lib/prisma";
 import { assignmentsForStudentWhere, studentLedger, type LedgerSession } from "@/lib/queries";
 import { EXPIRY_WINDOW_DAYS, sessionStatuses, type ViewerContext } from "@/lib/status";
@@ -58,7 +59,7 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
       select: { mentorId: true, programId: true, calendlyUrl: true },
       orderBy: { createdAt: "asc" },
     }),
-    prisma.notification.count({ where: { userId: user.id, read: false } }),
+    unreadOf(user.id),
     readerFor(user),
     interviewsForLog(user.id, now),
   ]);
@@ -134,7 +135,7 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
         return row ? [{ kind: "session" as const, session: toApiSession(reader, row, now) }] : [];
       }),
     },
-    unread,
+    ...unread,
     today: programToday(now),
   };
 }

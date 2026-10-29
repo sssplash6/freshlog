@@ -1,7 +1,7 @@
 import { deleteAssignment, updateAssignment } from "@/lib/actions/assignments";
 import { bodyOf } from "@/lib/api/v1/body";
 import { planItemEditForm, planItemEditOf } from "@/lib/api/v1/plan-forms";
-import { fromAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { nameOf, readerFor } from "@/lib/api/v1/sessions";
 import { planItemFor, storedPlanItem } from "@/lib/api/v1/work";
 import { scopeCovers, scopeProgramFilter } from "@/lib/authz";
@@ -26,7 +26,7 @@ export const dynamic = "force-dynamic";
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const { id } = await params;
   const reader = await readerFor(user);
   const item = await planItemFor(reader, id);
@@ -67,7 +67,7 @@ async function mentorChoicesFor(reader: Awaited<ReturnType<typeof readerFor>>) {
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const { id } = await params;
   const item = await planItemFor(await readerFor(user), id);
   const stored = item && (await storedPlanItem(id));
@@ -99,7 +99,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const { id } = await params;
   const item = await planItemFor(await readerFor(user), id);
   if (!item) return refused("Not found.", 404);

@@ -2,7 +2,7 @@ import { bookInterview } from "@/lib/actions/interviews";
 import { bodyOf } from "@/lib/api/v1/body";
 import { NOT_A_STUDENT, practiceHomeFor, practiceStudent } from "@/lib/api/v1/practice";
 import { bookForm } from "@/lib/api/v1/practice-forms";
-import { fromCreatingAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromCreatingAction, inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { getCurrentUser } from "@/lib/dal";
 
 // Reads the token and the database on every request; never prerender. On
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const student = await practiceStudent(user);
   if (!student) return refused(NOT_A_STUDENT, 403);
   return ok(await practiceHomeFor(student));
@@ -32,7 +32,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   if (!(await practiceStudent(user))) return refused(NOT_A_STUDENT, 403);
   const body = await bodyOf(request);
   if (!body) return refused("Send the booking as JSON.", 400);

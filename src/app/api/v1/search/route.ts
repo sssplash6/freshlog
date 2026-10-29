@@ -1,4 +1,4 @@
-import { inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import type { ApiSearch, SearchHit } from "@/lib/api/v1/types";
 import { normalizeQuery, type SearchPerson } from "@/lib/command-search";
 import { getCurrentUser } from "@/lib/dal";
@@ -18,7 +18,7 @@ const hit = (p: SearchPerson): SearchHit => ({ id: p.id, userId: p.userId, name:
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const q = normalizeQuery(new URL(request.url).searchParams.get("q"));
   if (q === null) {
     return (await searchReach(user)) ? ok({ students: [], mentors: [] } satisfies ApiSearch) : refused("Not found.", 404);

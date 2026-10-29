@@ -1,5 +1,5 @@
 import { adminHomeFor } from "@/lib/api/v1/admin";
-import { inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor } from "@/lib/api/v1/sessions";
 import { scopeIsEmpty } from "@/lib/authz";
 import { ROLES } from "@/lib/constants";
@@ -24,7 +24,7 @@ const STAFF = new Set<string>([ROLES.ADMIN, ROLES.DEPT_LEADER, ROLES.SALES]);
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  if (!mayUse(user)) return inactive();
   const reader = await readerFor(user);
   // Staff with no grant have a home all the same, saying why it is empty, as /admin does (`requireStaff`).
   if (scopeIsEmpty(reader.read) && !STAFF.has(user.role)) return refused("Not found.", 404);
