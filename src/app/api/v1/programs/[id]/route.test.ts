@@ -119,6 +119,8 @@ describe("PATCH /api/v1/programs/:id", () => {
     expect(await stored(p.id)).toMatchObject({ space: "INSTITUTE", spaceName: "GA Institute" });
     expect((await patch(p.id, { institute: null })).status).toBe(200);
     expect(await stored(p.id)).toMatchObject({ space: "PROGRAM", spaceName: "GA Institute" });
+    expect((await patch(p.id, { institute: {} })).status).toBe(200);
+    expect(await stored(p.id)).toMatchObject({ space: "INSTITUTE", spaceName: "GA Institute" });
     expect((await (await patch(p.id, { institute: { name: 3 } })).json()).field).toBe("institute");
   });
 

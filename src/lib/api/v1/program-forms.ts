@@ -108,10 +108,12 @@ export function programEditOf(
         form.set("space", "PROGRAM");
         return { action: setProgramSpace, form, platformOnly: false };
       }
-      const name = typeof value === "object" ? (value as Record<string, unknown>).name : undefined;
-      if (typeof name !== "string") return { field };
+      if (typeof value !== "object") return { field };
+      // No name keeps the one it had, as the website's field opens on it; a blank one is the program's own.
+      const name = (value as Record<string, unknown>).name;
+      if (name !== undefined && typeof name !== "string") return { field };
       form.set("space", "INSTITUTE");
-      form.set("spaceName", name);
+      if (name !== undefined) form.set("spaceName", name);
       return { action: setProgramSpace, form, platformOnly: false };
     }
   }

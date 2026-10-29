@@ -1021,8 +1021,12 @@ export type ProgramEdit =
   | { schedulesClasses: boolean }
   | { standard: { minutes: number; days: number } | null }
   | { archived: boolean }
-  /** `setProgramSpace`, a platform admin's: shown as an institute (a blank name is the program's own), or null, as a program. */
-  | { institute: { name: string } | null };
+  /**
+   * `setProgramSpace`, a platform admin's: shown as an institute, or null, as
+   * a program. A blank name is the program's own; no name keeps the one it
+   * had, which turning it into a program kept for next time.
+   */
+  | { institute: { name?: string } | null };
 /*
  * POST /api/v1/programs {name}: a platform admin's. DELETE /api/v1/programs/:id.
  * POST /api/v1/programs/:id/levels {name}; PATCH /api/v1/levels/:id {standard}; DELETE /api/v1/levels/:id.
