@@ -1,6 +1,6 @@
 # FreshLog
 
-![commits](https://img.shields.io/github/commit-activity/t/sssplash6/freshlog) · live at [freshlog.net](https://www.freshlog.net) · public demo with fictional data at [demo.freshlog.net](https://demo.freshlog.net)
+![commits](https://img.shields.io/github/commit-activity/t/sssplash6/freshlog) · live at [freshlog.net](https://www.freshlog.net) · 
 
 **The problem.** Freshman Academy students buy blocks of mentoring hours. Those hours were tracked in spreadsheets, chat messages, word of mouth and on paper, so there was no single record of how much time a student had used or had left.
 
