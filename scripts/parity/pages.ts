@@ -69,6 +69,10 @@ async function main() {
     `/programs/${programs["Global Admissions Program"]}/allocate?student=${student.id}`,
     `/students/${student.id}`,
     "/feedback",
+    "/feedback?kind=meetings",
+    "/feedback?kind=written&rating=1-3",
+    "/feedback?sort=score&dir=asc",
+    "/feedback?meetings=2",
     "/mentors",
     `/mentors/${mentor.id}`,
     "/analytics",
@@ -80,7 +84,7 @@ async function main() {
     for (const page of pages) {
       const res = await fetch(`${BASE}${page}`, { headers: { cookie }, redirect: "manual" });
       const body = res.status >= 300 && res.status < 400 ? `REDIRECT ${res.headers.get("location")}` : text(await res.text());
-      const file = `${email.split("@")[0]}${page.replace(/\//g, "_")}.txt`;
+      const file = `${email.split("@")[0]}${page.replace(/[/?&=]/g, "_")}.txt`;
       writeFileSync(join(out, file), `${res.status}\n${body}\n`);
     }
     console.log(`${email}: ${pages.length} pages`);
