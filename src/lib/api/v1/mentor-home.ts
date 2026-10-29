@@ -3,11 +3,12 @@ import "server-only";
 import { DISPUTED, nameOf } from "@/lib/api/v1/sessions";
 import { toTodoRows } from "@/lib/api/v1/todo";
 import type { CaseloadRow, MentorHome } from "@/lib/api/v1/types";
-import { attentionFor, caseloadStatuses } from "@/lib/attention";
+import { caseloadStatuses } from "@/lib/attention";
 import { canActAsMentor } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { mentorCaseload, type CaseloadStudent } from "@/lib/queries";
+import { type CaseloadStudent } from "@/lib/queries";
+import { forfeitedOf, mentorHomeView, type MentorHomeParams } from "@/lib/screens/mentor-home";
 import { SEVERITY_RANK, type Status, type ViewerContext } from "@/lib/status";
 import { daysAway } from "@/lib/when";
 import type { User } from "@/generated/prisma/client";
@@ -16,9 +17,10 @@ import type { User } from "@/generated/prisma/client";
  * What /mentor shows a mentor, for the freshlog app: who they hold time with and
  * how each stands, and the list the website's bell shows them.
  *
- * Every figure is one the website already computes, asked of the same functions
- * (`mentorCaseload`, `attentionFor`), so the app says what the page beside it
- * says. What this file adds is the mapping into the contract's shapes.
+ * Read through the page's own `mentorHomeView`, with the page's own tabs and
+ * order (`params`), so the app says what the page beside it says: the same
+ * rows in the same order, the time to claim apart, the figures following the
+ * tabs. What this file adds is the mapping into the contract's shapes.
  */
 
 /**
@@ -27,7 +29,7 @@ import type { User } from "@/generated/prisma/client";
  * `now` is the instant each row's days left and status are reckoned from. The
  * To do list is freshform's own and is read at the moment it is asked.
  */
-export async function mentorHomeFor(user: User, now: Date = new Date()): Promise<MentorHome> {
+export async function mentorHomeFor(user: User, params: MentorHomeParams = {}, now: Date = new Date()): Promise<MentorHome> {
   // `attentionFor` answers somebody who cannot act as a mentor with their own
   // lens's list, whatever lens it is asked for: the staff's, for an admin, and a
   // student's own, for a student. Neither is a mentor's To do. The route turns
@@ -35,48 +37,65 @@ export async function mentorHomeFor(user: User, now: Date = new Date()): Promise
   // one over.
   if (!canActAsMentor(user)) throw new Error("mentorHomeFor: this person cannot act as a mentor");
 
-  const viewer: ViewerContext = { audience: "mentor", userId: user.id, now };
-  const [{ students }, attention, disputed, unread] = await Promise.all([
-    mentorCaseload(user.id),
-    // The literal "mentor", never `profileOf(user)`: a bearer request carries no
-    // lens cookie, and without one a mentor who also administers is read as an
-    // admin and handed the staff's list.
-    attentionFor(user, "mentor"),
+  const [view, disputed, unread] = await Promise.all([
+    // The mentor's frame, always: a bearer request carries no lens cookie, and
+    // without one a mentor who also administers would be read as an admin.
+    mentorHomeView(user, params, now, async () => "mentor"),
     // The ledger's own rule, so this is what its `answer=disputed` lists.
     prisma.session.count({ where: { AND: [{ mentorId: user.id }, DISPUTED] } }),
     prisma.notification.count({ where: { userId: user.id, read: false } }),
   ]);
-
-  const rows = students.map((s) => toCaseloadRow(s, viewer));
-  const todo = await toTodoRows(attention.statuses);
+  const { viewer } = view;
+  const row = (s: CaseloadStudent) => toCaseloadRow(s, viewer, view);
+  const todo = await toTodoRows(view.attention.statuses);
+  // The program tabs as the page draws them: each program the mentor is paired in, once, in the order it came.
+  const tabs = new Map<string, { id: string; name: string; colorIndex: number }>();
+  for (const a of view.assignments) {
+    if (!tabs.has(a.programId)) tabs.set(a.programId, { id: a.program.id, name: a.program.name, colorIndex: a.program.colorIndex });
+  }
 
   return {
     summary: {
-      // The balance as every freshform page sums it, so an overdraw nets against
-      // what is left: summing only the positive rows made the website's figure
-      // larger than the same mentor's record said (src/app/mentor/page.tsx).
-      remaining: rows.reduce((sum, row) => sum + row.remaining, 0),
-      // A student in two of the mentor's programs is two rows and one student.
-      students: new Set(rows.map((row) => row.student.id)).size,
-      expiring: rows.filter((row) => row.status?.type === "ALLOCATION_EXPIRING").length,
+      // The page's strip: what is left and what is done, of the students in
+      // view, following the tabs; an overdraw nets against what is left.
+      remaining: view.remaining,
+      completed: view.completed,
+      // The page's Your students count: one a (student, program) row, the time to claim apart.
+      students: view.inView.length,
+      // Rows with time running out, whatever else is wrong with them.
+      expiring: view.inView.filter((s) => caseloadStatuses(s, viewer).some((st) => st.type === "ALLOCATION_EXPIRING")).length,
       disputed,
     },
     // In freshform's order (`attentionList`): what asks something of the mentor
     // before what only tells them, the worst first.
     todo,
-    // In `mentorCaseload`'s order. The website sorts by urgency on top of it,
-    // but only for the table it draws.
-    students: rows,
+    // The page's Your students, in its order: whoever needs the mentor first, or the order asked.
+    students: view.sortedCaseload.map(row),
+    // The page's Time to claim, apart from them.
+    claim: view.claimRows.map(row),
+    tabs: { programs: [...tabs.values()], levels: view.caseloadLevels.map((l) => ({ id: l.id, name: l.name })) },
+    view: {
+      program: view.selected || null,
+      level: view.selectedLevel || null,
+      sort: (view.asked?.key as MentorHome["view"]["sort"]) ?? null,
+      dir: view.asked?.dir ?? null,
+    },
+    columns: { program: view.showProgram, level: view.showLevel },
     unread,
     // How many rows the website's cap left out of To do, so a capped list cannot
     // read as a whole one.
-    todoSpilled: attention.spilled,
+    todoSpilled: view.attention.spilled,
   };
 }
 
 /** One (student, program) row of the caseload, in the contract's words. */
-function toCaseloadRow(s: CaseloadStudent, viewer: ViewerContext): CaseloadRow {
+function toCaseloadRow(
+  s: CaseloadStudent,
+  viewer: ViewerContext,
+  view: { levelOf: (s: CaseloadStudent) => { name: string } | null; lastSeen: Map<string, Date | null> }
+): CaseloadRow {
   const { profile } = s;
+  const seen = view.lastSeen.get(profile.id);
   return {
     student: { id: profile.id, userId: profile.user.id, name: nameOf(profile.user) },
     program: { id: s.program.id, name: s.program.name, colorIndex: s.program.colorIndex },
@@ -95,6 +114,12 @@ function toCaseloadRow(s: CaseloadStudent, viewer: ViewerContext): CaseloadRow {
     status: mostSerious(caseloadStatuses(s, viewer)),
     telegram: profile.telegramUsername,
     email: profile.user.email,
+    // The page's Level column, in an institute.
+    level: view.levelOf(s)?.name ?? null,
+    // The page's Last session: the latest that counts with this mentor.
+    lastSession: seen ? toDateInputValue(seen) : null,
+    // What the page says an expired row lost ("6h 30m expired").
+    forfeited: forfeitedOf(s),
   };
 }
 

@@ -6,7 +6,6 @@ import { readerFor, sessionsPage } from "@/lib/api/v1/sessions";
 import { attentionFor } from "@/lib/attention";
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { mentorCaseload } from "@/lib/queries";
 import { programToday } from "@/lib/when";
 import { admin, DAY, enroll, grant, mentor, NOW, pairing, program, session, student } from "@/test/db";
 
@@ -74,12 +73,12 @@ describe("mentorHomeFor: the figures", () => {
     await holding(w, { name: "Aziz Tursunov", minutes: 300 });
     // 60 granted, 120 used: 60 over.
     await holding(w, { name: "Malika Rahimova", minutes: 60, used: 120 });
-    const home = await mentorHomeFor(w.m, NOW);
+    const home = await mentorHomeFor(w.m, {}, NOW);
     expect(home.students.map((row) => row.remaining).sort((a, b) => a - b)).toEqual([-60, 300]);
     expect(home.summary.remaining).toBe(240);
   });
 
-  it("counts a student once, though they are a row in each of two programs", async () => {
+  it("counts a student in two programs as the page's Your students does: a row each, and the tabs narrow it", async () => {
     const w = await atWork();
     const other = await program("Master's Program");
     await pairedWith(w.m, other);
@@ -88,9 +87,16 @@ describe("mentorHomeFor: the figures", () => {
     await prisma.hourAllocation.create({
       data: { studentId: st.id, programId: other.id, mentorId: w.m.id, minutes: 120, deadline: dayIn(60) },
     });
-    const home = await mentorHomeFor(w.m, NOW);
+    const home = await mentorHomeFor(w.m, {}, NOW);
     expect(home.students).toHaveLength(2);
-    expect(home.summary).toMatchObject({ students: 1, remaining: 420 });
+    expect(home.summary).toMatchObject({ students: 2, remaining: 420 });
+    expect(home.tabs.programs.map((p) => p.id).sort()).toEqual([w.p.id, other.id].sort());
+    expect(home.columns.program).toBe(true);
+    // A program tab narrows the rows and the figures with them, as on the page.
+    const one = await mentorHomeFor(w.m, { program: other.id }, NOW);
+    expect(one.students.map((r) => r.program.id)).toEqual([other.id]);
+    expect(one.summary).toMatchObject({ students: 1, remaining: 120 });
+    expect(one.view.program).toBe(other.id);
   });
 
   it("counts their disputed sessions, and not voided ones", async () => {
@@ -113,7 +119,7 @@ describe("mentorHomeFor: the figures", () => {
     await logged("CONFIRMED");
     // Another mentor's, about the same student.
     await logged("DISPUTED", { mentorId: (await mentor("Umid Rashidov")).id });
-    expect((await mentorHomeFor(w.m, NOW)).summary.disputed).toBe(2);
+    expect((await mentorHomeFor(w.m, {}, NOW)).summary.disputed).toBe(2);
   });
 
   it("counts as disputed exactly what the mentor's ledger lists and counts as disputed", async () => {
@@ -137,7 +143,7 @@ describe("mentorHomeFor: the figures", () => {
     await disputed({ status: "VOIDED" });
     await disputed({ mentorId: (await mentor("Umid Rashidov")).id });
 
-    const { summary } = await mentorHomeFor(w.m, NOW);
+    const { summary } = await mentorHomeFor(w.m, {}, NOW);
     const ledger = await sessionsPage(await readerFor(w.m), { answer: "disputed" }, NOW);
     if ("refused" in ledger) throw new Error(ledger.refused);
     expect(summary.disputed).toBe(3);
@@ -154,7 +160,7 @@ describe("mentorHomeFor: the caseload", () => {
     const st = await holding(w, { name: "Aziz Tursunov", minutes: 600, used: 90, endsInDays: 10 });
     const { email } = await prisma.user.findUniqueOrThrow({ where: { id: st.userId } });
 
-    const home = await mentorHomeFor(w.m, NOW);
+    const home = await mentorHomeFor(w.m, {}, NOW);
     expect(home.students).toEqual([
       {
         student: { id: st.id, userId: st.userId, name: "Aziz Tursunov" },
@@ -170,6 +176,9 @@ describe("mentorHomeFor: the caseload", () => {
         status: null,
         telegram: "aziz",
         email,
+        level: null,
+        lastSession: toDateInputValue((await prisma.session.findFirstOrThrow({ where: { studentId: st.id } })).date),
+        forfeited: 0,
       },
     ]);
     // A `Date` or a field the contract does not name would not survive this.
@@ -180,17 +189,28 @@ describe("mentorHomeFor: the caseload", () => {
     const w = await atWork();
     const st = await holding(w, { name: "Aziz Tursunov", minutes: 300 });
     const { email } = await prisma.user.update({ where: { id: st.userId }, data: { name: null } });
-    expect((await mentorHomeFor(w.m, NOW)).students[0].student.name).toBe(email);
+    expect((await mentorHomeFor(w.m, {}, NOW)).students[0].student.name).toBe(email);
   });
 
-  it("keeps the website's order", async () => {
+  it("keeps the page's order: whoever needs the mentor first, then by soonest use-by; or the order asked", async () => {
     const w = await atWork();
-    await holding(w, { name: "Aziz Tursunov", minutes: 300 });
-    await holding(w, { name: "Malika Rahimova", minutes: 60, used: 120 });
-    await holding(w, { name: "Dilnoza Yusupova", minutes: 600, endsInDays: 3 });
-    const home = await mentorHomeFor(w.m, NOW);
-    const theirs = await mentorCaseload(w.m.id);
-    expect(home.students.map((row) => row.student.id)).toEqual(theirs.students.map((row) => row.profile.id));
+    const later = await holding(w, { name: "Aziz Tursunov", minutes: 300 });
+    const over = await holding(w, { name: "Malika Rahimova", minutes: 60, used: 120 });
+    const soon = await holding(w, { name: "Dilnoza Yusupova", minutes: 600, endsInDays: 3 });
+    const home = await mentorHomeFor(w.m, {}, NOW);
+    expect(home.students.map((row) => row.student.id)).toEqual([over.id, soon.id, later.id]);
+    expect(home.view.sort).toBeNull();
+    const byName = await mentorHomeFor(w.m, { sort: "student", dir: "asc" }, NOW);
+    expect(byName.students.map((row) => row.student.name)).toEqual(["Aziz Tursunov", "Dilnoza Yusupova", "Malika Rahimova"]);
+    expect(byName.view).toMatchObject({ sort: "student", dir: "asc" });
+  });
+
+  it("says when each was last seen, and how much an expired grant lost", async () => {
+    const w = await atWork();
+    const lapsed = await holding(w, { name: "Aziz Tursunov", minutes: 300, used: 60, endsInDays: -2 });
+    const row = (await mentorHomeFor(w.m, {}, NOW)).students.find((r) => r.student.id === lapsed.id);
+    expect(row).toMatchObject({ expired: true, forfeited: 240 });
+    expect(row?.lastSession).not.toBeNull();
   });
 
   it("gives each row its most serious status", async () => {
@@ -201,7 +221,7 @@ describe("mentorHomeFor: the caseload", () => {
     const sooner = await holding(w, { name: "Nigora Qodirova", minutes: 600, endsInDays: 1 });
     const fine = await holding(w, { name: "Dilnoza Yusupova", minutes: 600 });
 
-    const home = await mentorHomeFor(w.m, NOW);
+    const home = await mentorHomeFor(w.m, {}, NOW);
     const statusOf = (id: string) => home.students.find((row) => row.student.id === id)?.status;
     expect(statusOf(over.id)).toEqual({ type: "BALANCE_OVERDRAWN", severity: "problem" });
     expect(statusOf(soon.id)).toEqual({ type: "ALLOCATION_EXPIRING", severity: "attention" });
@@ -214,11 +234,11 @@ describe("mentorHomeFor: the caseload", () => {
   it("says how many days are left, and until when", async () => {
     const w = await atWork();
     const st = await holding(w, { name: "Aziz Tursunov", minutes: 600, endsInDays: 3 });
-    const row = (await mentorHomeFor(w.m, NOW)).students.find((r) => r.student.id === st.id);
+    const row = (await mentorHomeFor(w.m, {}, NOW)).students.find((r) => r.student.id === st.id);
     expect(row).toMatchObject({ useBy: toDateInputValue(dayIn(3)), daysLeft: 3, expired: false });
   });
 
-  it("shows time nobody holds yet as a pool, and leaves a bank out of it", async () => {
+  it("lists time nobody holds yet apart, as the page's Time to claim, and keeps a bank in the caseload", async () => {
     const w = await atWork();
     const pooled = await student({ programId: w.p.id, name: "Malika Rahimova" });
     const banked = await student({ programId: w.p.id, name: "Dilnoza Yusupova" });
@@ -228,11 +248,13 @@ describe("mentorHomeFor: the caseload", () => {
     await prisma.hourAllocation.create({
       data: { studentId: banked.id, programId: w.p.id, mentorId: null, minutes: 120, deadline: dayIn(60), isBank: true },
     });
-    const home = await mentorHomeFor(w.m, NOW);
-    const poolOf = (id: string) => home.students.find((row) => row.student.id === id)?.pool;
-    expect(poolOf(pooled.id)).toBe(90);
+    const home = await mentorHomeFor(w.m, {}, NOW);
+    // Any mentor of the program may claim it, so it is nobody's student yet (5c5c8a5).
+    expect(home.students.map((row) => row.student.id)).toEqual([banked.id]);
+    expect(home.claim.map((row) => [row.student.id, row.pool])).toEqual([[pooled.id, 90]]);
+    expect(home.summary.students).toBe(1);
     // Every meeting draws a bank, whoever holds it: it is not unassigned.
-    expect(poolOf(banked.id)).toBeNull();
+    expect(home.students[0].pool).toBeNull();
   });
 
   it("says what an hour bank holds on the bank's own row, and nothing on any other", async () => {
@@ -252,8 +274,8 @@ describe("mentorHomeFor: the caseload", () => {
     await session({ studentId: banked.id, programId: w.p.id, mentorId: w.m.id, minutes: 30, fromBank: true });
     await session({ studentId: overdrawn.id, programId: w.p.id, mentorId: w.m.id, minutes: 90, fromBank: true });
 
-    const home = await mentorHomeFor(w.m, NOW);
-    const rowOf = (id: string) => home.students.find((row) => row.student.id === id);
+    const home = await mentorHomeFor(w.m, {}, NOW);
+    const rowOf = (id: string) => [...home.students, ...home.claim].find((row) => row.student.id === id);
     // The figure the website's caseload shows "in their bank": none of it is this mentor's grant.
     expect(rowOf(banked.id)).toMatchObject({ bankLeft: 90, allocated: 0, remaining: 0, pool: null });
     expect(rowOf(overdrawn.id)).toMatchObject({ bankLeft: -30, allocated: 0, remaining: 0, pool: null });
@@ -269,7 +291,7 @@ describe("mentorHomeFor: To do", () => {
     const soon = await holding(w, { name: "Aziz Tursunov", minutes: 600, endsInDays: 3 });
     await holding(w, { name: "Malika Rahimova", minutes: 60, used: 120 });
 
-    const home = await mentorHomeFor(w.m, NOW);
+    const home = await mentorHomeFor(w.m, {}, NOW);
     const theirs = await attentionFor(w.m, "mentor");
     expect(home.todo.map((row) => row.type)).toEqual(theirs.statuses.map((status) => status.type));
 
@@ -298,7 +320,7 @@ describe("mentorHomeFor: To do", () => {
       data: { studentId: st.id, programId: other.id, mentorId: w.m.id, minutes: 200, deadline: dayIn(2) },
     });
 
-    const { todo } = await mentorHomeFor(w.m, NOW);
+    const { todo } = await mentorHomeFor(w.m, {}, NOW);
     const expiring = todo.filter((row) => row.type === "ALLOCATION_EXPIRING");
     expect(expiring.map((row) => row.subject?.id)).toEqual([st.id, st.id]);
     expect(expiring.map((row) => row.program?.id).sort()).toEqual([w.p.id, other.id].sort());
@@ -330,7 +352,7 @@ describe("mentorHomeFor: To do", () => {
       });
     }
 
-    const { todo } = await mentorHomeFor(w.m, NOW);
+    const { todo } = await mentorHomeFor(w.m, {}, NOW);
     // Two rows of one kind about one student in one program: only a number tells them apart.
     expect(todo.map((row) => row.key)).toEqual([
       `EXCHANGE_UNALLOCATED:${st.id}:${host.id}`,
@@ -363,7 +385,7 @@ describe("mentorHomeFor: To do", () => {
     const staffs = (await attentionFor(nodira, "admin")).statuses.map((status) => status.type);
     expect(staffs).toContain("STUDENT_PLACEHOLDER_EMAIL");
 
-    const types = (await mentorHomeFor(nodira, NOW)).todo.map((row) => row.type);
+    const types = (await mentorHomeFor(nodira, {}, NOW)).todo.map((row) => row.type);
     expect(types).toContain("ALLOCATION_EXPIRING");
     expect(types).not.toContain("STUDENT_PLACEHOLDER_EMAIL");
   });
@@ -372,7 +394,7 @@ describe("mentorHomeFor: To do", () => {
     const p = await program("Global Admissions");
     const nodira = await admin("Nodira Aliyeva");
     await grant({ userId: nodira.id, programId: p.id });
-    await expect(mentorHomeFor(nodira, NOW)).rejects.toThrow(/mentor/i);
+    await expect(mentorHomeFor(nodira, {}, NOW)).rejects.toThrow(/mentor/i);
   });
 });
 
@@ -384,19 +406,19 @@ describe("mentorHomeFor: unread and what the cap left out", () => {
     await note(w.m.id, false);
     await note(w.m.id, true);
     await note((await mentor("Umid Rashidov")).id, false);
-    expect((await mentorHomeFor(w.m, NOW)).unread).toBe(1);
+    expect((await mentorHomeFor(w.m, {}, NOW)).unread).toBe(1);
   });
 
   it("a mentor's home says how many To do rows the cap left out (todoSpilled)", async () => {
     const w = await atWork();
-    expect((await mentorHomeFor(w.m, NOW)).todoSpilled).toBe(0);
+    expect((await mentorHomeFor(w.m, {}, NOW)).todoSpilled).toBe(0);
     // The website rolls rows up by type and program, so it takes a program each to get past the cap of ten.
     for (let i = 0; i < 13; i++) {
       const p = await program(`Program ${i}`);
       await pairedWith(w.m, p);
       await holding({ p, m: w.m }, { name: `Student ${i}`, minutes: 600, endsInDays: 3 });
     }
-    const home = await mentorHomeFor(w.m, NOW);
+    const home = await mentorHomeFor(w.m, {}, NOW);
     const theirs = await attentionFor(w.m, "mentor");
     expect(theirs.spilled).toBeGreaterThan(0);
     expect(home.todoSpilled).toBe(theirs.spilled);

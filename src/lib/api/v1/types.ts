@@ -302,16 +302,42 @@ export type CaseloadRow = {
   approved: boolean;
   /** The most serious of freshform's statuses for this row; null when there is none. */
   status: { type: string; severity: TodoRow["severity"] } | null;
+  /** Their level in an institute, as the page's Level column; null elsewhere. */
+  level: string | null;
+  /** The day of the latest session with them that counts, this mentor's; null for none. */
+  lastSession: string | null;
+  /** Minutes lost to the use-by, on an expired grant; 0 otherwise. */
+  forfeited: number;
   /** How to reach them. */
   telegram: string | null;
   email: string;
 };
 /** GET /api/v1/mentor/home. */
+/**
+ * GET /api/v1/mentor/home?program=&level=&sort=&dir=: /mentor, read through its
+ * own `mentorHomeView` with its own tabs and order.
+ */
 export type MentorHome = {
-  /** `remaining` nets overdraws, as every freshform page sums a balance. `expiring` counts rows whose status is ALLOCATION_EXPIRING. `disputed` counts their sessions a student disputed that aren't voided. */
-  summary: { remaining: number; students: number; expiring: number; disputed: number };
+  /**
+   * The page's figures, of the students in view, following the tabs:
+   * `remaining` nets overdraws, as every freshform page sums a balance;
+   * `completed` counts hour-bank meetings too; `students` is the page's Your
+   * students count, one a (student, program) row, the time to claim apart.
+   * `expiring` counts rows with time running out. `disputed` counts their
+   * sessions a student disputed that aren't voided.
+   */
+  summary: { remaining: number; completed: number; students: number; expiring: number; disputed: number };
   todo: TodoRow[];
+  /** The page's Your students, in its order: whoever needs the mentor first (expired or over, then soonest use-by), or the order asked. */
   students: CaseloadRow[];
+  /** The page's Time to claim: students whose only time here is unassigned, which any mentor of the program may claim. */
+  claim: CaseloadRow[];
+  /** The page's tabs: each program the mentor is paired in, and, in an institute, its levels that someone in the caseload is in. */
+  tabs: { programs: ProgramRef[]; levels: { id: string; name: string }[] };
+  /** What the answer is narrowed to and ordered by, as freshform read the query. */
+  view: { program: string | null; level: string | null; sort: "student" | "program" | "level" | "remaining" | "deadline" | "seen" | null; dir: "asc" | "desc" | null };
+  /** Whether the page draws a Program column (rows span programs) and a Level column (rows span levels). */
+  columns: { program: boolean; level: boolean };
   /** Unread notifications, the bell's badge. Filled by Task F6. */
   unread: number;
   /** Rows freshform's 10-row cap on the To do list left out. Filled by Task F6. */

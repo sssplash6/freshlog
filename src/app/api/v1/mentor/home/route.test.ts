@@ -22,7 +22,7 @@ beforeEach(() => {
 
 describe("GET /api/v1/mentor/home", () => {
   it("answers 401 with no user", async () => {
-    expect((await GET()).status).toBe(401);
+    expect((await GET(new Request("http://test/api/v1/mentor/home"))).status).toBe(401);
   });
 
   it("answers 403 inactive to a mentor no program has taken on yet", async () => {
@@ -31,7 +31,7 @@ describe("GET /api/v1/mentor/home", () => {
       data: { status: "UNASSIGNED" },
     });
     actor.value = { id: m.id };
-    const res = await GET();
+    const res = await GET(new Request("http://test/api/v1/mentor/home"));
     expect(res.status).toBe(403);
     expect((await res.json()).code).toBe("inactive");
   });
@@ -39,7 +39,7 @@ describe("GET /api/v1/mentor/home", () => {
   it("answers a student like a page that does not exist", async () => {
     const s = await student({ name: "Aziz Tursunov" });
     actor.value = { id: s.userId };
-    const res = await GET();
+    const res = await GET(new Request("http://test/api/v1/mentor/home"));
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ ok: false, error: "Not found." });
   });
@@ -51,7 +51,7 @@ describe("GET /api/v1/mentor/home", () => {
     // Something for the staff's list to say, were it the answer.
     await student({ programId: p.id, name: "Aziz Tursunov", status: "PENDING" });
     actor.value = { id: nodira.id };
-    const res = await GET();
+    const res = await GET(new Request("http://test/api/v1/mentor/home"));
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ ok: false, error: "Not found." });
   });
@@ -64,11 +64,11 @@ describe("GET /api/v1/mentor/home", () => {
     await allocation({ studentId: s.id, mentorId: m.id, minutes: 300 });
     actor.value = { id: m.id };
 
-    const res = await GET();
+    const res = await GET(new Request("http://test/api/v1/mentor/home"));
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const home = await res.json();
-    expect(home.summary).toEqual({ remaining: 300, students: 1, expiring: 0, disputed: 0 });
+    expect(home.summary).toEqual({ remaining: 300, completed: 0, students: 1, expiring: 0, disputed: 0 });
     expect(home.students).toHaveLength(1);
     expect(home.students[0]).toMatchObject({
       student: { id: s.id, name: "Aziz Tursunov" },

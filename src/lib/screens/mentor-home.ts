@@ -27,6 +27,13 @@ import type { User } from "@/generated/prisma/client";
  * read "0 min", as if the student had spent them, and a student whose only
  * time sat in the unassigned pool read "—", as if there were none.
  */
+/** What a row lost to its use-by: on an expired grant, what was neither delivered nor missed. */
+export function forfeitedOf(s: Pick<CaseloadStudent, "expired" | "allocated" | "completed" | "missed">): number {
+  return s.expired
+    ? Math.max(0, s.allocated - s.completed - s.missed)
+    : 0;
+}
+
 export function balanceOf(s: CaseloadStudent): {
   text: string;
   /** The page's ink for it (its `TONE`). */
@@ -34,9 +41,7 @@ export function balanceOf(s: CaseloadStudent): {
   /** 0 needs the mentor first, 1 holds time, 2 has time to claim, 3 nothing. */
   rank: 0 | 1 | 2 | 3;
 } {
-  const forfeited = s.expired
-    ? Math.max(0, s.allocated - s.completed - s.missed)
-    : 0;
+  const forfeited = forfeitedOf(s);
   if (s.remaining < 0) {
     return { text: formatBalance(s.remaining), tone: "danger", rank: 0 };
   }

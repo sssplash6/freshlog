@@ -16,10 +16,13 @@ export const dynamic = "force-dynamic";
  * mentors. That includes an admin who does not mentor, who must not be handed
  * the staff's list in its place (`mentorHomeFor`).
  */
-export async function GET() {
+export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
   if (user.status !== "ACTIVE") return inactive();
   if (!canActAsMentor(user)) return refused("Not found.", 404);
-  return ok(await mentorHomeFor(user));
+  // The page's own tabs and order, by its own names; the page ignores what it doesn't know, and so does this.
+  const query = new URL(request.url).searchParams;
+  const param = (key: string) => query.get(key)?.trim() || undefined;
+  return ok(await mentorHomeFor(user, { program: param("program"), level: param("level"), sort: param("sort"), dir: param("dir") }));
 }
