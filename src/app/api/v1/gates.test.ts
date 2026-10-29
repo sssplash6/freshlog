@@ -58,6 +58,8 @@ const ANY_STATUS: Record<string, string> = {
   "onboarding POST": "the answer to that form, which is how a pending account gets as far as waiting",
   "account/deletion POST": "asking for your account to be deleted, which the App Store asks for any account, active or not",
   "account/deletion DELETE": "taking that back, from wherever it was asked",
+  "mentor-tasks GET": "a mentor no program has taken on yet still sees what an admin gave them, as on the website; it refuses every other inactive account",
+  "mentor-tasks/[id]/done POST": "and still ticks it, as on the website; it refuses every other inactive account",
 };
 
 const isExported = (node: ts.HasModifiers) =>
