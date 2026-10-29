@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { admin, cohort, grant, level, program, student } from "@/test/db";
+import { admin, allocation, cohort, enroll, grant, level, mentor, program, student } from "@/test/db";
 
 /** Adding students to a program: the website's `createStudents`, one request for every row. */
 const actor = vi.hoisted(() => ({ value: null as { id: string } | null }));
@@ -15,7 +15,8 @@ vi.mock("@/lib/dal", () => ({
     actor.value ? prisma.user.findUnique({ where: { id: actor.value.id } }) : null,
 }));
 
-const { POST } = await import("@/app/api/v1/programs/[id]/students/route");
+const { GET, POST } = await import("@/app/api/v1/programs/[id]/students/route");
+const roster = await import("@/app/api/v1/students/route");
 
 const add = (id: string, body: unknown) =>
   POST(new Request("http://test", { method: "POST", body: JSON.stringify(body) }), { params: Promise.resolve({ id }) });
@@ -120,5 +121,45 @@ describe("POST /api/v1/programs/:id/students", () => {
     const res = await add(p.id, { rows: [{ email, firstName: "Aziz", lastName: "Tursunov" }] });
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/No students added/);
+  });
+});
+
+describe("GET /api/v1/programs/:id/students", () => {
+  const read = (id: string, query = "") =>
+    GET(new Request(`http://test/api/v1/programs/${id}/students${query}`), { params: Promise.resolve({ id }) });
+
+  it("gives each student's figures in this program, as the program's page does, where /students sums both", async () => {
+    const { p, nodira } = await setUp();
+    const other = await program("Master's Program");
+    await grant({ userId: nodira.id, programId: other.id });
+    const m = await mentor("Akmal Karimov");
+    const aziz = await student({ programId: p.id, name: "Aziz Tursunov" });
+    await enroll({ studentId: aziz.id, programId: other.id });
+    await allocation({ studentId: aziz.id, programId: p.id, mentorId: m.id, minutes: 300 });
+    await allocation({ studentId: aziz.id, programId: other.id, mentorId: m.id, minutes: 600 });
+    actor.value = { id: nodira.id };
+    const here = await (await read(p.id)).json();
+    expect(here.rows).toEqual([expect.objectContaining({ student: expect.objectContaining({ name: "Aziz Tursunov" }), remaining: 300 })]);
+    expect(here.programs).toEqual([{ id: p.id, name: "Global Admissions", colorIndex: p.colorIndex }]);
+    const everywhere = await (await roster.GET(new Request(`http://test/api/v1/students?program=${p.id}`))).json();
+    expect(everywhere.rows[0].remaining).toBe(900);
+  });
+
+  it("narrows by name and by level, as the page's search and level tabs do", async () => {
+    const { p, nodira } = await setUp();
+    const lvl = await level({ programId: p.id, name: "Emerging" });
+    await student({ programId: p.id, name: "Aziz Tursunov", levelId: lvl.id });
+    await student({ programId: p.id, name: "Malika Saidova" });
+    actor.value = { id: nodira.id };
+    const names = async (query: string) => (await (await read(p.id, query)).json()).rows.map((r: { student: { name: string } }) => r.student.name);
+    expect(await names("?q=malika")).toEqual(["Malika Saidova"]);
+    expect(await names(`?level=${lvl.id}`)).toEqual(["Aziz Tursunov"]);
+  });
+
+  it("answers a program the reader doesn't read as one that doesn't exist", async () => {
+    const { nodira } = await setUp();
+    actor.value = { id: nodira.id };
+    const theirs = await read((await program("Other")).id);
+    expect(theirs.status).toBe(404);
   });
 });

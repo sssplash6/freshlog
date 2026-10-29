@@ -71,6 +71,12 @@ describe("GET /api/v1/programs/:id", () => {
     ]);
     expect(body.mentors).toEqual([expect.objectContaining({ mentor: { id: akmal.id, name: "Akmal Karimov" }, scope: "Global Admissions" })]);
     expect(body.admins).toEqual([{ person: { id: nodira.id, name: "Nodira Aliyeva" }, level: "admin" }]);
+    // The page's Mentors rail: one row a person, the pairing first, then the admin who teaches nothing.
+    expect(body.people).toEqual([
+      { person: { id: akmal.id, name: "Akmal Karimov" }, teaches: true, admin: false },
+      { person: { id: nodira.id, name: "Nodira Aliyeva" }, teaches: false, admin: true },
+    ]);
+    expect(body.recent).toEqual([]);
     expect(body.eligibleMentors).toEqual([expect.objectContaining({ id: umid.id, name: "Umid Rashidov" })]);
     expect(body.can).toEqual({
       write: true,

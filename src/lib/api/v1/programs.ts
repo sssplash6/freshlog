@@ -2,7 +2,7 @@ import "server-only";
 
 import { NOT_YOUR_PROGRAM } from "@/lib/api/v1/admin-gates";
 import { refused } from "@/lib/api/v1/respond";
-import { nameOf, type Reader } from "@/lib/api/v1/sessions";
+import { nameOf, SESSION_INCLUDE, toApiSession, type Reader } from "@/lib/api/v1/sessions";
 import type { Cohort, ProgramDetail, ProgramOption } from "@/lib/api/v1/types";
 import { mentorPool, programCohorts, programGrants, programLevels, programPairings, programStudents } from "@/app/programs/reads";
 import { scopeCovers, scopeProgramFilter } from "@/lib/authz";
@@ -10,6 +10,7 @@ import { PROGRAM_STATUS } from "@/lib/constants";
 import { programTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { programOptions } from "@/lib/queries";
+import { programPeople, programRecent } from "@/lib/screens/program";
 import { programToday } from "@/lib/when";
 import type { Program } from "@/generated/prisma/client";
 
@@ -48,7 +49,7 @@ const LEVEL_WORD = { ADMIN: "admin", LEADER: "leader", SALES: "sales" } as const
 
 /** One program, its settings and who works in it. The route has gated it. */
 export async function programDetailFor(reader: Reader, program: Program, now: Date = new Date()): Promise<ProgramDetail> {
-  const [students, pairings, levels, cohorts, grants, pool, held] = await Promise.all([
+  const [students, pairings, levels, cohorts, grants, pool, held, recent] = await Promise.all([
     programStudents(program.id),
     programPairings(program.id),
     programLevels(program.id),
@@ -60,7 +61,13 @@ export async function programDetailFor(reader: Reader, program: Program, now: Da
       where: { programId: program.id, mentorId: { not: null } },
       select: { mentorId: true, studentId: true },
     }),
+    programRecent(program.id),
   ]);
+  // The page's people and latest sessions, read by the page's own functions; the sessions then as the API sends
+  // any session, in the page's order.
+  const { mentorRows, superAdminIds } = programPeople(pairings, grants);
+  const recentRows = await prisma.session.findMany({ where: { id: { in: recent.map((r) => r.id) } }, include: SESSION_INCLUDE });
+  const byId = new Map(recentRows.map((r) => [r.id, r]));
   const totals = programTotals(students);
   const paired = new Set(pairings.map((p) => p.mentorId));
   const cohortOf = (c: { id: string; name: string; _count: { enrollments: number; mentorAssignments: number } }): Cohort => ({
@@ -115,6 +122,15 @@ export async function programDetailFor(reader: Reader, program: Program, now: Da
       scope: scopeOf(p, program.name),
       students: new Set(held.filter((h) => h.mentorId === p.mentorId).map((h) => h.studentId)).size,
     })),
+    people: mentorRows.map(({ mentor, teaches }) => ({
+      person: { id: mentor.id, name: nameOf(mentor) },
+      teaches,
+      admin: superAdminIds.has(mentor.id),
+    })),
+    recent: recent.flatMap((r) => {
+      const row = byId.get(r.id);
+      return row ? [toApiSession(reader, row, now)] : [];
+    }),
     admins: grants.map((g) => ({
       person: { id: g.user.id, name: nameOf(g.user) },
       level: LEVEL_WORD[g.role as keyof typeof LEVEL_WORD] ?? "admin",

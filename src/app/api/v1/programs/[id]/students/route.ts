@@ -2,13 +2,32 @@ import { createStudents } from "@/lib/actions/students";
 import { addStudentsForm } from "@/lib/api/v1/add-students";
 import { bodyOf } from "@/lib/api/v1/body";
 import { programGate } from "@/lib/api/v1/programs";
-import { fromAction, inactive, refused, signInAgain } from "@/lib/api/v1/respond";
+import { fromAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
+import { programRosterFor } from "@/lib/api/v1/roster";
+import { rosterQueryFrom } from "@/lib/api/v1/roster-forms";
 import { readerFor } from "@/lib/api/v1/sessions";
 import { getCurrentUser } from "@/lib/dal";
 
 // Reads the token and the database on every request; never prerender. On
 // Render the SQLite disk only exists at runtime.
 export const dynamic = "force-dynamic";
+
+/**
+ * The program page's roster: its students with their figures in this program,
+ * the page's filters, order and paging (`programRosterFor`, through the page's
+ * own `programRoster`).
+ */
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getCurrentUser();
+  if (!user) return signInAgain();
+  if (user.status !== "ACTIVE") return inactive();
+  const reader = await readerFor(user);
+  const gate = await programGate(reader, (await params).id, { write: false });
+  if ("refusal" in gate) return gate.refusal;
+  const query = rosterQueryFrom(new URL(request.url).searchParams);
+  if ("field" in query) return refused("That isn't a valid value.", 400, { field: query.field });
+  return ok(await programRosterFor(gate.program, reader, query));
+}
 
 /**
  * Adds students to the program, one request for every row, through the

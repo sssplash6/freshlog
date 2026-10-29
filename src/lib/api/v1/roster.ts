@@ -12,6 +12,9 @@ import { studentsWithHours, type StudentWithHours } from "@/lib/queries";
 import { applySort } from "@/lib/sort";
 import { timeStateHolds } from "@/lib/status";
 import { daysAway, programToday } from "@/lib/when";
+import { programCohorts, programLevels } from "@/app/programs/reads";
+import { programRoster } from "@/lib/screens/program";
+import type { Program } from "@/generated/prisma/client";
 
 /**
  * The admin's roster, as the website's /students reads it for somebody who
@@ -89,7 +92,7 @@ export async function rosterFor(reader: Reader, query: RosterQuery, now: Date = 
 }
 
 /** One student, field by field: the row carries the whole User, and none of it but these belongs on a phone. */
-function toRosterRow(s: StudentWithHours, now: Date): RosterRow {
+export function toRosterRow(s: StudentWithHours, now: Date): RosterRow {
   return {
     student: { id: s.id, userId: s.userId, name: nameOf(s.user) },
     approved: s.user.status !== USER_STATUS.PENDING,
@@ -106,5 +109,34 @@ function toRosterRow(s: StudentWithHours, now: Date): RosterRow {
     // `canManageStudent` turns away a student in no program, even for a
     // platform admin, who is the only reader such a row reaches.
     openable: s.enrollments.length > 0,
+  };
+}
+
+/**
+ * A program's roster as its page lists it (`app/programs/[id]/page.tsx`, read
+ * through `programRoster`): the hours this program's, not the sum over every
+ * program the reader reads, which is `/students`' rule and `rosterFor`'s. The
+ * page's own filters, order and paging.
+ */
+export async function programRosterFor(program: Program, reader: Reader, query: RosterQuery, now: Date = new Date()): Promise<RosterPage> {
+  const [levels, cohorts] = await Promise.all([programLevels(program.id), programCohorts(program.id)]);
+  // The page's own params, by the page's own names. The program is the page itself, so `program` is not one.
+  const params: SearchParams = {
+    q: query.q,
+    level: query.level,
+    cohort: query.cohort,
+    status: query.status,
+    time: query.time,
+    sort: query.sort,
+    page: query.page ? String(query.page) : undefined,
+  };
+  const { page, total, students } = await programRoster(reader.user.id, program.id, params, now, { levels, cohorts });
+  return {
+    rows: students.map((s) => toRosterRow(s, now)),
+    page,
+    pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+    shown: total,
+    programs: [{ id: program.id, name: program.name, colorIndex: program.colorIndex }],
+    today: programToday(now),
   };
 }

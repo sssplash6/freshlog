@@ -600,6 +600,13 @@ export type RosterRow = {
 /** 25 rows a page. `shown` counts every row the filter matches, on every page. `programs` is the program menu. */
 export type RosterPage = { rows: RosterRow[]; page: number; pages: number; shown: number; programs: ProgramRef[]; today: string };
 
+/*
+ * GET /api/v1/programs/:id/students answers a RosterPage too: the program page's
+ * own roster (`q`, `level`, `cohort`, `status`, `time`, `sort`, `page` of
+ * RosterQuery), with each student's figures in THIS program. GET /api/v1/students
+ * sums them over every program the reader reads, as /students does.
+ */
+
 /** GET /api/v1/students/:id/admin: one student as an admin of one of their programs reads them. */
 export type AdminStudent = {
   student: StudentRef & {
@@ -739,6 +746,15 @@ export type ProgramDetail = {
   /** Each pairing, which is what Remove addresses. `scope` is the program, a level or a cohort, in words. */
   mentors: { pairingId: string; mentor: PersonRef; scope: string; students: number }[];
   admins: { person: PersonRef; level: "admin" | "leader" | "sales" }[];
+  /**
+   * Everyone who works here, as the page's Mentors rail lists them: one row a
+   * person, the pairings first in the order they were made, then the admins who
+   * teach nothing (`teaches` false). `admin`: they hold an ADMIN grant here.
+   * Its length is the page's Mentors count.
+   */
+  people: { person: PersonRef; teaches: boolean; admin: boolean }[];
+  /** The page's Recent sessions: the latest six that count, newest first. */
+  recent: ApiSession[];
   /** Mentors who may be assigned here: the website's list, without those paired here already. */
   eligibleMentors: (PersonRef & { email: string })[];
   /**
