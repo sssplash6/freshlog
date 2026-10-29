@@ -9,6 +9,7 @@ import { formatDate, toDateInputValue } from "@/lib/format";
 import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { studentLedger } from "@/lib/queries";
+import { withoutRepeats } from "@/lib/screens/student-home";
 import { programToday } from "@/lib/when";
 import { assignment, cohort, DAY, enroll, mentor, NOW, pairing, program, session, student, studentTask } from "@/test/db";
 
@@ -32,8 +33,10 @@ const accountOf = (st: { userId: string }) => prisma.user.findUniqueOrThrow({ wh
 
 /** The home of `st`, who is a student and so always has one. */
 async function homeOf(st: { userId: string }): Promise<StudentHome> {
+  // Signed up as /student asks first: a name, and a Telegram handle.
+  await prisma.studentProfile.updateMany({ where: { userId: st.userId, telegramUsername: null }, data: { telegramUsername: "student" } });
   const home = await studentHomeFor(await accountOf(st), NOW);
-  if (!home) throw new Error("a student has a home");
+  if (!home || home === "onboarding") throw new Error("a student has a home");
   return home;
 }
 
@@ -110,7 +113,7 @@ describe("studentHomeFor: the figures", () => {
     const other = await student({ programId: gp.id, name: "Malika Rahimova" });
     await grantTo(other, m, gp, 900);
 
-    expect((await homeOf(st)).hours).toEqual({ allotted: 420, used: 60, remaining: 360, forfeited: 0, extra: 0 });
+    expect((await homeOf(st)).hours).toEqual({ allotted: 420, completed: 60, missed: 0, used: 60, remaining: 360, forfeited: 0, extra: 0 });
   });
 
   it("counts time that expired unused and time given on top of the plan, as the website does", async () => {
@@ -127,7 +130,7 @@ describe("studentHomeFor: the figures", () => {
     await session({ studentId: st.id, programId: mp.id, mentorId: m.id, minutes: 20 });
 
     // 420 given, 80 used and 100 lost leaves 240. The 20 given on top charged nothing.
-    expect((await homeOf(st)).hours).toEqual({ allotted: 420, used: 80, remaining: 240, forfeited: 100, extra: 20 });
+    expect((await homeOf(st)).hours).toEqual({ allotted: 420, completed: 80, missed: 0, used: 80, remaining: 240, forfeited: 100, extra: 20 });
   });
 
   it("says which time expires next, with only the minutes that expire then", async () => {
@@ -494,7 +497,7 @@ describe("studentHomeFor: things to check", () => {
     expect(JSON.stringify(home)).not.toContain("Went through the essay.");
   });
 
-  it("is the website's own list, row for row, in its order, under keys of their own", async () => {
+  it("is the website's own list as the page draws it, row for row, in its order, under keys of their own", async () => {
     const p = await program("Global Admissions");
     const m = await mentor("Akmal Karimov");
     // No way to book yet, time that ends in five days, and two sessions to confirm.
@@ -512,11 +515,11 @@ describe("studentHomeFor: things to check", () => {
       await studentLedger(st.id),
       NOW
     );
-    // Enough rows for "the same list" to mean something.
-    expect(home.todo.map((row) => row.type)).toEqual(
-      expect.arrayContaining(["BOOKING_LINK_MISSING", "ALLOCATION_EXPIRING", "SESSION_UNCONFIRMED"])
-    );
-    expect(home.todo).toEqual(theirs.map((row) => toTodoRow(row)));
+    // Enough rows for "the same list" to mean something; the use-by row goes, as the balance says the date.
+    expect(home.todo.map((row) => row.type)).toEqual(expect.arrayContaining(["BOOKING_LINK_MISSING", "SESSION_UNCONFIRMED"]));
+    expect(home.todo.map((row) => row.type)).not.toContain("ALLOCATION_EXPIRING");
+    const drawn = withoutRepeats(theirs, { useByShown: true });
+    expect(home.todo.map((row) => row.type)).toEqual(drawn.map((row) => toTodoRow(row).type));
     expect(new Set(home.todo.map((row) => row.key)).size).toBe(home.todo.length);
   });
 });
@@ -579,5 +582,20 @@ describe("studentHomeFor: tasks, plan, unread", () => {
     await studentTask({ studentId: other.id, mentorId: w.m.id, title: "Hers" });
     expect((await homeOf(w.st)).tasks).toEqual([]);
     expect((await homeOf(other)).tasks.map((t) => t.title)).toEqual(["Hers"]);
+  });
+});
+
+describe("studentHomeFor: as the page reads it", () => {
+  it("sends a student with no Telegram yet to onboarding first, as /student does", async () => {
+    const st = await student({ name: "Aziz Tursunov" });
+    expect(await studentHomeFor(await accountOf(st), NOW)).toBe("onboarding");
+  });
+
+  it("says it is the first run until anything happens, and counts the meetings held", async () => {
+    const st = await student({ name: "Aziz Tursunov" });
+    const home = await homeOf(st);
+    expect(home.firstRun).toBe(true);
+    expect(home.meetings).toEqual({ count: 0, latest: [] });
+    expect(home.hours).toMatchObject({ completed: 0, missed: 0 });
   });
 });

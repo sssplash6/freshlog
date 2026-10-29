@@ -50,6 +50,7 @@ describe("GET /api/v1/student/home", () => {
       data: { calendlyUrl: "https://calendly.com/akmal-karimov" },
     });
     const s = await student({ programId: p.id, name: "Aziz Tursunov" });
+    await prisma.studentProfile.update({ where: { id: s.id }, data: { telegramUsername: "aziz" } });
     await allocation({ studentId: s.id, mentorId: m.id, minutes: 300 });
     const logged = await session({ studentId: s.id, mentorId: m.id, minutes: 60 });
     actor.value = { id: s.userId };
@@ -58,7 +59,7 @@ describe("GET /api/v1/student/home", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const home = await res.json();
-    expect(home.hours).toEqual({ allotted: 300, used: 60, remaining: 240, forfeited: 0, extra: 0 });
+    expect(home.hours).toEqual({ allotted: 300, completed: 60, missed: 0, used: 60, remaining: 240, forfeited: 0, extra: 0 });
     expect(home.grants).toHaveLength(1);
     expect(home.grants[0]).toMatchObject({
       mentor: { id: m.id, name: "Akmal Karimov" },

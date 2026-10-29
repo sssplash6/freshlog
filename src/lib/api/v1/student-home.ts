@@ -1,11 +1,16 @@
 import "server-only";
 
-import { nameOf, readerFor } from "@/lib/api/v1/sessions";
+import { slotTime } from "@/lib/api/v1/practice";
+import { nameOf, readerFor, SESSION_INCLUDE, toApiSession } from "@/lib/api/v1/sessions";
 import { toTodoRows } from "@/lib/api/v1/todo";
 import { workOf } from "@/lib/api/v1/work";
-import type { StudentGrant, StudentHome } from "@/lib/api/v1/types";
+import type { HomeMeeting, StudentGrant, StudentHome } from "@/lib/api/v1/types";
 import { studentRows } from "@/lib/attention";
 import { toDateInputValue } from "@/lib/format";
+import { templateName } from "@/lib/interview-templates";
+import { agendaLists, isFirstRun, withoutRepeats } from "@/lib/screens/student-home";
+import { meetingCount, meetingLog } from "@/lib/session-entries";
+import { interviewsForLog } from "@/lib/student-interviews";
 import { allocationSummary, type AllocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { assignmentsForStudentWhere, studentLedger, type LedgerSession } from "@/lib/queries";
@@ -33,14 +38,16 @@ import type { User } from "@/generated/prisma/client";
  * check", are reckoned from. `allocationSummary` reads the clock itself to say
  * which grants have run out.
  */
-export async function studentHomeFor(user: User, now: Date = new Date()): Promise<StudentHome | null> {
+export async function studentHomeFor(user: User, now: Date = new Date()): Promise<StudentHome | null | "onboarding"> {
   const profile = await prisma.studentProfile.findUnique({
     where: { userId: user.id },
     include: { enrollments: true },
   });
   if (!profile) return null;
+  // /student sends a student with no name or Telegram yet to onboarding, and so does this.
+  if (!user.name?.trim() || !profile.telegramUsername) return "onboarding";
 
-  const [hours, ledger, pairings, unread, reader] = await Promise.all([
+  const [hours, ledger, pairings, unread, reader, interviews] = await Promise.all([
     // Every program the student is in, as /student reads it: their balance is
     // one figure however many programs hold it.
     allocationSummary(profile.id),
@@ -53,17 +60,33 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
     }),
     prisma.notification.count({ where: { userId: user.id, read: false } }),
     readerFor(user),
+    interviewsForLog(user.id, now),
   ]);
   const viewer: ViewerContext = { audience: "student", userId: user.id, now };
   const bookingUrlOf = bookingLinks(pairings);
 
   // In freshform's order (`attentionList`): what asks something of the student
   // before what only tells them, the worst first.
-  const todo = await toTodoRows(await studentRows(user, profile, hours, ledger, now));
+  // Thinned as the page thins it (`withoutRepeats`): an overdue task is in a list of its own, the use-by row goes once
+  // the balance says the date, and every mentor with no booking link is one row.
+  const todo = await toTodoRows(withoutRepeats(await studentRows(user, profile, hours, ledger, now), { useByShown: hours.expiring != null }));
+  const work = workOf(reader, { id: profile.id, userId: user.id, user: { name: user.name, email: user.email } }, ledger, now);
+  // The page's agenda order: in progress, then not started, then finished, which it folds.
+  const agenda = agendaLists(work.plan.map((item) => ({ task: item })));
+  // The page's Meetings: sessions and practice interviews as one history, the latest three, and its count.
+  const log = meetingLog(ledger.sessions, interviews).slice(0, HOME_MEETINGS);
+  const sessionRows = await prisma.session.findMany({
+    where: { id: { in: log.flatMap((item) => (item.kind === "session" ? [item.session.id] : [])) } },
+    include: SESSION_INCLUDE,
+  });
+  const sessionById = new Map(sessionRows.map((row) => [row.id, row]));
+  const mentors = new Set([...ledger.tasks.map((t) => t.mentorId), ...ledger.assignments.map((a) => a.mentorId)]);
 
   return {
     hours: {
       allotted: hours.allotted,
+      completed: hours.completed,
+      missed: hours.missed,
       used: hours.used,
       remaining: hours.remaining,
       forfeited: hours.forfeited,
@@ -80,11 +103,38 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
     toConfirm: ledger.sessions.filter((session) => isAwaitingAnswer(session, viewer)).length,
     // The student's own work, from the ledger already read: no plan item carries
     // its note, since the reader is the student it is about.
-    ...workOf(reader, { id: profile.id, userId: user.id, user: { name: user.name, email: user.email } }, ledger, now),
+    tasks: work.tasks,
+    plan: [...agenda.live, ...agenda.finished].map((entry) => entry.task),
+    firstRun: isFirstRun({ used: hours.used, held: ledger.sessions.length, myTasks: ledger.tasks.length, tasks: ledger.assignments.length }),
+    // The page's task rows name the program only to a student in several, and the mentor only when several are involved.
+    columns: { program: profile.enrollments.length > 1, mentor: mentors.size > 1 },
+    meetings: {
+      count: meetingCount(ledger.sessions) + interviews.filter((i) => i.phase === "completed").length,
+      latest: log.flatMap((item): HomeMeeting[] => {
+        if (item.kind === "interview") {
+          const i = item.interview;
+          return [
+            {
+              kind: "interview" as const,
+              id: i.id,
+              template: templateName(i.template),
+              when: slotTime({ startsAt: i.startsAt, minutes: i.minutes }),
+              partner: { id: i.partner.id, name: i.partner.name ?? "A classmate" },
+              phase: i.phase,
+            },
+          ];
+        }
+        const row = sessionById.get(item.session.id);
+        return row ? [{ kind: "session" as const, session: toApiSession(reader, row, now) }] : [];
+      }),
+    },
     unread,
     today: programToday(now),
   };
 }
+
+/** The page's Meetings shows the latest three. */
+const HOME_MEETINGS = 3;
 
 /** One mentor in one program. The program is part of it: the same mentor may hold separate time, and a separate link, in two. */
 const pairKey = (programId: string, mentorId: string) => `${programId}:${mentorId}`;

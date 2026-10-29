@@ -19,5 +19,7 @@ export async function GET() {
   if (user.status !== "ACTIVE") return inactive();
   const home = await studentHomeFor(user);
   if (!home) return refused("Not found.", 404);
+  // /student sends them to onboarding first; so does this.
+  if (home === "onboarding") return refused("Finish signing up first.", 403, { code: "onboarding" });
   return ok(home);
 }

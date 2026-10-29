@@ -380,31 +380,41 @@ export type StudentGrant = {
 };
 /** GET /api/v1/student/home. */
 export type StudentHome = {
-  /** Minutes over every grant: given, used, left, lost to expiry, and given on top of the plan. */
-  hours: { allotted: number; used: number; remaining: number; forfeited: number; extra: number };
+  /** Minutes over every grant: given, completed and missed (together used), left, lost to expiry, and given on top of the plan. */
+  hours: { allotted: number; completed: number; missed: number; used: number; remaining: number; forfeited: number; extra: number };
   /** The soonest live grant to expire, with only the minutes that expire then. */
   expiring: { minutes: number; day: string } | null;
   grants: StudentGrant[];
   /**
-   * freshform's "things to check" in its order, all of them: the whole list
-   * `studentRows` makes. The website's page thins it before drawing it: it
-   * leaves out an overdue task or agenda item, which it draws in a list of its
-   * own, and the use-by row once the balance shows the date, and it folds every
-   * mentor with no booking link into one row. A session to confirm carries its
-   * id.
+   * freshform's "things to check" in its order, as the page draws it
+   * (`withoutRepeats`): an overdue task or agenda item is left out, being in a
+   * list of its own, and so is the use-by row once the balance shows the date,
+   * and every mentor with no booking link is one row. A session to confirm
+   * carries its id.
    */
   todo: TodoRow[];
   /** Sessions waiting for their answer. */
   toConfirm: number;
   /** The student's tasks, open by due day and then done. Filled by Task F6. */
   tasks: ApiTask[];
-  /** The student's plan items, not done first. Filled by Task F6. */
+  /** The student's plan items, as the page lists them: in progress, then not started, then done. */
   plan: ApiPlanItem[];
+  /** Nothing has happened on the account yet: the page shows How it works in place of its empty sections. */
+  firstRun: boolean;
+  /** The page's task rows name the program only to a student in several, and the mentor only when several are involved. */
+  columns: { program: boolean; mentor: boolean };
+  /** The page's Meetings: how many were held (sessions that count, and practice interviews done), and the latest three. */
+  meetings: { count: number; latest: HomeMeeting[] };
   /** Unread notifications, the bell's badge. Filled by Task F6. */
   unread: number;
   /** Today in the program's zone, "YYYY-MM-DD". The app never takes it from the phone. */
   today: string;
 };
+
+/** One of a student's latest meetings: a session, or a practice interview that has started. */
+export type HomeMeeting =
+  | { kind: "session"; session: ApiSession }
+  | { kind: "interview"; id: string; template: string; when: SlotTime; partner: PersonRef; phase: InterviewPhase };
 
 /* ------------------------------------------------------------ tasks, plan, inbox --- */
 
