@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
 import { programToday as programTodayIso } from "@/lib/when";
-import { admin, assignment, grant, mentor, pairing, program, student } from "@/test/db";
+import { admin, assignment, grant, mentor, pairing, program, session, student } from "@/test/db";
 
 /**
  * One plan item. A student reads their own and is never told its note, which is
@@ -79,6 +79,25 @@ describe("GET /api/v1/plan-items/:id", () => {
     actor.value = { id: m.id };
     const body = await (await get(a.id)).json();
     expect(body.item).toMatchObject({ note: "Weak on structure.", can: { edit: true, progress: true } });
+  });
+});
+
+describe("GET /api/v1/plan-items/:id: the agenda row's flags", () => {
+  it("says no mentor and over budget in each reader's words, as the website's row, and never over budget to the student", async () => {
+    const { p, st, m, a } = await setUp();
+    await prisma.assignment.update({ where: { id: a.id }, data: { minuteLimit: 60 } });
+    await session({ studentId: st.id, programId: p.id, mentorId: m.id, minutes: 90, assignmentId: a.id });
+    actor.value = { id: m.id };
+    expect((await (await get(a.id)).json()).item.flags).toEqual([{ type: "TASK_OVER_BUDGET", label: "30 min over budget", severity: "problem" }]);
+    actor.value = { id: st.userId };
+    expect((await (await get(a.id)).json()).item.flags).toEqual([]);
+
+    await prisma.assignment.update({ where: { id: a.id }, data: { mentorId: null } });
+    expect((await (await get(a.id)).json()).item.flags.map((f: { label: string }) => f.label)).toEqual(["Mentor to be confirmed"]);
+    const boss = await admin("Program Admin");
+    await grant({ userId: boss.id, programId: p.id });
+    actor.value = { id: boss.id };
+    expect((await (await get(a.id)).json()).item.flags.map((f: { label: string }) => f.label)).toEqual(["Needs a mentor", "30 min over budget"]);
   });
 });
 

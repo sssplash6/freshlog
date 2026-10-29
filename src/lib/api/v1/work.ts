@@ -7,6 +7,7 @@ import { ASSIGNMENT_PROGRESS, canActAsMentor, SESSION_STATUS, USER_STATUS } from
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import type { studentLedger } from "@/lib/queries";
+import { taskStatuses } from "@/lib/status";
 import { daysAway } from "@/lib/when";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -125,6 +126,17 @@ export function toApiPlanItem(reader: Reader, row: PlanItemRow, loggedMinutes: n
     pinned: row.progressManual,
     overdue: !done && row.dueOn !== null && row.dueOn.getTime() < now.getTime(),
     daysLeft: row.dueOn ? daysAway(row.dueOn, now) : null,
+    // The website's flags on an agenda row, in the reader's words: no mentor yet, and how far over its budget.
+    flags: taskStatuses(
+      { id: row.id, purpose: row.purpose, progress: row.progress, mentorId: row.mentorId, dueOn: null, minuteLimit: row.minuteLimit, loggedMinutes },
+      {
+        audience: isStudentOf(reader, row) ? "student" : scopeCovers(reader.read, row.programId) ? "staff" : "mentor",
+        userId: reader.user.id,
+        now,
+      }
+    )
+      .filter((st) => st.type === "TASK_NEEDS_MENTOR" || st.type === "TASK_OVER_BUDGET")
+      .map((st) => ({ type: st.type, label: st.label, severity: st.severity })),
     // `deleteAssignment` asks `assertProgramScope`: the item's admins, never its mentor.
     can: { edit: mayChange, progress: mayChange, delete: scopeCovers(reader.write, row.programId) },
   };

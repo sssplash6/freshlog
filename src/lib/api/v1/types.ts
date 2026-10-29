@@ -539,6 +539,12 @@ export type ApiPlanItem = {
   overdue: boolean;
   /** Tashkent days from today to the due day: 0 today, negative once past; null with no due day. */
   daysLeft: number | null;
+  /**
+   * The website's flags on its agenda row, in the reader's words: "Needs a
+   * mentor" ("Mentor to be confirmed" to the student) and "2h over budget"
+   * (never to the student).
+   */
+  flags: { type: string; label: string; severity: "problem" | "attention" | "neutral" | "ok" }[];
   /** `delete` is an admin's of the item's program: its own mentor can't (`deleteAssignment`). */
   can: { edit: boolean; progress: boolean; delete: boolean };
 };
