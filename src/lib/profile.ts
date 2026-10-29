@@ -82,6 +82,19 @@ export const profileOf = cache(async (user: User): Promise<Profile> => {
 });
 
 /**
+ * The lens of a request that says which side it is on, as the app's do
+ * (`?as=`): `profileOf`'s rule with the side asked for in place of the cookie.
+ * Only somebody who has a choice gets the one they asked for; everyone else
+ * gets their one honest answer, whatever they ask.
+ */
+export async function profileFrom(user: User, asked: string | null): Promise<Profile> {
+  if (!(await canSwitchProfile(user))) {
+    return canActAsMentor(user) ? "mentor" : "admin";
+  }
+  return isProfile(asked) ? asked : "admin";
+}
+
+/**
  * Where this person's home is: the lens first, their role second.
  *
  * Called by every gate that turns somebody away, so it has to answer for a

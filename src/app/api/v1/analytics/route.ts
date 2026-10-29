@@ -3,7 +3,7 @@ import type { ApiAnalytics } from "@/lib/api/v1/types";
 import { analyticsData, instituteAnalyticsData } from "@/lib/analytics";
 import { canActAsMentor, ROLES } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/dal";
-import { profileOf } from "@/lib/profile";
+import { profileFrom } from "@/lib/profile";
 import { spaceOf } from "@/lib/space";
 import { programToday } from "@/lib/when";
 
@@ -19,7 +19,9 @@ const READERS: string[] = [ROLES.ADMIN, ROLES.DEPT_LEADER, ROLES.SALES, ROLES.ME
  * hours, never a student), framed by the reader's space, an institute's levels
  * when that is their whole work, else the school, `?frame=school` for the
  * school either way. The drilling is the app's, over these rows, as the
- * website's is the browser's.
+ * website's is the browser's. `?as=mentor` or `?as=admin` is the side the app
+ * is on, which the website keeps in its cookie (`profileFrom`): a person who
+ * both mentors and administers reads their own analytics as a mentor.
  */
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -27,10 +29,11 @@ export async function GET(request: Request) {
   if (!mayUse(user)) return inactive();
   if (!READERS.includes(user.role)) return refused("Not found.", 404);
 
-  const lens = await profileOf(user);
+  const params = new URL(request.url).searchParams;
+  const lens = await profileFrom(user, params.get("as"));
   const asMentor = lens === "mentor" && canActAsMentor(user);
   const space = await spaceOf(user, lens);
-  const wantsSchool = new URL(request.url).searchParams.get("frame") === "school";
+  const wantsSchool = params.get("frame") === "school";
   const inInstitute = space.kind === "institute" && !wantsSchool;
   const data = inInstitute ? await instituteAnalyticsData(space.programId) : await analyticsData(undefined);
 

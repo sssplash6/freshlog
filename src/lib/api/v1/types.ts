@@ -1748,7 +1748,8 @@ export type AnalyticsSession = [program: number, mentor: number, student: number
  * never a student). `frame` is where the reader starts: one institute's levels
  * when that is their whole work, else the school; `other` is the one link to
  * the other frame. `audience` "mentor" lands on `self`'s own year. Students
- * are a 404.
+ * are a 404. `?as=mentor` or `?as=admin` names the side the app is on, for a
+ * person who has both (the website's cookie); anyone else's side is their own.
  */
 export type ApiAnalytics = {
   audience: "staff" | "mentor";

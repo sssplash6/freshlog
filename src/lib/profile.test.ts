@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { canSwitchProfile, homeFor } from "@/lib/profile";
+import { canSwitchProfile, homeFor, profileFrom } from "@/lib/profile";
 import { canActAsMentor, inStudentLens } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { grant, mentor, program, student } from "@/test/db";
@@ -73,5 +73,19 @@ describe("a student who also mentors", () => {
 
   it("keeps a plain student on /student whatever the lens says", async () => {
     expect(homeFor(await studentUser(false), "mentor")).toBe("/student");
+  });
+});
+
+describe("profileFrom", () => {
+  it("gives somebody with a choice the side they ask for, admin when they name none, and anyone else their own", async () => {
+    const both = await mentor("Akmal Karimov");
+    await grant({ userId: both.id, programId: (await program("Global Admissions")).id });
+    const fresh = await prisma.user.findUniqueOrThrow({ where: { id: both.id } });
+    expect(await profileFrom(fresh, "mentor")).toBe("mentor");
+    expect(await profileFrom(fresh, "admin")).toBe("admin");
+    expect(await profileFrom(fresh, null)).toBe("admin");
+    expect(await profileFrom(fresh, "student")).toBe("admin");
+    const plain = await mentor("Dilnoza Yusupova");
+    expect(await profileFrom(plain, "admin")).toBe("mentor");
   });
 });

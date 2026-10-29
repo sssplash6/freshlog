@@ -44,4 +44,19 @@ describe("GET /api/v1/analytics", () => {
     expect(JSON.stringify(body)).not.toContain("Aziz");
     expect(body.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+
+  it("answers a person who mentors and administers on the side the app says it is on, as the website's cookie does", async () => {
+    const p = await program("Global Admissions");
+    const both = await prisma.user.update({ where: { id: (await admin()).id }, data: { isMentor: true } });
+    await grant({ userId: both.id, programId: p.id });
+    actor.value = { id: both.id };
+    expect(await (await get("?as=mentor")).json()).toMatchObject({ audience: "mentor", self: both.id });
+    expect(await (await get("?as=admin")).json()).toMatchObject({ audience: "staff", self: null });
+    // No side named is the website's default, the admin's.
+    expect(await (await get()).json()).toMatchObject({ audience: "staff" });
+    // A plain mentor is a mentor whatever they ask.
+    const m = await mentor("Dilnoza Yusupova");
+    actor.value = { id: m.id };
+    expect(await (await get("?as=admin")).json()).toMatchObject({ audience: "mentor", self: m.id });
+  });
 });
