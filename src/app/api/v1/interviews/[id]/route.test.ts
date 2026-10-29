@@ -83,10 +83,25 @@ describe("GET /api/v1/interviews/:id", () => {
       absent: null,
       mine: null,
       theirs: null,
-      can: { cancel: true, done: false, absent: false, guide: false, notes: false, editFeedback: false },
+      can: { cancel: true, done: false, absent: false, guide: false, notes: false, editFeedback: false, feedback: true },
     });
     expect(body.template.questions.length).toBeGreaterThan(0);
     expect(body.guide.rubric.length).toBe(4);
+  });
+
+  it("tells the student a mentor interviews that they write no feedback, as the website's guide leaves it out", async () => {
+    const p = await program("Global Admissions");
+    const m = await mentor("Dilnoza Karimova");
+    const s = await student({ programId: p.id, name: "Aziza Karimova" });
+    const slot = await prisma.interviewSlot.create({
+      data: { userId: m.id, asMentor: true, startsAt: wallHoursFromNow(48), minutes: 45, meetingUrl: "https://meet.example/m" },
+    });
+    const interview = await prisma.peerInterview.create({
+      data: { slotId: slot.id, hostId: m.id, guestId: s.userId, mentorId: m.id, template: "scholarship" },
+    });
+    as(s);
+    const body = await (await read(interview.id)).json();
+    expect(body.can.feedback).toBe(false);
   });
 
   it("never sends the partner's answers, notes or draft, and sends their feedback once it is sent", async () => {

@@ -956,7 +956,12 @@ export type ApiInterview = Omit<InterviewRow, "template"> & {
   completedOn: string | null;
   /** "15:45" Tashkent: while sent feedback can still be changed, until when. */
   editableUntil: string | null;
-  can: { cancel: boolean; done: boolean; absent: boolean; guide: boolean; notes: boolean; editFeedback: boolean };
+  /**
+   * `feedback`: whether the reader writes feedback at all. Between two students
+   * both do; with a mentor, the mentor does and the student they interview
+   * doesn't (`givesFeedback`), so the guide has no feedback step for them.
+   */
+  can: { cancel: boolean; done: boolean; absent: boolean; guide: boolean; notes: boolean; editFeedback: boolean; feedback: boolean };
   /** The guide's fixed words, the school's own. */
   guide: {
     intro: string;

@@ -17,6 +17,7 @@ import {
 import {
   feedbackEditable,
   feedbackEditableUntil,
+  givesFeedback,
   guideClosedAt,
   guideOpen,
   hasStarted,
@@ -113,6 +114,8 @@ export async function interviewFor({ user }: PracticeStudent, id: string, now: D
       guide: guideOpen(row.slot, guideClosedAt(partOf(row, user.id), sentAt, row.completedAt), now, row.absentId),
       notes: row.completedAt !== null,
       editFeedback: editable,
+      // The website's guide leaves the feedback step out for the student a mentor interviews: the mentor writes it.
+      feedback: givesFeedback(partOf(row, user.id)),
     },
     guide: {
       intro: INTERVIEW_INTRO,
