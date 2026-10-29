@@ -75,6 +75,17 @@ describe("sessionFor: who sees a session", () => {
     expect(await sessionFor(await readerFor(otherMentor), "c-made-up")).toBeNull();
   });
 
+  it("a mentor who also runs another of the student's programs reads only that program's, as the page narrows them", async () => {
+    const { p, st, s } = await world();
+    const other = await program("Master's Program");
+    await prisma.studentEnrollment.create({ data: { studentId: st.id, programId: other.id } });
+    // Paired where the session is, so they reach the student; staff of the other program, so the page reads them as staff there.
+    const both = await mentor("Umid Rashidov");
+    await pairing({ mentorId: both.id, programId: p.id });
+    await grant({ userId: both.id, programId: other.id, role: "SALES" });
+    expect(await sessionFor(await readerFor(both), s.id)).toBeNull();
+  });
+
   it("a mentor who doesn't reach the student reads it like a missing one", async () => {
     const { s } = await world();
     const stranger = await mentor("Sardor Aliev");

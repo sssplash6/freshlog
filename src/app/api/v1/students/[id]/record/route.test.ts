@@ -44,6 +44,8 @@ describe("GET /api/v1/students/:id/record", () => {
     const body = await (await get(aziz.id, "?as=mentor")).json();
     expect(body.lens).toBe("mentor");
     expect(body.student).toMatchObject({ telegram: "aziz_t", folderUrl: "https://drive.test/aziz", email: expect.any(String) });
+    // Registered is in the page's Details, which only staff read.
+    expect(body.student.registered).toBeNull();
     expect(body.programs.map((p: { id: string }) => p.id).sort()).toEqual([ga.id, masters.id].sort());
     expect(body.hours).toMatchObject({ allotted: 840, completed: 60, remaining: 780 });
     expect(body.byProgram.map((line: { name: string; remaining: number }) => [line.name, line.remaining])).toEqual([

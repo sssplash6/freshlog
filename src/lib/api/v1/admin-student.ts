@@ -168,7 +168,8 @@ export async function studentRecordFor(
       email: profile.user.email,
       telegram: profile.telegramUsername,
       folderUrl: profile.folderUrl,
-      registered: toDateInputValue(profile.createdAt),
+      // In the page's Details, which only staff read.
+      registered: manages ? toDateInputValue(profile.createdAt) : null,
     },
     approved: !pending,
     programs: sortEnrollments([...enrollments]).map((e) => ({

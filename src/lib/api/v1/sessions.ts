@@ -106,10 +106,20 @@ export function canRead(reader: Reader, row: Pick<Session, "studentId" | "mentor
  * student page shows them the student's whole ledger (parity T13). Such a
  * reader reads it, and changes nothing: `can` asks who logged it and who runs
  * its program.
+ *
+ * Only a mentor who doesn't also run one of the student's programs: the page
+ * reads somebody who does as staff, narrowed to the programs they run
+ * (`studentScope`), and a session in another program is not on it.
  */
 async function canReadSession(reader: Reader, row: Pick<Session, "studentId" | "mentorId" | "programId">): Promise<boolean> {
   if (canRead(reader, row)) return true;
-  return canActAsMentor(reader.user) && (await mentorReaches(reader.user, { id: row.studentId }));
+  if (!canActAsMentor(reader.user)) return false;
+  const profile = await prisma.studentProfile.findUnique({
+    where: { id: row.studentId },
+    select: { id: true, enrollments: { select: { programId: true } } },
+  });
+  if (!profile || (await canManageStudent(reader.user, profile))) return false;
+  return mentorReaches(reader.user, profile);
 }
 
 /**
@@ -129,15 +139,26 @@ export function toApiSession(
   reader: Reader,
   row: SessionRow,
   now: Date,
-  /** The reader reaches the student as their mentor: the student's page shows them every mentor's notes. */
-  reachesStudent = false
+  {
+    reachesStudent = false,
+    asMentor = false,
+  }: {
+    /** The reader reaches the student as their mentor: the student's page shows them every mentor's notes. */
+    reachesStudent?: boolean;
+    /**
+     * Read in the mentor's words whatever grants the reader holds: a mentor's
+     * own record, which the website keeps anonymous to them (no stars, the
+     * student's note only on a dispute).
+     */
+    asMentor?: boolean;
+  } = {}
 ): ApiSession {
   const isStudent = isStudentOf(reader, row);
   const loggedIt = row.mentorId === reader.user.id;
   // Whose words the row is in, as the website's pages read it: the student's
   // own; staff for the program's admins (the Sessions page reads every row of a
   // reader who administers as staff); a mentor's for anyone else.
-  const audience: Audience = isStudent ? "student" : scopeCovers(reader.read, row.programId) ? "staff" : "mentor";
+  const audience: Audience = isStudent ? "student" : !asMentor && scopeCovers(reader.read, row.programId) ? "staff" : "mentor";
   const disputed = row.studentAnswer === SESSION_ANSWER.DISPUTED;
   const voided = row.status === SESSION_STATUS.VOIDED;
   // Who may correct it, void it and restore it: the mentor who logged it, while
@@ -201,7 +222,7 @@ export async function sessionFor(reader: Reader, id: string, now: Date = new Dat
   // isn't theirs must read exactly like one that doesn't exist.
   if (!row) return null;
   if (canRead(reader, row)) return toApiSession(reader, row, now);
-  return (await canReadSession(reader, row)) ? toApiSession(reader, row, now, true) : null;
+  return (await canReadSession(reader, row)) ? toApiSession(reader, row, now, { reachesStudent: true }) : null;
 }
 
 /**
@@ -609,7 +630,7 @@ export async function sessionsPage(
 
   const items = rows.slice(0, limit);
   return {
-    items: items.map((row) => toApiSession(reader, row, now, asRecord)),
+    items: items.map((row) => toApiSession(reader, row, now, { reachesStudent: asRecord })),
     nextCursor: rows.length > limit ? cursorAfter(items[items.length - 1]) : null,
     totals: totalsOf(groups),
     counts: { disputed, voided },

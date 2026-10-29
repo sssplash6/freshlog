@@ -128,6 +128,16 @@ describe("GET /api/v1/mentors/:id", () => {
     expect(body.recent[0]).toMatchObject({ mentor: { id: m.id }, student: { name: "Aziz Tursunov" }, statuses: expect.any(Array) });
   });
 
+  it("keeps a mentor's own recent sessions anonymous to them, whatever grants they hold, as the page does", async () => {
+    const { ga, m, aziz } = await scene();
+    await grant({ userId: m.id, programId: ga.id });
+    const s = await prisma.session.findFirstOrThrow({ where: { mentorId: m.id, studentId: aziz.id } });
+    await prisma.session.update({ where: { id: s.id }, data: { studentAnswer: "CONFIRMED", studentRating: 2, studentNote: "Too fast." } });
+    actor.value = { id: m.id };
+    const body = await (await get(m.id)).json();
+    expect(body.recent[0]).toMatchObject({ answer: "CONFIRMED", answerRating: null, answerNote: null });
+  });
+
   it("shows an admin a program the mentor works in where nothing has happened yet as an idle row", async () => {
     const { ga, m } = await scene();
     const quiet = await program("Imkon");

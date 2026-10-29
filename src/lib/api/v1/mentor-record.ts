@@ -95,7 +95,8 @@ export async function mentorRecordFor(viewer: User, id: string, query: SearchPar
     })),
     recent: recentIds.flatMap((sid) => {
       const row = byId.get(sid);
-      return row ? [toApiSession(reader, row, now)] : [];
+      // A mentor's own record is anonymous to them, as the page's (`feedback: !isSelf`), whatever grants they hold.
+      return row ? [toApiSession(reader, row, now, { asMentor: self })] : [];
     }),
     sessionCount: view.sessions.length,
     ratings:

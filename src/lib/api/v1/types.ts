@@ -766,8 +766,8 @@ export type AdminStudent = {
     email: string;
     telegram: string | null;
     folderUrl: string | null;
-    /** The day the record was made. */
-    registered: string;
+    /** The day the record was made; null to a mentor who doesn't run one of their programs, as the page's Details are staff's. */
+    registered: string | null;
   };
   approved: boolean;
   /** The reader's programs among theirs. `visit` is a placement from another program. */
