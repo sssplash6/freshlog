@@ -870,6 +870,8 @@ export type AdminStudent = {
   } | null;
   /** The page's Exchange: the placements the reader may see (`visibleExchanges`), both directions, newest first. */
   exchanges: ApiExchange[];
+  /** The Full Support application; null where the reader may not read one, or the student's programs track none. */
+  application: ApiApplication | null;
   /**
    * Send on exchange, for a reader who may lend them (an admin of one of their
    * own programs, or a mentor who works in it); null otherwise. `from`: those
@@ -935,6 +937,54 @@ export type ApiExchange = {
   sessions: number;
   canReturn: boolean;
 };
+/** A supplemental essay's stage, or the motivational essay's: Brainstorming, Writing, Finalizing, Done; null not started. */
+export type EssayStage = "BRAINSTORMING" | "WRITING" | "FINALIZING" | "DONE";
+/** The round of a student's primary choice: Early Decision, Restrictive Early Action, Early Action. */
+export type ApplicationRound = "ED" | "REA" | "EA";
+/**
+ * The Full Support application, as the student page's Application shows it,
+ * for a student in a program that tracks admissions, to its admins and the
+ * mentors who work with the student there (`applicationAccess`). `editable`:
+ * the reader may change it; `canCorrectWords`: they administer a program that
+ * tracks admissions, so may correct a university's word count for everybody;
+ * `known`: the shared list of universities to pick from, for an editor.
+ * Universities come primary first, then in the order they were added.
+ *
+ * Its writes, each the website's action, each answering WriteResult:
+ *   PUT    /api/v1/students/:id/application                 ApplicationSnapshot (saveApplicationSnapshot)
+ *   POST   /api/v1/students/:id/application/essays          EssayStageChange (setEssayStage)
+ *   POST   /api/v1/students/:id/universities                UniversityAdd (addStudentUniversity)
+ *   PATCH  /api/v1/students/:id/universities/:rowId         PrimaryChoice (setPrimaryUniversity)
+ *   DELETE /api/v1/students/:id/universities/:rowId         (removeStudentUniversity)
+ *   PATCH  /api/v1/universities/:id                         WordsCorrection (correctUniversityWords)
+ */
+export type ApiApplication = {
+  sat: number | null;
+  ielts: number | null;
+  school: string | null;
+  gpa: string | null;
+  essayStage: EssayStage | null;
+  universities: {
+    id: string;
+    university: { id: string; name: string; words: number };
+    primary: boolean;
+    round: ApplicationRound | null;
+    stage: EssayStage | null;
+  }[];
+  editable: boolean;
+  canCorrectWords: boolean;
+  known: { id: string; name: string; words: number }[];
+};
+/** All four together, as the website saves them; an empty one clears it. The action reads and checks each. */
+export type ApplicationSnapshot = { sat: string; ielts: string; school: string; gpa: string };
+/** `target`: "essay" for the motivational essay, or a university row's id for its supplemental. */
+export type EssayStageChange = { target: string; stage: EssayStage };
+/** One already on the shared list (`university`), or a new one (`name` and its supplemental `words`). */
+export type UniversityAdd = ({ university: string } | { name: string; words: number }) & { primary?: boolean; round?: ApplicationRound };
+/** Make a row the primary choice, with its round (or none). */
+export type PrimaryChoice = { round: ApplicationRound | null };
+/** A university's supplemental word count, for every student who lists it. */
+export type WordsCorrection = { words: number };
 /** Send a student on exchange: from one of their own programs, to one they aren't in, for `minutes` until `useBy`. */
 export type ExchangeSend = { from: string; to: string; minutes: number; useBy: string; note?: string };
 /** Call an exchange off, with a word to both programs if you like. */

@@ -4,7 +4,8 @@ import { apiExchange, exchangeParty } from "@/lib/api/v1/exchanges";
 import { nameOf, type Reader } from "@/lib/api/v1/sessions";
 import type { AdminGrant, AdminStudent, GrantChange } from "@/lib/api/v1/types";
 import { timeByMentorEntries, toAllocationEntries } from "@/components/allocation-row";
-import { canAdministerStudent, canManageStudent, mentorReaches, scopeCovers, scopeProgramFilter, staffLevel, studentScope } from "@/lib/authz";
+import { adminWriteScope, applicationAccess, canAdministerStudent, canManageStudent, mentorReaches, scopeCovers, scopeProgramFilter, staffLevel, studentScope } from "@/lib/authz";
+import { isEssayStage, isRound } from "@/lib/applications";
 import { canActAsMentor, SESSION_STATUS, USER_STATUS } from "@/lib/constants";
 import { enrollmentLabel, sortEnrollments, studiesIn } from "@/lib/enrollments";
 import { visibleExchanges } from "@/lib/exchanges";
@@ -172,6 +173,7 @@ export async function studentRecordFor(
     }),
   ]);
   const pairedIn = new Set(myPairings.map((p) => p.programId));
+  const application = await applicationFor(reader, profile);
   const sendableFrom = studiesIn(profile.enrollments).filter((e) => scopeCovers(reader.write, e.programId) || pairedIn.has(e.programId));
 
   const headline = studentHeadline({ mentorLens: !manages || mentorLens, reaches, hours, userId: reader.user.id, now });
@@ -244,9 +246,56 @@ export async function studentRecordFor(
         }
       : null,
     exchanges: exchanges.map((e) => apiExchange(e, { canReturn: exchangeParty(e, reader.user.id, reader.write), withStudent: false, now })),
+    application,
     lend: sendableFrom.length > 0 ? { from: sendableFrom.map((e) => ({ id: e.programId, label: enrollmentLabel(e) })), to: elsewhere } : null,
     today: programToday(now),
   };
 }
 
 const programRef = (p: { id: string; name: string; colorIndex: number }) => ({ id: p.id, name: p.name, colorIndex: p.colorIndex });
+
+/**
+ * The student page's Application (`ApplicationSection` there), read as the page reads it: for whom
+ * `applicationAccess` lets read it, the snapshot, the universities primary first, and for an editor the shared list
+ * to pick from and whether they may correct a word count (an admin of any program that tracks admissions).
+ */
+async function applicationFor(reader: Reader, profile: ManagedStudent): Promise<AdminStudent["application"]> {
+  const access = await applicationAccess(reader.user, profile);
+  if (!access.read) return null;
+  const [app, rows, known, canCorrectWords] = await Promise.all([
+    prisma.studentApplication.findUnique({ where: { studentId: profile.id } }),
+    prisma.studentUniversity.findMany({
+      where: { studentId: profile.id },
+      include: { university: { select: { id: true, name: true, supplementalWords: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+    access.write
+      ? prisma.university.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, supplementalWords: true } })
+      : Promise.resolve([]),
+    access.write
+      ? adminWriteScope(reader.user).then(async (scope) =>
+          (await prisma.program.findMany({ where: { tracksAdmissions: true }, select: { id: true } })).some((p) => scopeCovers(scope, p.id))
+        )
+      : Promise.resolve(false),
+  ]);
+  return {
+    sat: app?.sat ?? null,
+    ielts: app?.ielts ?? null,
+    school: app?.school ?? null,
+    gpa: app?.gpa ?? null,
+    essayStage: isEssayStage(app?.essayStage) ? app.essayStage : null,
+    // Primary first, then the others in the order they were added, as the section lists them.
+    universities: [...rows]
+      .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary))
+      .map((r) => ({
+        id: r.id,
+        university: { id: r.university.id, name: r.university.name, words: r.university.supplementalWords },
+        primary: r.isPrimary,
+        round: r.isPrimary && isRound(r.round) ? r.round : null,
+        stage: isEssayStage(r.essayStage) ? r.essayStage : null,
+      })),
+    editable: access.write,
+    canCorrectWords,
+    known: known.map((u) => ({ id: u.id, name: u.name, words: u.supplementalWords })),
+  };
+}
