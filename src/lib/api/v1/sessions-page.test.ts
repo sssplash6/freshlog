@@ -4,6 +4,7 @@ import type { Prisma, User } from "@/generated/prisma/client";
 import {
   ledgerScope,
   readerFor,
+  recordScope,
   sessionFor,
   sessionsPage,
   sessionsQueryFrom,
@@ -12,7 +13,7 @@ import {
 import type { SessionsPage, SessionsQuery } from "@/lib/api/v1/types";
 import { SEARCH_PLACEHOLDER } from "@/lib/filters";
 import { prisma } from "@/lib/prisma";
-import { admin, assignment, enroll, grant, mentor, program, student } from "@/test/db";
+import { admin, assignment, enroll, grant, mentor, pairing, program, student } from "@/test/db";
 
 /**
  * The reader's ledger: which sessions a list holds, what it tells the reader
@@ -841,6 +842,45 @@ describe("sessionsPage: as the website's Sessions page reads a reader", () => {
     // Over the whole log, whatever the list is narrowed to; and never on a mentor's list.
     expect((await pageOf(reader, { status: "active" })).notHeld).toBe("2 voided · 1 rescheduled");
     expect((await pageOf(await readerFor(akmal))).notHeld).toBeNull();
+  });
+});
+
+describe("sessionsPage: as=record, a student's page", () => {
+  it("gives a mentor who reaches the student every mentor's sessions, in every program, notes and all", async () => {
+    const ga = await program("Global Admissions");
+    const ms = await program("Master's");
+    const aziz = await pupil(ga.id, "Aziz Tursunov");
+    await enroll({ studentId: aziz.profile.id, programId: ms.id });
+    const akmal = await mentor("Akmal Karimov");
+    const umid = await mentor("Umid Rashidov");
+    await pairing({ mentorId: akmal.id, programId: ga.id });
+    const mine = await held({ studentId: aziz.profile.id, mentorId: akmal.id, programId: ga.id, date: day("2026-10-20") });
+    const theirs = await held({ studentId: aziz.profile.id, mentorId: umid.id, programId: ms.id, date: day("2026-10-19"), note: "Went through the essay." });
+    const page = await pageOf(await readerFor(akmal), { as: "record", student: aziz.profile.id });
+    expect(idsOf(page)).toEqual([mine.id, theirs.id]);
+    expect(page.items[1]).toMatchObject({ note: "Went through the essay.", can: { edit: false, void: false } });
+    expect(page.programFilter).toEqual([]);
+  });
+
+  it("gives an admin the student's sessions in their own programs only", async () => {
+    const ga = await program("Global Admissions");
+    const ms = await program("Master's");
+    const aziz = await pupil(ga.id, "Aziz Tursunov");
+    await enroll({ studentId: aziz.profile.id, programId: ms.id });
+    const akmal = await mentor("Akmal Karimov");
+    const here = await held({ studentId: aziz.profile.id, mentorId: akmal.id, programId: ga.id });
+    await held({ studentId: aziz.profile.id, mentorId: akmal.id, programId: ms.id });
+    const boss = await admin("Nodira Aliyeva");
+    await grant({ userId: boss.id, programId: ga.id });
+    expect(idsOf(await pageOf(await readerFor(boss), { as: "record", student: aziz.profile.id }))).toEqual([here.id]);
+  });
+
+  it("has no list for a reader the page wouldn't let in, nor without a student", async () => {
+    const { aziz } = await cast();
+    const stranger = await readerFor(await mentor("Sardor Aliev"));
+    expect(await recordScope(stranger, aziz.profile.id)).toBeNull();
+    expect(await recordScope(stranger, undefined)).toBeNull();
+    expect(ledgerScope(stranger, "record")).toBeNull();
   });
 });
 

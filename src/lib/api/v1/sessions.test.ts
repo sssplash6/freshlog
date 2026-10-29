@@ -64,15 +64,21 @@ describe("sessionFor: who sees a session", () => {
     }
   });
 
-  it("another mentor's session answers like a missing one", async () => {
+  it("another mentor who reaches the student reads it, note and all, as the website's student page shows it, and may change nothing", async () => {
     const { p, st, s } = await world();
-    // In the same program, and with a session of their own with the same
-    // student: the website's student page would show them this session.
+    // In the same program, and with a session of their own with the same student.
     const otherMentor = await mentor("Umid Rashidov");
     await pairing({ mentorId: otherMentor.id, programId: p.id });
     await session({ studentId: st.id, mentorId: otherMentor.id, minutes: 30 });
-    expect(await sessionFor(await readerFor(otherMentor), s.id)).toBeNull();
+    const read = await sessionFor(await readerFor(otherMentor), s.id);
+    expect(read).toMatchObject({ id: s.id, note: "Went through the essay.", can: { edit: false, void: false, restore: false, answer: false } });
     expect(await sessionFor(await readerFor(otherMentor), "c-made-up")).toBeNull();
+  });
+
+  it("a mentor who doesn't reach the student reads it like a missing one", async () => {
+    const { s } = await world();
+    const stranger = await mentor("Sardor Aliev");
+    expect(await sessionFor(await readerFor(stranger), s.id)).toBeNull();
   });
 
   it("another student's session is not theirs to see", async () => {

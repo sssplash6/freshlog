@@ -2,7 +2,7 @@ import { logSession } from "@/lib/actions/sessions";
 import { bodyOf } from "@/lib/api/v1/body";
 import { logForm } from "@/lib/api/v1/log";
 import { fromAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
-import { ledgerScope, readerFor, sessionsPage, sessionsQueryFrom } from "@/lib/api/v1/sessions";
+import { readerFor, scopeFor, sessionsPage, sessionsQueryFrom } from "@/lib/api/v1/sessions";
 import { adminWriteScope, scopeIsEmpty } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
 
@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  * The signed-in person's ledger: a student's own sessions, or the ones a mentor
  * logged, a page at a time, with figures for the whole filter (`sessionsPage`).
  * `as=mentor` asks for the ones they logged, whatever else they are
- * (`ledgerScope`).
+ * (`scopeFor`).
  *
  * Somebody with no such ledger to read is told what any id that isn't theirs
  * is told.
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   if (user.status !== "ACTIVE") return inactive();
   const reader = await readerFor(user);
   const query = sessionsQueryFrom(new URL(request.url).searchParams);
-  if (!ledgerScope(reader, query.as)) return refused("Not found.", 404);
+  if (!(await scopeFor(reader, query))) return refused("Not found.", 404);
   const page = await sessionsPage(reader, query);
   if ("refused" in page) return refused(page.refused, 400, { field: page.field });
   return ok(page);

@@ -3,14 +3,15 @@ import "server-only";
 import { NOT_YOUR_PROGRAM } from "@/lib/api/v1/admin-gates";
 import { refused } from "@/lib/api/v1/respond";
 import { nameOf, SESSION_INCLUDE, toApiSession, type Reader } from "@/lib/api/v1/sessions";
-import type { Cohort, ProgramDetail, ProgramOption } from "@/lib/api/v1/types";
-import { mentorPool, programCohorts, programGrants, programLevels, programPairings, programStudents } from "@/app/programs/reads";
+import type { AllocatePicker, Cohort, ProgramDetail, ProgramOption } from "@/lib/api/v1/types";
+import { mentorPool, programCohorts, programGrants, programLevels, programPairings, programStudents, studentsOf } from "@/app/programs/reads";
 import { scopeCovers, scopeProgramFilter } from "@/lib/authz";
 import { PROGRAM_STATUS } from "@/lib/constants";
 import { programTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { programOptions } from "@/lib/queries";
 import { programPeople, programRecent } from "@/lib/screens/program";
+import { allocatePicker, allocateWarning } from "@/lib/screens/program-allocate";
 import { programToday } from "@/lib/when";
 import type { Program } from "@/generated/prisma/client";
 
@@ -161,4 +162,26 @@ export async function programOptionsFor(reader: Reader): Promise<ProgramOption[]
     levels: p.levels.map((l) => ({ id: l.id, name: l.name, cohorts: l.cohorts.map((c) => ({ id: c.id, name: c.name })) })),
     cohorts: p.cohorts.map((c) => ({ id: c.id, name: c.name })),
   }));
+}
+
+/**
+ * The program's Allocate time picker (`allocatePicker`, the website's page's
+ * own): its students in the page's groups, each with what they hold here
+ * already, and the page's warning for somebody overdrawn or with time that
+ * expired. The route has gated it on the write scope: it is where a grant
+ * starts.
+ */
+export async function allocatePickerFor(program: Program): Promise<AllocatePicker> {
+  const students = studentsOf(await programStudents(program.id), program.id);
+  return {
+    program: { id: program.id, name: program.name, colorIndex: program.colorIndex },
+    rows: allocatePicker(students).map((row) => ({
+      student: { id: row.s.id, userId: row.s.userId, name: row.option.label },
+      hint: row.option.hint,
+      // The page writes its three groups as plain strings.
+      group: row.option.group as AllocatePicker["rows"][number]["group"],
+      tone: row.option.tone ?? null,
+      warning: row.overdrawn || row.expired ? allocateWarning(row.s, row, program.name) : null,
+    })),
+  };
 }

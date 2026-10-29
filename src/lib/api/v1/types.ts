@@ -186,8 +186,12 @@ export type SessionsQuery = {
    * the website's Sessions page shows them (its Mine); to anyone who can't act
    * as a mentor it is a 404, as it is to every reader with no list. `admin` is the app's admin side asking for every session in the
    * programs the reader reads; to anyone who reads none it is a 404.
+   * `record` is a student's page (`student` names them): the student's whole
+   * ledger as the website's student page shows it, every mentor's sessions to a
+   * mentor who reaches them, their programs' to an admin of them; a 404 to
+   * anyone else.
    */
-  as?: "mentor" | "admin";
+  as?: "mentor" | "admin" | "record";
 };
 
 /** A page of the reader's sessions, newest first, with figures for the whole filter. */
@@ -726,7 +730,12 @@ export type RosterPage = { rows: RosterRow[]; page: number; pages: number; shown
  * sums them over every program the reader reads, as /students does.
  */
 
-/** GET /api/v1/students/:id/admin: one student as an admin of one of their programs reads them. */
+/**
+ * GET /api/v1/students/:id/admin: one student as an admin of one of their
+ * programs reads them. GET /api/v1/students/:id/record answers the same for
+ * anyone the website's student page lets in, a mentor who reaches them too
+ * (`?as=mentor` reads it in the mentor's lens).
+ */
 export type AdminStudent = {
   student: StudentRef & {
     email: string;
@@ -748,8 +757,26 @@ export type AdminStudent = {
   };
   /** The website's "Time by mentor", one row per grant. */
   grants: AdminGrant[];
-  /** The last 20 changes to their time, newest first. */
+  /** The last 20 changes to their time, newest first. Staff only. */
   history: GrantChange[];
+  /** Whose words: an admin of one of their programs reads as staff, a mentor who reaches them as a mentor. */
+  lens: "staff" | "mentor";
+  /**
+   * The page's first line under the name: a mentor's own time with them ("8h
+   * remaining with you", "use by Oct 17"), or the student's whole balance with
+   * the soonest use-by ("4h 15m to use by Nov 20"). null when there is none to say.
+   */
+  headline: { figure: string; rest: string | null; danger: boolean } | null;
+  /**
+   * Log a session: `can` is reach and approval, as the page's button; `reason`
+   * the page's sentence about it (not approved yet, no time with you, expired,
+   * overdrawn), a warning when `warns`.
+   */
+  log: { can: boolean; reason: string | null; warns: boolean };
+  /** Progress per program, when the student is in more than one the reader reads. `name` says "(on exchange)" for a visit. */
+  byProgram: { program: ProgramRef; name: string; allotted: number; completed: number; remaining: number }[];
+  /** What was paid over every grant, where a program bills per student and the reader is staff; null elsewhere. */
+  paid: number | null;
   /**
    * `approve` and `reject`: they are waiting and the reader may change one of
    * their programs. `allocate`: the reader may grant them time. `reach`: the
@@ -770,6 +797,8 @@ export type AdminGrant = {
   completed: number;
   missed: number;
   remaining: number;
+  /** Lost when its use-by passed. */
+  forfeited: number;
   /** null on a row with planned work and no grant. */
   deadline: string | null;
   daysLeft: number | null;
@@ -788,6 +817,24 @@ export type GrantChange = {
   from: number;
   to: number;
   by: PersonRef | null;
+};
+
+/**
+ * GET /api/v1/programs/:id/allocate: the website's program Allocate time, its
+ * roster picker. Students in its order and groups (Has time, All time used,
+ * Overdrawn or expired), each with what they hold in this program; `warning`
+ * is what the page says under the picker of one overdrawn or with time that
+ * expired (`lead` bold). Picking one opens their grant sheet in this program.
+ */
+export type AllocatePicker = {
+  program: ProgramRef;
+  rows: {
+    student: StudentRef;
+    hint: string;
+    group: "Has time" | "All time used" | "Overdrawn or expired";
+    tone: "danger" | "warn" | null;
+    warning: { lead: string; rest: string } | null;
+  }[];
 };
 
 /** GET /api/v1/students/:id/grant-options: what the grant sheet offers. */

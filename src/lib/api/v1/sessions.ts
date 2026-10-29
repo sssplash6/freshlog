@@ -7,7 +7,17 @@ import type {
   SessionState,
   StudentAnswer,
 } from "@/lib/api/v1/types";
-import { adminScope, adminWriteScope, scopeCovers, scopeIsEmpty, scopeProgramFilter, type AdminScope } from "@/lib/authz";
+import {
+  adminScope,
+  adminWriteScope,
+  canManageStudent,
+  mentorReaches,
+  scopeCovers,
+  scopeIsEmpty,
+  scopeProgramFilter,
+  studentScope,
+  type AdminScope,
+} from "@/lib/authz";
 import {
   attendanceOf,
   canActAsMentor,
@@ -79,11 +89,9 @@ const isStudentOf = (reader: Reader, row: Pick<Session, "studentId">) =>
 
 /**
  * May `reader` see this session: its student, the mentor who logged it, or
- * anyone whose read scope covers its program. Nobody else.
- *
- * That leaves out another mentor of the same student, whom the website's
- * student page shows it to. The app has no page of that kind, and narrower is
- * safer.
+ * anyone whose read scope covers its program. `canReadSession` adds the one
+ * reader more the website's student page shows it to: another mentor who
+ * reaches the student.
  *
  * The session's own program decides the admin half, never the student's
  * enrollments (AGENTS.md, "Ask the row, not the student"): an admin of one of a
@@ -91,6 +99,17 @@ const isStudentOf = (reader: Reader, row: Pick<Session, "studentId">) =>
  */
 export function canRead(reader: Reader, row: Pick<Session, "studentId" | "mentorId" | "programId">): boolean {
   return isStudentOf(reader, row) || row.mentorId === reader.user.id || scopeCovers(reader.read, row.programId);
+}
+
+/**
+ * `canRead`, and another mentor who reaches the student, as the website's
+ * student page shows them the student's whole ledger (parity T13). Such a
+ * reader reads it, and changes nothing: `can` asks who logged it and who runs
+ * its program.
+ */
+async function canReadSession(reader: Reader, row: Pick<Session, "studentId" | "mentorId" | "programId">): Promise<boolean> {
+  if (canRead(reader, row)) return true;
+  return canActAsMentor(reader.user) && (await mentorReaches(reader.user, { id: row.studentId }));
 }
 
 /**
@@ -106,7 +125,13 @@ export const nameOf = (person: { name: string | null; email: string }) => person
  * It takes a row the reader may already see, from `canRead` or from a list that
  * asked only for their own, and decides what each field says to them.
  */
-export function toApiSession(reader: Reader, row: SessionRow, now: Date): ApiSession {
+export function toApiSession(
+  reader: Reader,
+  row: SessionRow,
+  now: Date,
+  /** The reader reaches the student as their mentor: the student's page shows them every mentor's notes. */
+  reachesStudent = false
+): ApiSession {
   const isStudent = isStudentOf(reader, row);
   const loggedIt = row.mentorId === reader.user.id;
   // Whose words the row is in, as the website's pages read it: the student's
@@ -154,7 +179,7 @@ export function toApiSession(reader: Reader, row: SessionRow, now: Date): ApiSes
     // `withoutMentorNotes`' rule: the write-up is for the mentor who wrote it and
     // the people who run the program, and never for the student it is about,
     // even one who also administers it.
-    note: !isStudent && (loggedIt || scopeCovers(reader.read, row.programId)) ? row.note : null,
+    note: !isStudent && (loggedIt || reachesStudent || scopeCovers(reader.read, row.programId)) ? row.note : null,
     can: {
       edit: corrects && !voided,
       void: corrects && !voided,
@@ -174,8 +199,9 @@ export async function sessionFor(reader: Reader, id: string, now: Date = new Dat
   const row = await prisma.session.findUnique({ where: { id }, include: SESSION_INCLUDE });
   // Loaded first and gated second, with one answer for both: a session that
   // isn't theirs must read exactly like one that doesn't exist.
-  if (!row || !canRead(reader, row)) return null;
-  return toApiSession(reader, row, now);
+  if (!row) return null;
+  if (canRead(reader, row)) return toApiSession(reader, row, now);
+  return (await canReadSession(reader, row)) ? toApiSession(reader, row, now, true) : null;
 }
 
 /**
@@ -217,6 +243,8 @@ const MAX_LIMIT = 100;
  */
 export function ledgerScope(reader: Reader, as?: SessionsQuery["as"]): FilterScope | null {
   const { user, studentProfileId } = reader;
+  // The student's page is `recordScope`'s, which has to read the student.
+  if (as === "record") return null;
   // The website's Sessions page reads a mentor who administers programs as
   // staff of those programs, with Mine to narrow to their own: the sessions they
   // logged in a program they don't run are not on it (parity D4), so they are not
@@ -232,6 +260,30 @@ export function ledgerScope(reader: Reader, as?: SessionsQuery["as"]): FilterSco
   if (user.role === ROLES.STUDENT && studentProfileId !== null) return { studentId: studentProfileId };
   if (canActAsMentor(user)) return { mentorId: user.id };
   return null;
+}
+
+/**
+ * The student's whole ledger as the website's student page shows it to
+ * `reader` (`as=record`): an admin of one of their programs reads those
+ * programs' sessions, as staff; a mentor who reaches them reads every one, every
+ * mentor's, as a mentor. Anyone else, and a student who is not there, has none.
+ */
+export async function recordScope(reader: Reader, studentId: string | undefined): Promise<FilterScope | null> {
+  const id = studentId?.trim();
+  if (!id) return null;
+  const profile = await prisma.studentProfile.findUnique({ where: { id }, select: { id: true, enrollments: { select: { programId: true } } } });
+  if (!profile) return null;
+  const manages = await canManageStudent(reader.user, profile);
+  const reaches = !manages && canActAsMentor(reader.user) && (await mentorReaches(reader.user, profile));
+  if (!manages && !reaches) return null;
+  return manages
+    ? { audience: "staff", userId: reader.user.id, studentId: profile.id, programIds: await studentScope(reader.user, profile) }
+    : { audience: "mentor", userId: reader.user.id, studentId: profile.id };
+}
+
+/** Whose sessions a list holds: the student's page's (`as=record`), or `ledgerScope`'s. */
+export async function scopeFor(reader: Reader, query: SessionsQuery): Promise<FilterScope | null> {
+  return query.as === "record" ? recordScope(reader, query.student) : ledgerScope(reader, query.as);
 }
 
 /**
@@ -255,7 +307,7 @@ const WORDS: { [Key in Choice]: Record<NonNullable<SessionsQuery[Key]>, true> } 
   period: { week: true, "30d": true, "90d": true, year: true },
   status: { active: true, voided: true },
   answer: { needed: true, disputed: true },
-  as: { mentor: true, admin: true },
+  as: { mentor: true, admin: true, record: true },
   attendance: { attended: true, late: true, absent: true, rescheduled: true },
   kind: { plan: true, extra: true },
 };
@@ -450,7 +502,7 @@ export async function sessionsPage(
   query: SessionsQuery,
   now: Date = new Date()
 ): Promise<SessionsPage | { refused: string; field: string }> {
-  const scope = ledgerScope(reader, query.as);
+  const scope = await scopeFor(reader, query);
   // The route answers 404 before it asks, so this is for any other caller: a
   // reader with no ledger holds no sessions, and never anybody else's.
   if (!scope) {
@@ -479,6 +531,7 @@ export async function sessionsPage(
   // themselves.
   const asMentor = scope.mentorId !== undefined;
   const asStaff = query.as === "admin";
+  const asRecord = query.as === "record";
   // Staff search the website's own box, the mentor's name included: they read
   // everybody's sessions in their programs, and do look one mentor up by name.
   const filters: SearchParams = {
@@ -511,7 +564,7 @@ export async function sessionsPage(
 
   // The website's Program select: every program a reader who administers runs,
   // and only when that is more than one. A mentor who runs none has none.
-  const runs = scope.audience === "staff" ? adminRead(reader) : null;
+  const runs = scope.audience === "staff" && !asRecord ? adminRead(reader) : null;
   const named = asStaff ? readParam({ mentor: query.mentor }, "mentor") : "";
   const [rows, groups, disputed, voided, programs, runPrograms, namedMentor, notHeld] = await Promise.all([
     prisma.session.findMany({
@@ -556,7 +609,7 @@ export async function sessionsPage(
 
   const items = rows.slice(0, limit);
   return {
-    items: items.map((row) => toApiSession(reader, row, now)),
+    items: items.map((row) => toApiSession(reader, row, now, asRecord)),
     nextCursor: rows.length > limit ? cursorAfter(items[items.length - 1]) : null,
     totals: totalsOf(groups),
     counts: { disputed, voided },

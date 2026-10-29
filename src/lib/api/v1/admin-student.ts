@@ -3,13 +3,14 @@ import "server-only";
 import { nameOf, type Reader } from "@/lib/api/v1/sessions";
 import type { AdminGrant, AdminStudent, GrantChange } from "@/lib/api/v1/types";
 import { timeByMentorEntries, toAllocationEntries } from "@/components/allocation-row";
-import { canAdministerStudent, canManageStudent, mentorReaches, scopeCovers, staffLevel, studentScope } from "@/lib/authz";
+import { canAdministerStudent, canManageStudent, mentorReaches, scopeCovers, scopeProgramFilter, staffLevel, studentScope } from "@/lib/authz";
 import { canActAsMentor, USER_STATUS } from "@/lib/constants";
 import { sortEnrollments } from "@/lib/enrollments";
 import { toDateInputValue } from "@/lib/format";
 import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { studentLedger } from "@/lib/queries";
+import { logAdvice, mentorsIn, programLines, studentHeadline } from "@/lib/screens/student-record";
 import { daysAway, programToday } from "@/lib/when";
 
 /**
@@ -51,27 +52,50 @@ export async function managedStudent(
 }
 
 /** The student's page, for an admin. */
-export async function adminStudentFor(reader: Reader, id: string, now: Date = new Date()): Promise<AdminStudent | null> {
-  const managed = await managedStudent(reader, id);
-  if (!managed) return null;
-  const { profile, writes } = managed;
-  const visible = await studentScope(reader.user, profile);
-  const enrollments = profile.enrollments.filter((e) => visible.includes(e.programId));
+export function adminStudentFor(reader: Reader, id: string, now: Date = new Date()): Promise<AdminStudent | null> {
+  return studentRecordFor(reader, id, { mentors: false, mentorLens: false }, now);
+}
 
-  const [hours, ledger, changes, pairings, reaches] = await Promise.all([
+/**
+ * The website's `/students/[id]` as `reader` reads it, for the app's two pages
+ * of one student: an admin of one of their programs (`adminStudentFor`), or,
+ * with `mentors`, a mentor who reaches them too. As on the page, an admin reads
+ * their own programs and no trace of the others, and a mentor who doesn't run
+ * one reads the whole record, every program's and every mentor's, with no
+ * controls and no money. `mentorLens` is the page's lens: the headline is the
+ * reader's own time with them rather than the student's whole balance.
+ */
+export async function studentRecordFor(
+  reader: Reader,
+  id: string,
+  { mentors, mentorLens }: { mentors: boolean; mentorLens: boolean },
+  now: Date = new Date()
+): Promise<AdminStudent | null> {
+  const profile = await profileOf(id);
+  if (!profile) return null;
+  const [manages, writes, reaches] = await Promise.all([
+    canManageStudent(reader.user, profile),
+    canAdministerStudent(reader.user, profile),
+    canActAsMentor(reader.user) ? mentorReaches(reader.user, profile) : Promise.resolve(false),
+  ]);
+  if (!manages && !(mentors && reaches)) return null;
+  const visible = manages ? await studentScope(reader.user, profile) : undefined;
+  const enrollments = visible ? profile.enrollments.filter((e) => visible.includes(e.programId)) : profile.enrollments;
+
+  const [hours, ledger, changes, inScope] = await Promise.all([
     allocationSummary(profile.id, visible),
     studentLedger(profile.id, visible),
-    prisma.hourAllotmentChange.findMany({
-      where: { studentId: profile.id, programId: { in: visible } },
-      include: { mentor: true, program: true, changedBy: true },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    }),
-    prisma.mentorAssignment.findMany({
-      where: { programId: { in: visible } },
-      select: { programId: true, mentorId: true },
-    }),
-    canActAsMentor(reader.user) ? mentorReaches(reader.user, profile) : Promise.resolve(false),
+    manages
+      ? prisma.hourAllotmentChange.findMany({
+          where: { studentId: profile.id, programId: { in: visible } },
+          include: { mentor: true, program: true, changedBy: true },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        })
+      : Promise.resolve([]),
+    // The page's Allocate and each grant's Transfer offer every mentor in the
+    // reader's programs, not only the student's own programs' mentors.
+    manages ? mentorsIn(scopeProgramFilter(reader.read)) : Promise.resolve([]),
   ]);
 
   const programOf = new Map(enrollments.map((e) => [e.programId, e.program]));
@@ -85,7 +109,6 @@ export async function adminStudentFor(reader: Reader, id: string, now: Date = ne
       )
     ).filter((v): v is string => v !== null)
   );
-  const mentorsIn = (programId: string) => new Set(pairings.filter((p) => p.programId === programId).map((p) => p.mentorId));
 
   // The website's own fold, from the file that draws "Time by mentor", so
   // Assigned is its rule exactly: the larger of the grant and the open plan
@@ -96,7 +119,7 @@ export async function adminStudentFor(reader: Reader, id: string, now: Date = ne
     const program = programOf.get(entry.program.id);
     const bank = entry.bank ?? false;
     const edit = writes && scopeCovers(reader.write, entry.program.id) && entry.deadline != null && (!bank || bankAdmin.has(entry.program.id));
-    const others = [...mentorsIn(entry.program.id)].filter((m) => m !== entry.mentor?.id);
+    const others = inScope.filter((m) => m.id !== entry.mentor?.id);
     return {
       program: { id: entry.program.id, name: entry.program.name, colorIndex: entry.program.colorIndex },
       mentor: entry.mentor ? { id: entry.mentor.id, name: nameOf(entry.mentor) } : null,
@@ -106,11 +129,12 @@ export async function adminStudentFor(reader: Reader, id: string, now: Date = ne
       completed: entry.completed,
       missed: entry.missed,
       remaining: entry.remaining,
+      forfeited: entry.forfeited,
       deadline: entry.deadline ? toDateInputValue(entry.deadline) : null,
       daysLeft: entry.deadline ? daysAway(entry.deadline, now) : null,
       expired: entry.expired,
-      // The money is the grant's, where the program bills per student.
-      amountPaid: program && program.tracksPayment && !program.hourBank ? (entry.amountPaid ?? 0) : null,
+      // The money is the grant's, where the program bills per student, and only staff read it.
+      amountPaid: manages && program && program.tracksPayment && !program.hourBank ? (entry.amountPaid ?? 0) : null,
       can: {
         edit,
         // In date and unspent is what a transfer can move, to another of the program's mentors. A bank moves no way.
@@ -132,7 +156,10 @@ export async function adminStudentFor(reader: Reader, id: string, now: Date = ne
   }));
 
   const pending = profile.user.status === USER_STATUS.PENDING;
-  const writable = enrollments.filter((e) => scopeCovers(reader.write, e.programId));
+  const advice = logAdvice({ hours, userId: reader.user.id, reaches, status: profile.user.status });
+  const headline = studentHeadline({ mentorLens: !manages || mentorLens, reaches, hours, userId: reader.user.id, now });
+  const byProgram = await programLines(profile.id, enrollments);
+  const tracksPayment = enrollments.some((e) => e.program.tracksPayment && !e.program.hourBank);
   return {
     student: {
       id: profile.id,
@@ -144,7 +171,7 @@ export async function adminStudentFor(reader: Reader, id: string, now: Date = ne
       registered: toDateInputValue(profile.createdAt),
     },
     approved: !pending,
-    programs: sortEnrollments(enrollments).map((e) => ({
+    programs: sortEnrollments([...enrollments]).map((e) => ({
       id: e.program.id,
       name: e.program.name,
       colorIndex: e.program.colorIndex,
@@ -164,13 +191,26 @@ export async function adminStudentFor(reader: Reader, id: string, now: Date = ne
     },
     grants,
     history,
+    lens: manages ? "staff" : "mentor",
+    headline: headline ? { figure: headline.figure, rest: headline.rest ?? null, danger: headline.danger } : null,
+    log: { can: advice.canLog, reason: advice.logReason ?? null, warns: advice.logWarns },
+    byProgram: byProgram.map((line) => ({
+      program: programRef(enrollments.find((e) => e.programId === line.id)!.program),
+      name: line.name,
+      allotted: line.allotted,
+      completed: line.completed,
+      remaining: line.remaining,
+    })),
+    paid: manages && tracksPayment ? hours.paid : null,
     can: {
       approve: pending && writes,
       reject: pending && writes,
-      // The website's "Allocate time": the reader may change one of the student's programs, and it has a mentor.
-      allocate: writes && writable.some((e) => mentorsIn(e.programId).size > 0),
+      // The website's "Allocate time": the reader may change one of the student's programs, and a mentor works in theirs.
+      allocate: writes && inScope.length > 0,
       reach: reaches,
     },
     today: programToday(now),
   };
 }
+
+const programRef = (p: { id: string; name: string; colorIndex: number }) => ({ id: p.id, name: p.name, colorIndex: p.colorIndex });
