@@ -868,6 +868,14 @@ export type AdminStudent = {
     choices: ProgramChoice[];
     hasSessions: boolean;
   } | null;
+  /** The page's Exchange: the placements the reader may see (`visibleExchanges`), both directions, newest first. */
+  exchanges: ApiExchange[];
+  /**
+   * Send on exchange, for a reader who may lend them (an admin of one of their
+   * own programs, or a mentor who works in it); null otherwise. `from`: those
+   * programs, never a visit; `to`: every running program they aren't in.
+   */
+  lend: { from: { id: string; label: string }[]; to: { id: string; name: string }[] } | null;
   today: string;
 };
 /**
@@ -889,6 +897,48 @@ export type EnrollmentTarget = { program: string; level?: string; cohort?: strin
 /** POST /api/v1/programs/:id/tasks: the same task for every student in the program (`setProgramTask`). */
 export type ProgramTask = { title: string; due: string; note?: string };
 /* DELETE /api/v1/sessions/:id is `deleteSession`: an admin's, which takes the hours back too. */
+/**
+ * One exchange, a student lent from one program to another for a capped time,
+ * as the website's exchange list shows it. Minutes throughout; `useBy` a
+ * Tashkent day. `completed` leaves no-shows out (`missed` says them);
+ * `remaining` is allocated and not yet spent or lost. `holders` name who holds
+ * the allocated minutes ("nobody yet" for none). `sessions` counts those
+ * logged under it: one is enough for Call it off to be refused.
+ * `canReturn`: the reader is party to it and it is open.
+ *
+ * POST /api/v1/students/:id/exchanges sends one (`ExchangeSend`,
+ * `sendOnExchange`); POST /api/v1/exchanges/:id/return calls one off
+ * (`ExchangeReturn`, `returnExchange`). Each answers WriteResult.
+ */
+export type ApiExchange = {
+  id: string;
+  /** Named on a program's list, which spans people; null on the student's own page. */
+  student: StudentRef | null;
+  from: ProgramRef;
+  to: ProgramRef;
+  open: boolean;
+  cap: number;
+  useBy: string;
+  ranOut: boolean;
+  allocated: number;
+  unallocated: number;
+  holders: string[];
+  completed: number;
+  missed: number;
+  remaining: number;
+  forfeited: number;
+  extra: number;
+  sentBy: string;
+  note: string | null;
+  returnedBy: string | null;
+  returnNote: string | null;
+  sessions: number;
+  canReturn: boolean;
+};
+/** Send a student on exchange: from one of their own programs, to one they aren't in, for `minutes` until `useBy`. */
+export type ExchangeSend = { from: string; to: string; minutes: number; useBy: string; note?: string };
+/** Call an exchange off, with a word to both programs if you like. */
+export type ExchangeReturn = { note?: string };
 /** One row of "Time by mentor": a mentor's grant, the hour bank, or time nobody has been chosen for yet. */
 export type AdminGrant = {
   program: ProgramRef;
@@ -1031,6 +1081,8 @@ export type ProgramDetail = {
   people: { person: PersonRef; teaches: boolean; admin: boolean }[];
   /** The page's Recent sessions: the latest six that count, newest first. */
   recent: ApiSession[];
+  /** The page's Exchange: the open placements it took in or lent out, each naming the student. */
+  exchanges: ApiExchange[];
   /** Mentors who may be assigned here: the website's list, without those paired here already. */
   eligibleMentors: (PersonRef & { email: string })[];
   /**

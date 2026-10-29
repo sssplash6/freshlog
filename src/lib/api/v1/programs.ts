@@ -1,12 +1,14 @@
 import "server-only";
 
 import { NOT_YOUR_PROGRAM } from "@/lib/api/v1/admin-gates";
+import { apiExchange } from "@/lib/api/v1/exchanges";
 import { refused } from "@/lib/api/v1/respond";
 import { nameOf, SESSION_INCLUDE, toApiSession, type Reader } from "@/lib/api/v1/sessions";
 import type { AllocatePicker, Cohort, ProgramDetail, ProgramOption } from "@/lib/api/v1/types";
 import { mentorPool, programCohorts, programGrants, programLevels, programPairings, programStudents, studentsOf } from "@/app/programs/reads";
 import { scopeCovers, scopeProgramFilter } from "@/lib/authz";
 import { PROGRAM_SPACE, PROGRAM_STATUS } from "@/lib/constants";
+import { programExchanges } from "@/lib/exchanges";
 import { programTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { programOptions } from "@/lib/queries";
@@ -67,7 +69,11 @@ export async function programDetailFor(reader: Reader, program: Program, now: Da
   // The page's people and latest sessions, read by the page's own functions; the sessions then as the API sends
   // any session, in the page's order.
   const { mentorRows, superAdminIds } = programPeople(pairings, grants);
-  const recentRows = await prisma.session.findMany({ where: { id: { in: recent.map((r) => r.id) } }, include: SESSION_INCLUDE });
+  const [recentRows, lent] = await Promise.all([
+    prisma.session.findMany({ where: { id: { in: recent.map((r) => r.id) } }, include: SESSION_INCLUDE }),
+    // The page's Exchange: the open placements it took in or lent out. Call it off is the student page's, not this one's.
+    programExchanges(program.id),
+  ]);
   const byId = new Map(recentRows.map((r) => [r.id, r]));
   const totals = programTotals(students);
   const paired = new Set(pairings.map((p) => p.mentorId));
@@ -133,6 +139,7 @@ export async function programDetailFor(reader: Reader, program: Program, now: Da
       const row = byId.get(r.id);
       return row ? [toApiSession(reader, row, now)] : [];
     }),
+    exchanges: [...lent.hosted, ...lent.sent].map((e) => apiExchange(e, { canReturn: false, withStudent: true, now })),
     admins: grants.map((g) => ({
       person: { id: g.user.id, name: nameOf(g.user) },
       level: LEVEL_WORD[g.role as keyof typeof LEVEL_WORD] ?? "admin",

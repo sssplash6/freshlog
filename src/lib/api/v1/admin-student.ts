@@ -1,11 +1,13 @@
 import "server-only";
 
+import { apiExchange, exchangeParty } from "@/lib/api/v1/exchanges";
 import { nameOf, type Reader } from "@/lib/api/v1/sessions";
 import type { AdminGrant, AdminStudent, GrantChange } from "@/lib/api/v1/types";
 import { timeByMentorEntries, toAllocationEntries } from "@/components/allocation-row";
 import { canAdministerStudent, canManageStudent, mentorReaches, scopeCovers, scopeProgramFilter, staffLevel, studentScope } from "@/lib/authz";
 import { canActAsMentor, SESSION_STATUS, USER_STATUS } from "@/lib/constants";
-import { enrollmentLabel, sortEnrollments } from "@/lib/enrollments";
+import { enrollmentLabel, sortEnrollments, studiesIn } from "@/lib/enrollments";
+import { visibleExchanges } from "@/lib/exchanges";
 import { toDateInputValue } from "@/lib/format";
 import { allocationSummary } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
@@ -157,6 +159,21 @@ export async function studentRecordFor(
 
   const pending = profile.user.status === USER_STATUS.PENDING;
   const advice = logAdvice({ hours, userId: reader.user.id, reaches, status: profile.user.status });
+  // The page's Exchange and its Send on exchange: whom the reader may lend them from (`sendableFrom` there, the two
+  // `assertExchangeSender` takes, never a visit), where to (every running program they aren't in), and who may call
+  // one off (`isParty`).
+  const [exchanges, myPairings, elsewhere] = await Promise.all([
+    visibleExchanges(reader.user, profile),
+    canActAsMentor(reader.user) ? prisma.mentorAssignment.findMany({ where: { mentorId: reader.user.id }, select: { programId: true } }) : Promise.resolve([]),
+    prisma.program.findMany({
+      where: { status: "ACTIVE", id: { notIn: profile.enrollments.map((e) => e.programId) } },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
+  const pairedIn = new Set(myPairings.map((p) => p.programId));
+  const sendableFrom = studiesIn(profile.enrollments).filter((e) => scopeCovers(reader.write, e.programId) || pairedIn.has(e.programId));
+
   const headline = studentHeadline({ mentorLens: !manages || mentorLens, reaches, hours, userId: reader.user.id, now });
   const byProgram = await programLines(profile.id, enrollments);
   const tracksPayment = enrollments.some((e) => e.program.tracksPayment && !e.program.hourBank);
@@ -226,6 +243,8 @@ export async function studentRecordFor(
           hasSessions: ledger.sessions.some((s) => s.status !== SESSION_STATUS.VOIDED),
         }
       : null,
+    exchanges: exchanges.map((e) => apiExchange(e, { canReturn: exchangeParty(e, reader.user.id, reader.write), withStudent: false, now })),
+    lend: sendableFrom.length > 0 ? { from: sendableFrom.map((e) => ({ id: e.programId, label: enrollmentLabel(e) })), to: elsewhere } : null,
     today: programToday(now),
   };
 }
