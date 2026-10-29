@@ -104,6 +104,15 @@ describe("GET /api/v1/bugs/:id and its image", () => {
     expect((await image.GET(req(), params(r.id))).status).toBe(404);
   });
 
+  it("hides a reopened report's old line, as the website shows it only while Done or Won't do", async () => {
+    const me = await mentor();
+    const r = await bugReport({ reporterId: me.id, status: "IN_PROGRESS", resolution: "Fixed it." });
+    as(me);
+    expect((await (await one.GET(req(), params(r.id))).json()).resolution).toBeNull();
+    as(await platformAdmin());
+    expect((await (await one.GET(req(), params(r.id))).json()).resolution).toBeNull();
+  });
+
   it("lets a platform admin read anybody's", async () => {
     const r = await bugReport({ reporterId: (await mentor()).id, image: true });
     as(await platformAdmin());
@@ -124,6 +133,15 @@ describe("POST /api/v1/bugs", () => {
     expect(saved).toMatchObject({ reporterId: me.id, title: "Button missing", pagePath: null });
     expect(saved?.image?.mimeType).toBe("image/png");
     expect(await prisma.notification.count({ where: { userId: admin.id, type: "BUG_REPORTED" } })).toBe(1);
+  });
+
+  it("records what the app says of itself, for triage to read in the report's one line", async () => {
+    as(await mentor());
+    const fields = { title: "Stuck", description: "It spins.", userAgent: "freshlog/1.4.0 (45; iOS 26.1; iPhone 16 Pro)", width: "393", height: "852", ratio: "3", theme: "dark" };
+    const body = await (await list.POST(report(fields))).json();
+    expect(await prisma.bugReport.findUnique({ where: { id: body.id } })).toMatchObject({ userAgent: fields.userAgent, viewport: "393×852 @3x", theme: "dark", marks: null });
+    as(await platformAdmin());
+    expect((await (await one.GET(req(), params(body.id))).json()).triage.diagnostics).toBe("freshlog 1.4.0 on iOS · dark · 393×852 @3x");
   });
 
   it("files one without a screenshot", async () => {

@@ -197,6 +197,8 @@ export function shortBuild(raw: string | undefined): string | null {
  */
 export function summarizeUserAgent(ua: string): string | null {
   const BROWSERS: [RegExp, string][] = [
+    // The phone app, by its own name and version.
+    [/freshlog\/(\d+(?:\.\d+)*)/, "freshlog"],
     [/Edg(?:e|A|iOS)?\/(\d+)/, "Edge"],
     [/SamsungBrowser\/(\d+)/, "Samsung Internet"],
     [/(?:Firefox|FxiOS)\/(\d+)/, "Firefox"],

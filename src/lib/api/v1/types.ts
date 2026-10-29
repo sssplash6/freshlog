@@ -1371,7 +1371,10 @@ export type ApiBug = BugRow & {
 };
 /*
  * POST /api/v1/bugs is multipart: "title", "description" and an optional file,
- * "screenshot". It answers CreatedResult, the new report's id.
+ * "screenshot". The app says what it is, as the website's on-screen report
+ * says the browser: "userAgent" ("freshlog/1.4.0 (45; iOS 26.1; iPhone 16)"),
+ * "width" and "height" (the screen in points), "ratio" (pixels to a point) and
+ * "theme" ("light" or "dark"). It answers CreatedResult, the new report's id.
  */
 
 /** A write that made something, and its id: a bug report (a booking answers BookResult, the same shape). */

@@ -2,7 +2,7 @@ import "server-only";
 
 import type { ApiBug, ApiBugs, ApiTriage, BugRow, BugStatus } from "@/lib/api/v1/types";
 import { bugReportFor, fixedBugs, myBugReports, triageList } from "@/lib/bug-queries";
-import { BUG_KIND_LABELS, BUG_SOURCE, BUG_STATUS_LABELS, OPEN_BUG_STATUSES, isBugKind, isBugStatus, type TriageFilter } from "@/lib/bugs";
+import { BUG_KIND_LABELS, BUG_SOURCE, BUG_STATUS_LABELS, OPEN_BUG_STATUSES, isBugKind, isBugStatus, isClosingStatus, type TriageFilter } from "@/lib/bugs";
 import { programToday } from "@/lib/when";
 import type { User } from "@/generated/prisma/client";
 
@@ -46,10 +46,12 @@ export async function bugsFor(user: Pick<User, "id">): Promise<ApiBugs> {
 export async function bugFor(user: Pick<User, "id" | "platformAdmin">, id: string): Promise<ApiBug | null> {
   const report = await bugReportFor(user, id);
   if (!report) return null;
+  const row = rowOf(report);
   return {
-    ...rowOf(report),
+    ...row,
     description: report.description,
-    resolution: report.resolution,
+    // A reopened report keeps its old line in the row; the website shows it only while Done or Won't do.
+    resolution: isClosingStatus(row.status) ? report.resolution : null,
     imagePath: report.hasImage ? `/api/v1/bugs/${report.id}/image` : null,
     triage: user.platformAdmin
       ? {

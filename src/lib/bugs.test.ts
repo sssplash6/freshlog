@@ -20,6 +20,7 @@ const MAC_CHROME_141 =
 /** Real user agents, one per browser and system the summary names. */
 const UA_CASES: [string, string, string][] = [
   ["Chrome on macOS", MAC_CHROME_141, "Chrome 141 on macOS"],
+  ["the phone app", "freshlog/1.4.0 (45; iOS 26.1; iPhone 16 Pro)", "freshlog 1.4.0 on iOS"],
   [
     "Safari on iOS",
     "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1",
