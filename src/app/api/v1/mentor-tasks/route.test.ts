@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { admin, DAY, grant, mentor, NOW, program } from "@/test/db";
+import { admin, DAY, grant, mentor, NOW, program, student } from "@/test/db";
 
 /**
  * A mentor's own tasks from their admins. Somebody who cannot act as a mentor
@@ -22,10 +22,16 @@ beforeEach(() => {
 describe("GET /api/v1/mentor-tasks", () => {
   it("answers 401 with no user", async () => expect((await GET()).status).toBe(401));
 
-  it("answers 403 inactive to an account that isn't active", async () => {
+  it("answers a mentor no program has taken on yet, as the website's mentor page has no status check", async () => {
     const m = await mentor("Akmal Karimov");
     await prisma.user.update({ where: { id: m.id }, data: { status: "UNASSIGNED" } });
     actor.value = { id: m.id };
+    expect((await GET()).status).toBe(200);
+  });
+
+  it("answers 403 inactive to a student nobody has approved", async () => {
+    const s = await student({ status: "PENDING" });
+    actor.value = { id: s.userId };
     const res = await GET();
     expect(res.status).toBe(403);
     expect((await res.json()).code).toBe("inactive");

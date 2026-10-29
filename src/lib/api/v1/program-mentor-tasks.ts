@@ -4,7 +4,6 @@ import { nameOf } from "@/lib/api/v1/sessions";
 import { isText } from "@/lib/api/v1/session-forms";
 import type { MentorTaskCreate, ProgramMentorTask, ProgramMentorTasks } from "@/lib/api/v1/types";
 import { isDay } from "@/lib/api/v1/work-forms";
-import { USER_STATUS } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/format";
 import { MAX_MENTOR_TASK_NOTE, MAX_MENTOR_TASK_TITLE, programMentorTasks, programTeam } from "@/lib/mentor-tasks";
 import { prisma } from "@/lib/prisma";
@@ -39,10 +38,13 @@ function toProgramMentorTask(row: TaskRow, now: Date): ProgramMentorTask {
   };
 }
 
-/** The program's students a task may be about: everyone enrolled whose account is active, by name. */
+/**
+ * The program's students a task may be about: everyone enrolled, by name, a
+ * student nobody has approved yet included, as the website's task page offers.
+ */
 async function programStudentRefs(programId: string) {
   const rows = await prisma.studentEnrollment.findMany({
-    where: { programId, student: { user: { status: USER_STATUS.ACTIVE } } },
+    where: { programId },
     select: { student: { select: { id: true, userId: true, user: { select: { name: true, email: true } } } } },
   });
   return rows

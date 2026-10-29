@@ -20,7 +20,9 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
-  if (user.status !== "ACTIVE") return inactive();
+  // A mentor no program has taken on yet still sees and ticks what an admin gave
+  // them, as the website's mentor page lets them; a student nobody approved doesn't.
+  if (user.status !== "ACTIVE" && user.status !== "UNASSIGNED") return inactive();
   const { id } = await params;
   const share = await mentorShareFor(user, id);
   if (!share) return refused("Not found.", 404);

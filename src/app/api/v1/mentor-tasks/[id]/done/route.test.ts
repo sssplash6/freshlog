@@ -60,14 +60,12 @@ beforeEach(() => {
 describe("POST /api/v1/mentor-tasks/:id/done", () => {
   it("answers 401 with no user", async () => expect((await post("x", { done: true })).status).toBe(401));
 
-  it("answers 403 inactive to an account that isn't active, and ticks nothing", async () => {
+  it("lets a mentor no program has taken on yet tick their open task, as the website does", async () => {
     const { m, share } = await setUp();
     await prisma.user.update({ where: { id: m.id }, data: { status: "UNASSIGNED" } });
     actor.value = { id: m.id };
-    const res = await post(share.id, { done: true });
-    expect(res.status).toBe(403);
-    expect((await res.json()).code).toBe("inactive");
-    expect((await stored(share.id)).completedAt).toBeNull();
+    expect((await post(share.id, { done: true })).status).toBe(200);
+    expect((await stored(share.id)).completedAt).not.toBeNull();
   });
 
   it("another mentor's share answers like a missing one, and ticks nothing", async () => {
