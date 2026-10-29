@@ -79,6 +79,8 @@ async function main() {
     `/mentors/${mentor.id}?period=all`,
     `/mentors/${mentor.id}?period=custom&from=2026-09-01&to=2026-10-15`,
     "/analytics",
+    "/analytics?y=2025",
+    "/analytics?m=9",
   ].filter((p) => !filter || p.includes(filter));
 
   mkdirSync(out, { recursive: true });
