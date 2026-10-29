@@ -212,6 +212,8 @@ export function toApiSession(
       restore: corrects && voided,
       // `answerSession`: the student, about a session that still stands.
       answer: isStudent && row.status === SESSION_STATUS.ACTIVE,
+      // `deleteSession`: an admin of its program (`canManageProgram`), voided or not, as the website's row offers it.
+      delete: !isStudent && scopeCovers(reader.write, row.programId),
     },
   };
 }

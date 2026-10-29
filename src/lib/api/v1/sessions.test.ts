@@ -135,7 +135,7 @@ describe("sessionFor: what each reader is told", () => {
       program: { id: p.id, name: "Global Admissions", colorIndex: p.colorIndex },
       task: { id: task.id, purpose: "Main essay" },
       note: "Went through the essay.",
-      can: { edit: true, void: true, restore: false, answer: false },
+      can: { edit: true, void: true, restore: false, answer: false, delete: false },
     });
   });
 
@@ -214,12 +214,12 @@ describe("sessionFor: can", () => {
     const canFor = async (reader: User) => (await sessionFor(await readerFor(reader), s.id))?.can;
 
     // The mentor's own ACTIVE session: they may correct it or void it.
-    expect(await canFor(mentorUser)).toEqual({ edit: true, void: true, restore: false, answer: false });
+    expect(await canFor(mentorUser)).toEqual({ edit: true, void: true, restore: false, answer: false, delete: false });
     actor.value = { id: mentorUser.id };
     expect(await voidSession(null, form({ sessionId: s.id }))).toMatchObject({ ok: true });
 
     // Voided, it can only be restored, and the student has nothing left to answer.
-    expect(await canFor(mentorUser)).toEqual({ edit: false, void: false, restore: true, answer: false });
+    expect(await canFor(mentorUser)).toEqual({ edit: false, void: false, restore: true, answer: false, delete: false });
     expect((await canFor(studentUser))?.answer).toBe(false);
     actor.value = { id: studentUser.id };
     expect(await answerSession(null, form({ sessionId: s.id, answer: "CONFIRMED" }))).toMatchObject({ ok: false });
@@ -246,8 +246,10 @@ describe("sessionFor: can", () => {
     actor.value = { id: mentorUser.id };
     expect(await answerSession(null, form({ sessionId: s.id, answer: "CONFIRMED" }))).toMatchObject({ ok: false });
 
-    // An admin who may write the program may correct a session they didn't log.
+    // An admin who may write the program may correct a session they didn't log, and delete it; a Leader can't.
     expect((await canFor(adminUser))?.edit).toBe(true);
+    expect((await canFor(adminUser))?.delete).toBe(true);
+    expect((await canFor(leader))?.delete).toBe(false);
     actor.value = { id: adminUser.id };
     expect(await editSession(null, form({ sessionId: s.id, minutes: "45", date: "2026-10-22" }))).toMatchObject({
       ok: true,
@@ -286,6 +288,7 @@ describe("sessionFor: can", () => {
       void: false,
       restore: false,
       answer: false,
+      delete: false,
     });
     actor.value = { id: former.id };
     expect(await voidSession(null, form({ sessionId: s.id }))).toMatchObject({ ok: false });

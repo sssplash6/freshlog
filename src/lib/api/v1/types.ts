@@ -151,8 +151,8 @@ export type ApiSession = {
   task: { id: string; purpose: string } | null;
   /** What the mentor wrote. Always null for the student. */
   note: string | null;
-  /** What the reader may do with it, by the same rules the actions enforce. */
-  can: { edit: boolean; void: boolean; restore: boolean; answer: boolean };
+  /** What the reader may do with it, by the same rules the actions enforce. `delete`: DELETE /api/v1/sessions/:id. */
+  can: { edit: boolean; void: boolean; restore: boolean; answer: boolean; delete: boolean };
 };
 
 /** GET /api/v1/sessions: the query, every field optional. */
