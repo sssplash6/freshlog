@@ -256,7 +256,7 @@ describe("sessionFor: can", () => {
 
   // Voiding is how a student is cleared off a program, so a voided session can
   // outlive the membership it was logged under, and `restoreSession` refuses it then.
-  it("offers no restore once the student has left the session's program, as the action then refuses", async () => {
+  it("offers restore once the student has left the session's program, as the website's row does, and the action says why not", async () => {
     const { p, st, mentorUser, adminUser, s } = await world();
     await enroll({ studentId: st.id, programId: (await program("Master's Program")).id });
     await prisma.session.update({ where: { id: s.id }, data: { status: "VOIDED" } });
@@ -268,7 +268,7 @@ describe("sessionFor: can", () => {
     // own program is the one asked about, not whether the student is in any.
     await prisma.studentEnrollment.deleteMany({ where: { studentId: st.id, programId: p.id } });
     for (const reader of [mentorUser, adminUser]) {
-      expect(await restoreFor(reader)).toBe(false);
+      expect(await restoreFor(reader)).toBe(true);
       actor.value = { id: reader.id };
       expect(await restoreSession(null, form({ sessionId: s.id }))).toMatchObject({
         ok: false,

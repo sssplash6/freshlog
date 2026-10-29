@@ -204,11 +204,12 @@ export function toApiSession(
     can: {
       edit: corrects && !voided,
       void: corrects && !voided,
-      // By the same people, and, as `restoreSession` asks, only while the student
-      // is still in the session's own program: voiding is how a student is
-      // cleared off one, so a voided session can outlive the membership it was
-      // logged under.
-      restore: corrects && voided && row.student.enrollments.some((e) => e.programId === row.programId),
+      // By the same people, as the website's row offers it. A student who has
+      // since left the session's program is `restoreSession`'s to refuse, in its
+      // words, as the website's Restore is: voiding is how a student is cleared
+      // off one, so a voided session can outlive the membership it was logged
+      // under.
+      restore: corrects && voided,
       // `answerSession`: the student, about a session that still stands.
       answer: isStudent && row.status === SESSION_STATUS.ACTIVE,
     },
