@@ -63,12 +63,11 @@ import {
 import {
   enrollmentLabel,
   enrollmentsLabel,
-  sortEnrollments,
   studiesIn,
 } from "@/lib/enrollments";
 import { visibleExchanges } from "@/lib/exchanges";
 import { requireUser } from "@/lib/dal";
-import { deadlinePassed, soonestExpiry } from "@/lib/deadlines";
+import { logAdvice, mentorsIn, programLines, studentHeadline } from "@/lib/screens/student-record";
 import {
   formatDate,
   formatDuration,
@@ -237,18 +236,7 @@ export default async function StudentWorkspacePage({
     // Archived included: a student may already be IN one, and the move form
     // has to be able to show where they are before it offers anywhere else.
     manages ? programOptions(programIds, true) : Promise.resolve([]),
-    manages
-      ? prisma.user.findMany({
-          where: {
-            OR: [{ role: "MENTOR" }, { isMentor: true }],
-            ...(programIds
-              ? { mentorAssignments: { some: { programId: { in: [...programIds] } } } }
-              : {}),
-          },
-          orderBy: [{ name: "asc" }],
-          select: { id: true, name: true, email: true },
-        })
-      : Promise.resolve([]),
+    manages ? mentorsIn(programIds) : Promise.resolve([]),
     // Placements between two programs, in both directions — the one thing on
     // this page a reader may see that belongs to a program they do not
     // administer. `visibleExchanges` decides which, and it is narrower than
@@ -274,63 +262,13 @@ export default async function StudentWorkspacePage({
     }),
   ]);
 
-  // Each program's own figures, when the totals above add up more than one —
-  // so the page agrees, row by row, with the roster of every program it sums.
-  const byProgram =
-    enrollments.length > 1
-      ? await Promise.all(
-          sortEnrollments(enrollments).map(async (e) => {
-            const sum = await allocationSummary(profile.id, [e.programId]);
-            return {
-              id: e.programId,
-              name: e.exchangeId ? `${e.program.name} (on exchange)` : e.program.name,
-              allotted: sum.allotted,
-              completed: sum.completed,
-              remaining: sum.remaining,
-            };
-          })
-        )
-      : [];
+  const byProgram = await programLines(profile.id, enrollments);
 
   const name = profile.user.name ?? profile.user.email;
   const isPending = profile.user.status === USER_STATUS.PENDING;
   const handle = profile.telegramUsername?.replace(/^@/, "");
 
-  // May this reader log a session here?
-  //
-  // Reach and approval, and nothing else. It used to also require the reader
-  // to hold a grant or find a live unassigned pool — which disabled the button
-  // for every mentor working in the student's program who had simply not been
-  // granted hours yet, and for every mentor whose allocation had expired. The
-  // action never agreed: a mentor in the program may log without holding
-  // anything, an in-plan log against an empty balance overdraws rather than
-  // failing, and extra hours are loggable past a deadline. A button disabled
-  // where the action would have said yes is a permission invented by the page.
-  //
-  // What the reader holds is still worth saying, so it is said as a hint under
-  // the button rather than as a block on it.
-  const mine = hours.perMentor.find((m) => m.mentor?.id === me.id);
-  const pool = hours.perMentor.find(
-    (m) => !m.mentor && m.remaining > 0 && !(m.deadline && deadlinePassed(m.deadline))
-  );
-  const active = profile.user.status === USER_STATUS.ACTIVE;
-  const canLog = reaches && active;
-  const logReason = !active
-    ? "This student is not approved yet."
-    : // "You" is the reader as a MENTOR. An admin who is not this student's
-      // mentor holds no time with anybody and logs on someone else's behalf, so
-      // being told "you hold no time with them" was a sentence about nothing
-      // they were doing (October 2026 audit).
-      !reaches
-      ? undefined
-      : !mine && !pool
-      ? "You hold no time with them — a session you log here counts as extra time or an overdraw."
-      : mine && (mine.expired || mine.remaining < 0)
-        ? mine.expired
-          ? // Expired is not overdrawn, and the sentence used to call it one.
-            `Their time with you expired${mine.deadline ? ` on ${formatDate(mine.deadline)}` : ""}. Log the session as extra, or ask an admin to extend it.`
-          : "Their time with you is already overdrawn — a session that counts toward it adds to the overdraw. Log it as extra to charge nothing."
-        : undefined;
+  const { canLog, logReason, logWarns } = logAdvice({ hours, userId: me.id, reaches, status: profile.user.status });
 
   /**
    * Which of the student's OWN programs this reader may lend them from.
@@ -464,49 +402,8 @@ export default async function StudentWorkspacePage({
   // the ⋮ menus on the rows it belongs to.
   const primaryIsLog = lens === "mentor";
 
-  /**
-   * The line the page is opened for, first under the name: how much is left
-   * and until when.
-   *
-   * A mentor reads THEIR balance with this student — "8h remaining with you · use
-   * by October 17" — which used to be the last row of a table at the foot of
-   * the page, under a progress card summing all three mentors. An admin reads
-   * the student's whole balance in the programs they can see, with the soonest
-   * date that will take some of it.
-   */
-  const headline: { figure: string; rest?: string; danger: boolean } | null = (() => {
-    if (mentorLens && reaches) {
-      const rows = hours.perMentor.filter((m) => m.mentor?.id === me.id);
-      if (rows.length === 0) return null;
-      const left = rows.reduce((sum, m) => sum + m.remaining, 0);
-      const lost = rows.reduce((sum, m) => sum + m.forfeited, 0);
-      const soon = soonestExpiry(rows, viewer.now);
-      if (left < 0) return { figure: `${formatDuration(-left)} over with you`, danger: true };
-      if (left === 0 && lost > 0) {
-        return { figure: `${formatDuration(lost)} expired unused`, rest: "with you", danger: true };
-      }
-      return {
-        figure: `${formatDuration(left)} remaining with you`,
-        rest: soon ? `use by ${formatDate(soon.date)}` : undefined,
-        danger: false,
-      };
-    }
-    if (hours.allotted === 0 && hours.used === 0) return null;
-    if (hours.remaining < 0) {
-      return { figure: `${formatDuration(-hours.remaining)} over`, danger: true };
-    }
-    return {
-      figure: `${formatDuration(hours.remaining)} remaining`,
-      rest: hours.expiring
-        ? `${formatDuration(hours.expiring.minutes)} to use by ${formatDate(hours.expiring.date)}`
-        : undefined,
-      danger: false,
-    };
-  })();
+  const headline = studentHeadline({ mentorLens, reaches, hours, userId: me.id, now: viewer.now });
 
-  // The warning about logging against time that is gone — said once, as a
-  // callout with its glyph, rather than a bare amber sentence under the title.
-  const logWarns = Boolean(mine && (mine.expired || mine.remaining < 0));
 
   const logButton = reaches ? (
     <LinkButton

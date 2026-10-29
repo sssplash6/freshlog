@@ -65,6 +65,8 @@ async function main() {
     "/programs",
     `/programs/${programs["Global Admissions Program"]}`,
     `/programs/${programs["Flexible Program"]}`,
+    `/programs/${programs["Global Admissions Program"]}/allocate`,
+    `/programs/${programs["Global Admissions Program"]}/allocate?student=${student.id}`,
     `/students/${student.id}`,
     "/feedback",
     "/mentors",
