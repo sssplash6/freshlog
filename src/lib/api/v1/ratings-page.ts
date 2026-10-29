@@ -36,7 +36,8 @@ async function readablePrograms(user: User, scope: AdminScope): Promise<readonly
  *
  * Staff: every rating in reach, the mentors table worst first and the newest
  * ratings; the student is named only where the reader administers one of the
- * writer's programs (ADMIN grants), as the page decides per row. A mentor with
+ * writer's programs (ADMIN grants) and is not the mentor rated, as the page
+ * decides per row. A mentor with
  * no readable grant: their own ratings, the student never selected.
  */
 export async function ratingsPageFor(user: User, params: SearchParams, now = new Date()): Promise<ApiRatings | null> {
@@ -131,7 +132,9 @@ export async function ratingsPageFor(user: User, params: SearchParams, now = new
       comment: f.comment,
       sentOn: dayOf(f.createdAt),
       mentor: { id: f.mentor.id, name: nameOf(f.mentor) },
-      student: names(f.student.enrollments) ? { id: f.student.user.id, name: nameOf(f.student.user) } : null,
+      // /feedback's rule, both halves: never to the mentor the rating is about, whatever they administer.
+      student:
+        f.mentor.id !== user.id && names(f.student.enrollments) ? { id: f.student.user.id, name: nameOf(f.student.user) } : null,
     })),
     page,
     pageSize: PAGE_SIZE,

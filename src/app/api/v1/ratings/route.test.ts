@@ -70,6 +70,18 @@ describe("GET /api/v1/ratings", () => {
     expect(body.ratings.every((r: { student: unknown }) => r.student === null)).toBe(true);
   });
 
+  it("never names the student to the mentor they rated, even one who runs the program", async () => {
+    const { ga, low, high } = await scene();
+    await grant({ userId: high.id, programId: ga.id });
+    actor.value = { id: high.id };
+    const body = await (await getRatings()).json();
+    expect(body.kind).toBe("staff");
+    const about = (m: { id: string }) => body.ratings.filter((r: { mentor: { id: string } }) => r.mentor.id === m.id);
+    // /feedback hides the writer from the rated mentor (0e982cf); everybody else's stay named.
+    expect(about(high).every((r: { student: unknown }) => r.student === null)).toBe(true);
+    expect(about(low).every((r: { student: { name: string } | null }) => r.student?.name === "Aziz Tursunov")).toBe(true);
+  });
+
   it("gives a mentor their own, with nobody named", async () => {
     const { high } = await scene();
     actor.value = { id: high.id };
