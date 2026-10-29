@@ -50,10 +50,10 @@ describe("GET /api/v1/classmates/:id", () => {
     const other = await program("Master's Program");
     await enroll({ studentId: host.id, programId: other.id });
     as(guest);
-    const res = await read(host.id);
+    const res = await read(host.userId);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toMatchObject({ id: host.id, person: { id: host.userId, name: "Aziza Karimova" }, shared: [p.name, other.name] });
+    expect(body).toMatchObject({ id: host.userId, person: { id: host.userId, name: "Aziza Karimova" }, mentor: false, shared: [p.name, other.name] });
     expect(body.slots).toEqual([{ id: slot.id, when: expect.objectContaining({ minutes: 45 }) }]);
     expect(body.templates.length).toBeGreaterThan(0);
     expect(body.templates[0]).not.toHaveProperty("questions");
@@ -66,7 +66,7 @@ describe("GET /api/v1/classmates/:id", () => {
     const other = await program("Freshman Scholars");
     const stranger = await student({ programId: other.id, name: "Dilnoza" });
     as(stranger);
-    expect(await (await read(host.id)).json()).toMatchObject({ id: host.id, shared: ["Global Admissions"] });
+    expect(await (await read(host.userId)).json()).toMatchObject({ id: host.userId, shared: ["Global Admissions"] });
   });
 
   it("answers myself, a student awaiting approval and nobody alike", async () => {
@@ -74,7 +74,7 @@ describe("GET /api/v1/classmates/:id", () => {
     const pending = await student({ programId: p.id, name: "Pending", status: "PENDING" });
     as(guest);
     const missing = await (await read("c-made-up")).json();
-    for (const id of [pending.id, guest.id]) {
+    for (const id of [pending.userId, guest.userId]) {
       const res = await read(id);
       expect(res.status).toBe(404);
       expect(await res.json()).toEqual(missing);

@@ -2,7 +2,7 @@ import "server-only";
 
 import type { User } from "@/generated/prisma/client";
 import type { ActionState } from "@/lib/actions/shared";
-import { NOT_A_STUDENT, personOf, practiceStudent, slotTime, wallTime, type PracticeStudent } from "@/lib/api/v1/practice";
+import { anyPracticeViewer, NOT_A_STUDENT, personOf, slotTime, wallTime } from "@/lib/api/v1/practice";
 import { fromAction, refused } from "@/lib/api/v1/respond";
 import type { ApiInterview, FeedbackText } from "@/lib/api/v1/types";
 import {
@@ -15,6 +15,7 @@ import {
   templateName,
 } from "@/lib/interview-templates";
 import {
+  answers as answersFor,
   feedbackEditable,
   feedbackEditableUntil,
   givesFeedback,
@@ -29,9 +30,11 @@ import { prisma } from "@/lib/prisma";
 import { programToday } from "@/lib/when";
 
 /**
- * One practice interview, for one of the two students in it: what
- * `/student/interviews/[id]` and its `live` page read, and what they let the
- * student do, as `can` flags built from `peer-interviews.ts`'s own rules.
+ * One practice interview, for one of the two people in it (two students, or a
+ * mentor and the student they interview): what `/student/interviews/[id]`,
+ * `/mentor/interviews/[id]` and their `live` pages read, what they show (`show`,
+ * the page's own conditions) and what they let the reader do, as `can` flags
+ * built from `peer-interviews.ts`'s own rules.
  *
  * Only the reader's side is selected: their answers, their notes, their
  * feedback, draft or sent, and the partner's feedback once it is sent. The
@@ -40,7 +43,7 @@ import { programToday } from "@/lib/when";
  *
  * Null, a 404, when the interview does not exist or the reader is not in it.
  */
-export async function interviewFor({ user }: PracticeStudent, id: string, now: Date = new Date()): Promise<ApiInterview | null> {
+export async function interviewFor({ user }: { user: User }, id: string, now: Date = new Date()): Promise<ApiInterview | null> {
   const row = await prisma.peerInterview.findUnique({
     where: { id },
     select: {
@@ -78,6 +81,9 @@ export async function interviewFor({ user }: PracticeStudent, id: string, now: D
   const sentAt = mine?.submittedAt ?? null;
   const open = !row.completedAt && !row.absentId;
   const editable = feedbackEditable(row.slot, sentAt, now, row.absentId);
+  const part = partOf(row, user.id);
+  // The partner's part decides whether they write feedback at all (a student a mentor interviews doesn't).
+  const partnerGives = givesFeedback(partOf(row, hosting ? row.guestId : row.hostId));
   const text = (f: { summary: string | null; wentWell: string | null; toImprove: string | null }): FeedbackText => ({
     summary: f.summary ?? "",
     wentWell: f.wentWell ?? "",
@@ -115,7 +121,18 @@ export async function interviewFor({ user }: PracticeStudent, id: string, now: D
       notes: row.completedAt !== null,
       editFeedback: editable,
       // The website's guide leaves the feedback step out for the student a mentor interviews: the mentor writes it.
-      feedback: givesFeedback(partOf(row, user.id)),
+      feedback: givesFeedback(part),
+      // The mentor interviewing asks the questions and answers none (`answers` in peer-interviews.ts).
+      answer: answersFor(part),
+    },
+    part,
+    // The website's interview page (`InterviewDetail`): the questions until there are answers or this reader's
+    // feedback is sent; their own sent feedback only while it may be corrected; the partner's, where the partner
+    // writes any, once it is done or this reader's own is sent.
+    show: {
+      questions: row.answers.length === 0 && sentAt === null,
+      mine: sentAt === null || editable,
+      theirs: partnerGives && (phase === "completed" || sentAt !== null),
     },
     guide: {
       intro: INTERVIEW_INTRO,
@@ -134,8 +151,8 @@ async function inInterview(userId: string, id: string): Promise<boolean> {
 }
 
 /**
- * Everything one interview's write asks after the gate: an approved student,
- * in this interview (else the same 404 as a missing one), then the action with
+ * Everything one interview's write asks after the gate: somebody who practises
+ * (an approved student, or a mentor), in this interview (else the same 404 as a missing one), then the action with
  * `interviewId` and the route's own fields. `form` answers a bad field first.
  * `respond` is `fromAction` unless the action redirects when it works.
  */
@@ -146,7 +163,7 @@ export async function interviewWrite(
   run: (form: FormData) => Promise<ActionState>,
   respond: (run: () => Promise<ActionState>) => Promise<Response> = async (go) => fromAction(await go())
 ): Promise<Response> {
-  const me = await practiceStudent(user);
+  const me = anyPracticeViewer(user);
   if (!me) return refused(NOT_A_STUDENT, 403);
   if (!(await inInterview(me.user.id, id))) return refused("Not found.", 404);
   if (!(form instanceof FormData)) return refused(form.error, 400, { field: form.field });

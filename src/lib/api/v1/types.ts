@@ -450,9 +450,13 @@ export type StudentGrant = {
   /**
    * The mentor's booking page for this program or, when they have none here, the
    * one from another of the student's pairings with them, as the website's Book
-   * page finds it. Null when they have none anywhere.
+   * page finds it. Null when they have none anywhere, and, as the website's Book
+   * page offers a calendar, where the mentor has no name or this is no time to
+   * book on (`canBookOn`).
    */
   bookingUrl: string | null;
+  /** The mentor's email where there is no calendar to book on, as the website's Book page offers "Email Dilnoza"; null otherwise. */
+  mentorEmail: string | null;
 };
 /** GET /api/v1/student/home. */
 export type StudentHome = {
@@ -1363,15 +1367,18 @@ export type OfferedSlot = {
   interview: { id: string; guest: PersonRef } | null;
 };
 
-/** A classmate: any other approved student, in any program. `id` is their StudentProfile.id. */
+/**
+ * Somebody to practise with, as the Interviews home lists them: to a student,
+ * another approved student (any program) or one of their mentors offering a
+ * time; to a mentor, a student they have worked with. `id` is their user id,
+ * the id of their people page. `open`: their open times the reader may book.
+ */
 export type ClassmateRow = {
   id: string;
   person: PersonRef;
-  /** Their own programs, by name: never one they are only visiting. */
+  /** Their own programs, by name: never one they are only visiting. Empty for a mentor. */
   programs: string[];
-  /** Their open times still to come. */
   open: number;
-  next: SlotTime | null;
 };
 
 /** A To do row for practice, decided on freshform's clock. */
@@ -1388,38 +1395,55 @@ export type PracticeTodo = {
 
 /** The Practice tab: GET /api/v1/interviews */
 export type PracticeHome = {
+  /** The capacity this is read in (`?as=`): a student's Practice, or a mentor's Interviews. */
+  as: "student" | "mentor";
   /** Neither completed nor absent; soonest first. */
   coming: InterviewRow[];
   /** Completed or absent; newest first. */
   done: InterviewRow[];
   /** Mine, still to come; soonest first. */
   times: OfferedSlot[];
-  /** Those offering a time first, then the rest; each by name. */
+  /** Classmates (to a student) or Your students (to a mentor): those offering a time first, then the rest; each by name. */
   classmates: ClassmateRow[];
+  /** To a student: Your mentors, the mentors who have worked with them offering a time. Empty to a mentor. */
+  mentors: ClassmateRow[];
+  /** A student's To do rows for practice; none for a mentor. */
   todo: PracticeTodo[];
-  /** What a new time may be: a day from `today` to `lastDay`, `lengths` minutes long. */
-  offer: { today: string; lastDay: string; lengths: number[] };
+  /**
+   * What a new time may be: a day from `today` to `lastDay`, `lengths` minutes
+   * long. The website's form opens on `day` (tomorrow) at `time` ("15:00").
+   */
+  offer: { today: string; day: string; time: string; lastDay: string; lengths: number[] };
   /** "Tashkent": the clock `day` and `time` are on. */
   zone: string;
 };
 
 /** POST /api/v1/interviews/slots. `day` and `time` on the Tashkent clock. */
-export type OfferSlot = { day: string; time: string; minutes: number; meetingUrl?: string };
+/** A time to offer, in the capacity it is offered in: a mentor's are for their students. */
+export type OfferSlot = { day: string; time: string; minutes: number; meetingUrl?: string; as?: "student" | "mentor" };
 /* DELETE /api/v1/interviews/slots/:id: a time nobody has booked. */
 
 /** A classmate's page: GET /api/v1/classmates/:id */
+/**
+ * GET /api/v1/classmates/:id?as=: somebody to practise with, as their people
+ * page shows them (`id` their user id): a classmate's student times, a
+ * mentor's times for their students (`mentor`: "Your mentor"), or, to a
+ * mentor, a student's times for the mentors who work with them.
+ */
 export type Classmate = {
   id: string;
   person: PersonRef;
-  /** Their own programs, by name. Named `shared` from when only classmates who shared a program were listed. */
+  /** One of the reader's mentors, offering times as one. */
+  mentor: boolean;
+  /** Their own programs, by name (none for a mentor). Named `shared` from when only classmates who shared a program were listed. */
   shared: string[];
   /** Open and still to come. No meeting link: that is for whoever books it. */
   slots: { id: string; when: SlotTime }[];
   templates: InterviewTemplateRef[];
 };
 
-/** POST /api/v1/interviews: book a classmate's time. */
-export type BookInterview = { slot: string; template: string };
+/** POST /api/v1/interviews: book a time, in the capacity the reader books in (a mentor books a student's time as one). */
+export type BookInterview = { slot: string; template: string; as?: "student" | "mentor" };
 /** The interview the booking made. */
 export type BookResult = WriteResult & { id: string };
 
@@ -1452,7 +1476,19 @@ export type ApiInterview = Omit<InterviewRow, "template"> & {
    * both do; with a mentor, the mentor does and the student they interview
    * doesn't (`givesFeedback`), so the guide has no feedback step for them.
    */
-  can: { cancel: boolean; done: boolean; absent: boolean; guide: boolean; notes: boolean; editFeedback: boolean; feedback: boolean };
+  can: { cancel: boolean; done: boolean; absent: boolean; guide: boolean; notes: boolean; editFeedback: boolean; feedback: boolean; answer: boolean };
+  /**
+   * The reader's part: a "peer" between two students, the mentor's
+   * "interviewer", or the "interviewee" a mentor interviews.
+   */
+  part: "peer" | "interviewer" | "interviewee";
+  /**
+   * What the website's interview page shows: the questions until there are
+   * answers or the reader's feedback is sent; the reader's own sent feedback
+   * only while it may still be corrected; the partner's once the interview is
+   * done or the reader's own is sent, where the partner gives feedback.
+   */
+  show: { questions: boolean; mine: boolean; theirs: boolean };
   /** The guide's fixed words, the school's own. */
   guide: {
     intro: string;

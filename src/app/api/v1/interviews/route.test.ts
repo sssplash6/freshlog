@@ -42,20 +42,20 @@ beforeEach(() => {
 });
 
 describe("GET /api/v1/interviews", () => {
-  it("answers 401 with no user", async () => expect((await GET()).status).toBe(401));
+  it("answers 401 with no user", async () => expect((await GET(new Request("http://test/api/v1/interviews"))).status).toBe(401));
 
   it("answers 403 inactive to a pending student", async () => {
     const p = await program();
     const pending = await student({ programId: p.id, status: "PENDING" });
     as(pending);
-    const res = await GET();
+    const res = await GET(new Request("http://test/api/v1/interviews"));
     expect(res.status).toBe(403);
     expect((await res.json()).code).toBe("inactive");
   });
 
   it("answers a mentor in the actions' words", async () => {
     as(await mentor());
-    const res = await GET();
+    const res = await GET(new Request("http://test/api/v1/interviews"));
     expect(res.status).toBe(403);
     expect((await res.json()).error).toBe("Only approved students and their mentors can practise interviews.");
   });
@@ -77,21 +77,22 @@ describe("GET /api/v1/interviews", () => {
     });
 
     as(host);
-    const body = await (await GET()).json();
+    const body = await (await GET(new Request("http://test/api/v1/interviews"))).json();
 
     expect(body.classmates.map((c: { person: { name: string } }) => c.person.name)).toEqual([
       "Bekzod Tursunov",
       "Anvar Visiting",
     ]);
-    expect(body.classmates[0]).toMatchObject({ id: guest.id, open: 1, programs: [p.name] });
+    // Each by their user id, the id of their people page, as the website links them.
+    expect(body.classmates[0]).toMatchObject({ id: guest.userId, open: 1, programs: [p.name] });
     // The program they are only visiting is not theirs.
-    expect(body.classmates[1]).toMatchObject({ id: visitor.id, open: 0, programs: ["Imkon"] });
-    expect(body.classmates[0].next.minutes).toBe(45);
+    expect(body.classmates[1]).toMatchObject({ id: visitor.userId, open: 0, programs: ["Imkon"] });
     // A classmate's link is for whoever books the time.
     expect(JSON.stringify(body)).not.toContain("meet.example");
     expect(JSON.stringify(body)).not.toContain("@");
     expect(body.zone).toBe("Tashkent");
-    expect(body.offer.lengths).toEqual([30, 45, 60]);
+    expect(body.offer).toMatchObject({ lengths: [30, 45, 60], time: "15:00" });
+    expect(body.as).toBe("student");
   });
 
   it("reads my interviews, my times and the To do on freshform's clock", async () => {
@@ -117,7 +118,7 @@ describe("GET /api/v1/interviews", () => {
     });
 
     as(host);
-    const body = await (await GET()).json();
+    const body = await (await GET(new Request("http://test/api/v1/interviews"))).json();
 
     expect(body.coming.map((r: { id: string }) => r.id)).toEqual([b.id, a.id]);
     expect(body.coming[1]).toMatchObject({ hosting: true, phase: "booked", sent: false, partner: { name: "Bekzod Tursunov" } });

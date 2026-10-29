@@ -1,62 +1,30 @@
 import "server-only";
 
-import { personOf, slotTime, type PracticeStudent } from "@/lib/api/v1/practice";
+import { personOf, slotTime } from "@/lib/api/v1/practice";
 import type { Classmate } from "@/lib/api/v1/types";
-import { ROLES, USER_STATUS } from "@/lib/constants";
 import { studiesIn } from "@/lib/enrollments";
 import { INTERVIEW_TEMPLATES } from "@/lib/interview-templates";
-import { prisma } from "@/lib/prisma";
-import { programWallClock } from "@/lib/when";
+import type { InterviewViewer } from "@/lib/interview-viewer";
+import { interviewPersonData } from "@/lib/screens/interviews";
 
 /**
- * A classmate as another student sees them, as `/student/interviews/people/[id]`
- * reads them: their name, their own programs, and the times they offer. Any
- * approved student is a classmate, whatever their program.
- *
- * Null, which the route answers as a 404, wherever the page is a 404: no such
- * student, not a student, not approved, or unnamed. And for the reader
- * themself, whom the page sends back to the list. So an id cannot be used to
- * learn who exists.
- *
- * No meeting link: a time's link is for whoever books it.
+ * Somebody to practise with, as their people page shows them in the reader's
+ * capacity (`interviewPersonData`, the page's own read): their name, their own
+ * programs (to a reader who may book their student times), "Your mentor", and
+ * the times the reader may book. Somebody the reader may not book and somebody
+ * who does not exist are the same 404; the reader's own id is too.
  */
-export async function classmateFor({ profile }: PracticeStudent, id: string, now: Date = new Date()): Promise<Classmate | null> {
-  if (id === profile.id) return null;
-  const classmate = await prisma.studentProfile.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      user: {
-        select: {
-          id: true,
-          name: true,
-          role: true,
-          status: true,
-          // Their times for classmates: a mentor's are not offered here.
-          interviewSlots: {
-            where: { asMentor: false, startsAt: { gt: programWallClock(now) }, interview: null },
-            select: { id: true, startsAt: true, minutes: true },
-            orderBy: { startsAt: "asc" },
-          },
-        },
-      },
-      enrollments: { select: { programId: true, exchangeId: true, program: { select: { name: true } } } },
-    },
-  });
-  if (
-    !classmate ||
-    classmate.user.role !== ROLES.STUDENT ||
-    classmate.user.status !== USER_STATUS.ACTIVE ||
-    !classmate.user.name?.trim()
-  ) {
-    return null;
-  }
-
+export async function classmateFor(viewer: InterviewViewer, id: string): Promise<Classmate | null> {
+  if (id === viewer.user.id) return null;
+  const found = await interviewPersonData(viewer, id);
+  if (!found) return null;
+  const { person, asStudent, asMentor } = found;
   return {
-    id: classmate.id,
-    person: personOf(classmate.user),
-    shared: studiesIn(classmate.enrollments).map((e) => e.program.name),
-    slots: classmate.user.interviewSlots.map((s) => ({ id: s.id, when: slotTime(s) })),
+    id: person.id,
+    person: personOf(person),
+    mentor: asMentor,
+    shared: asStudent ? studiesIn(person.studentProfile?.enrollments ?? []).map((e) => e.program.name) : [],
+    slots: person.interviewSlots.filter((s) => (s.asMentor ? asMentor : asStudent)).map((s) => ({ id: s.id, when: slotTime(s) })),
     templates: INTERVIEW_TEMPLATES.map((t) => ({ id: t.id, name: t.name, summary: t.summary })),
   };
 }

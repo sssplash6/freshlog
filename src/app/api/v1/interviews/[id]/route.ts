@@ -1,5 +1,5 @@
 import { interviewFor } from "@/lib/api/v1/interview";
-import { NOT_A_STUDENT, practiceStudent } from "@/lib/api/v1/practice";
+import { anyPracticeViewer, NOT_A_STUDENT } from "@/lib/api/v1/practice";
 import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { getCurrentUser } from "@/lib/dal";
 
@@ -16,7 +16,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const user = await getCurrentUser();
   if (!user) return signInAgain();
   if (!mayUse(user)) return inactive();
-  const me = await practiceStudent(user);
+  const me = anyPracticeViewer(user);
   if (!me) return refused(NOT_A_STUDENT, 403);
   const { id } = await params;
   const interview = await interviewFor(me, id);

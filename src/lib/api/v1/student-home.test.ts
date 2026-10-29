@@ -181,6 +181,7 @@ describe("studentHomeFor: the grants", () => {
         useBy: toDateInputValue(dayIn(60)),
         daysLeft: 60,
         bookingUrl: "https://calendly.com/akmal-karimov",
+        mentorEmail: null,
       },
     ]);
     const sent = JSON.stringify(home);
@@ -194,7 +195,10 @@ describe("studentHomeFor: the grants", () => {
   it("names a mentor by their email when they have no name", async () => {
     const w = await settled();
     const { email } = await prisma.user.update({ where: { id: w.m.id }, data: { name: null } });
-    expect((await homeOf(w.st)).grants[0].mentor).toEqual({ id: w.m.id, name: email });
+    const [grant] = (await homeOf(w.st)).grants;
+    expect(grant.mentor).toEqual({ id: w.m.id, name: email });
+    // A mentor with no name is not offered to book, as the website's Book page never shows "Book with" an address.
+    expect(grant).toMatchObject({ bookingUrl: null, mentorEmail: email });
   });
 
   it("says how many days are left, and when a grant has run out", async () => {
@@ -287,6 +291,8 @@ describe("studentHomeFor: the grants", () => {
       useBy: null,
       daysLeft: null,
       bookingUrl: null,
+      // No time to book on: the website's Book page hands over their email.
+      mentorEmail: other.email,
     });
   });
 });

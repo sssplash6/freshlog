@@ -56,10 +56,10 @@ beforeEach(() => {
 });
 
 describe("GET /api/v1/interviews/:id", () => {
-  it("answers 401 with no user, and a mentor in the actions' words", async () => {
+  it("answers 401 with no user; a mentor practises too, so one they aren't in is the same 404", async () => {
     expect((await read("x")).status).toBe(401);
     as(await mentor());
-    expect((await read("x")).status).toBe(403);
+    expect((await read("x")).status).toBe(404);
   });
 
   it("answers an interview I am not in like one that does not exist", async () => {

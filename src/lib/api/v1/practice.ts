@@ -11,11 +11,11 @@ import type {
   PracticeTodo,
   SlotTime,
 } from "@/lib/api/v1/types";
-import { ROLES, USER_STATUS } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/format";
+import { actsAs, type Capacity } from "@/lib/interview-partners";
 import { templateName } from "@/lib/interview-templates";
+import type { InterviewViewer } from "@/lib/interview-viewer";
 import {
-  MAX_DAYS_AHEAD,
   SLOT_LENGTHS,
   givesFeedback,
   guideOpen,
@@ -24,12 +24,13 @@ import {
   sideOf,
 } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
-import { PROGRAM_ZONE, programToday, programWallClock } from "@/lib/when";
+import { interviewsHomeData, type Partner } from "@/lib/screens/interviews";
+import { PROGRAM_ZONE, programWallClock } from "@/lib/when";
 
 /**
- * Students practising interviews on each other, as the Practice tab reads it:
- * the reads of `/student/interviews`, field by field, and the To do rows the
- * app shows for them.
+ * Practising interviews, as the app's Practice (a student's) and Interviews (a
+ * mentor's) read it: the reads of `/student/interviews` and
+ * `/mentor/interviews`, field by field, and a student's To do rows for them.
  *
  * What a student may see of another is what the page shows: a name and their
  * own programs. No email, no Telegram, and a time's meeting link
@@ -45,17 +46,21 @@ const DAY = 24 * 60 * MINUTE;
  */
 const PROGRAM_OFFSET = programWallClock(new Date(0)).getTime();
 
-/** An approved student and their own enrolments, as the actions' `activeStudent` asks it; or null. */
-export async function practiceStudent(user: User) {
-  if (user.role !== ROLES.STUDENT || user.status !== USER_STATUS.ACTIVE) return null;
-  const profile = await prisma.studentProfile.findUnique({
-    where: { userId: user.id },
-    select: { id: true, enrollments: { select: { programId: true, exchangeId: true } } },
-  });
-  return profile ? { user, profile } : null;
+/**
+ * Who practises in `as`, as the website's interview pages ask it
+ * (`requireInterviewViewer`): an approved student, or a named mentor who isn't
+ * pending (`actsAs`). Null for anybody else.
+ */
+export function practiceViewer(user: User, as: Capacity, now: Date = new Date()): InterviewViewer | null {
+  if (!actsAs(user, as)) return null;
+  return { user, as, base: as === "mentor" ? "/mentor/interviews" : "/student/interviews", now };
 }
 
-export type PracticeStudent = NonNullable<Awaited<ReturnType<typeof practiceStudent>>>;
+/** The capacity a request names (`?as=` or a body's `as`): a mentor's only when it says so, as the actions read it. */
+export const capacityOf = (raw: unknown): Capacity => (raw === "mentor" ? "mentor" : "student");
+
+/** The reader in whichever capacity they can practise in: a student's first, as `actsAs` asks it. For a write about one interview. */
+export const anyPracticeViewer = (user: User) => practiceViewer(user, "student") ?? practiceViewer(user, "mentor");
 
 /** The words every practice route refuses anybody else with: the actions' own. */
 export const NOT_A_STUDENT = "Only approved students and their mentors can practise interviews.";
@@ -144,11 +149,22 @@ export function practiceTodo(interviews: readonly HomeInterview[], studentId: st
   });
 }
 
-/** Everything the Practice tab shows: `app/student/interviews/page.tsx`'s three reads, mapped. */
-export async function practiceHomeFor({ user, profile }: PracticeStudent, now: Date = new Date()): Promise<PracticeHome> {
+/** A partner as the home lists them, by the name the page shows. */
+const partnerRow = (p: Partner): ClassmateRow => ({ id: p.id, person: personOf(p), programs: p.programs, open: p.open });
+
+/**
+ * Everything the Interviews home shows, in the reader's capacity: the page's
+ * own reads (`interviewsHomeData`) for whom they may book, the mentors
+ * offering a student a time and the offer's days, and the interviews and
+ * times with what the app needs of them (whether feedback was sent, the
+ * meeting link), each phase decided on freshform's clock.
+ */
+export async function practiceHomeFor(viewer: InterviewViewer): Promise<PracticeHome> {
+  const { user, as, now } = viewer;
   const wallNow = programWallClock(now);
 
-  const [interviews, mySlots, classmates] = await Promise.all([
+  const [data, interviews, mySlots] = await Promise.all([
+    interviewsHomeData(viewer),
     prisma.peerInterview.findMany({
       where: { OR: [{ hostId: user.id }, { guestId: user.id }] },
       select: {
@@ -162,13 +178,14 @@ export async function practiceHomeFor({ user, profile }: PracticeStudent, now: D
         slot: { select: { startsAt: true, minutes: true, meetingUrl: true } },
         host: { select: { id: true, name: true } },
         guest: { select: { id: true, name: true } },
-        // Only this student's own row, and only whether it was sent.
+        // Only this reader's own row, and only whether it was sent.
         feedback: { where: { fromId: user.id }, select: { submittedAt: true } },
       },
       orderBy: { slot: { startsAt: "asc" } },
     }),
+    // The page's "Your times", in this capacity.
     prisma.interviewSlot.findMany({
-      where: { userId: user.id, asMentor: false, startsAt: { gt: wallNow } },
+      where: { userId: user.id, asMentor: as === "mentor", startsAt: { gt: wallNow } },
       select: {
         id: true,
         startsAt: true,
@@ -178,71 +195,29 @@ export async function practiceHomeFor({ user, profile }: PracticeStudent, now: D
       },
       orderBy: { startsAt: "asc" },
     }),
-    prisma.studentProfile.findMany({
-      where: {
-        id: { not: profile.id },
-        user: { role: ROLES.STUDENT, status: USER_STATUS.ACTIVE, name: { not: null } },
-      },
-      select: {
-        id: true,
-        enrollments: {
-          where: { exchangeId: null },
-          select: { program: { select: { name: true } } },
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            interviewSlots: {
-              where: { asMentor: false, startsAt: { gt: wallNow }, interview: null },
-              select: { startsAt: true, minutes: true },
-              orderBy: { startsAt: "asc" },
-            },
-          },
-        },
-      },
-    }),
   ]);
 
   const rows = interviews.map((i) => rowOf(i, user.id, now));
+  // The page's Coming up and Done: open until somebody marks it, however long ago it ended.
   const coming = rows.filter((r) => r.phase === "booked" || r.phase === "to-mark");
   const done = rows.filter((r) => r.phase === "completed" || r.phase === "absent").reverse();
 
-  const times = mySlots.map(
-    (s): OfferedSlot => ({
-      id: s.id,
-      when: slotTime(s),
-      meetingUrl: s.meetingUrl,
-      interview: s.interview && { id: s.interview.id, guest: personOf(s.interview.guest) },
-    })
-  );
-
-  const named = classmates.filter((c) => c.user.name?.trim());
-  const byName = (a: (typeof named)[number], b: (typeof named)[number]) =>
-    (a.user.name ?? "").localeCompare(b.user.name ?? "");
-  const offering = named.filter((c) => c.user.interviewSlots.length > 0).sort(byName);
-  const quiet = named.filter((c) => c.user.interviewSlots.length === 0).sort(byName);
-  const classmateRows = [...offering, ...quiet].map(
-    (c): ClassmateRow => ({
-      id: c.id,
-      person: personOf(c.user),
-      programs: c.enrollments.map((e) => e.program.name),
-      open: c.user.interviewSlots.length,
-      next: c.user.interviewSlots[0] ? slotTime(c.user.interviewSlots[0]) : null,
-    })
-  );
-
   return {
+    as,
     coming,
     done,
-    times,
-    classmates: classmateRows,
-    todo: practiceTodo(interviews, user.id, now),
-    offer: {
-      today: programToday(now),
-      lastDay: toDateInputValue(new Date(wallNow.getTime() + MAX_DAYS_AHEAD * DAY)),
-      lengths: [...SLOT_LENGTHS],
-    },
+    times: mySlots.map(
+      (s): OfferedSlot => ({
+        id: s.id,
+        when: slotTime(s),
+        meetingUrl: s.meetingUrl,
+        interview: s.interview && { id: s.interview.id, guest: personOf(s.interview.guest) },
+      })
+    ),
+    classmates: [...data.offering, ...data.quiet].map(partnerRow),
+    mentors: data.mentorsOffering.map(partnerRow),
+    todo: as === "student" ? practiceTodo(interviews, user.id, now) : [],
+    offer: { today: data.today, day: data.tomorrow, time: "15:00", lastDay: data.lastDay, lengths: [...SLOT_LENGTHS] },
     zone: PROGRAM_ZONE,
   };
 }

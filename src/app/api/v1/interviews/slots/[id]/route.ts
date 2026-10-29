@@ -1,5 +1,5 @@
 import { removeInterviewSlot } from "@/lib/actions/interviews";
-import { NOT_A_STUDENT, practiceStudent } from "@/lib/api/v1/practice";
+import { anyPracticeViewer, NOT_A_STUDENT } from "@/lib/api/v1/practice";
 import { fromAction, inactive, mayUse, refused, signInAgain } from "@/lib/api/v1/respond";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
@@ -17,7 +17,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const user = await getCurrentUser();
   if (!user) return signInAgain();
   if (!mayUse(user)) return inactive();
-  const me = await practiceStudent(user);
+  const me = anyPracticeViewer(user);
   if (!me) return refused(NOT_A_STUDENT, 403);
   const { id } = await params;
   const slot = await prisma.interviewSlot.findUnique({ where: { id }, select: { userId: true } });

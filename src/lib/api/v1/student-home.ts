@@ -11,7 +11,8 @@ import { templateName } from "@/lib/interview-templates";
 import { agendaLists, isFirstRun, withoutRepeats } from "@/lib/screens/student-home";
 import { meetingCount, meetingLog } from "@/lib/session-entries";
 import { interviewsForLog } from "@/lib/student-interviews";
-import { allocationSummary, type AllocationSummary } from "@/lib/hours";
+import { canActAsMentor } from "@/lib/constants";
+import { allocationSummary, canBookOn, type AllocationSummary } from "@/lib/hours";
 import { unreadOf } from "@/lib/api/v1/inbox";
 import { prisma } from "@/lib/prisma";
 import { assignmentsForStudentWhere, studentLedger, type LedgerSession } from "@/lib/queries";
@@ -185,6 +186,10 @@ function toGrant(
   now: Date
 ): StudentGrant {
   const { mentor, program, deadline } = grant;
+  const url = mentor ? bookingUrlOf(program.id, mentor.id) : null;
+  // The website's Book page offers a calendar only to book a named mentor who can act as one, on time the student
+  // can book on (`offersBooking`, `canBookOn` there); otherwise the mentor's email ("Email Dilnoza").
+  const bookable = url !== null && mentor !== null && canActAsMentor(mentor) && !!mentor.name?.trim() && canBookOn(grant);
   return {
     // Time with no mentor behind it has none to name: an hour bank, or time
     // nobody has been chosen for yet, which `bank` tells apart.
@@ -197,7 +202,8 @@ function toGrant(
     expired: grant.expired,
     useBy: deadline ? toDateInputValue(deadline) : null,
     daysLeft: deadline ? daysAway(deadline, now) : null,
-    bookingUrl: mentor ? bookingUrlOf(program.id, mentor.id) : null,
+    bookingUrl: bookable ? url : null,
+    mentorEmail: mentor && !bookable ? mentor.email : null,
   };
 }
 
