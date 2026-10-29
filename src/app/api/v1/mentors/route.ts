@@ -1,7 +1,7 @@
-import { createMentor } from "@/lib/actions/mentors";
+import { createMentor, createMentors } from "@/lib/actions/mentors";
 import { bodyOf } from "@/lib/api/v1/body";
 import { mentorListFor } from "@/lib/api/v1/mentor-list";
-import { registrationForm } from "@/lib/api/v1/mentors";
+import { batchRegistrationForm, registrationForm } from "@/lib/api/v1/mentors";
 import { fromAction, inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor } from "@/lib/api/v1/sessions";
 import { scopeIsEmpty } from "@/lib/authz";
@@ -36,7 +36,14 @@ export async function POST(request: Request) {
   if (user.status !== "ACTIVE") return inactive();
   const body = await bodyOf(request);
   if (!body) return refused("Send the mentor as JSON.", 400);
-  const form = await registrationForm(await readerFor(user), body);
+  const reader = await readerFor(user);
+  // `mentors`: the website's "several at once", into the same programs.
+  if ("mentors" in body) {
+    const batch = await batchRegistrationForm(reader, body);
+    if (batch instanceof Response) return batch;
+    return fromAction(await createMentors(null, batch));
+  }
+  const form = await registrationForm(reader, body);
   if (form instanceof Response) return form;
   return fromAction(await createMentor(null, form));
 }

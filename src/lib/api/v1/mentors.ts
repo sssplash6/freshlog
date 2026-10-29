@@ -4,8 +4,13 @@ import { NOT_YOUR_PROGRAM } from "@/lib/api/v1/admin-gates";
 import { refused } from "@/lib/api/v1/respond";
 import type { Reader } from "@/lib/api/v1/sessions";
 import { isText } from "@/lib/api/v1/session-forms";
-import type { MentorRegistration } from "@/lib/api/v1/types";
-import { scopeCovers } from "@/lib/authz";
+import type { MentorBatchRegistration, MentorCard, MentorEdit, MentorEditRequest, MentorRegistration } from "@/lib/api/v1/types";
+import { programOptionsFor } from "@/lib/api/v1/programs";
+import { nameOf } from "@/lib/api/v1/sessions";
+import { canAdministerMentor, scopeCovers } from "@/lib/authz";
+import { canActAsMentor, ROLES } from "@/lib/constants";
+import { mentorAssignments } from "@/lib/queries";
+import type { User } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -35,24 +40,127 @@ function isTarget(value: unknown): value is Target {
   return keys.length === 1 && ["program", "level", "cohort"].includes(keys[0]) && isText((value as Record<string, unknown>)[keys[0]]);
 }
 
-/** `createMentor`'s FormData, or the answer to give instead: a bad field, or a target that is not the reader's. */
-export async function registrationForm(reader: Reader, body: Record<string, unknown>): Promise<FormData | Response> {
-  const bad = (field: string) => refused("That isn't a valid value.", 400, { field });
-  const { firstName, lastName, email, targets } = body as Partial<Record<keyof MentorRegistration, unknown>>;
-  if (!isText(firstName) || !firstName.trim()) return bad("firstName");
-  if (!isText(lastName) || !lastName.trim()) return bad("lastName");
-  if (!isText(email) || !email.trim()) return bad("email");
-  if (!Array.isArray(targets) || targets.length === 0 || !targets.every(isTarget)) return bad("targets");
+const bad = (field: string) => refused("That isn't a valid value.", 400, { field });
 
-  const form = new FormData();
+/**
+ * Every target onto `form` as the website's picker writes it (`p:`, `l:`,
+ * `c:`), or the answer to give instead: a target outside what the reader reads
+ * is a 404, as a missing one is, and one they read and may not change a 403.
+ */
+async function appendTargets(reader: Reader, targets: unknown, form: FormData, allowNone = false): Promise<Response | null> {
+  if (!Array.isArray(targets) || (!allowNone && targets.length === 0) || !targets.every(isTarget)) return bad("targets");
   for (const target of targets) {
     const programId = await programOfTarget(target);
     if (!programId || !scopeCovers(reader.read, programId)) return refused("Not found.", 404);
     if (!scopeCovers(reader.write, programId)) return refused(NOT_YOUR_PROGRAM, 403);
     form.append("targets", "program" in target ? `p:${target.program}` : "level" in target ? `l:${target.level}` : `c:${target.cohort}`);
   }
+  return null;
+}
+
+/** `createMentor`'s FormData, or the answer to give instead: a bad field, or a target that is not the reader's. */
+export async function registrationForm(reader: Reader, body: Record<string, unknown>): Promise<FormData | Response> {
+  const { firstName, lastName, email, targets } = body as Partial<Record<keyof MentorRegistration, unknown>>;
+  if (!isText(firstName) || !firstName.trim()) return bad("firstName");
+  if (!isText(lastName) || !lastName.trim()) return bad("lastName");
+  if (!isText(email) || !email.trim()) return bad("email");
+  const form = new FormData();
+  const refusal = await appendTargets(reader, targets, form);
+  if (refusal) return refusal;
   form.set("email", email);
   form.set("firstName", firstName);
   form.set("lastName", lastName);
   return form;
+}
+
+/**
+ * `createMentors`' FormData, the website's "several at once": each row's email
+ * and names, into the same programs. A row the action can't take (a bad
+ * address, one name, somebody already here) it skips and names, so the rows are
+ * only checked for their type here.
+ */
+export async function batchRegistrationForm(reader: Reader, body: Record<string, unknown>): Promise<FormData | Response> {
+  const { mentors, targets } = body as Partial<Record<keyof MentorBatchRegistration, unknown>>;
+  const isRow = (row: unknown) =>
+    typeof row === "object" && row !== null && ["email", "firstName", "lastName"].every((key) => isText((row as Record<string, unknown>)[key]));
+  if (!Array.isArray(mentors) || mentors.length === 0 || mentors.length > 200 || !mentors.every(isRow)) return bad("mentors");
+  const form = new FormData();
+  const refusal = await appendTargets(reader, targets, form);
+  if (refusal) return refusal;
+  for (const row of mentors as MentorBatchRegistration["mentors"]) {
+    form.append("email", row.email);
+    form.append("firstName", row.firstName);
+    form.append("lastName", row.lastName);
+  }
+  return form;
+}
+
+/** A pairing as a target of the website's picker: its cohort, else its level, else the program. */
+const targetOfPairing = (a: { programId: string; levelId: string | null; cohortId: string | null }): MentorRegistration["targets"][number] =>
+  a.cohortId ? { cohort: a.cohortId } : a.levelId ? { level: a.levelId } : { program: a.programId };
+
+/**
+ * What the website's Edit fold on a mentor's page offers an admin who may change
+ * them (`canAdministerMentor`): their name and email, which only a platform
+ * admin may change, where they work in the reader's programs, and those
+ * programs to pick from. Null for anybody else, and for no such mentor alike.
+ */
+export async function mentorEditFor(reader: Reader, id: string): Promise<MentorEdit | null> {
+  const mentor = await prisma.user.findUnique({ where: { id }, include: { mentorAssignments: true } });
+  if (!mentor || !canActAsMentor(mentor) || reader.user.role === ROLES.STUDENT) return null;
+  if (!(await canAdministerMentor(reader.user, mentor.id))) return null;
+  return {
+    name: mentor.name ?? "",
+    email: mentor.email,
+    canEditDetails: reader.user.platformAdmin,
+    // The picker is built from the reader's programs: a pairing elsewhere draws no row, and the save leaves it be.
+    targets: mentor.mentorAssignments.filter((a) => scopeCovers(reader.write, a.programId)).map(targetOfPairing),
+    programs: await programOptionsFor(reader),
+  };
+}
+
+/**
+ * `updateMentor`'s FormData: the mentor, their name and email (as they are,
+ * where the body leaves them out), and their pairings in the reader's programs
+ * (as they are, where it leaves them out; none parks them unassigned there).
+ * The action keeps a pairing outside the reader's programs, and lets only a
+ * platform admin move the name or email.
+ */
+export async function mentorEditForm(reader: Reader, id: string, body: Record<string, unknown>): Promise<FormData | Response> {
+  const edit = await mentorEditFor(reader, id);
+  if (!edit) return refused("Not found.", 404);
+  const { name, email, targets } = body as Partial<Record<keyof MentorEditRequest, unknown>>;
+  if (name !== undefined && !isText(name)) return bad("name");
+  if (email !== undefined && !isText(email)) return bad("email");
+  const form = new FormData();
+  form.set("mentorId", id);
+  form.set("name", (name as string | undefined) ?? edit.name);
+  form.set("email", (email as string | undefined) ?? edit.email);
+  const refusal = await appendTargets(reader, targets === undefined ? edit.targets : targets, form, true);
+  if (refusal) return refusal;
+  return form;
+}
+
+/**
+ * Another mentor's card, as the website's `/mentors/[id]` gives a mentor who
+ * shares a program with them and doesn't run it: their pairings in the
+ * programs the reader works in, each with Book (their booking link) or their
+ * email. Null when they share none, and for no such mentor alike.
+ */
+export async function mentorCardFor(viewer: User, id: string): Promise<MentorCard | null> {
+  const mentor = await prisma.user.findUnique({ where: { id } });
+  if (!mentor || !canActAsMentor(mentor) || viewer.id === mentor.id || !canActAsMentor(viewer)) return null;
+  const mine = await prisma.mentorAssignment.findMany({ where: { mentorId: viewer.id }, select: { programId: true } });
+  const shared = new Set(mine.map((a) => a.programId));
+  const visible = (await mentorAssignments(mentor.id)).filter((a) => shared.has(a.programId));
+  if (visible.length === 0) return null;
+  return {
+    mentor: { id: mentor.id, name: nameOf(mentor), email: mentor.email },
+    pairings: visible.map((a) => ({
+      id: a.id,
+      program: { id: a.program.id, name: a.program.name, colorIndex: a.program.colorIndex },
+      label: [a.program.name, a.level?.name, a.cohort?.name].filter(Boolean).join(" / "),
+      bookingUrl: a.calendlyUrl ?? null,
+    })),
+  };
 }

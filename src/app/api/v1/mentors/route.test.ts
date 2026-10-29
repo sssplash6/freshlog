@@ -55,6 +55,40 @@ describe("POST /api/v1/mentors", () => {
     expect(kamola.mentorAssignments).toEqual([expect.objectContaining({ programId: p.id, levelId: lvl.id })]);
   });
 
+  it("registers several at once into the same programs, skipping and naming a row it can't take, as the website's list", async () => {
+    const { p, nodira, aziz } = await setUp();
+    const taken = (await prisma.user.findUniqueOrThrow({ where: { id: aziz.userId } })).email;
+    actor.value = { id: nodira.id };
+    const res = await register(
+      req("POST", {
+        mentors: [
+          { firstName: "Kamola", lastName: "Usmonova", email: "kamola@test.invalid" },
+          { firstName: "Bobur", lastName: "Aliev", email: "bobur@test.invalid" },
+          { firstName: "Solo", lastName: "", email: "solo@test.invalid" },
+          { firstName: "Taken", lastName: "Already", email: taken },
+        ],
+        targets: [{ program: p.id }],
+      })
+    );
+    expect(res.status).toBe(200);
+    const { message } = await res.json();
+    expect(message).toMatch(/solo@test\.invalid/);
+    for (const email of ["kamola@test.invalid", "bobur@test.invalid"]) {
+      const m = await prisma.user.findUniqueOrThrow({ where: { email }, include: { mentorAssignments: true } });
+      expect(m.mentorAssignments.map((a) => a.programId)).toEqual([p.id]);
+    }
+    expect(await prisma.user.findUnique({ where: { email: "solo@test.invalid" } })).toBeNull();
+  });
+
+  it("refuses a list that isn't one, and a Leader, who may not place anybody", async () => {
+    const { p, nodira, leader } = await setUp();
+    actor.value = { id: nodira.id };
+    expect((await (await register(req("POST", { mentors: [], targets: [{ program: p.id }] }))).json()).field).toBe("mentors");
+    expect((await (await register(req("POST", { mentors: [{ email: "x@test.invalid" }], targets: [{ program: p.id }] }))).json()).field).toBe("mentors");
+    actor.value = { id: leader.id };
+    expect((await register(req("POST", { mentors: [{ firstName: "A", lastName: "B", email: "ab@test.invalid" }], targets: [{ program: p.id }] }))).status).toBe(403);
+  });
+
   it("refuses an email that is already a student's, in the action's words", async () => {
     const { aziz, nodira } = await setUp();
     const email = (await prisma.user.findUniqueOrThrow({ where: { id: aziz.userId } })).email;

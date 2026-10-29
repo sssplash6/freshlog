@@ -1011,6 +1011,45 @@ export type MentorRegistration = {
   /** At least one. */
   targets: ({ program: string } | { level: string } | { cohort: string })[];
 };
+/**
+ * POST /api/v1/mentors with `mentors`: the website's "several at once", each
+ * row an email and a name, all into the same programs. A row it can't take (a
+ * bad address, one name, somebody already here) is skipped and named in the
+ * message; when every row is skipped it is a refusal. At most 200.
+ */
+export type MentorBatchRegistration = {
+  mentors: { firstName: string; lastName: string; email: string }[];
+  targets: MentorRegistration["targets"];
+};
+/**
+ * GET /api/v1/mentors/:id/edit: the website's Edit fold on a mentor's page, for
+ * an admin who may change them. Their name and email (`canEditDetails`: only a
+ * platform admin may change either), where they work in the reader's programs,
+ * and those programs to pick from. Anybody else is a 404.
+ */
+export type MentorEdit = {
+  name: string;
+  email: string;
+  canEditDetails: boolean;
+  targets: MentorRegistration["targets"];
+  programs: ProgramOption[];
+};
+/**
+ * PATCH /api/v1/mentors/:id, through the website's `updateMentor`: what is left
+ * out stays as it is. `targets` is their whole set in the reader's programs
+ * (none parks them unassigned there); a pairing elsewhere is kept.
+ */
+export type MentorEditRequest = { name?: string; email?: string; targets?: MentorRegistration["targets"] };
+/**
+ * GET /api/v1/mentors/:id/card: another mentor, as the website's mentor page
+ * shows them to a mentor who shares a program with them: their pairings in the
+ * reader's programs, each with Book (`bookingUrl`) or else their email. A 404
+ * when they share none.
+ */
+export type MentorCard = {
+  mentor: PersonRef & { email: string };
+  pairings: { id: string; program: ProgramRef; label: string; bookingUrl: string | null }[];
+};
 /* POST /api/v1/programs/:id/mentors {mentor, level?, cohort?}; DELETE /api/v1/programs/:id/mentors/:pairingId. */
 
 /** GET /api/v1/programs/:id/mentor-tasks: open first by due day, then done. */
