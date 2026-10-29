@@ -988,6 +988,38 @@ export type ApiClasses = {
 };
 /** Book a class: a student and the program they hold time with you in, a Tashkent day and "HH:MM", 5 to 480 minutes, a topic if you like. */
 export type ClassBooking = { student: string; program: string; day: string; time: string; minutes: number; topic?: string };
+/**
+ * One practice interview on Interview prep: who met whom, when, for how long,
+ * and what happened. `people` are the two in it; `student` is their student
+ * page's id when they study in one of the reader's programs (the page links
+ * them then), else null. `absent`: who didn't join, by name.
+ */
+export type PrepRow = {
+  id: string;
+  when: SlotTime;
+  template: { id: string; name: string };
+  people: { id: string; name: string; student: string | null }[];
+  phase: InterviewPhase;
+  absent: string | null;
+};
+/**
+ * GET /api/v1/interviews/prep?page=: the website's Interview prep, for whoever
+ * administers a program (anybody else a 404): its students' practice, who and
+ * when only (never an answer, a note or feedback). `held` and `minutesHeld`
+ * are the page's subtitle; `coming`, the booked ones soonest first; `students`,
+ * By student (`last` a Tashkent day); `history`, everything else, newest
+ * first, a page of 25 at a time.
+ */
+export type InterviewPrep = {
+  held: number;
+  minutesHeld: number;
+  coming: PrepRow[];
+  students: { student: { id: string; userId: string; name: string }; held: number; minutesHeld: number; upcoming: number; missed: number; last: string | null }[];
+  history: PrepRow[];
+  page: number;
+  pages: number;
+  total: number;
+};
 /** A supplemental essay's stage, or the motivational essay's: Brainstorming, Writing, Finalizing, Done; null not started. */
 export type EssayStage = "BRAINSTORMING" | "WRITING" | "FINALIZING" | "DONE";
 /** The round of a student's primary choice: Early Decision, Restrictive Early Action, Early Action. */
