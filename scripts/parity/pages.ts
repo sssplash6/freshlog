@@ -81,6 +81,8 @@ async function main() {
     "/analytics",
     "/analytics?y=2025",
     "/analytics?m=9",
+    "/classes",
+    "/classes?month=2026-11",
   ].filter((p) => !filter || p.includes(filter));
 
   mkdirSync(out, { recursive: true });

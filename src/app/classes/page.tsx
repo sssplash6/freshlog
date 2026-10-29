@@ -6,23 +6,11 @@ import { LinkButton } from "@/components/ui/button";
 import { ArrowLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
 import { Table, Td, Tr, FILL_CELL, type Column } from "@/components/ui/table";
-import { adminScope, scopeCovers } from "@/lib/authz";
-import {
-  CLASS_STATUS,
-  monthKey,
-  monthLabel,
-  monthRange,
-  monthTotals,
-  reservedMinutes,
-  shiftMonth,
-} from "@/lib/class-schedule";
-import { classProgramIds } from "@/lib/classes";
-import { canActAsMentor } from "@/lib/constants";
+import { CLASS_STATUS, monthLabel } from "@/lib/class-schedule";
 import { requireUser } from "@/lib/dal";
 import { formatDuration, formatFullDate, toDateInputValue } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
-import { mentorCaseload } from "@/lib/queries";
-import { programToday, programWallClock } from "@/lib/when";
+import { classesView } from "@/lib/screens/classes";
+import { programToday } from "@/lib/when";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Classes" };
@@ -56,72 +44,13 @@ export default async function ClassesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const viewer = await requireUser();
-  const programIds = await classProgramIds(viewer);
-  if (programIds.length === 0) notFound();
-
-  const scope = await adminScope(viewer);
-  const staffIds = programIds.filter((id) => scopeCovers(scope, id));
-  const isMentor = canActAsMentor(viewer);
-
   const raw = (await searchParams).month;
   const wanted = typeof raw === "string" ? raw : "";
-  const thisMonth = monthKey(programWallClock(new Date()));
-  const month = monthRange(wanted) ? wanted : thisMonth;
-  const range = monthRange(month)!;
-
-  const rows = await prisma.scheduledClass.findMany({
-    where: {
-      startsAt: { gte: range.start, lt: range.end },
-      OR: [
-        { programId: { in: staffIds } },
-        ...(isMentor ? [{ mentorId: viewer.id, programId: { in: programIds } }] : []),
-      ],
-    },
-    include: {
-      student: { include: { user: { select: { name: true, email: true } } } },
-      mentor: { select: { id: true, name: true, email: true } },
-      program: { select: { name: true } },
-    },
-    orderBy: { startsAt: "asc" },
-  });
-
-  const totals = monthTotals(rows, range);
-  const names = new Map(rows.map((r) => [r.studentId, r.student.user.name ?? r.student.user.email]));
-  const students = [...totals.values()].sort((a, b) => b.total - a.total);
-  const grand = students.reduce((sum, t) => sum + t.total, 0);
-
-  // The picker: students this mentor holds live time with, in a program that
-  // schedules, less whatever their booked classes already reserve.
-  let targets: { value: string; label: string; hint: string }[] = [];
-  if (isMentor) {
-    const [caseload, booked] = await Promise.all([
-      mentorCaseload(viewer.id),
-      prisma.scheduledClass.findMany({
-        where: { mentorId: viewer.id, status: CLASS_STATUS.SCHEDULED, programId: { in: programIds } },
-        select: { studentId: true, programId: true, minutes: true, status: true },
-      }),
-    ]);
-    const open = new Set(programIds);
-    targets = caseload.students
-      .filter((s) => open.has(s.program.id) && !s.expired && s.reach === "allocation")
-      .map((s) => {
-        const reserved = reservedMinutes(
-          booked.filter((b) => b.studentId === s.profile.id && b.programId === s.program.id)
-        );
-        return { s, free: s.remaining - reserved };
-      })
-      .filter(({ free }) => free > 0)
-      .map(({ s, free }) => ({
-        value: `${s.profile.id}|${s.program.id}`,
-        label: s.profile.user.name ?? s.profile.user.email,
-        hint: `${s.program.name} · ${formatDuration(free)} unreserved`,
-      }));
-  }
-
-  const prev = shiftMonth(month, -1)!;
-  const next = shiftMonth(month, 1)!;
+  const view = await classesView(viewer, wanted);
+  if (!view) notFound();
+  const { staffIds, isMentor, thisMonth, month, rows, names, students, grand, targets, prev, next } = view;
   const href = (m: string) => `/classes?month=${m}`;
-  const nowWall = programWallClock(new Date());
+  const nowWall = view.nowWall;
 
   return (
     <div className="space-y-4">

@@ -4,6 +4,7 @@ import { apiAvatarPath } from "@/lib/api/v1/account";
 import type { ApiRole, MeResponse, Onboarding } from "@/lib/api/v1/types";
 import { adminScope, scopeIsEmpty } from "@/lib/authz";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
+import { classProgramIds } from "@/lib/classes";
 import { navLevel } from "@/lib/nav";
 import { prisma } from "@/lib/prisma";
 import type { User } from "@/generated/prisma/client";
@@ -20,7 +21,7 @@ const STAFF = new Set<string>([ROLES.ADMIN, ROLES.DEPT_LEADER, ROLES.SALES]);
  * `canActAsMentor`, and what is left to set up is what `/onboarding` checks.
  */
 export async function meFor(user: User): Promise<MeResponse> {
-  const [profile, scope, unread, level] = await Promise.all([
+  const [profile, scope, unread, level, classPrograms] = await Promise.all([
     prisma.studentProfile.findUnique({
       where: { userId: user.id },
       select: { id: true, telegramUsername: true },
@@ -28,6 +29,7 @@ export async function meFor(user: User): Promise<MeResponse> {
     adminScope(user),
     prisma.notification.count({ where: { userId: user.id, read: false } }),
     navLevel(user),
+    classProgramIds(user),
   ]);
 
   // The order is where the website sends somebody who has not picked a side: a
@@ -50,6 +52,7 @@ export async function meFor(user: User): Promise<MeResponse> {
     roles,
     platformAdmin: user.platformAdmin,
     staffLevel: level,
+    classes: classPrograms.length > 0,
     avatarPath: apiAvatarPath(user),
     unread,
     onboarding: onboardingFor(roles[0], user, profile),

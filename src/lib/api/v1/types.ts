@@ -63,6 +63,8 @@ export type MeResponse = {
    * Interview prep as well. The pages behind them say the same.
    */
   staffLevel: "ADMIN" | "LEADER" | "SALES" | null;
+  /** The website's Classes page answers them: a program they work in schedules classes (its sidebar's Classes). */
+  classes: boolean;
   /**
    * "/api/v1/avatars/<id>?v=<ms>"; null when there is no picture. The API's
    * own copy of the website's /api/avatar, which stays behind the website's
@@ -937,6 +939,51 @@ export type ApiExchange = {
   sessions: number;
   canReturn: boolean;
 };
+/**
+ * `GET /api/v1/classes?month=YYYY-MM`: the website's Classes page, for the
+ * programs that schedule classes the reader works in (anybody else a 404):
+ * the month (this one when none is asked), each student's hours in it
+ * (`booked` still to come, `held` delivered, `total` both, minutes), and its
+ * diary, oldest first, with what the reader may do with each class. `book`:
+ * the reader mentors, so books classes (`targets`: whom, each with the
+ * program and the unreserved time they hold with them, as the website's
+ * picker says it). Days and times are Tashkent's.
+ *
+ *   POST /api/v1/classes               ClassBooking (scheduleClass)
+ *   POST /api/v1/classes/:id/cancel    (cancelClass): the minutes it reserved go back
+ *   POST /api/v1/classes/:id/held      (markClassHeld): tied to the session logged for that student and day
+ */
+export type ApiClasses = {
+  month: string;
+  label: string;
+  thisMonth: string;
+  prev: { month: string; label: string };
+  next: { month: string; label: string };
+  /** The reader administers a program here: the page's subtitle names every class in their programs. */
+  staff: boolean;
+  book: boolean;
+  students: { student: { id: string; name: string }; classes: number; booked: number; held: number; total: number }[];
+  total: number;
+  diary: {
+    id: string;
+    student: { id: string; name: string };
+    program: { id: string; name: string };
+    /** Another mentor's class; null for the reader's own. */
+    mentor: PersonRef | null;
+    day: string;
+    time: string;
+    minutes: number;
+    topic: string | null;
+    status: "SCHEDULED" | "HELD" | "CANCELLED";
+    /** It has started (Tashkent's clock): Log session and Mark held are offered then, on the reader's own. */
+    started: boolean;
+    can: { cancel: boolean; held: boolean };
+  }[];
+  targets: { student: string; program: string; name: string; hint: string }[];
+  today: string;
+};
+/** Book a class: a student and the program they hold time with you in, a Tashkent day and "HH:MM", 5 to 480 minutes, a topic if you like. */
+export type ClassBooking = { student: string; program: string; day: string; time: string; minutes: number; topic?: string };
 /** A supplemental essay's stage, or the motivational essay's: Brainstorming, Writing, Finalizing, Done; null not started. */
 export type EssayStage = "BRAINSTORMING" | "WRITING" | "FINALIZING" | "DONE";
 /** The round of a student's primary choice: Early Decision, Restrictive Early Action, Early Action. */

@@ -30,6 +30,7 @@ describe("meFor: who and which roles", () => {
       roles: ["student"],
       platformAdmin: false,
       staffLevel: null,
+      classes: false,
       avatarPath: null,
       unread: 0,
       onboarding: null,
