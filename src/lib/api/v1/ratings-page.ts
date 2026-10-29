@@ -1,141 +1,122 @@
 import "server-only";
 
-import type { ApiRatings } from "@/lib/api/v1/types";
+import type { ApiRatings, RatedMentor, RatingFigures } from "@/lib/api/v1/types";
 import { nameOf } from "@/lib/api/v1/sessions";
-import { adminScope, adminWriteScope, staffLevel, type AdminScope } from "@/lib/authz";
+import { adminScope } from "@/lib/authz";
 import { PAGE_SIZE, parsePage } from "@/components/ui/pagination";
 import { canActAsMentor } from "@/lib/constants";
-import { feedbackWhere, readParam, type SearchParams } from "@/lib/filters";
-import { prisma } from "@/lib/prisma";
+import { filterSummary, readParam, readRatingKind, readRatingRange, type SearchParams } from "@/lib/filters";
+import type { MentorStanding } from "@/lib/mentor-standing";
+import { lowReasons, MEETING_PAGE, ownFeedback, readablePrograms, staffFeedback, tallyStars } from "@/lib/screens/feedback";
 import { programToday } from "@/lib/when";
 import type { User } from "@/generated/prisma/client";
 
-/** /feedback's own thresholds: a mentor under this average, or one rating this low in 30 days, is "low". */
-const LOW_AVERAGE = 3.5;
-const LOW_RATING = 2;
-const RECENT_DAYS = 30;
-
 const dayOf = programToday;
 
-/**
- * The programs whose ratings this person may read: /feedback's
- * `readablePrograms`, which the page keeps to itself, said again here (owner
- * decision 5: ADMIN and LEADER grants read feedback, a SALES grant doesn't).
- * `undefined` is every program.
- */
-async function readablePrograms(user: User, scope: AdminScope): Promise<readonly string[] | undefined> {
-  if (scope === "ALL") return undefined;
-  const ids = [...scope];
-  const levels = await Promise.all(ids.map((id) => staffLevel(user, id)));
-  return ids.filter((_, i) => levels[i] === "ADMIN" || levels[i] === "LEADER");
-}
+/** A kind of rating's count and average, as the page's figures say them. */
+const figures = (k: { count: number; average: number | null }): RatingFigures => ({ count: k.count, average: k.average });
 
 /**
- * The Ratings page, read as /feedback reads it, or null for a reader it would
- * send home (a student, staff with no readable grant who doesn't mentor).
+ * The Feedback page, read as /feedback reads it (`ownFeedback`, `staffFeedback`,
+ * the page's own reads), or null for a reader it would send home (a student,
+ * staff with no readable grant who doesn't mentor).
  *
- * Staff: every rating in reach, the mentors table worst first and the newest
- * ratings; the student is named only where the reader administers one of the
- * writer's programs (ADMIN grants) and is not the mentor rated, as the page
- * decides per row. A mentor with
- * no readable grant: their own ratings, the student never selected.
+ * Staff: the combined score of written and meeting ratings, its spread, the
+ * mentors who need a look and everyone else, the score per program, the newest
+ * written ratings (the student named only where the reader administers one of
+ * the writer's programs, and never to the mentor rated) and the newest meeting
+ * ratings (never the reader's own), through the page's filters. A mentor with no
+ * readable grant: their combined score, and their own written ratings,
+ * anonymous.
  */
-export async function ratingsPageFor(user: User, params: SearchParams, now = new Date()): Promise<ApiRatings | null> {
+export async function ratingsPageFor(user: User, params: SearchParams): Promise<ApiRatings | null> {
   const page = parsePage(readParam(params, "page"));
   const programIds = await readablePrograms(user, await adminScope(user));
   const staffReader = programIds === undefined || programIds.length > 0;
 
   if (!staffReader) {
     if (!canActAsMentor(user)) return null;
-    const where = { mentorId: user.id };
-    const [rows, stats] = await Promise.all([
-      prisma.mentorFeedback.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * PAGE_SIZE,
-        take: PAGE_SIZE,
-        select: { id: true, rating: true, comment: true, createdAt: true },
-      }),
-      prisma.mentorFeedback.aggregate({ where, _avg: { rating: true }, _count: true }),
-    ]);
+    const { range, rows, listCount, stats, spread, own } = await ownFeedback({ user, params, page });
     return {
       kind: "own",
-      average: stats._avg.rating,
-      count: stats._count,
+      average: own?.average ?? null,
+      count: own?.total ?? 0,
+      written: own ? figures(own.general) : { count: stats._count, average: null },
+      meetings: own ? figures(own.meetings) : { count: 0, average: null },
+      stars: tallyStars(spread.map((r) => [r.rating, r._count._all] as const)),
+      star: typeof range === "number" ? range : null,
       ratings: rows.map((f) => ({ id: f.id, rating: f.rating, comment: f.comment, sentOn: dayOf(f.createdAt), mentor: null, student: null })),
+      total: listCount,
       page,
       pageSize: PAGE_SIZE,
     };
   }
 
-  const where = feedbackWhere(params, { programIds, userId: user.id }, now);
-  const inReach = feedbackWhere({}, { programIds, userId: user.id }, now);
-  const since = new Date(now.getTime() - RECENT_DAYS * 24 * 60 * 60 * 1000);
-  const PERSON = { id: true, name: true, email: true } as const;
-
-  const [stats, byMentor, lately, rows, rated, writeScope] = await Promise.all([
-    prisma.mentorFeedback.aggregate({ where, _avg: { rating: true }, _count: true }),
-    prisma.mentorFeedback.groupBy({
-      by: ["mentorId"],
-      where,
-      _avg: { rating: true },
-      _count: { _all: true },
-      _max: { createdAt: true },
-      orderBy: [{ _avg: { rating: "asc" } }, { _count: { mentorId: "desc" } }],
-    }),
-    prisma.mentorFeedback.groupBy({ by: ["mentorId"], where: { AND: [where, { createdAt: { gte: since } }] }, _min: { rating: true } }),
-    prisma.mentorFeedback.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-      select: {
-        id: true,
-        rating: true,
-        comment: true,
-        createdAt: true,
-        mentor: { select: PERSON },
-        student: { select: { user: { select: PERSON }, enrollments: { select: { programId: true } } } },
-      },
-    }),
-    prisma.user.findMany({ where: { mentorFeedback: { some: inReach } }, select: PERSON }),
-    adminWriteScope(user),
-  ]);
-
-  const person = new Map(rated.map((m) => [m.id, m]));
-  const lowestRecent = new Map(lately.map((r) => [r.mentorId, r._min.rating]));
-  const names = writeScope === "ALL" ? () => true : (enrolled: readonly { programId: string }[]) => enrolled.some((e) => writeScope.has(e.programId));
-
+  const read = await staffFeedback({ user, programIds, params, page });
+  const kind = readRatingKind(params);
+  const range = readRatingRange(params);
+  const mentor = (m: MentorStanding & { who: { id: string; name: string | null; email: string }; low: boolean }): RatedMentor => ({
+    mentor: { id: m.who.id, name: nameOf(m.who) },
+    average: m.average,
+    count: m.total,
+    written: figures(m.general),
+    meetings: figures(m.meetings),
+    lastRatedOn: m.lastRated ? dayOf(m.lastRated) : null,
+    lowestRecent: m.lowestRecent,
+    low: m.low,
+    reasons: m.low ? lowReasons(m) : [],
+  });
   return {
     kind: "staff",
-    average: stats._avg.rating,
-    count: stats._count,
-    mentors: byMentor.flatMap((row) => {
-      const who = person.get(row.mentorId);
-      if (!who) return [];
-      const average = row._avg.rating ?? 0;
-      const recent = lowestRecent.get(row.mentorId) ?? null;
-      return [
-        {
-          mentor: { id: who.id, name: nameOf(who) },
-          average,
-          count: row._count._all,
-          lastRatedOn: row._max.createdAt ? dayOf(row._max.createdAt) : null,
-          lowestRecent: recent,
-          low: average < LOW_AVERAGE || (recent !== null && recent <= LOW_RATING),
-        },
-      ];
-    }),
-    ratings: rows.map((f) => ({
+    average: read.ratedCount > 0 ? read.avg : null,
+    count: read.ratedCount,
+    basis: read.basis,
+    ratingKind: kind ?? null,
+    written: read.writtenAll ?? read.general,
+    meetings: read.meetingsRatedAll ?? read.meetingTotal,
+    stars: tallyStars([
+      ...read.formSpread.map((r) => [r.rating, r._count._all] as const),
+      ...read.meetingSpread.map((r) => [r.studentRating, r._count._all] as const),
+    ]),
+    star: typeof range === "number" ? range : null,
+    attention: read.flagged.map(mentor),
+    mentors: read.others.map(mentor),
+    programScores:
+      read.programScores.length > 1
+        ? read.programScores.map((p) => ({
+            program: { id: p.id, name: p.name },
+            average: p.average,
+            count: p.total,
+            written: { count: p.writtenCount, average: p.written },
+            meetings: { count: p.meetingCount, average: p.meetings },
+          }))
+        : [],
+    filters: {
+      mentors: read.rated.map((m) => ({ id: m.id, name: nameOf(m) })),
+      programs: read.programs.map((p) => ({ id: p.id, name: p.name })),
+      summary: read.filtered ? filterSummary(read.stats._count, { one: "rating", many: "ratings" }, params) : null,
+    },
+    ratings: read.list.map((f) => ({
       id: f.id,
       rating: f.rating,
       comment: f.comment,
       sentOn: dayOf(f.createdAt),
       mentor: { id: f.mentor.id, name: nameOf(f.mentor) },
-      // /feedback's rule, both halves: never to the mentor the rating is about, whatever they administer.
-      student:
-        f.mentor.id !== user.id && names(f.student.enrollments) ? { id: f.student.user.id, name: nameOf(f.student.user) } : null,
+      student: f.student ? { id: f.student.id, name: nameOf(f.student) } : null,
     })),
+    total: read.stats._count,
+    meetingRatings: read.meetingRows.map((s) => ({
+      id: s.id,
+      day: dayOf(s.date),
+      rating: s.studentRating ?? 0,
+      note: s.studentNote,
+      mentor: { id: s.mentor.id, name: nameOf(s.mentor) },
+      student: { id: s.student.user.id, name: nameOf(s.student.user) },
+      program: s.program.name,
+    })),
+    meetingAverage: read.meetingStats._avg.studentRating,
+    meetingTotal: read.meetingStats._count,
+    meetingPage: parsePage(readParam(params, MEETING_PAGE)),
     page,
     pageSize: PAGE_SIZE,
   };

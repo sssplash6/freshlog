@@ -88,6 +88,18 @@ function widest(levels: readonly (StaffLevel | null)[]): StaffLevel {
 }
 
 /**
+ * The widest grant somebody holds, as `staffNav` reads it for the items it
+ * draws (a platform admin is ADMIN), or null for nobody's staff. The freshlog
+ * app reads it to offer the same items.
+ */
+export async function navLevel(viewer: User): Promise<StaffLevel | null> {
+  const scope = await adminScope(viewer);
+  if (scopeIsEmpty(scope)) return null;
+  if (scope === "ALL") return "ADMIN";
+  return widest(await Promise.all([...scope].map((id) => staffLevel(viewer, id))));
+}
+
+/**
  * The items for the staff lens, narrowed by what this person was granted.
  *
  * `inbox` is the count of Active-issues rows and arrives from the caller because

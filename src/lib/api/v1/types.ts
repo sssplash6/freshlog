@@ -54,6 +54,13 @@ export type MeResponse = {
   roles: ApiRole[];
   platformAdmin: boolean;
   /**
+   * The widest staff grant they hold, as the website's nav reads it (a platform
+   * admin is ADMIN); null for nobody's staff. The nav gives SALES Students,
+   * Programs and Analytics; LEADER Feedback too; ADMIN Mentors, Sessions and
+   * Interview prep as well. The pages behind them say the same.
+   */
+  staffLevel: "ADMIN" | "LEADER" | "SALES" | null;
+  /**
    * "/api/v1/avatars/<id>?v=<ms>"; null when there is no picture. The API's
    * own copy of the website's /api/avatar, which stays behind the website's
    * cookie check; `?v=` changes with each new picture.
@@ -1369,7 +1376,7 @@ export type StudentRatings = { mentors: PersonRef[]; given: GivenRating[] };
 export type RateMentor = { mentor: string; rating: number; comment?: string };
 
 /** The period a mentor's record is read over, as /mentors/:id's tabs: 30 days, 90 days (the default) or all. */
-export type RecordPeriod = "30d" | "90d" | "all";
+export type RecordPeriod = "30d" | "90d" | "all" | "custom";
 
 /** One student's time with a mentor in one program, as /mentors/:id's Students table. Minutes; `useBy` a Tashkent day. */
 export type RecordStudent = {
@@ -1386,22 +1393,42 @@ export type RecordStudent = {
 };
 
 /**
- * `GET /api/v1/mentors/:id?period=`: a mentor's record, for the mentor
- * themselves and for an admin who manages them (`canManageMentor`), every
+ * `GET /api/v1/mentors/:id?period=&from=&to=`: a mentor's record, for the
+ * mentor themselves and for an admin who manages them (`canManageMentor`), every
  * figure narrowed to the reader's programs as the page narrows it (a mentor
- * reading their own sees all of theirs). Anybody else is a 404.
+ * reading their own sees all of theirs). Anybody else is a 404. It opens on
+ * ninety days, as the page does; `from`–`to` is the Custom tab.
  *
- * `time` is the period's; `students` every grant, soonest use-by first.
- * `ratings` is the average and the count, never who wrote them; the words are
- * on the Ratings page.
+ * `time` is the period's; `programTable` the page's table, the ledger summed by
+ * program whatever the window (Completed counts the hour bank's meetings), with
+ * an `idle` row for a program the header names and nothing has happened in;
+ * `students` every grant, soonest use-by first; `recent` the period's ten newest
+ * sessions, and `sessionCount` how many it holds. `ratings` is the average and
+ * the count, never who wrote them; the words are on the Feedback page.
  */
 export type ApiMentorRecord = {
   mentor: PersonRef & { email: string };
   self: boolean;
   period: RecordPeriod;
+  /** The window as the page says it ("the last 90 days", "Sep 1 – Oct 15", "all time"), and its days. */
+  window: { label: string; from: string | null; to: string | null };
   programs: (ProgramRef & { cohort: string | null; bookingLink: boolean })[];
   time: { delivered: number; missed: number; sessions: number };
+  programTable: {
+    program: ProgramRef;
+    /** One a student holding this mentor's time in this program: a student in two programs is two. */
+    students: number;
+    completed: number;
+    missed: number;
+    expired: number;
+    extra: number;
+    remaining: number;
+    total: number;
+    idle?: true;
+  }[];
   students: RecordStudent[];
+  recent: ApiSession[];
+  sessionCount: number;
   ratings: { count: number; average: number } | null;
 };
 
@@ -1429,18 +1456,92 @@ export type MentorList = { rows: MentorListRow[]; total: number; roster: number;
 /** One rating as a reader of it sees it. `student` only where the reader administers one of the writer's programs; never for a mentor's own. */
 export type RatingRow = { id: string; rating: number; comment: string | null; sentOn: string; mentor: PersonRef | null; student: PersonRef | null };
 
-/** A mentor on the Ratings page: worst average first. `low` under 3.5 on average, or a 2 or less in the last 30 days. */
-export type RatedMentor = { mentor: PersonRef; average: number; count: number; lastRatedOn: string | null; lowestRecent: number | null; low: boolean };
+/** One kind of rating's figures: how many, and their average (null with none). */
+export type RatingFigures = { count: number; average: number | null };
 
 /**
- * `GET /api/v1/ratings?mentor=&program=&page=`, as /feedback reads it.
+ * A mentor on the Feedback page: the combined score of written and meeting
+ * ratings, and each kind's figures. `low` is the page's rule (combined average
+ * under 3.5, or a 2 or less of either kind in the last 30 days), and `reasons`
+ * says which, in the page's words.
+ */
+export type RatedMentor = {
+  mentor: PersonRef;
+  average: number;
+  count: number;
+  written: RatingFigures;
+  meetings: RatingFigures;
+  lastRatedOn: string | null;
+  lowestRecent: number | null;
+  low: boolean;
+  reasons: string[];
+};
+
+/** A meeting a student rated, as the page's feed says it: who rated it, of whom, in which program. Never the reader's own. */
+export type MeetingRatingRow = { id: string; day: string; rating: number; note: string | null; mentor: PersonRef; student: PersonRef; program: string };
+
+/**
+ * `GET /api/v1/ratings`, as /feedback reads it, with the page's own params:
+ * `kind` (written, meetings), `rating` (1 to 5, or 1-3, 1-2), `mentor` (an id,
+ * or `me`), `program`, `period`/`from`/`to`, `q`, `sort`/`dir` (mentor, score,
+ * ratings, recent, last), `page` and `meetings` (the meeting feed's page).
+ *
  * `staff`: every rating the reader's ADMIN and LEADER grants reach (a SALES
- * grant reads none), the mentors table and the newest ratings. `own`: a mentor
- * with no such grant, their own ratings, anonymous. Anybody else is a 404.
+ * grant reads none). The combined score and its spread over 1 to 5 (`stars`,
+ * one count per star, 1 first), the two kinds' counts, the mentors who need a
+ * look (`attention`) and everyone else (`mentors`, worst first or as `sort`
+ * says), the score per program when there is more than one, the filters'
+ * choices, then the written ratings and the meeting ratings, a page each.
+ * `own`: a mentor with no such grant, their combined score and their own
+ * written ratings, anonymous; `star` narrows the list only. Anybody else is a
+ * 404.
  */
 export type ApiRatings =
-  | { kind: "staff"; average: number | null; count: number; mentors: RatedMentor[]; ratings: RatingRow[]; page: number; pageSize: number }
-  | { kind: "own"; average: number | null; count: number; ratings: RatingRow[]; page: number; pageSize: number };
+  | {
+      kind: "staff";
+      average: number | null;
+      count: number;
+      /** What the score pools: "both kinds pooled", "written ratings" or "meeting ratings". */
+      basis: string;
+      ratingKind: "written" | "meetings" | null;
+      written: number;
+      meetings: number;
+      stars: number[];
+      /** The one star the page is narrowed to, when it is. */
+      star: number | null;
+      attention: RatedMentor[];
+      mentors: RatedMentor[];
+      programScores: { program: { id: string; name: string }; average: number; count: number; written: RatingFigures; meetings: RatingFigures }[];
+      filters: {
+        /** Every mentor somebody in reach has rated, by name. */
+        mentors: PersonRef[];
+        programs: { id: string; name: string }[];
+        /** The page's sentence for a filtered page ("3 ratings of 2 stars or fewer"); null unfiltered. */
+        summary: string | null;
+      };
+      ratings: RatingRow[];
+      total: number;
+      meetingRatings: MeetingRatingRow[];
+      meetingAverage: number | null;
+      meetingTotal: number;
+      meetingPage: number;
+      page: number;
+      pageSize: number;
+    }
+  | {
+      kind: "own";
+      average: number | null;
+      count: number;
+      written: RatingFigures;
+      meetings: RatingFigures;
+      /** The written ratings' spread: each is on the page with its score. */
+      stars: number[];
+      star: number | null;
+      ratings: RatingRow[];
+      total: number;
+      page: number;
+      pageSize: number;
+    };
 
 /**
  * One person Search finds, as the website's command palette lists them. For a

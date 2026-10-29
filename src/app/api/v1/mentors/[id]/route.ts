@@ -1,4 +1,4 @@
-import { mentorRecordFor, recordPeriod } from "@/lib/api/v1/mentor-record";
+import { mentorRecordFor } from "@/lib/api/v1/mentor-record";
 import { inactive, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { getCurrentUser } from "@/lib/dal";
 
@@ -7,7 +7,8 @@ import { getCurrentUser } from "@/lib/dal";
 export const dynamic = "force-dynamic";
 
 /**
- * A mentor's record (`?period=30d|all`, ninety days when left out): for the
+ * A mentor's record (`?period=30d|all`, `?from=&to=` for a custom range, ninety
+ * days when left out): for the
  * mentor themselves and for an admin who manages them. Anybody else, and no
  * such mentor, is the same 404.
  */
@@ -15,8 +16,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const user = await getCurrentUser();
   if (!user) return signInAgain();
   if (user.status !== "ACTIVE") return inactive();
-  const period = recordPeriod(new URL(request.url).searchParams.get("period"));
-  const record = await mentorRecordFor(user, (await params).id, period);
+  const query = Object.fromEntries(new URL(request.url).searchParams);
+  const record = await mentorRecordFor(user, (await params).id, query);
   if (!record) return refused("Not found.", 404);
   return ok(record);
 }

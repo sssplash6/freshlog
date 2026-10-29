@@ -29,11 +29,26 @@ describe("meFor: who and which roles", () => {
       status: "ACTIVE",
       roles: ["student"],
       platformAdmin: false,
+      staffLevel: null,
       avatarPath: null,
       unread: 0,
       onboarding: null,
       deletionRequestedAt: null,
     });
+  });
+
+  it("says the widest staff grant as the website's nav reads it", async () => {
+    const ga = await program("Global Admissions");
+    const imkon = await program("Imkon");
+    const sales = await admin("Sami Sales");
+    await grant({ userId: sales.id, programId: ga.id, role: "SALES" });
+    expect((await meFor(sales)).staffLevel).toBe("SALES");
+    // Leading one program and selling into another is the wider of the two.
+    await grant({ userId: sales.id, programId: imkon.id, role: "LEADER" });
+    expect((await meFor(sales)).staffLevel).toBe("LEADER");
+    const boss = await admin("Nodira Aliyeva");
+    await grant({ userId: boss.id, programId: ga.id });
+    expect((await meFor(boss)).staffLevel).toBe("ADMIN");
   });
 
   it("puts admin first for a mentor who administers a program", async () => {

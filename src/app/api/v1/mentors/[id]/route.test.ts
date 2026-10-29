@@ -93,4 +93,48 @@ describe("GET /api/v1/mentors/:id", () => {
     expect((await (await get(m.id, "?period=all")).json()).period).toBe("all");
     expect((await (await get(m.id, "?period=forever")).json()).period).toBe("90d");
   });
+
+  it("takes the Custom tab's typed range, and says the window as the page does", async () => {
+    const { m } = await scene();
+    actor.value = { id: m.id };
+    const body = await (await get(m.id, "?from=2026-01-01&to=2026-01-31")).json();
+    expect(body.period).toBe("custom");
+    expect(body.window).toMatchObject({ from: "2026-01-01", to: "2026-01-31" });
+    // Nothing happened then, so the period's figures are empty; the program table is the ledger, whatever the window.
+    expect(body.time).toEqual({ delivered: 0, missed: 0, sessions: 0 });
+    expect(body.recent).toEqual([]);
+    expect(body.programTable.find((r: { program: { name: string } }) => r.program.name === "Global Admissions")).toMatchObject({ completed: 60, total: 300 });
+  });
+
+  it("has the page's table per program, counting a student in two programs twice", async () => {
+    const { ga, mp, m, aziz } = await scene();
+    await prisma.studentEnrollment.create({ data: { studentId: aziz.id, programId: mp.id } });
+    await allocation({ studentId: aziz.id, programId: mp.id, mentorId: m.id, minutes: 120, deadlineInDays: 20 });
+    actor.value = { id: m.id };
+    const body = await (await get(m.id)).json();
+    const row = (id: string) => body.programTable.find((r: { program: { id: string } }) => r.program.id === id);
+    expect(row(ga.id)).toMatchObject({ students: 1, completed: 60, remaining: 240, total: 300 });
+    expect(row(mp.id)).toMatchObject({ students: 2, completed: 0, total: 720 });
+    expect(body.programTable.reduce((n: number, r: { students: number }) => n + r.students, 0)).toBe(3);
+  });
+
+  it("lists the period's ten newest sessions as sessions, with how many it holds", async () => {
+    const { m, aziz } = await scene();
+    for (let i = 0; i < 11; i++) await session({ studentId: aziz.id, mentorId: m.id, minutes: 30 });
+    actor.value = { id: m.id };
+    const body = await (await get(m.id)).json();
+    expect(body.sessionCount).toBe(12);
+    expect(body.recent).toHaveLength(10);
+    expect(body.recent[0]).toMatchObject({ mentor: { id: m.id }, student: { name: "Aziz Tursunov" }, statuses: expect.any(Array) });
+  });
+
+  it("shows an admin a program the mentor works in where nothing has happened yet as an idle row", async () => {
+    const { ga, m } = await scene();
+    const quiet = await program("Imkon");
+    await pairing({ mentorId: m.id, programId: quiet.id });
+    actor.value = { id: (await platformAdmin()).id };
+    const body = await (await get(m.id)).json();
+    expect(body.programTable.find((r: { program: { id: string } }) => r.program.id === quiet.id)).toMatchObject({ idle: true, students: 0 });
+    expect(body.programTable.find((r: { program: { id: string } }) => r.program.id === ga.id).idle).toBeUndefined();
+  });
 });

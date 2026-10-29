@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { admin, grant, mentor, pairing, platformAdmin, program, student } from "@/test/db";
+import { admin, grant, mentor, pairing, platformAdmin, program, session, student } from "@/test/db";
 
 /**
  * The Ratings page and the Mentors list. What is pinned: who reads which, that a
@@ -53,8 +53,9 @@ describe("GET /api/v1/ratings", () => {
     actor.value = { id: a.id };
     const body = await (await getRatings()).json();
     expect(body).toMatchObject({ kind: "staff", count: 2 });
-    expect(body.mentors.map((m: { mentor: { id: string } }) => m.mentor.id)).toEqual([low.id, high.id]);
-    expect(body.mentors[0]).toMatchObject({ average: 2, count: 1, low: true });
+    // The ones who need a look first, as the page's cards, then everyone else.
+    expect([...body.attention, ...body.mentors].map((m: { mentor: { id: string } }) => m.mentor.id)).toEqual([low.id, high.id]);
+    expect(body.attention[0]).toMatchObject({ average: 2, count: 1, low: true, reasons: ["Average under 3.5", "Rated 2 in the last 30 days"] });
     expect(body.ratings.every((r: { student: { name: string } | null }) => r.student?.name === "Aziz Tursunov")).toBe(true);
     // Another program's student's rating is not this reader's to read.
     expect(JSON.stringify(body)).not.toContain("Zara");
@@ -97,6 +98,72 @@ describe("GET /api/v1/ratings", () => {
     actor.value = { id: (await platformAdmin()).id };
     const body = await (await getRatings(`?mentor=${low.id}`)).json();
     expect(body.ratings.map((r: { comment: string }) => r.comment)).toEqual(["Late."]);
+  });
+});
+
+describe("GET /api/v1/ratings: meeting ratings, as the rebuilt page counts them", () => {
+  /** A meeting `aziz` rated `stars`, answered now. */
+  const rated = async (studentId: string, mentorId: string, programId: string, stars: number, note: string | null = null) => {
+    const s = await session({ studentId, mentorId, programId, minutes: 60 });
+    await prisma.session.update({ where: { id: s.id }, data: { studentAnswer: "CONFIRMED", studentRating: stars, studentNote: note, studentAnsweredAt: new Date() } });
+    return s;
+  };
+
+  it("pools both kinds in one score, lists a mentor rated only in meetings, and shows the meeting feed", async () => {
+    const { ga, low, aziz } = await scene();
+    const only = await mentor("Umid Meetings");
+    await pairing({ mentorId: only.id, programId: ga.id });
+    await rated(aziz.id, only.id, ga.id, 1, "Didn't come.");
+    await rated(aziz.id, low.id, ga.id, 5);
+    const a = await admin();
+    await grant({ userId: a.id, programId: ga.id });
+    actor.value = { id: a.id };
+    const body = await (await getRatings()).json();
+    expect(body).toMatchObject({ count: 4, written: 2, meetings: 2, basis: "both kinds pooled" });
+    expect(body.stars).toEqual([1, 1, 0, 0, 2]);
+    const all = [...body.attention, ...body.mentors];
+    expect(all.find((m: { mentor: { id: string } }) => m.mentor.id === only.id)).toMatchObject({ average: 1, count: 1, written: { count: 0 }, meetings: { count: 1, average: 1 }, low: true });
+    expect(all.find((m: { mentor: { id: string } }) => m.mentor.id === low.id)).toMatchObject({ average: 3.5, count: 2 });
+    expect(body.meetingRatings.map((r: { note: string | null; mentor: { name: string }; program: string }) => [r.mentor.name, r.note, r.program])).toEqual(
+      expect.arrayContaining([["Umid Meetings", "Didn't come.", "Global Admissions"]])
+    );
+    expect(body.filters.mentors.map((m: { name: string }) => m.name)).toEqual(["Akmal Low", "Dilnoza High", "Umid Meetings"]);
+  });
+
+  it("narrows to one kind, a star and a program, as the page's chips, bars and selects do", async () => {
+    const { ga, low, aziz } = await scene();
+    await rated(aziz.id, low.id, ga.id, 4);
+    actor.value = { id: (await platformAdmin()).id };
+    const meetings = await (await getRatings("?kind=meetings")).json();
+    expect(meetings).toMatchObject({ count: 1, ratingKind: "meetings", basis: "meeting ratings", ratings: [] });
+    const twos = await (await getRatings("?rating=2")).json();
+    expect(twos.star).toBe(2);
+    expect(twos.ratings.map((r: { comment: string }) => r.comment)).toEqual(["Late."]);
+    expect(twos.filters.summary).not.toBeNull();
+    const here = await (await getRatings(`?program=${ga.id}`)).json();
+    expect(here.ratings.map((r: { comment: string }) => r.comment).sort()).toEqual(["Great.", "Late."]);
+  });
+
+  it("gives a mentor their combined score, and says so when they have no written ratings", async () => {
+    const { ga, aziz } = await scene();
+    const only = await mentor("Umid Meetings");
+    await pairing({ mentorId: only.id, programId: ga.id });
+    await rated(aziz.id, only.id, ga.id, 4, "Helpful");
+    actor.value = { id: only.id };
+    const body = await (await getRatings()).json();
+    expect(body).toMatchObject({ kind: "own", average: 4, count: 1, written: { count: 0, average: null }, meetings: { count: 1, average: 4 }, ratings: [] });
+    // Their meetings join as a number only: no note, no writer.
+    expect(JSON.stringify(body)).not.toContain("Helpful");
+  });
+
+  it("never lists the reader's own meetings in the feed, though their score counts them", async () => {
+    const { ga, high, aziz } = await scene();
+    await grant({ userId: high.id, programId: ga.id });
+    await rated(aziz.id, high.id, ga.id, 3, "About me");
+    actor.value = { id: high.id };
+    const body = await (await getRatings()).json();
+    expect(body.meetingRatings).toEqual([]);
+    expect([...body.attention, ...body.mentors].find((m: { mentor: { id: string } }) => m.mentor.id === high.id).meetings.count).toBe(1);
   });
 });
 
