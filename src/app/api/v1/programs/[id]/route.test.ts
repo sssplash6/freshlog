@@ -109,6 +109,19 @@ describe("PATCH /api/v1/programs/:id", () => {
     expect((await stored(p.id)).status).toBe("ACTIVE");
   });
 
+  it("shows a program as an institute and back, a platform admin's, and keeps its name for next time", async () => {
+    const { p, nodira } = await setUp();
+    actor.value = { id: nodira.id };
+    expect(await (await patch(p.id, { institute: { name: "GA Institute" } })).json()).toMatchObject({ ok: false });
+    expect((await stored(p.id)).space).toBe("PROGRAM");
+    actor.value = { id: (await platformAdmin("Head")).id };
+    expect((await patch(p.id, { institute: { name: "GA Institute" } })).status).toBe(200);
+    expect(await stored(p.id)).toMatchObject({ space: "INSTITUTE", spaceName: "GA Institute" });
+    expect((await patch(p.id, { institute: null })).status).toBe(200);
+    expect(await stored(p.id)).toMatchObject({ space: "PROGRAM", spaceName: "GA Institute" });
+    expect((await (await patch(p.id, { institute: { name: 3 } })).json()).field).toBe("institute");
+  });
+
   it("refuses two settings at once, none, and a bad value on its field", async () => {
     const { p, nodira } = await setUp();
     actor.value = { id: nodira.id };

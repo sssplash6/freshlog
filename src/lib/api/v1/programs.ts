@@ -6,7 +6,7 @@ import { nameOf, SESSION_INCLUDE, toApiSession, type Reader } from "@/lib/api/v1
 import type { AllocatePicker, Cohort, ProgramDetail, ProgramOption } from "@/lib/api/v1/types";
 import { mentorPool, programCohorts, programGrants, programLevels, programPairings, programStudents, studentsOf } from "@/app/programs/reads";
 import { scopeCovers, scopeProgramFilter } from "@/lib/authz";
-import { PROGRAM_STATUS } from "@/lib/constants";
+import { PROGRAM_SPACE, PROGRAM_STATUS } from "@/lib/constants";
 import { programTotals } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { programOptions } from "@/lib/queries";
@@ -98,6 +98,7 @@ export async function programDetailFor(reader: Reader, program: Program, now: Da
       tracksAdmissions: program.tracksAdmissions,
       schedulesClasses: program.schedulesClasses,
       standard: standard(program.standardMinutes, program.standardDays),
+      institute: program.space === PROGRAM_SPACE.INSTITUTE ? { name: program.spaceName } : null,
     },
     totals: {
       students: totals.students,

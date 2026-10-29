@@ -18,6 +18,8 @@ vi.mock("@/lib/dal", () => ({
 const page = await import("@/app/api/v1/platform/route");
 const access = await import("@/app/api/v1/platform/people/[userId]/programs/[programId]/route");
 const runs = await import("@/app/api/v1/platform/people/[userId]/admin/route");
+const set = await import("@/app/api/v1/platform/people/[userId]/access/route");
+const one = (userId: string) => ({ params: Promise.resolve({ userId }) });
 const json = (method: string, body?: unknown) =>
   new Request("http://test/api/v1/platform", { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
 const both = (userId: string, programId: string) => ({ params: Promise.resolve({ userId, programId }) });
@@ -41,6 +43,24 @@ describe("Platform admins", () => {
     expect(body.programs).toEqual([{ id: p.id, name: "Global Admissions" }]);
     expect(body.people.find((x: { person: { id: string } }) => x.person.id === a.id)).toMatchObject({ platformAdmin: false, grants: [{ program: p.id, level: "LEADER" }] });
     expect(JSON.stringify(body)).not.toContain("Not Offered");
+    // The page's read-only facts.
+    expect(body.organisation).toMatchObject({ mentorDomain: expect.any(String), emailLive: expect.any(Boolean), lastWeeklySummary: null });
+  });
+
+  it("saves a person's whole access set in one write, taking away what it leaves out", async () => {
+    const ga = await program("Global Admissions");
+    const ms = await program("Master's");
+    const m = await mentor("Akmal Karimov");
+    await grant({ userId: m.id, programId: ga.id, role: "LEADER" });
+    actor.value = { id: m.id };
+    expect((await set.PUT(json("PUT", { programs: [] }), one(m.id))).status).toBe(404);
+    actor.value = { id: (await platformAdmin()).id };
+    const res = await set.PUT(json("PUT", { programs: [{ program: ms.id, level: "SALES" }] }), one(m.id));
+    expect(await res.json()).toMatchObject({ ok: true, message: "Akmal Karimov administers 1 program." });
+    expect(await prisma.programStaff.findMany({ where: { userId: m.id }, select: { programId: true, role: true } })).toEqual([{ programId: ms.id, role: "SALES" }]);
+    expect((await (await set.PUT(json("PUT", { programs: [{ program: ms.id, level: "OWNER" }] }), one(m.id))).json()).field).toBe("programs");
+    expect((await (await set.PUT(json("PUT", { programs: [{ program: "nope", level: "ADMIN" }] }), one(m.id))).json()).error).toBe("Unknown program.");
+    expect(await prisma.programStaff.count({ where: { userId: m.id } })).toBe(1);
   });
 
   it("gives, changes and takes away one person's access to one program", async () => {

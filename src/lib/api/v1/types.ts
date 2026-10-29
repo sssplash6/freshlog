@@ -967,6 +967,12 @@ export type ProgramDetail = {
     schedulesClasses: boolean;
     /** What a student gets on joining; null for nothing. */
     standard: { minutes: number; days: number } | null;
+    /**
+     * Shown as its own institute to the people who work only in it, with the
+     * name it goes by there (null: the program's own); null when it is shown
+     * as a program. Only a platform admin changes it.
+     */
+    institute: { name: string | null } | null;
   };
   totals: { students: number; allotted: number; completed: number; missed: number; remaining: number; forfeited: number };
   levels: {
@@ -1014,7 +1020,9 @@ export type ProgramEdit =
   | { tracksAdmissions: boolean }
   | { schedulesClasses: boolean }
   | { standard: { minutes: number; days: number } | null }
-  | { archived: boolean };
+  | { archived: boolean }
+  /** `setProgramSpace`, a platform admin's: shown as an institute (a blank name is the program's own), or null, as a program. */
+  | { institute: { name: string } | null };
 /*
  * POST /api/v1/programs {name}: a platform admin's. DELETE /api/v1/programs/:id.
  * POST /api/v1/programs/:id/levels {name}; PATCH /api/v1/levels/:id {standard}; DELETE /api/v1/levels/:id.
@@ -1729,8 +1737,20 @@ export type PlatformPerson = {
  *   PUT    /api/v1/platform/people/:userId/programs/:programId   AccessChange (setProgramGrant)
  *   DELETE /api/v1/platform/people/:userId/programs/:programId   (removeProgramGrant)
  *   PUT    /api/v1/platform/people/:userId/admin                 PlatformAdminChange (setPlatformAdmin)
+ *   PUT    /api/v1/platform/people/:userId/access                AccessSet (setProgramAccess): their whole set at once
+ *
+ * `organisation` is the page's read-only facts: the mentor sign-up domain
+ * (without the @), whether email is live (else a dry run), and the day the
+ * last weekly summary went out (a Tashkent day), null for never.
  */
-export type ApiPlatform = { me: string; programs: { id: string; name: string }[]; people: PlatformPerson[] };
+export type ApiPlatform = {
+  me: string;
+  programs: { id: string; name: string }[];
+  people: PlatformPerson[];
+  organisation: { mentorDomain: string; emailLive: boolean; lastWeeklySummary: string | null };
+};
+/** A person's whole access set: every program they administer, at its level; one left out is taken away. */
+export type AccessSet = { programs: { program: string; level: GrantLevel }[] };
 export type AccessChange = { level: GrantLevel };
 export type PlatformAdminChange = { on: boolean };
 

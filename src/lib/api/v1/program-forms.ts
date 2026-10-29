@@ -4,6 +4,7 @@ import {
   setProgramClassHours,
   setProgramHourBank,
   setProgramSchedulesClasses,
+  setProgramSpace,
   setProgramStandardHours,
   setProgramTracksAdmissions,
   setProgramTracksPayment,
@@ -37,6 +38,7 @@ const FIELDS: Record<Field, true> = {
   schedulesClasses: true,
   standard: true,
   archived: true,
+  institute: true,
 };
 
 /** A standard grant's pair as it may be sent: both, or null for none. */
@@ -98,5 +100,19 @@ export function programEditOf(
       // `archiveProgram` restores on "true" and archives on anything else.
       if (!value) form.set("restore", "true");
       return { action: archiveProgram, form, platformOnly: false };
+    case "institute": {
+      // The website's two forms: Show as an institute (with its name, blank for the program's own), and Show as a
+      // program (no name sent, so `setProgramSpace` keeps it for next time). The action is a platform admin's, and
+      // refuses anybody else in its own words.
+      if (value === null) {
+        form.set("space", "PROGRAM");
+        return { action: setProgramSpace, form, platformOnly: false };
+      }
+      const name = typeof value === "object" ? (value as Record<string, unknown>).name : undefined;
+      if (typeof name !== "string") return { field };
+      form.set("space", "INSTITUTE");
+      form.set("spaceName", name);
+      return { action: setProgramSpace, form, platformOnly: false };
+    }
   }
 }
