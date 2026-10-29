@@ -103,7 +103,7 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
           soon: hours.expiring.date.getTime() >= now.getTime() && daysAway(hours.expiring.date, now) <= EXPIRY_WINDOW_DAYS.student,
         }
       : null,
-    grants: hours.perMentor.map((grant) => toGrant(grant, bookingUrlOf, now)),
+    grants: withOneWayToBook(hours.perMentor.map((grant) => toGrant(grant, bookingUrlOf, now))),
     todo,
     // Counted from the sessions, not summed from the rows: a row's `count` is null
     // for a session on its own, and set only on the one row that four or more
@@ -180,6 +180,15 @@ function bookingLinks(
  * Copied field by field: the grant carries what was paid for it (`amountPaid`)
  * and the mentor is their whole account, and neither belongs on a phone.
  */
+/**
+ * The Book page keeps one row per mentor, the bookable one where there is one, so a mentor the student can book
+ * through any grant is never also offered by email: the email goes only where no grant of theirs is bookable.
+ */
+function withOneWayToBook(grants: StudentGrant[]): StudentGrant[] {
+  const bookable = new Set(grants.flatMap((g) => (g.mentor && g.bookingUrl ? [g.mentor.id] : [])));
+  return grants.map((g) => (g.mentor && g.mentorEmail && bookable.has(g.mentor.id) ? { ...g, mentorEmail: null } : g));
+}
+
 function toGrant(
   grant: AllocationSummary["perMentor"][number],
   bookingUrlOf: BookingUrlOf,

@@ -192,6 +192,18 @@ describe("studentHomeFor: the grants", () => {
     expect(JSON.parse(sent)).toEqual(home);
   });
 
+  it("offers a mentor one way to book, as the Book page's one row per mentor: their calendar wherever one grant has it", async () => {
+    const w = await settled();
+    const mp = await program("Master's Program");
+    await enroll({ studentId: w.st.id, programId: mp.id });
+    // Their time in the second program has run out: on its own it would offer their email.
+    await grantTo(w.st, w.m, mp, 120, -3);
+    const grants = (await homeOf(w.st)).grants.filter((g) => g.mentor?.id === w.m.id);
+    expect(grants).toHaveLength(2);
+    expect(grants.map((g) => g.mentorEmail)).toEqual([null, null]);
+    expect(grants.some((g) => g.bookingUrl)).toBe(true);
+  });
+
   it("names a mentor by their email when they have no name", async () => {
     const w = await settled();
     const { email } = await prisma.user.update({ where: { id: w.m.id }, data: { name: null } });

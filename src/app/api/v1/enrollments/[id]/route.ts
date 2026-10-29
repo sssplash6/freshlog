@@ -2,14 +2,29 @@ import { moveStudent, unenrollStudent } from "@/lib/actions/students";
 import { bodyOf } from "@/lib/api/v1/body";
 import { enrollmentTargetForm } from "@/lib/api/v1/enrollment-forms";
 import { fromAction, inactive, mayUse, refused, signInAgain } from "@/lib/api/v1/respond";
+import { canManageStudent } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
+import type { User } from "@/generated/prisma/client";
 
 // Reads the token and the database on every request; never prerender. On
 // Render the SQLite disk only exists at runtime.
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
+
+/**
+ * The enrolment, for a reader who may open its student's page, where the website's Programs change is (as on the
+ * page, `canManageStudent`); null for anybody else and for none alike. The actions decide the rest, but some answer
+ * before their own check (an exchange's host, say), so a stranger holding an id must not reach them.
+ */
+async function reachable(user: User, id: string) {
+  const enrollment = await prisma.studentEnrollment.findUnique({
+    where: { id },
+    select: { studentId: true, student: { select: { enrollments: { select: { programId: true } } } } },
+  });
+  return enrollment && (await canManageStudent(user, enrollment.student)) ? enrollment : null;
+}
 
 /**
  * Moves one of a student's enrolments to another program, level or cohort:
@@ -24,9 +39,10 @@ export async function PATCH(request: Request, { params }: Params) {
   const form = enrollmentTargetForm(await bodyOf(request));
   if (!(form instanceof FormData)) return refused("That isn't a valid value.", 400, { field: form.field });
   const { id } = await params;
-  const enrollment = await prisma.studentEnrollment.findUnique({ where: { id }, select: { studentId: true } });
+  const enrollment = await reachable(user, id);
+  if (!enrollment) return refused("Not found.", 404);
   form.set("enrollmentId", id);
-  form.set("studentProfileId", enrollment?.studentId ?? "");
+  form.set("studentProfileId", enrollment.studentId);
   return fromAction(await moveStudent(null, form));
 }
 
@@ -38,7 +54,9 @@ export async function DELETE(_request: Request, { params }: Params) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
   if (!mayUse(user)) return inactive();
+  const { id } = await params;
+  if (!(await reachable(user, id))) return refused("Not found.", 404);
   const form = new FormData();
-  form.set("enrollmentId", (await params).id);
+  form.set("enrollmentId", id);
   return fromAction(await unenrollStudent(null, form));
 }

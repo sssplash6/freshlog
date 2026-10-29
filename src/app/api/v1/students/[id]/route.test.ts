@@ -90,6 +90,22 @@ describe("enrolments", () => {
   });
 });
 
+describe("enrolments, to a reader who can't open the student's page", () => {
+  it("answers adding, moving and taking off like a student that doesn't exist, as the website offers them only on that page", async () => {
+    const { ga, aziz } = await world();
+    const other = await program("Elsewhere");
+    const stranger = await admin("Somebody Else");
+    await grant({ userId: stranger.id, programId: other.id });
+    actor.value = { id: stranger.id };
+    // An admin of another program can't pull a student they can't see into it, and so on to their email.
+    expect((await enrol.POST(json("POST", { program: other.id }), ctx(aziz.id))).status).toBe(404);
+    const row = await prisma.studentEnrollment.findFirstOrThrow({ where: { studentId: aziz.id } });
+    expect((await enrolment.PATCH(json("PATCH", { program: other.id }), ctx(row.id))).status).toBe(404);
+    expect((await enrolment.DELETE(json("DELETE"), ctx(row.id))).status).toBe(404);
+    expect((await prisma.studentEnrollment.findUniqueOrThrow({ where: { id: row.id } })).programId).toBe(ga.id);
+  });
+});
+
 describe("deleting", () => {
   it("deletes a student added by mistake, and refuses once a session counts", async () => {
     const { ga, nodira, aziz } = await world();
