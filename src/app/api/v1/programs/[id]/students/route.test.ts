@@ -79,10 +79,28 @@ describe("POST /api/v1/programs/:id/students", () => {
     actor.value = { id: nodira.id };
     const field = async (body: unknown) => (await (await add(p.id, body)).json()).field;
     expect(await field({ rows: [] })).toBe("rows");
-    expect(await field({ level: lvl.id, cohort: c.id, rows: [row("Aziz", "Tursunov"), { ...row("Malika", "Saidova"), lastName: " " }] })).toBe("rows.1.lastName");
+    expect(await field({ level: lvl.id, cohort: c.id, rows: [row("Aziz", "Tursunov"), { ...row("Malika", "Saidova"), lastName: 5 }] })).toBe("rows.1.lastName");
     expect(await field({ rows: [row("Aziz", "Tursunov")] })).toBe("level");
     expect(await field({ level: lvl.id, rows: [row("Aziz", "Tursunov")] })).toBe("cohort");
     expect((await add(p.id, { level: lvl.id, cohort: c.id, rows: [row("Aziz", "Tursunov")] })).status).toBe(200);
+  });
+
+  it("adds the complete rows and names the incomplete ones, as the website does, rather than refusing them all", async () => {
+    const { p, nodira } = await setUp();
+    actor.value = { id: nodira.id };
+    const res = await add(p.id, { rows: [row("Aziz", "Tursunov"), { ...row("Malika", "Saidova"), lastName: " " }] });
+    expect(res.status).toBe(200);
+    expect((await res.json()).message).toMatch(/malika@test\.invalid \(needs a first and last name\)/);
+    expect((await enrolled(p.id)).map((s) => s.user.name)).toEqual(["Aziz Tursunov"]);
+  });
+
+  it("says in words when a list is longer than one request takes", async () => {
+    const { p, nodira } = await setUp();
+    actor.value = { id: nodira.id };
+    const many = Array.from({ length: 1001 }, (_, i) => ({ email: `s${i}@test.invalid`, firstName: "A", lastName: `B${i}` }));
+    const res = await add(p.id, { rows: many });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: "Add up to 1,000 students at a time.", field: "rows" });
   });
 
   it("sends a class-hours program to the website", async () => {

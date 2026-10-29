@@ -13,27 +13,37 @@ import type { Program } from "@/generated/prisma/client";
  * rows are appended in order and a row with no folder link still sends an empty
  * one: a skipped field would pair the next row's link with this row's student.
  *
- * What the action would refuse without naming is judged here on its field: the
- * rows themselves, and the level and cohort the program needs. What it skips and
- * reports (an address already somebody's, a name of one word) stays its own, in
- * its message.
+ * What the action would refuse without naming is judged here on its field: a
+ * row that isn't text, and the level and cohort the program needs. What it skips
+ * and reports stays its own, in its message, as on the website: an address
+ * already somebody's, a name of one word or none, an address that isn't one. So
+ * one incomplete row no longer refuses the rest; the website adds the complete
+ * rows and names the others, and so does this.
  */
 
-/** The most rows one request may carry. */
-export const MAX_ROWS = 200;
+/**
+ * The most rows one request may carry. The website's form has no limit; this one
+ * is only a guard on the body, far past any roster, and says so in words.
+ */
+export const MAX_ROWS = 1000;
 
 const ROW_FIELDS = ["email", "firstName", "lastName"] as const;
 
 /** `createStudents`' FormData, or the first field that is not valid. */
-export async function addStudentsForm(program: Program, body: Record<string, unknown>): Promise<FormData | { field: string } | { classHours: true }> {
+export async function addStudentsForm(
+  program: Program,
+  body: Record<string, unknown>
+): Promise<FormData | { field: string } | { classHours: true } | { tooMany: number }> {
   if (program.classHours) return { classHours: true };
   const { level: levelId, cohort: cohortId, rows } = body as Partial<Record<keyof AddStudents, unknown>>;
-  if (!Array.isArray(rows) || rows.length === 0 || rows.length > MAX_ROWS) return { field: "rows" };
+  if (!Array.isArray(rows) || rows.length === 0) return { field: "rows" };
+  if (rows.length > MAX_ROWS) return { tooMany: MAX_ROWS };
   for (const [i, row] of rows.entries()) {
     if (typeof row !== "object" || row === null) return { field: `rows.${i}` };
     const fields = row as Record<string, unknown>;
+    // Text, even empty: an empty name or address is the action's to skip and name, as the website's form sends it.
     for (const field of ROW_FIELDS) {
-      if (!isText(fields[field]) || !(fields[field] as string).trim()) return { field: `rows.${i}.${field}` };
+      if (!isText(fields[field])) return { field: `rows.${i}.${field}` };
     }
     if (fields.folderUrl !== undefined && !isText(fields.folderUrl)) return { field: `rows.${i}.folderUrl` };
   }

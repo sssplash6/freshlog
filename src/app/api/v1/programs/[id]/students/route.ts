@@ -12,9 +12,10 @@ export const dynamic = "force-dynamic";
 
 /**
  * Adds students to the program, one request for every row, through the
- * website's `createStudents`. An address already somebody's, or a name of one
- * word, is skipped and named in its message; when every row is skipped it is a
- * refusal. Class groups are the website's own form.
+ * website's `createStudents`. An address already somebody's, a name of one word
+ * or none, or an address that isn't one, is skipped and named in its message, so
+ * the complete rows are added as on the website; when every row is skipped it is
+ * a refusal. Class groups are the website's own form.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
@@ -26,6 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!body) return refused("Send the students as JSON.", 400);
   const form = await addStudentsForm(gate.program, body);
   if ("classHours" in form) return refused("Add class groups on the website.", 400);
+  if ("tooMany" in form) return refused(`Add up to ${form.tooMany.toLocaleString("en-US")} students at a time.`, 400, { field: "rows" });
   if (!(form instanceof FormData)) return refused("That isn't a valid value.", 400, { field: form.field });
   return fromAction(await createStudents(null, form));
 }

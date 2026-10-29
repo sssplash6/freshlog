@@ -819,7 +819,11 @@ export type AddStudents = {
   level?: string;
   /** Required where the level, or a program with no levels, has cohorts. */
   cohort?: string;
-  /** 1 to 200. */
+  /**
+   * 1 to 1,000. As the website's form: a row with an empty name or an address
+   * that isn't one is skipped and named in the answer's message, and the rest
+   * are added.
+   */
   rows: { email: string; firstName: string; lastName: string; folderUrl?: string }[];
 };
 
