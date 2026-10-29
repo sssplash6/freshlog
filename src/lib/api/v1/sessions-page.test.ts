@@ -192,6 +192,9 @@ describe("sessionsPage: whose sessions", () => {
       totals: NONE,
       counts: { disputed: 0, voided: 0 },
       programs: [],
+      programFilter: [],
+      mentor: null,
+      notHeld: null,
     });
     // The same three sessions are there for the mentor who logged them.
     expect((await pageOf(await readerFor(akmal))).items).toHaveLength(3);
@@ -357,6 +360,28 @@ describe("sessionsPage: the filters", () => {
     expect(idsOf(await pageOf(reader, { status: "active" }))).toEqual([active.id]);
     expect(idsOf(await pageOf(reader, { status: "voided" }))).toEqual([voided.id]);
     expect(idsOf(await pageOf(reader))).toEqual([active.id, voided.id, moved.id]);
+  });
+
+  it("narrows by the website's attendance, kind and typed range", async () => {
+    const { p, aziz, akmal } = await cast();
+    const base = { studentId: aziz.profile.id, mentorId: akmal.id, programId: p.id };
+    const came = await held({ ...base, date: day("2026-10-20") });
+    const late = await held({ ...base, date: day("2026-10-19"), late: true });
+    const absent = await held({ ...base, date: day("2026-10-18"), attended: false });
+    const extra = await held({ ...base, date: day("2026-09-01"), withinPlan: false });
+    const moved = await held({ ...base, date: day("2026-08-30"), status: "RESCHEDULED" });
+
+    const reader = await readerFor(akmal);
+    expect(idsOf(await pageOf(reader, { attendance: "attended" }))).toEqual([came.id, extra.id]);
+    expect(idsOf(await pageOf(reader, { attendance: "late" }))).toEqual([late.id]);
+    expect(idsOf(await pageOf(reader, { attendance: "absent" }))).toEqual([absent.id]);
+    expect(idsOf(await pageOf(reader, { attendance: "rescheduled" }))).toEqual([moved.id]);
+    expect(idsOf(await pageOf(reader, { kind: "extra" }))).toEqual([extra.id]);
+    expect(idsOf(await pageOf(reader, { kind: "plan" }))).toEqual([came.id, late.id, absent.id, moved.id]);
+    // A typed range beats the period, includes both ends, and a backwards one is turned round.
+    expect(idsOf(await pageOf(reader, { from: "2026-09-01", to: "2026-10-18", period: "week" }))).toEqual([absent.id, extra.id]);
+    expect(idsOf(await pageOf(reader, { from: "2026-10-18", to: "2026-09-01" }))).toEqual([absent.id, extra.id]);
+    expect(idsOf(await pageOf(reader, { to: "2026-08-31" }))).toEqual([moved.id]);
   });
 });
 
@@ -753,6 +778,72 @@ describe("sessionsPage: programs", () => {
   });
 });
 
+describe("sessionsPage: as the website's Sessions page reads a reader", () => {
+  it("as mentor, gives a mentor who runs programs only what they logged in those, as the page's Mine (D4)", async () => {
+    const { p, aziz, akmal } = await cast();
+    const other = await program("Master's");
+    await enroll({ studentId: aziz.profile.id, programId: other.id });
+    await grant({ userId: akmal.id, programId: p.id });
+    const here = await held({ studentId: aziz.profile.id, mentorId: akmal.id, programId: p.id });
+    await held({ studentId: aziz.profile.id, mentorId: akmal.id, programId: other.id });
+    const reader = await readerFor(akmal);
+    expect(ledgerScope(reader, "mentor")).toEqual({ audience: "staff", userId: akmal.id, programIds: [p.id], mentorId: akmal.id });
+    expect(idsOf(await pageOf(reader, { as: "mentor" }))).toEqual([here.id]);
+  });
+
+  it("offers the Program select only to a reader who runs more than one, listing every one they run", async () => {
+    const { p, aziz, akmal } = await cast();
+    const other = await program("Master's");
+    const empty = await program("Imkon");
+    await held({ studentId: aziz.profile.id, mentorId: akmal.id, programId: p.id });
+    const boss = await admin("Nodira Aliyeva");
+    await grant({ userId: boss.id, programId: p.id });
+    expect((await pageOf(await readerFor(boss), { as: "admin" })).programFilter).toEqual([]);
+    await grant({ userId: boss.id, programId: other.id });
+    await grant({ userId: boss.id, programId: empty.id });
+    expect((await pageOf(await readerFor(boss), { as: "admin" })).programFilter.map((x) => x.name)).toEqual([
+      "Global Admissions",
+      "Imkon",
+      "Master's",
+    ]);
+    // A mentor who runs nothing is offered none, whatever programs their sessions are in.
+    expect((await pageOf(await readerFor(akmal), { as: "mentor" })).programFilter).toEqual([]);
+  });
+
+  it("narrows an admin's list to one mentor and names them, and only one who logged in the admin's programs", async () => {
+    const { p, aziz, akmal } = await cast();
+    const umid = await mentor("Umid Rashidov");
+    const stranger = await mentor("Sardor Aliev");
+    const theirs = await held({ studentId: aziz.profile.id, mentorId: akmal.id, programId: p.id });
+    await held({ studentId: aziz.profile.id, mentorId: umid.id, programId: p.id });
+    const boss = await admin("Nodira Aliyeva");
+    await grant({ userId: boss.id, programId: p.id });
+    const page = await pageOf(await readerFor(boss), { as: "admin", mentor: akmal.id });
+    expect(idsOf(page)).toEqual([theirs.id]);
+    expect(page.mentor).toEqual({ id: akmal.id, name: "Akmal Karimov" });
+    const nobody = await pageOf(await readerFor(boss), { as: "admin", mentor: stranger.id });
+    expect(idsOf(nobody)).toEqual([]);
+    expect(nobody.mentor).toBeNull();
+    // A mentor's own list ignores it.
+    expect((await pageOf(await readerFor(akmal), { as: "mentor", mentor: umid.id })).mentor).toBeNull();
+  });
+
+  it("says a student's Past meetings footer, voided and rescheduled, once the log runs past a page of six", async () => {
+    const { p, aziz, akmal } = await cast();
+    const base = { studentId: aziz.profile.id, mentorId: akmal.id, programId: p.id };
+    for (let i = 0; i < 4; i++) await held(base);
+    await held({ ...base, status: "VOIDED" });
+    await held({ ...base, status: "RESCHEDULED" });
+    const reader = await readerFor(aziz.user);
+    expect((await pageOf(reader)).notHeld).toBeNull();
+    await held({ ...base, status: "VOIDED" });
+    expect((await pageOf(reader)).notHeld).toBe("2 voided · 1 rescheduled");
+    // Over the whole log, whatever the list is narrowed to; and never on a mentor's list.
+    expect((await pageOf(reader, { status: "active" })).notHeld).toBe("2 voided · 1 rescheduled");
+    expect((await pageOf(await readerFor(akmal))).notHeld).toBeNull();
+  });
+});
+
 describe("sessionsQueryFrom: the URL as a query", () => {
   it("reads the things a list may be asked", () => {
     const query = sessionsQueryFrom(
@@ -778,12 +869,17 @@ describe("sessionsQueryFrom: the URL as a query", () => {
     const query = sessionsQueryFrom(
       new URL(
         // `as=staff` is the website's word for the admin side, and not the contract's.
-        "http://test/api/v1/sessions?period=forever&status=rescheduled&answer=all&as=staff&attendance=absent&kind=extra&from=2026-01-01&to=2026-02-01&page=2"
+        "http://test/api/v1/sessions?period=forever&status=rescheduled&answer=all&as=staff&attendance=present&kind=both&rating=5&page=2"
       ).searchParams
     );
     expect(query).toEqual({});
     expect(sessionsQueryFrom(new URLSearchParams())).toEqual({});
   });
+
+  it("reads the website's attendance, kind and typed range", () =>
+    expect(
+      sessionsQueryFrom(new URLSearchParams("attendance=absent&kind=extra&from=2026-01-01&to=2026-02-01"))
+    ).toEqual({ attendance: "absent", kind: "extra", from: "2026-01-01", to: "2026-02-01" }));
 
   it("takes no name that every object has for a word", () =>
     expect(

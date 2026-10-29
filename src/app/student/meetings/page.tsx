@@ -22,11 +22,7 @@ import {
 } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
 import { studentLedger } from "@/lib/queries";
-import {
-  meetingLog,
-  notHeldNote,
-  toSessionEntries,
-} from "@/lib/session-entries";
+import { MEETINGS_PER_PAGE, meetingLog, notHeldNote, toSessionEntries } from "@/lib/session-entries";
 import {
   sessionStatuses,
   status,
@@ -38,8 +34,6 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Meetings" };
 
-/** Sessions per page — the spec's count for a history a student scrolls. */
-const MEETINGS_PER_PAGE = 6;
 
 /**
  * The student's meetings: what is coming, and what already happened.

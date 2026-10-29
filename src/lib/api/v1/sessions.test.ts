@@ -110,6 +110,8 @@ describe("sessionFor: what each reader is told", () => {
       charged: true,
       answer: "CONFIRMED",
       answerNote: null,
+      answerRating: null,
+      statuses: [{ type: "SESSION_CONFIRMED", label: "Confirmed", severity: "ok", explanation: null }],
       needsAnswer: false,
       student: { id: st.id, userId: st.userId, name: "Aziz Tursunov" },
       mentor: { id: mentorUser.id, name: "Akmal Karimov" },
@@ -139,16 +141,23 @@ describe("sessionFor: what each reader is told", () => {
     expect((await sessionFor(await readerFor(studentUser), s.id))?.note).toBeNull();
   });
 
-  it("the student's own note goes to them, and to their mentor only on a dispute", async () => {
+  it("the student's own note and stars go to them and to staff, as the website's row shows them, and the note to their mentor only on a dispute", async () => {
     const { studentUser, mentorUser, adminUser, s } = await world();
-    const noteFor = async (reader: User) => (await sessionFor(await readerFor(reader), s.id))?.answerNote;
+    const read = async (reader: User) => await sessionFor(await readerFor(reader), s.id);
+    const noteFor = async (reader: User) => (await read(reader))?.answerNote;
     const answer = (fields: Record<string, string>) => answerSession(null, form({ sessionId: s.id, ...fields }));
     actor.value = { id: studentUser.id };
 
-    expect(await answer({ answer: "CONFIRMED", studentNote: "Clear and useful." })).toMatchObject({ ok: true });
+    expect(await answer({ answer: "CONFIRMED", studentNote: "Clear and useful.", studentRating: "4" })).toMatchObject({ ok: true });
     expect(await noteFor(studentUser)).toBe("Clear and useful.");
     expect(await noteFor(mentorUser)).toBeNull();
-    expect(await noteFor(adminUser)).toBeNull();
+    expect(await noteFor(adminUser)).toBe("Clear and useful.");
+    expect((await read(studentUser))?.answerRating).toBe(4);
+    expect((await read(adminUser))?.answerRating).toBe(4);
+    expect((await read(mentorUser))?.answerRating).toBeNull();
+    // The student's own row doesn't say "You confirmed this"; staff and the mentor are told Confirmed.
+    expect((await read(studentUser))?.statuses).toEqual([]);
+    expect((await read(adminUser))?.statuses.map((st) => st.label)).toEqual(["Confirmed"]);
 
     expect(await answer({ answer: "DISPUTED", studentNote: "It was 30 minutes, not 60." })).toMatchObject({ ok: true });
     expect(await noteFor(studentUser)).toBe("It was 30 minutes, not 60.");

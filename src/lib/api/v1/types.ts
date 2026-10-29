@@ -117,8 +117,21 @@ export type ApiSession = {
   charged: boolean;
   /** What the student said; null while they haven't answered. */
   answer: StudentAnswer | null;
-  /** The student's words: to the student, always; to anyone else, only on a dispute. */
+  /**
+   * The student's words, as the website's row shows them: to the student and to
+   * the program's staff, always; to a mentor who doesn't run the program, only
+   * on a dispute, which is addressed to them.
+   */
   answerNote: string | null;
+  /** The student's stars, 1 to 5: to the student and to the program's staff. Never to a mentor reading their own log. */
+  answerRating: number | null;
+  /**
+   * The website's chips for this row, in its order and in the reader's words
+   * (`sessionStatuses`): "Came late", "Extra", "Confirmed", "Disputed" and the
+   * rest. The student's own list leaves out "You confirmed this", as the page
+   * does; nobody but the student is told it is unconfirmed.
+   */
+  statuses: { type: string; label: string; severity: "problem" | "attention" | "neutral" | "ok"; explanation: string | null }[];
   /** The student is being asked to confirm it: ACTIVE, in the plan, unanswered, at most 30 days old. */
   needsAnswer: boolean;
   student: StudentRef;
@@ -140,11 +153,23 @@ export type SessionsQuery = {
   limit?: string;
   /** A mentor's or an admin's list only: one student (StudentProfile.id). */
   student?: string;
-  /** A student's own list only: the sessions with one mentor (User.id), for that mentor's page. */
+  /**
+   * One mentor (User.id): on a student's own list, the sessions with them, for
+   * that mentor's page; on an admin's (`as=admin`), the website's `?mentor=`,
+   * as the mentor page's All sessions links. `me` is the reader. A mentor's own
+   * list ignores it.
+   */
   mentor?: string;
   program?: string;
-  /** `week` is the Tashkent week from Monday. */
+  /** `week` is the Tashkent week from Monday. Left out with no `from` or `to`, it is all time. */
   period?: "week" | "30d" | "90d" | "year";
+  /** The website's typed range, "YYYY-MM-DD" each, either end alone; it beats `period`, and a backwards one is turned round. */
+  from?: string;
+  to?: string;
+  /** The website's Attendance filter. */
+  attendance?: "attended" | "late" | "absent" | "rescheduled";
+  /** The website's Kind filter: `plan` counts toward the student's time, `extra` is beyond it. */
+  kind?: "plan" | "extra";
   status?: "active" | "voided";
   /** `needed`: the student is being asked to confirm it. `disputed`: the student disputed it, and it isn't voided. */
   answer?: "needed" | "disputed";
@@ -156,9 +181,10 @@ export type SessionsQuery = {
    * Whose list, for a reader who has two. Left out, it is a student's own
    * sessions (a student who also mentors included, as `/me` lists them a
    * student first), else the ones a mentor logged. `mentor` is the app's mentor
-   * side asking for the ones the reader logged, whatever else they are; to
-   * anyone who can't act as a mentor it is a 404, as it is to every reader with
-   * no list. `admin` is the app's admin side asking for every session in the
+   * side asking for the ones the reader logged, whatever else they are, and for
+   * a reader who administers programs only those in the programs they run, as
+   * the website's Sessions page shows them (its Mine); to anyone who can't act
+   * as a mentor it is a 404, as it is to every reader with no list. `admin` is the app's admin side asking for every session in the
    * programs the reader reads; to anyone who reads none it is a 404.
    */
   as?: "mentor" | "admin";
@@ -175,6 +201,20 @@ export type SessionsPage = {
   counts: { disputed: number; voided: number };
   /** The programs the reader's sessions are in, for a program filter. */
   programs: ProgramRef[];
+  /**
+   * The website's Program select: every program the reader administers, when
+   * that is more than one; empty otherwise (a mentor who runs none is not
+   * offered one). More than one also means each row names its program.
+   */
+  programFilter: ProgramRef[];
+  /** The mentor an admin's list is narrowed to (`?mentor=`), so it can be named when nothing matches; else null. */
+  mentor: PersonRef | null;
+  /**
+   * A student's own list: the website's footer under Past meetings, "2 voided ·
+   * 1 rescheduled", over their whole log; null when it has nothing to say, or
+   * when the page shows no footer (the log fits on one page of six).
+   */
+  notHeld: string | null;
 };
 
 /** PATCH /api/v1/sessions/:id: only what changes. Anything left out keeps its value. */

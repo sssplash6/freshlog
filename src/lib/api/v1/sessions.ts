@@ -22,8 +22,10 @@ import {
 } from "@/lib/constants";
 import { readParam, sessionsWhere, type FilterScope, type SearchParams } from "@/lib/filters";
 import { toDateInputValue } from "@/lib/format";
+import { MEETINGS_PER_PAGE, notHeldNote } from "@/lib/session-entries";
+import { interviewsForLog } from "@/lib/student-interviews";
 import { prisma } from "@/lib/prisma";
-import { sessionStatuses } from "@/lib/status";
+import { sessionStatuses, type Audience } from "@/lib/status";
 import type { Prisma, Session, User } from "@/generated/prisma/client";
 
 /**
@@ -107,6 +109,11 @@ export const nameOf = (person: { name: string | null; email: string }) => person
 export function toApiSession(reader: Reader, row: SessionRow, now: Date): ApiSession {
   const isStudent = isStudentOf(reader, row);
   const loggedIt = row.mentorId === reader.user.id;
+  // Whose words the row is in, as the website's pages read it: the student's
+  // own; staff for the program's admins (the Sessions page reads every row of a
+  // reader who administers as staff); a mentor's for anyone else.
+  const audience: Audience = isStudent ? "student" : scopeCovers(reader.read, row.programId) ? "staff" : "mentor";
+  const disputed = row.studentAnswer === SESSION_ANSWER.DISPUTED;
   const voided = row.status === SESSION_STATUS.VOIDED;
   // Who may correct it, void it and restore it: the mentor who logged it, while
   // they are an active mentor, and anyone who may write its program. The same
@@ -126,9 +133,16 @@ export function toApiSession(reader: Reader, row: SessionRow, now: Date): ApiSes
     state: row.status as SessionState,
     charged: chargesAllocation(row),
     answer: row.studentAnswer as StudentAnswer | null,
-    // The student's own words go back to them. Anyone else reads them only on a
-    // dispute, which is addressed to the mentor. The rating is never sent.
-    answerNote: isStudent || row.studentAnswer === SESSION_ANSWER.DISPUTED ? row.studentNote : null,
+    // The website's row: what the student said is for the student and staff
+    // (`showFeedback`), and anonymous to a mentor, but a dispute is addressed to
+    // the mentor, so its words reach them too. The stars never do.
+    answerNote: audience !== "mentor" || disputed ? row.studentNote : null,
+    answerRating: audience !== "mentor" ? row.studentRating : null,
+    // The page's chips, minus the student's own "You confirmed this", which it
+    // leaves off every row of their list.
+    statuses: sessionStatuses(row, { audience, userId: reader.user.id, now })
+      .filter((st) => !(audience === "student" && st.type === "SESSION_CONFIRMED"))
+      .map((st) => ({ type: st.type, label: st.label, severity: st.severity, explanation: st.explanation ?? null })),
     // The website's own question, its window included: is the student being asked?
     needsAnswer: sessionStatuses(row, { audience: "student", userId: row.student.userId, now }).some(
       (status) => status.type === "SESSION_UNCONFIRMED"
@@ -203,7 +217,15 @@ const MAX_LIMIT = 100;
  */
 export function ledgerScope(reader: Reader, as?: SessionsQuery["as"]): FilterScope | null {
   const { user, studentProfileId } = reader;
-  if (as === "mentor") return canActAsMentor(user) ? { mentorId: user.id } : null;
+  // The website's Sessions page reads a mentor who administers programs as
+  // staff of those programs, with Mine to narrow to their own: the sessions they
+  // logged in a program they don't run are not on it (parity D4), so they are not
+  // on the app's either.
+  if (as === "mentor") {
+    if (!canActAsMentor(user)) return null;
+    const runs = adminRead(reader);
+    return runs === null ? { mentorId: user.id } : { audience: "staff", userId: user.id, programIds: runs, mentorId: user.id };
+  }
   if (as === "admin") {
     return scopeIsEmpty(reader.read) ? null : { audience: "staff", userId: user.id, programIds: scopeProgramFilter(reader.read) };
   }
@@ -212,8 +234,17 @@ export function ledgerScope(reader: Reader, as?: SessionsQuery["as"]): FilterSco
   return null;
 }
 
+/**
+ * The programs a reader administers, as the Sessions page's `scopeProgramFilter`
+ * gives them: undefined for every program, null for none.
+ */
+function adminRead(reader: Reader): readonly string[] | undefined | null {
+  if (scopeIsEmpty(reader.read)) return null;
+  return scopeProgramFilter(reader.read);
+}
+
 /** The fields of the query that take one of a few words, rather than any text. */
-type Choice = "period" | "status" | "answer" | "as";
+type Choice = "period" | "status" | "answer" | "as" | "attendance" | "kind";
 
 /**
  * The words each of them takes, keyed by the contract's own union: a word added
@@ -225,6 +256,8 @@ const WORDS: { [Key in Choice]: Record<NonNullable<SessionsQuery[Key]>, true> } 
   status: { active: true, voided: true },
   answer: { needed: true, disputed: true },
   as: { mentor: true, admin: true },
+  attendance: { attended: true, late: true, absent: true, rescheduled: true },
+  kind: { plan: true, extra: true },
 };
 
 /**
@@ -248,6 +281,10 @@ export function sessionsQueryFrom(params: URLSearchParams): SessionsQuery {
     mentor: text("mentor"),
     program: text("program"),
     period: word("period"),
+    from: text("from"),
+    to: text("to"),
+    attendance: word("attendance"),
+    kind: word("kind"),
     status: word("status"),
     answer: word("answer"),
     assignment: text("assignment"),
@@ -423,6 +460,9 @@ export async function sessionsPage(
       totals: totalsOf([]),
       counts: { disputed: 0, voided: 0 },
       programs: [],
+      programFilter: [],
+      mentor: null,
+      notHeld: null,
     };
   }
 
@@ -443,8 +483,10 @@ export async function sessionsPage(
   // everybody's sessions in their programs, and do look one mentor up by name.
   const filters: SearchParams = {
     program: query.program,
+    attendance: query.attendance,
+    kind: query.kind,
     ...(asMentor || asStaff ? { student: query.student } : {}),
-    ...(asStaff ? { q: query.q } : {}),
+    ...(asStaff ? { q: query.q, mentor: query.mentor?.trim() } : {}),
   };
   // `readParam` reads the box as the website does: trimmed, at most 200
   // characters, and nothing at all when it is blank.
@@ -452,7 +494,11 @@ export async function sessionsPage(
   const searched = search ? [search] : [];
   const answer =
     query.answer === "needed" ? awaitingAnswer(now) : query.answer === "disputed" ? DISPUTED : null;
-  const narrowed = sessionsWhere({ ...filters, period: query.period, status: query.status }, scope, now);
+  const narrowed = sessionsWhere(
+    { ...filters, period: query.period, from: query.from, to: query.to, status: query.status },
+    scope,
+    now
+  );
   // One plan item, inside the scope above: a word that is no plan item's id matches no session. Blank narrows nothing.
   const assignment = query.assignment?.trim();
   const planItem: Prisma.SessionWhereInput[] = assignment ? [{ assignmentId: assignment }] : [];
@@ -463,7 +509,11 @@ export async function sessionsPage(
   // The chips on the status row: the filter without its period, status and answer.
   const chips: Prisma.SessionWhereInput = { AND: [sessionsWhere(filters, scope, now), ...searched, ...planItem, ...withMentor] };
 
-  const [rows, groups, disputed, voided, programs] = await Promise.all([
+  // The website's Program select: every program a reader who administers runs,
+  // and only when that is more than one. A mentor who runs none has none.
+  const runs = scope.audience === "staff" ? adminRead(reader) : null;
+  const named = asStaff ? readParam({ mentor: query.mentor }, "mentor") : "";
+  const [rows, groups, disputed, voided, programs, runPrograms, namedMentor, notHeld] = await Promise.all([
     prisma.session.findMany({
       where: cursor ? { AND: [where, after(cursor)] } : where,
       include: SESSION_INCLUDE,
@@ -486,6 +536,22 @@ export async function sessionsPage(
       select: { id: true, name: true, colorIndex: true },
       orderBy: { name: "asc" },
     }),
+    runs === null
+      ? Promise.resolve([])
+      : prisma.program.findMany({
+          where: runs ? { id: { in: [...runs] } } : {},
+          select: { id: true, name: true, colorIndex: true },
+          orderBy: { name: "asc" },
+        }),
+    // Named only when they logged a session the reader may read, so an id is no
+    // way to learn anybody else's name.
+    named
+      ? prisma.user.findFirst({
+          where: { id: named === "me" ? reader.user.id : named, mentorSessions: { some: sessionsWhere({}, scope, now) } },
+          select: { id: true, name: true, email: true },
+        })
+      : Promise.resolve(null),
+    scope.studentId !== undefined && query.as === undefined ? notHeldOf(reader, scope.studentId, now) : Promise.resolve(null),
   ]);
 
   const items = rows.slice(0, limit);
@@ -495,5 +561,22 @@ export async function sessionsPage(
     totals: totalsOf(groups),
     counts: { disputed, voided },
     programs,
+    programFilter: runPrograms.length > 1 ? runPrograms : [],
+    mentor: namedMentor ? { id: namedMentor.id, name: nameOf(namedMentor) } : null,
+    notHeld,
   };
+}
+
+/**
+ * The website's footer under a student's Past meetings (`notHeldNote`): how
+ * many of their sessions were voided or rescheduled, said only when the log,
+ * sessions and past practice interviews together, runs past one page.
+ */
+async function notHeldOf(reader: Reader, studentId: string, now: Date): Promise<string | null> {
+  const [sessions, interviews] = await Promise.all([
+    prisma.session.findMany({ where: { studentId }, select: { status: true } }),
+    interviewsForLog(reader.user.id, now),
+  ]);
+  if (sessions.length + interviews.length <= MEETINGS_PER_PAGE) return null;
+  return notHeldNote(sessions) ?? null;
 }

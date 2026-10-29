@@ -118,9 +118,10 @@ describe("GET /api/v1/sessions", () => {
   it("takes only the filters the contract has", async () => {
     const { akmal, rows } = await ledger();
     actor.value = { id: akmal.id };
-    // The website's other filters mean nothing here: each of these would empty the list if it were read.
+    // A mentor's own list ignores another mentor, and a word that isn't one of the contract's means nothing:
+    // each of these would empty the list if it were read.
     const res = await get(
-      `?mentor=${(await mentor("Umid Rashidov")).id}&attendance=absent&kind=extra&from=2099-01-01&to=2099-02-01&status=rescheduled&period=forever`
+      `?mentor=${(await mentor("Umid Rashidov")).id}&attendance=present&kind=both&rating=1&status=rescheduled&period=forever`
     );
     expect(res.status).toBe(200);
     expect(idsOf(await pageFrom(res))).toEqual(rows.map((row) => row.id));

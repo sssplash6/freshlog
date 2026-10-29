@@ -124,6 +124,9 @@ export function meetingCount(sessions: readonly { status: string }[]): number {
   return sessions.filter((s) => s.status === SESSION_STATUS.ACTIVE).length;
 }
 
+/** Sessions per page — the spec's count for a history a student scrolls. */
+export const MEETINGS_PER_PAGE = 6;
+
 /** What the rows that are not meetings were, for a footer: "1 voided". */
 export function notHeldNote(sessions: readonly { status: string }[]): string | undefined {
   const voided = sessions.filter((s) => s.status === SESSION_STATUS.VOIDED).length;
