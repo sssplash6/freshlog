@@ -1,6 +1,7 @@
 import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import type { ApiSearch, SearchHit } from "@/lib/api/v1/types";
 import { normalizeQuery, type SearchPerson } from "@/lib/command-search";
+import { USER_STATUS } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/dal";
 import { searchFor, searchReach } from "@/lib/search";
 
@@ -19,6 +20,8 @@ export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return signInAgain();
   if (!mayUse(user)) return inactive();
+  // The website's palette finds nobody for a mentor no program has taken on yet (`/api/search`); nor does this.
+  if (user.status === USER_STATUS.UNASSIGNED) return ok({ students: [], mentors: [] } satisfies ApiSearch);
   const q = normalizeQuery(new URL(request.url).searchParams.get("q"));
   if (q === null) {
     return (await searchReach(user)) ? ok({ students: [], mentors: [] } satisfies ApiSearch) : refused("Not found.", 404);

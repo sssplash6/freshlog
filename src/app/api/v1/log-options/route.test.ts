@@ -39,6 +39,14 @@ describe("GET /api/v1/log-options", () => {
     expect((await res.json()).code).toBe("inactive");
   });
 
+  it("tells a mentor no program has taken on yet that they can log nothing, as the website's log page sends them home", async () => {
+    const m = await prisma.user.update({ where: { id: (await mentor("Akmal Karimov")).id }, data: { status: "UNASSIGNED" } });
+    actor.value = { id: m.id };
+    const res = await GET();
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toBe("An admin assigns you before you can log sessions.");
+  });
+
   it("answers 404 to a student", async () => {
     const s = await student({ name: "Aziz Tursunov" });
     actor.value = { id: s.userId };

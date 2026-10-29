@@ -1,8 +1,8 @@
 import { logOptionsFor, onBehalfMentor } from "@/lib/api/v1/log";
 import { inactive, mayUse, ok, refused, signInAgain } from "@/lib/api/v1/respond";
 import { readerFor } from "@/lib/api/v1/sessions";
-import { scopeProgramFilter } from "@/lib/authz";
-import { canActAsMentor } from "@/lib/constants";
+import { adminWriteScope, scopeIsEmpty, scopeProgramFilter } from "@/lib/authz";
+import { canActAsMentor, USER_STATUS } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/dal";
 
 // Reads the token and the database on every request; never prerender. On
@@ -37,5 +37,10 @@ export async function GET(request: Request) {
     return ok(await logOptionsFor(mentor, new Date(), { programIds: scopeProgramFilter(reader.write), program }));
   }
   if (!canActAsMentor(user)) return refused("Not found.", 404);
+  // A mentor no program has taken on yet can log nothing, and the website's log page sends them home
+  // (`sessions/new`); its words are their home's.
+  if (user.status === USER_STATUS.UNASSIGNED && scopeIsEmpty(await adminWriteScope(user))) {
+    return refused("An admin assigns you before you can log sessions.", 403);
+  }
   return ok(await logOptionsFor(user, new Date(), program ? { programIds: undefined, program } : undefined));
 }

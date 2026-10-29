@@ -1,6 +1,6 @@
 import type { ActionState } from "@/lib/actions/shared";
 import type { CreatedResult, WriteResult } from "@/lib/api/v1/types";
-import { canActAsMentor, USER_STATUS } from "@/lib/constants";
+import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 
 /**
  * The answers /api/v1 gives the freshlog app. Every one is JSON, bar the 204
@@ -59,7 +59,9 @@ export function signInAgain(): Response {
  * wait. Every handler's own checks (scope, pairings, the actions) still hold.
  */
 export function mayUse(user: { status: string; role: string; isMentor?: boolean | null }): boolean {
-  return user.status === USER_STATUS.ACTIVE || (user.status === USER_STATUS.UNASSIGNED && canActAsMentor(user));
+  // Role MENTOR alone: it is the only account freshform ever makes UNASSIGNED (`auth.ts`, `updateMentor`), and a
+  // student who mentors must not reach the student side unapproved.
+  return user.status === USER_STATUS.ACTIVE || (user.status === USER_STATUS.UNASSIGNED && user.role === ROLES.MENTOR && canActAsMentor(user));
 }
 
 /** The words an account `mayUse` turns away is given; see `inactive`. */

@@ -56,5 +56,8 @@ describe("GET /api/v1/search", () => {
     const body = await (await get("aziz")).json();
     expect(body.students.map((s: { name: string }) => s.name)).toEqual(["Aziz Mine"]);
     expect(body.mentors).toEqual([]);
+    // No program has them any more: the website's palette finds nobody for them.
+    await prisma.user.update({ where: { id: m.id }, data: { status: "UNASSIGNED" } });
+    expect(await (await get("aziz")).json()).toEqual({ students: [], mentors: [] });
   });
 });

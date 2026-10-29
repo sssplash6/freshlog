@@ -42,7 +42,9 @@ export async function POST(request: Request) {
   const response = await fromCreatingAction(() => reportBug(null, form), "/bugs/");
   if (response.ok && (viewport || theme || userAgent)) {
     const { id } = (await response.clone().json()) as CreatedResult;
-    await prisma.bugReport.update({ where: { id }, data: { viewport, theme, userAgent } });
+    // The report is filed by now: a line that fails to land costs the triager that line, never a second report,
+    // which an error here would invite the app to send.
+    await prisma.bugReport.update({ where: { id }, data: { viewport, theme, userAgent } }).catch(() => null);
   }
   return response;
 }
