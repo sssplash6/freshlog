@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { FULL_NAME_RE, parseMinutesField, parseNameField } from "@/lib/actions/shared";
+import { FULL_NAME_RE, parseDateField, parseMinutesField, parseNameField } from "@/lib/actions/shared";
 
 /**
  * A name is now required to be a FULL name, everywhere one is typed: your own
@@ -95,5 +95,17 @@ describe("parseMinutesField ceiling", () => {
     expect(parseMinutesField("100000", { min: 1, label: "Minutes" })).toEqual({
       value: 100000,
     });
+  });
+});
+
+describe("parseDateField", () => {
+  it("stores a day at UTC midnight", () => {
+    expect(parseDateField("2028-02-29")).toEqual({ value: new Date("2028-02-29T00:00:00.000Z") });
+  });
+
+  it("refuses a day that does not exist, rather than rolling it into the next month", () => {
+    // 31 February had been saved as 3 March, and 29 February 2026 as 1 March.
+    expect(parseDateField("2026-02-31")).toEqual({ error: "Pick a valid date." });
+    expect(parseDateField("2026-02-29")).toEqual({ error: "Pick a valid date." });
   });
 });

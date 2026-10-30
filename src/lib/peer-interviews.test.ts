@@ -39,6 +39,11 @@ describe("parseSlotStart", () => {
     expect(parseSlotStart("2026-09-04", "25:00", NOW)).toHaveProperty("error");
     expect(parseSlotStart("", "10:00", NOW)).toHaveProperty("error");
   });
+
+  it("refuses a day that does not exist, rather than rolling it into the next month", () => {
+    // 31 September would have been offered as 1 October.
+    expect(parseSlotStart("2026-09-31", "10:00", NOW)).toEqual({ error: "Pick a valid date." });
+  });
 });
 
 describe("parseSlotLength", () => {

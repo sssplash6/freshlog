@@ -83,6 +83,10 @@ export function parseDateField(
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return { error: "Pick a valid date." };
   const d = new Date(`${s}T00:00:00.000Z`);
   if (Number.isNaN(d.getTime())) return { error: "Pick a valid date." };
+  // A day that does not exist is not NaN: `new Date` rolls it into the next
+  // month (2026-02-31 is March 3) and it was saved without a word. Only a day
+  // that reads back as typed exists.
+  if (d.toISOString().slice(0, 10) !== s) return { error: "Pick a valid date." };
   return { value: d };
 }
 

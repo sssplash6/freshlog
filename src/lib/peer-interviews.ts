@@ -43,6 +43,9 @@ export function parseSlotStart(
 
   const startsAt = new Date(`${date}T${time}:00.000Z`);
   if (Number.isNaN(startsAt.getTime())) return { error: "Pick a valid date." };
+  // A day that does not exist is not NaN either: `new Date` rolls it into the
+  // next month, and 31 February was offered as 3 March.
+  if (startsAt.toISOString().slice(0, 10) !== date) return { error: "Pick a valid date." };
 
   const wallNow = programWallClock(now).getTime();
   if (startsAt.getTime() <= wallNow) {

@@ -20,8 +20,9 @@ import { MAX_TASK_NOTE, MAX_TASK_TITLE } from "@/lib/student-tasks";
 /**
  * True for a day that exists, written `YYYY-MM-DD`.
  *
- * `parseDateField` takes that shape but rolls an impossible day over into the
- * next month (`2026-02-31` is March 3), and saves it without a word.
+ * `parseDateField` took that shape but rolled an impossible day over into the
+ * next month (`2026-02-31` was March 3), and saved it without a word. It
+ * refuses one now, but without naming the field; this answers first, and names it.
  */
 export function isDay(value: unknown): value is string {
   if (!isText(value) || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
