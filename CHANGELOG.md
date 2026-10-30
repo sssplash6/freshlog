@@ -11,7 +11,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ### Fixed
 - **The In app switch now works.** Turn a category off under Settings, Notifications and its notices stay out of your bell, your feed, the app's Inbox and the number on the app's icon; turn it back on and they return.
-- **Mentors' dictated interview notes read as interview notes.** Dictating notes on a practice interview you gave tidied them up as a session note; they are now written up as notes on the interview, with your student's name spelled right.
+- **Dictated interview notes stay interview notes.** Dictating notes on a practice interview you gave tidied them up as a session note; they are now written up as notes on the interview, with your student's name spelled right.
 - **Hours read "today" on their last day, not "expired".** From 5 a.m. on a use-by date, the date showed as expired and Home stopped warning about it, though the hours could be used until midnight.
 - **No time lists every student without hours.** A student whose only grant had been set to zero was missing from the list, though Home counted them.
 - **Needs you no longer says you can't log.** A student with no time with you said an admin had to allocate it before you could log. You can log a meeting meanwhile; what it draws shows when you log it.
