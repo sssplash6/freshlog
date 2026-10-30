@@ -10,7 +10,7 @@ import { FilterBar } from "@/components/ui/filter-bar";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
 import { PageTitle } from "@/components/ui/section";
 import { adminScope, adminWriteScope, scopeCovers, scopeProgramFilter } from "@/lib/authz";
-import { canActAsMentor } from "@/lib/constants";
+import { canActAsMentor, PROGRAM_STATUS } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import {
   activeFilterCount,
@@ -162,8 +162,11 @@ export default async function StudentsPage({
   ]);
   // Where Add students may lead: a program this reader may add to. A read-only
   // grant (LEADER, SALES) reads its programs here but adds nobody to them, and
-  // its program's page offers it no form to land on.
-  const addable = programs.filter((p) => scopeCovers(writeScope, p.id));
+  // its program's page offers it no form to land on — nor does an archived
+  // program's, which nothing new is enrolled into.
+  const addable = programs.filter(
+    (p) => scopeCovers(writeScope, p.id) && p.status !== PROGRAM_STATUS.ARCHIVED
+  );
 
   const visible = timeFilter
     ? matching.filter((s) => {

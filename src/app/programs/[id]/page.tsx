@@ -24,6 +24,7 @@ import { toSessionEntries } from "@/lib/session-entries";
 import { type ViewerContext } from "@/lib/status";
 
 import {
+  PROGRAM_STATUS,
   mentorPool,
   programCohorts,
   programGrants,
@@ -114,6 +115,10 @@ export default async function ProgramPage({
     cohorts,
   });
 
+  // An archived program is one nothing new should be enrolled into, so it is
+  // not offered Add students either, whoever reads it.
+  const adds = writes && program.status !== PROGRAM_STATUS.ARCHIVED;
+
   const lent = [...exchanges.hosted, ...exchanges.sent];
   // The student link keeps this program, so the student page's Back returns
   // here — the same `?from=` the roster's own rows carry.
@@ -153,7 +158,7 @@ export default async function ProgramPage({
             plus-button every page uses for "new", which the form REPLACES
             when it opens (add-students-form.tsx). `?add=1` — the link from
             Students — arrives with it open. */}
-        {writes && (
+        {adds && (
           <div>
             <AddStudentsForm
               defaultOpen={readParam(query, "add") === "1"}
@@ -208,11 +213,11 @@ export default async function ProgramPage({
             </EmptyState>
           ) : level ? (
             <EmptyState title={`Nobody in ${level.name} yet`}>
-              {writes && "Add them with the button above."}
+              {adds && "Add them with the button above."}
             </EmptyState>
           ) : (
             <EmptyState title="Nobody enrolled">
-              {writes && "Add them with the button above."}
+              {adds && "Add them with the button above."}
             </EmptyState>
           )
         ) : (

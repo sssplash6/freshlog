@@ -19,6 +19,7 @@ import {
   EXCHANGE_STATUS,
   NOTIFICATION_TYPES,
   PLACEHOLDER_EMAIL_DOMAIN,
+  PROGRAM_STATUS,
   ROLES,
   STANDING_SESSION,
   USER_STATUS,
@@ -154,6 +155,20 @@ async function resolveEnrollment(
 }
 
 /**
+ * The refusal for putting anybody into an archived program, or null.
+ *
+ * An archived program is one nothing new should be enrolled into
+ * (`programOptions`): it keeps its students and its ledger and stops being
+ * offered. The pickers already leave it out, so this is what stops a page that
+ * still offered it, an old tab or a hand-made request — in the words an
+ * exchange into one is refused with.
+ */
+function archivedRefusal(program: Program): { ok: false; error: string } | null {
+  if (program.status !== PROGRAM_STATUS.ARCHIVED) return null;
+  return { ok: false, error: `${program.name} is archived, so it can't take students.` };
+}
+
+/**
  * Register a LIST of student emails into a program (+ cohort where the
  * program has them), skipping the self-signup approval queue. Whoever
  * administers the program may add students to it. Each student confirms their
@@ -180,6 +195,8 @@ export async function createStudents(
 
   const denied = await assertProgramScope(actor, program.id);
   if (denied) return denied;
+  const archived = archivedRefusal(program);
+  if (archived) return archived;
 
   if (program.classHours) return createGroups(actor, program, level, cohort, formData);
 
@@ -757,6 +774,8 @@ export async function completeOnboarding(
   const enrollment = await resolveEnrollment(formData);
   if ("error" in enrollment) return { ok: false, error: enrollment.error };
   const { program, level, cohort } = enrollment;
+  const archived = archivedRefusal(program);
+  if (archived) return archived;
 
   // The people who administer the program this student just picked — not
   // every admin in the school, most of whom cannot approve them anyway.
@@ -960,6 +979,12 @@ export async function moveStudent(
 
   const deniedTarget = await assertProgramScope(actor, program.id);
   if (deniedTarget) return deniedTarget;
+  // Only a move INTO another program enrolls them anywhere new; putting right a
+  // cohort inside an archived one does not.
+  if (program.id !== from.programId) {
+    const archived = archivedRefusal(program);
+    if (archived) return archived;
+  }
 
   if (
     program.id === from.programId &&
@@ -1105,6 +1130,8 @@ export async function enrollStudent(
   if (profile.enrollments.some((e) => e.programId === program.id)) {
     return { ok: true, message: `They are already in ${program.name}.` };
   }
+  const archived = archivedRefusal(program);
+  if (archived) return archived;
 
   const label = enrollmentLabel(program.name, level?.name, cohort?.name);
   const granted = await prisma.$transaction(async (tx) => {

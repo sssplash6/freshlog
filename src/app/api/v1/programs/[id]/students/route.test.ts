@@ -113,6 +113,16 @@ describe("POST /api/v1/programs/:id/students", () => {
     expect((await res.json()).error).toBe("Add class groups on the website.");
   });
 
+  it("refuses an archived program, and adds nobody", async () => {
+    const { p, nodira } = await setUp();
+    await prisma.program.update({ where: { id: p.id }, data: { status: "ARCHIVED" } });
+    actor.value = { id: nodira.id };
+    const res = await add(p.id, { rows: [row("Aziz", "Tursunov")] });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Global Admissions is archived, so it can't take students.");
+    expect(await enrolled(p.id)).toEqual([]);
+  });
+
   it("an all-skipped list is the action's refusal", async () => {
     const { p, nodira } = await setUp();
     const existing = await student({ programId: p.id, name: "Aziz Tursunov" });

@@ -19,6 +19,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **A voided session keeps its meeting to log.** Voiding a session on the day of a Google Meet meeting dropped its reminder to log it, though no time was charged.
 - **Book from your mentor's page.** Where your mentor's booking link was set for another of your programs, their page showed their email instead of Book. It now offers Book, as the Book page does.
 - **Read-only access shows no buttons that fail.** Leaders and Sales no longer see Allocate time, Add students, Assign or Remove mentor, or the program's settings controls, which refused when used; Log a session stays for those who mentor there.
+- **Archived programs take no new students.** An archived program no longer offers Add students, and adding, enrolling, moving or signing up a student into one is refused.
 
 ## 2026-10-28
 
