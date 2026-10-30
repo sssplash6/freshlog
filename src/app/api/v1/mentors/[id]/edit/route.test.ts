@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { admin, allocation, grant, mentor, pairing, platformAdmin, program, student } from "@/test/db";
+import { admin, allocation, enroll, grant, mentor, pairing, platformAdmin, program, student } from "@/test/db";
 
 /** Editing a mentor, as the website's Edit fold on their page does, and their card for a colleague. */
 const actor = vi.hoisted(() => ({ value: null as { id: string } | null }));
@@ -101,5 +101,25 @@ describe("GET /api/v1/mentors/:id/card, to a student", () => {
     // A student nobody approved yet has no card.
     await prisma.user.update({ where: { id: aziz.userId }, data: { status: "PENDING" } });
     expect((await card(new Request("http://test"), ctx(akmal.id))).status).toBe(403);
+  });
+
+  it("books time held in a program whose pairing has no link through the mentor's link from another, as the Book page does", async () => {
+    const ga = await program("Global Admissions");
+    const masters = await program("Master's Program");
+    const akmal = await mentor("Akmal Karimov");
+    const withLink = await pairing({ mentorId: akmal.id, programId: ga.id });
+    await prisma.mentorAssignment.update({ where: { id: withLink.id }, data: { calendlyUrl: "https://cal.test/akmal" } });
+    await pairing({ mentorId: akmal.id, programId: masters.id });
+    const aziz = await student({ programId: ga.id, name: "Aziz Tursunov" });
+    await enroll({ studentId: aziz.id, programId: masters.id });
+    // Their time with him is in the Master's Program, whose pairing has no link.
+    await allocation({ studentId: aziz.id, programId: masters.id, mentorId: akmal.id, minutes: 120 });
+    actor.value = { id: aziz.userId };
+    const body = await (await card(new Request("http://test"), ctx(akmal.id))).json();
+    const byProgram = Object.fromEntries(
+      body.pairings.map((p: { program: { id: string }; bookingUrl: string | null }) => [p.program.id, p.bookingUrl])
+    );
+    // Book where the time is, with the one calendar he has; the email where it isn't.
+    expect(byProgram).toEqual({ [masters.id]: "https://cal.test/akmal", [ga.id]: null });
   });
 });

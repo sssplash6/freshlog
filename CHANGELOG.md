@@ -17,6 +17,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Needs you no longer says you can't log.** A student with no time with you said an admin had to allocate it before you could log. You can log a meeting meanwhile; what it draws shows when you log it.
 - **Time to claim is listed once.** A student whose time no mentor has claimed yet also showed in your Needs you as "No time with you" and as unassigned time. They now show only under Time to claim.
 - **A voided session no longer hides a meeting to log.** Voiding a session on the day of a Google Meet meeting dropped its reminder to log it, though no time was charged.
+- **Book from your mentor's page.** Where your mentor's booking link was set for another of your programs, their page showed their email instead of Book. It now offers Book, as the Book page does.
 
 ## 2026-10-28
 

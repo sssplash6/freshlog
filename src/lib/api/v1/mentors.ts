@@ -10,7 +10,7 @@ import { nameOf } from "@/lib/api/v1/sessions";
 import { canAdministerMentor, scopeCovers } from "@/lib/authz";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { allocationSummary, canBookOn } from "@/lib/hours";
-import { assignmentsForStudentWhere, mentorAssignments } from "@/lib/queries";
+import { assignmentsForStudentWhere, mentorAssignments, studentBookingLink } from "@/lib/queries";
 import type { User } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -174,7 +174,9 @@ export async function mentorCardFor(viewer: User, id: string): Promise<MentorCar
       }),
       allocationSummary(profile.id),
     ]);
-    visible = pairings;
+    // The website's card: a pairing with no link of its own borrows the mentor's from another of the student's
+    // pairings, as the Book page does.
+    visible = pairings.map((a) => ({ ...a, calendlyUrl: a.calendlyUrl ?? studentBookingLink(pairings, a.programId) }));
     bookableIn = new Set(hours.perMentor.flatMap((h) => (h.mentor?.id === mentor.id && canBookOn(h) ? [h.program.id] : [])));
   } else {
     if (!canActAsMentor(viewer)) return null;

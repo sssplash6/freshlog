@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { logSessionOptions, mentorCaseload, mentorOverview } from "@/lib/queries";
+import { logSessionOptions, mentorCaseload, mentorOverview, studentBookingLink } from "@/lib/queries";
 import {
   allocation,
   assignment,
@@ -328,5 +328,27 @@ describe("mentorOverview program rows", () => {
 
     expect(byProgram[0].bankCompleted).toBe(60);
     expect(byProgram[0].delivered).toBe(0);
+  });
+});
+
+describe("studentBookingLink", () => {
+  // One mentor's pairings that reach a student, oldest first, as the mentor's page and the Book page read them.
+  const pairings = [
+    { programId: "ga", calendlyUrl: null },
+    { programId: "masters", calendlyUrl: "https://cal.test/akmal-masters" },
+    { programId: "ga", calendlyUrl: "https://cal.test/akmal-ga" },
+    { programId: "imkon", calendlyUrl: null },
+  ];
+
+  it("takes the program's own link, from whichever of its pairings carries one", () => {
+    expect(studentBookingLink(pairings, "ga")).toBe("https://cal.test/akmal-ga");
+  });
+
+  it("falls back to the mentor's first link from another program: the same person's calendar", () => {
+    expect(studentBookingLink(pairings, "imkon")).toBe("https://cal.test/akmal-masters");
+  });
+
+  it("has nothing to hand over when no pairing has a link", () => {
+    expect(studentBookingLink([{ programId: "ga", calendlyUrl: null }], "ga")).toBeNull();
   });
 });

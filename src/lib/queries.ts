@@ -787,6 +787,24 @@ export function assignmentsForStudentWhere(profile: {
 }
 
 /**
+ * The booking link a student is handed for one mentor in one program, as the
+ * Book page hands it: a pairing's in that program or, when none there has one,
+ * the mentor's link from another of the student's pairings — it is the same
+ * person's calendar either way. `pairings` are that mentor's pairings that
+ * reach the student, oldest first, so each lookup takes the first made.
+ */
+export function studentBookingLink(
+  pairings: readonly { programId: string; calendlyUrl: string | null }[],
+  programId: string
+): string | null {
+  return (
+    pairings.find((p) => p.programId === programId && p.calendlyUrl)?.calendlyUrl ??
+    pairings.find((p) => p.calendlyUrl)?.calendlyUrl ??
+    null
+  );
+}
+
+/**
  * All programs with their levels and cohorts, for enrollment/assignment
  * selects. A program with levels requires picking one (and a cohort when the
  * level has them); a program with flat cohorts (Global Admissions) requires

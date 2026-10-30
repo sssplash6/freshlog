@@ -36,6 +36,7 @@ import { prisma } from "@/lib/prisma";
 import {
   assignmentsForStudentWhere,
   mentorAssignments,
+  studentBookingLink,
   toProgramOptions,
 } from "@/lib/queries";
 import { type ViewerContext } from "@/lib/status";
@@ -700,7 +701,13 @@ async function MentorCard({
       }),
       allocationSummary(profile.id),
     ]);
-    visible = pairings;
+    // A pairing with no link of its own borrows the mentor's from another of
+    // the student's pairings, as the Book page does, so the two pages offer
+    // the same calendar; it is still offered only where `bookableIn` says.
+    visible = pairings.map((a) => ({
+      ...a,
+      calendlyUrl: a.calendlyUrl ?? studentBookingLink(pairings, a.programId),
+    }));
     bookableIn = new Set(
       hours.perMentor.flatMap((h) =>
         h.mentor?.id === mentor.id && canBookOn(h) ? [h.program.id] : []
