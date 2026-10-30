@@ -147,6 +147,21 @@ export function studentHeadline({
   };
 }
 
+/**
+ * The mentors an agenda item's edit names: the page's list (`mentorsIn`), with
+ * the item's own mentor first when the list does not hold them. A mentor
+ * editing their own item has no list at all, and a scoped admin's lacks a
+ * mentor paired only elsewhere; without this the picker read "No one yet" over
+ * a mentor the item still had, and offered that as its one choice.
+ */
+export function agendaMentorOptions(
+  options: readonly { value: string; label: string }[],
+  mentor: { id: string; name: string | null; email: string } | null
+): { value: string; label: string }[] {
+  if (!mentor || options.some((o) => o.value === mentor.id)) return [...options];
+  return [{ value: mentor.id, label: mentor.name ?? mentor.email }, ...options];
+}
+
 /** The mentors paired with any of `programIds` (every program for undefined): the page's Allocate and Transfer offer them. */
 export function mentorsIn(programIds: readonly string[] | undefined) {
   return prisma.user.findMany({

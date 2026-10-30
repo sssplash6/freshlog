@@ -382,10 +382,17 @@ type TaskFields = {
 export function TaskRowActions({
   task,
   mentors,
+  canReassign = false,
   canDelete = false,
 }: {
   task: TaskFields;
   mentors: SelectOption[];
+  /**
+   * Admins only, like `canDelete`. Whose work it is belongs to the plan, so a
+   * mentor correcting their own item is shown its mentor and not offered a
+   * picker, and `updateAssignment` refuses the change server-side.
+   */
+  canReassign?: boolean;
   /**
    * Admins only. A mentor may correct their own task — the budget, the
    * deadline, the note, the progress — because they are the person who finds
@@ -397,7 +404,7 @@ export function TaskRowActions({
 }) {
   return (
     <RowActionMenu trigger="dots" label={`Manage "${task.purpose}"`} width="md">
-      <TaskPanel task={task} mentors={mentors} canDelete={canDelete} />
+      <TaskPanel task={task} mentors={mentors} canReassign={canReassign} canDelete={canDelete} />
     </RowActionMenu>
   );
 }
@@ -416,10 +423,12 @@ export function TaskRowActions({
 function TaskPanel({
   task,
   mentors,
+  canReassign,
   canDelete,
 }: {
   task: TaskFields;
   mentors: SelectOption[];
+  canReassign: boolean;
   canDelete: boolean;
 }) {
   const [editing, setEditing] = useState(false);
@@ -474,18 +483,25 @@ function TaskPanel({
 
             {/* Not a `Field`: `Select` is a combobox built from buttons, and a
               <label> wrapping one has nothing to label. Its own `ariaLabel`
-              names it instead. */}
+              names it instead. Read only where the reader may not move it,
+              and then not posted at all, so the action keeps it. */}
             <div>
               <span className="block text-sm font-medium text-ink">Mentor</span>
               <div className="mt-1.5">
-                <Select
-                  name="mentorId"
-                  ariaLabel="Mentor"
-                  options={mentors}
-                  defaultValue={task.mentorId ?? ""}
-                  placeholder="No one yet"
-                  required={false}
-                />
+                {canReassign ? (
+                  <Select
+                    name="mentorId"
+                    ariaLabel="Mentor"
+                    options={mentors}
+                    defaultValue={task.mentorId ?? ""}
+                    placeholder="No one yet"
+                    required={false}
+                  />
+                ) : (
+                  <p className="text-body text-ink">
+                    {mentors.find((m) => m.value === task.mentorId)?.label ?? "No one yet"}
+                  </p>
+                )}
               </div>
             </div>
 

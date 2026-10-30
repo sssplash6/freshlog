@@ -74,6 +74,28 @@ describe("editing an agenda item", () => {
     expect([row.mentorId, row.note]).toEqual([umid.id, "Second draft in"]);
   });
 
+  it("lets the item's own mentor correct it, and keeps them on it", async () => {
+    const { a, akmal } = await setUp();
+    actor.value = akmal;
+
+    // Their form has no mentor select, so it posts none.
+    const res = await updateAssignment(null, edit(a.id, { openedMentorId: akmal.id, note: "Second draft in" }));
+
+    expect(res?.ok).toBe(true);
+    const row = await stored(a.id);
+    expect([row.mentorId, row.note]).toEqual([akmal.id, "Second draft in"]);
+  });
+
+  it("refuses the item's own mentor moving it to somebody else, or off everybody", async () => {
+    const { a, akmal, umid } = await setUp();
+    actor.value = akmal;
+    const refusal = { ok: false, error: "Only an admin of this program can change an agenda item's mentor." };
+
+    expect(await updateAssignment(null, edit(a.id, { mentorId: "", openedMentorId: akmal.id }))).toEqual(refusal);
+    expect(await updateAssignment(null, edit(a.id, { mentorId: umid.id, openedMentorId: akmal.id }))).toEqual(refusal);
+    expect((await stored(a.id)).mentorId).toBe(akmal.id);
+  });
+
   it("writes a mentor the person picked", async () => {
     const { a, akmal, umid } = await setUp();
 

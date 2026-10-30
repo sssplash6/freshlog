@@ -145,11 +145,20 @@ export async function updateAssignment(
   const posted = String(formData.get("mentorId") ?? "").trim() || null;
   // The edit form also says which mentor it opened on. Posted back as it was,
   // the select asks for nothing, and writing it would undo a hand-over somebody
-  // made while the form stood open — so the stored mentor stands.
+  // made while the form stood open — so the stored mentor stands. So it does
+  // when none is posted: the form of a reader who may not move it has no
+  // select.
   const untouched =
-    formData.has("openedMentorId") &&
-    posted === (String(formData.get("openedMentorId")).trim() || null);
+    !formData.has("mentorId") ||
+    (formData.has("openedMentorId") &&
+      posted === (String(formData.get("openedMentorId")).trim() || null));
   const mentorId = untouched ? existing.mentorId : posted;
+  // Whose work it is belongs to the plan, so moving it — or taking it off
+  // everybody — is an admin's of its program. `assertTaskScope` let the item's
+  // own mentor this far, to correct the rest of it.
+  if (mentorId !== existing.mentorId && (await assertProgramScope(actor, existing.programId))) {
+    return { ok: false, error: "Only an admin of this program can change an agenda item's mentor." };
+  }
   let newMentorName: string | null = null;
   if (mentorId) {
     const mentor = await prisma.user.findUnique({ where: { id: mentorId } });

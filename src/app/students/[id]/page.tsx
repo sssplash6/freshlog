@@ -67,7 +67,13 @@ import {
 } from "@/lib/enrollments";
 import { visibleExchanges } from "@/lib/exchanges";
 import { requireUser } from "@/lib/dal";
-import { logAdvice, mentorsIn, programLines, studentHeadline } from "@/lib/screens/student-record";
+import {
+  agendaMentorOptions,
+  logAdvice,
+  mentorsIn,
+  programLines,
+  studentHeadline,
+} from "@/lib/screens/student-record";
 import {
   formatDate,
   formatDuration,
@@ -653,7 +659,10 @@ export default async function StudentWorkspacePage({
                     progress: task.progress,
                     progressManual: task.progressManual,
                   }}
-                  mentors={mentorOptions}
+                  mentors={agendaMentorOptions(mentorOptions, task.mentor)}
+                  // Who does the work is the plan's, an admin's to change: the
+                  // mentor editing their own item sees whose it is and keeps it.
+                  canReassign={writes}
                   canDelete={writes}
                 />
               ) : null
