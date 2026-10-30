@@ -1,8 +1,10 @@
+import { notFound } from "next/navigation";
+
 import { AlertIcon } from "@/components/icons";
 import { AssignTaskForm } from "@/components/forms/assign-task-form";
 import { ParamSelect } from "@/components/param-select";
 import { Section } from "@/components/ui/section";
-import { staffLevel } from "@/lib/authz";
+import { canManageProgram, staffLevel } from "@/lib/authz";
 import { requireProgramScope } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
 import { formatMinutes, toDateInputValue } from "@/lib/format";
@@ -39,6 +41,11 @@ export default async function AllocateInProgramPage({
 }) {
   const { id } = await params;
   const me = await requireProgramScope(id);
+  // A form, not a record, like `/students/[id]/allocate`: a read-only grant
+  // (LEADER, SALES) reads the program but grants nothing in it, so it gets the
+  // answer a program it cannot see gets rather than a form that would refuse
+  // it. Asked before anything is read.
+  if (!(await canManageProgram(me, id))) notFound();
   const query = await searchParams;
 
   const [program, roster, pairings] = await Promise.all([

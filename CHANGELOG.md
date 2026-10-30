@@ -18,6 +18,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Time to claim is listed once.** A student whose time no mentor has claimed yet also showed in your Needs you as "No time with you" and as unassigned time. They now show only under Time to claim.
 - **A voided session keeps its meeting to log.** Voiding a session on the day of a Google Meet meeting dropped its reminder to log it, though no time was charged.
 - **Book from your mentor's page.** Where your mentor's booking link was set for another of your programs, their page showed their email instead of Book. It now offers Book, as the Book page does.
+- **Read-only access shows no buttons that fail.** Leaders and Sales no longer see Allocate time, Add students, Assign or Remove mentor, or the program's settings controls, which refused when used; Log a session stays for those who mentor there.
 
 ## 2026-10-28
 

@@ -80,12 +80,15 @@ export default async function ProgramPage({
   const now = requestNow();
   const viewer: ViewerContext = { audience: "staff", userId: user.id, now };
 
+  // A read-only grant (LEADER, SALES) reads the roster and is offered none of
+  // the controls on it, as the layout's header does: each would refuse them.
+  const writes = await canManageProgram(user, id);
+
   // The first three are the layout's reads, memoised: opening a program asks
   // for its row, its roster and its pairings once between the two files.
   // `?task=1`, from the header's "Set a task": the form opens above
   // the roster, for an admin who may set it.
-  const settingTask =
-    readParam(query, "task") === "1" && (await canManageProgram(user, id));
+  const settingTask = readParam(query, "task") === "1" && writes;
   const [program, pairings, cohorts, levels, exchanges, grants, pool, recent, approved] =
     await Promise.all([
       programOf(id),
@@ -150,24 +153,26 @@ export default async function ProgramPage({
             plus-button every page uses for "new", which the form REPLACES
             when it opens (add-students-form.tsx). `?add=1` — the link from
             Students — arrives with it open. */}
-        <div>
-          <AddStudentsForm
-            defaultOpen={readParam(query, "add") === "1"}
-            classHours={program.classHours}
-            program={{
-              id: program.id,
-              name: program.name,
-              levels: levels.map((l) => ({
-                id: l.id,
-                name: l.name,
-                cohorts: l.cohorts.map((c) => ({ id: c.id, name: c.name })),
-              })),
-              cohorts: cohorts
-                .filter((c) => c.levelId === null)
-                .map((c) => ({ id: c.id, name: c.name })),
-            }}
-          />
-        </div>
+        {writes && (
+          <div>
+            <AddStudentsForm
+              defaultOpen={readParam(query, "add") === "1"}
+              classHours={program.classHours}
+              program={{
+                id: program.id,
+                name: program.name,
+                levels: levels.map((l) => ({
+                  id: l.id,
+                  name: l.name,
+                  cohorts: l.cohorts.map((c) => ({ id: c.id, name: c.name })),
+                })),
+                cohorts: cohorts
+                  .filter((c) => c.levelId === null)
+                  .map((c) => ({ id: c.id, name: c.name })),
+              }}
+            />
+          </div>
+        )}
 
         {/* The level is a tab in the layout above, not a select here. */}
         {/* Reset only for a filter the reader set here; the level tab is
@@ -203,11 +208,11 @@ export default async function ProgramPage({
             </EmptyState>
           ) : level ? (
             <EmptyState title={`Nobody in ${level.name} yet`}>
-              Add them with the button above.
+              {writes && "Add them with the button above."}
             </EmptyState>
           ) : (
             <EmptyState title="Nobody enrolled">
-              Add them with the button above.
+              {writes && "Add them with the button above."}
             </EmptyState>
           )
         ) : (
@@ -330,7 +335,7 @@ export default async function ProgramPage({
               ))}
             </ul>
           )}
-          {eligibleMentors.length > 0 && (
+          {writes && eligibleMentors.length > 0 && (
             <div className="border-t border-line px-4 py-3 sm:px-5">
               <AssignMentorForm
                 programId={program.id}

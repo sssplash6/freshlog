@@ -6,6 +6,7 @@ import { TabLinks } from "@/components/ui/segmented";
 import { ProgramDot } from "@/components/program-chip";
 import { StatusChip } from "@/components/ui/status-chip";
 import { adminScope, canManageProgram } from "@/lib/authz";
+import { canActAsMentor } from "@/lib/constants";
 import { requireProgramScope } from "@/lib/dal";
 import { formatBalance, formatDuration } from "@/lib/format";
 import { programTotals } from "@/lib/hours";
@@ -14,6 +15,7 @@ import {
   PROGRAM_STATUS,
   programLevels,
   programOf,
+  programPairings,
   programStudents,
 } from "../reads";
 
@@ -54,16 +56,22 @@ export default async function ProgramLayout({
 }) {
   const { id } = await params;
   const user = await requireProgramScope(id);
-  const [program, students, levels] = await Promise.all([
+  const [program, students, levels, pairings] = await Promise.all([
     programOf(id),
     programStudents(id),
     programLevels(id),
+    programPairings(id),
   ]);
 
   const scope = await adminScope(user);
   // A read-only grant (LEADER, SALES) sees the program and changes nothing in
   // it, so it is not offered a control that sets every student a task.
   const writes = await canManageProgram(user, id);
+  // Logging is the one header action such a reader may still have: as a mentor
+  // paired here, who logs their own sessions in this program. Anybody else
+  // would be turned away by the form the button opens.
+  const logs =
+    writes || (canActAsMentor(user) && pairings.some((p) => p.mentorId === user.id));
   // Back to the index, unless this reader's whole scope is this program — then
   // `/programs` redirects straight back here and the link is a loop.
   const toIndex = scope === "ALL" || scope.size > 1;
@@ -106,9 +114,11 @@ export default async function ProgramLayout({
                 session should always be in right corner, Allocate time to the
                 left"). Granting time is what a program admin opens this page
                 to do that no other page does for the whole program. */}
-            <LinkButton href={`${base}/allocate`} variant="primary" size="md">
-              Allocate time
-            </LinkButton>
+            {writes && (
+              <LinkButton href={`${base}/allocate`} variant="primary" size="md">
+                Allocate time
+              </LinkButton>
+            )}
             {/* One task for every student in the program, set above the
                 roster — asked for by the program's admins (11 October 2026).
                 "Set a task", and the only task button up here: "Set a task,
@@ -123,15 +133,17 @@ export default async function ProgramLayout({
             {/* The program travels with it: a student in two of them has two
                 balances, and the one being looked at is the one this log
                 should land in. */}
-            <LinkButton
-              href={`/sessions/new?program=${program.id}`}
-              // Blue wherever it appears, as on Home, Sessions and a
-              // student's page — one action, one look.
-              variant="primary"
-              size="md"
-            >
-              {program.classHours ? "Log an hour for a group" : "Log a session"}
-            </LinkButton>
+            {logs && (
+              <LinkButton
+                href={`/sessions/new?program=${program.id}`}
+                // Blue wherever it appears, as on Home, Sessions and a
+                // student's page — one action, one look.
+                variant="primary"
+                size="md"
+              >
+                {program.classHours ? "Log an hour for a group" : "Log a session"}
+              </LinkButton>
+            )}
           </span>
         }
       />

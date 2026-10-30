@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
 import { PageTitle } from "@/components/ui/section";
-import { adminScope, scopeProgramFilter } from "@/lib/authz";
+import { adminScope, adminWriteScope, scopeCovers, scopeProgramFilter } from "@/lib/authz";
 import { canActAsMentor } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import {
@@ -121,7 +121,7 @@ export default async function StudentsPage({
     now
   );
 
-  const [programs, matching, total] = await Promise.all([
+  const [programs, matching, total, writeScope] = await Promise.all([
     prisma.program.findMany({
       // The programs this reader can meaningfully filter by: an admin's
       // grants, or — for a mentor — the programs they are assigned to, which
@@ -158,7 +158,12 @@ export default async function StudentsPage({
       order: nameOrder,
     }),
     prisma.studentProfile.count({ where }),
+    adminWriteScope(user),
   ]);
+  // Where Add students may lead: a program this reader may add to. A read-only
+  // grant (LEADER, SALES) reads its programs here but adds nobody to them, and
+  // its program's page offers it no form to land on.
+  const addable = programs.filter((p) => scopeCovers(writeScope, p.id));
 
   const visible = timeFilter
     ? matching.filter((s) => {
@@ -209,10 +214,10 @@ export default async function StudentsPage({
         // cohort is chosen): one program links straight to its form, several
         // to the list to pick from.
         actions={
-          administers && programs.length > 0 ? (
+          administers && addable.length > 0 ? (
             <CreateLink
               href={
-                programs.length === 1 ? `/programs/${programs[0].id}?add=1` : "/programs?for=students"
+                addable.length === 1 ? `/programs/${addable[0].id}?add=1` : "/programs?for=students"
               }
               label="Add students"
             />
@@ -267,10 +272,10 @@ export default async function StudentsPage({
           <EmptyState
             title="No students yet"
             action={
-              administers && programs.length > 0 ? (
+              administers && addable.length > 0 ? (
                 <CreateLink
                   href={
-                    programs.length === 1 ? `/programs/${programs[0].id}?add=1` : "/programs?for=students"
+                    addable.length === 1 ? `/programs/${addable[0].id}?add=1` : "/programs?for=students"
                   }
                   label="Add students"
                 />

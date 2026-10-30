@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowLink } from "@/components/ui/link";
 import { Section } from "@/components/ui/section";
 import { SettingsRow } from "@/components/ui/settings-row";
+import { canManageProgram } from "@/lib/authz";
 import { PROGRAM_SPACE } from "@/lib/constants";
 import { requireProgramScope } from "@/lib/dal";
 
@@ -65,6 +66,11 @@ const LEVEL: Record<string, string> = {
  *   one stays, because this is the one with the write controls on it: assigning
  *   and unassigning a mentor happens here. Assigning is also offered in the
  *   rail on the roster, where an empty program says it has nobody to teach.
+ *
+ * A read-only grant (LEADER, SALES) opens it too, and reads who teaches here,
+ * how the program is divided and who administers it, without a control: every
+ * one of them would refuse it, and the Program and Delete sections are nothing
+ * but controls, so they are not drawn for it at all.
  */
 export default async function ProgramSettingsPage({
   params,
@@ -73,6 +79,7 @@ export default async function ProgramSettingsPage({
 }) {
   const { id } = await params;
   const viewer = await requireProgramScope(id);
+  const writes = await canManageProgram(viewer, id);
 
   const [program, students, pairings, cohorts, levels, grants, allMentors] =
     await Promise.all([
@@ -113,8 +120,8 @@ export default async function ProgramSettingsPage({
       >
         {pairings.length === 0 ? (
           <EmptyState framed={false} title="No mentors assigned">
-            Assign one below, or allocate a student time from any mentor and
-            they join this program automatically.
+            {writes &&
+              "Assign one below, or allocate a student time from any mentor and they join this program automatically."}
           </EmptyState>
         ) : (
           // Plain list rows, not settings rows: a person and the one thing you
@@ -138,12 +145,12 @@ export default async function ProgramSettingsPage({
                     </span>
                   )}
                 </span>
-                <RemoveMentorButton assignmentId={p.id} />
+                {writes && <RemoveMentorButton assignmentId={p.id} />}
               </li>
             ))}
           </ul>
         )}
-        {eligibleMentors.length > 0 && (
+        {writes && eligibleMentors.length > 0 && (
           <div className="border-t border-line px-4 py-3 sm:px-5">
             <AssignMentorForm
               programId={program.id}
@@ -182,7 +189,7 @@ export default async function ProgramSettingsPage({
                         {l.cohorts.length} cohort{l.cohorts.length === 1 ? "" : "s"}
                       </div>
                     </div>
-                    {empty ? (
+                    {!writes ? null : empty ? (
                       <DeleteLevelButton levelId={l.id} levelName={l.name} />
                     ) : (
                       <span className="text-xs text-muted-fg">
@@ -190,15 +197,17 @@ export default async function ProgramSettingsPage({
                       </span>
                     )}
                   </div>
-                  <div className="mt-2">
-                    <LevelStandardHoursForm
-                      levelId={l.id}
-                      levelName={l.name}
-                      standardMinutes={l.standardMinutes}
-                      standardDays={l.standardDays}
-                      hourBank={program.hourBank}
-                    />
-                  </div>
+                  {writes && (
+                    <div className="mt-2">
+                      <LevelStandardHoursForm
+                        levelId={l.id}
+                        levelName={l.name}
+                        standardMinutes={l.standardMinutes}
+                        standardDays={l.standardDays}
+                        hourBank={program.hourBank}
+                      />
+                    </div>
+                  )}
                   {l.cohorts.length > 0 && (
                     <ul className="mt-2 divide-y divide-line/60 border-t border-line/60">
                       {l.cohorts.map((c) => {
@@ -221,7 +230,7 @@ export default async function ProgramSettingsPage({
                                 {c._count.mentorAssignments === 1 ? "" : "s"}
                               </div>
                             </div>
-                            {inUse ? (
+                            {!writes ? null : inUse ? (
                               <span className="text-xs text-muted-fg">
                                 Not empty — move its people first
                               </span>
@@ -236,20 +245,24 @@ export default async function ProgramSettingsPage({
                       })}
                     </ul>
                   )}
-                  <div className="mt-1">
-                    <CreateCohortForm
-                      programId={program.id}
-                      levelId={l.id}
-                      levelName={l.name}
-                    />
-                  </div>
+                  {writes && (
+                    <div className="mt-1">
+                      <CreateCohortForm
+                        programId={program.id}
+                        levelId={l.id}
+                        levelName={l.name}
+                      />
+                    </div>
+                  )}
                 </li>
               );
             })}
           </ul>
-          <div className="border-t border-line px-4 py-2 sm:px-5">
-            <CreateLevelForm programId={program.id} />
-          </div>
+          {writes && (
+            <div className="border-t border-line px-4 py-2 sm:px-5">
+              <CreateLevelForm programId={program.id} />
+            </div>
+          )}
         </Section>
       ) : (
         <Section
@@ -275,7 +288,7 @@ export default async function ProgramSettingsPage({
                         {c._count.mentorAssignments === 1 ? "" : "s"}
                       </div>
                     </div>
-                    {inUse ? (
+                    {!writes ? null : inUse ? (
                       <span className="text-xs text-muted-fg">
                         Not empty — move its people first
                       </span>
@@ -287,14 +300,20 @@ export default async function ProgramSettingsPage({
               })}
             </ul>
           )}
-          <div className="border-t border-line px-4 py-2 sm:px-5">
-            <CreateCohortForm programId={program.id} />
-          </div>
+          {/* Without the form under it, an empty list needs saying. */}
+          {!writes && flatCohorts.length === 0 && (
+            <EmptyState framed={false} title="No cohorts" />
+          )}
+          {writes && (
+            <div className="border-t border-line px-4 py-2 sm:px-5">
+              <CreateCohortForm programId={program.id} />
+            </div>
+          )}
           {/* Becoming leveled is only ever offered on an empty program: the
               action refuses while flat cohorts exist, since the two shapes do
               not mix — the research merge moved each old cohort under its
               level first, which is the path a program with people takes. */}
-          {flatCohorts.length === 0 && (
+          {writes && flatCohorts.length === 0 && (
             <div className="border-t border-line px-4 py-2 sm:px-5">
               <CreateLevelForm programId={program.id} />
             </div>
@@ -340,83 +359,87 @@ export default async function ProgramSettingsPage({
         )}
       </Section>
 
-      <Section title="Program">
-        <div className="px-4 sm:px-5">
-          <RenameProgramForm programId={program.id} currentName={program.name} />
-          <TrackPaymentToggle
-            programId={program.id}
-            tracksPayment={program.tracksPayment}
-          />
-          <HourBankToggle programId={program.id} hourBank={program.hourBank} />
-          {/* Platform admins only: it reframes the app for everybody who works
-              only here, which is not one program admin's call. */}
-          {viewer.platformAdmin && (
-            <InstituteSpaceForm
+      {writes && (
+        <>
+        <Section title="Program">
+          <div className="px-4 sm:px-5">
+            <RenameProgramForm programId={program.id} currentName={program.name} />
+            <TrackPaymentToggle
               programId={program.id}
-              programName={program.name}
-              institute={program.space === PROGRAM_SPACE.INSTITUTE}
-              spaceName={program.spaceName}
+              tracksPayment={program.tracksPayment}
             />
-          )}
-          <ClassHoursToggle programId={program.id} classHours={program.classHours} />
-          {/* Off is the program's own call; on is a platform admin's, since
-              it opens students' applications to everybody here — see
-              `setProgramTracksAdmissions`. Where it is off and the reader
-              cannot turn it on, there is nothing to show. */}
-          {(program.tracksAdmissions || viewer.platformAdmin) && (
-            <TracksAdmissionsToggle
-              programId={program.id}
-              tracksAdmissions={program.tracksAdmissions}
-            />
-          )}
-          {/* Same rule as the applications toggle: off is the program's own
-              call, on is a platform admin's. This is what makes scheduling
-              exclusive to the department that asked for it. */}
-          {(program.schedulesClasses || viewer.platformAdmin) && (
-            <SchedulesClassesToggle
-              programId={program.id}
-              schedulesClasses={program.schedulesClasses}
-            />
-          )}
-          <StandardHoursForm
-            programId={program.id}
-            standardMinutes={program.standardMinutes}
-            standardDays={program.standardDays}
-            hourBank={program.hourBank}
-          />
-          <SettingsRow
-            label={archived ? "Archived" : "Archive this program"}
-            description={
-              archived
-                ? "It is out of the pickers and the lists. Its sessions and allocations are untouched."
-                : "For a program that has finished. It leaves the pickers and the lists; every ledger page stays reachable."
-            }
-            control={
-              <ArchiveProgramButton
+            <HourBankToggle programId={program.id} hourBank={program.hourBank} />
+            {/* Platform admins only: it reframes the app for everybody who works
+                only here, which is not one program admin's call. */}
+            {viewer.platformAdmin && (
+              <InstituteSpaceForm
                 programId={program.id}
                 programName={program.name}
-                archived={archived}
+                institute={program.space === PROGRAM_SPACE.INSTITUTE}
+                spaceName={program.spaceName}
               />
-            }
-          />
-        </div>
-      </Section>
+            )}
+            <ClassHoursToggle programId={program.id} classHours={program.classHours} />
+            {/* Off is the program's own call; on is a platform admin's, since
+                it opens students' applications to everybody here — see
+                `setProgramTracksAdmissions`. Where it is off and the reader
+                cannot turn it on, there is nothing to show. */}
+            {(program.tracksAdmissions || viewer.platformAdmin) && (
+              <TracksAdmissionsToggle
+                programId={program.id}
+                tracksAdmissions={program.tracksAdmissions}
+              />
+            )}
+            {/* Same rule as the applications toggle: off is the program's own
+                call, on is a platform admin's. This is what makes scheduling
+                exclusive to the department that asked for it. */}
+            {(program.schedulesClasses || viewer.platformAdmin) && (
+              <SchedulesClassesToggle
+                programId={program.id}
+                schedulesClasses={program.schedulesClasses}
+              />
+            )}
+            <StandardHoursForm
+              programId={program.id}
+              standardMinutes={program.standardMinutes}
+              standardDays={program.standardDays}
+              hourBank={program.hourBank}
+            />
+            <SettingsRow
+              label={archived ? "Archived" : "Archive this program"}
+              description={
+                archived
+                  ? "It is out of the pickers and the lists. Its sessions and allocations are untouched."
+                  : "For a program that has finished. It leaves the pickers and the lists; every ledger page stays reachable."
+              }
+              control={
+                <ArchiveProgramButton
+                  programId={program.id}
+                  programName={program.name}
+                  archived={archived}
+                />
+              }
+            />
+          </div>
+        </Section>
 
-      {/* No eyebrows on this page. "People", "Structure", "Access",
-          "Identity" and "Permanent" each restated the title under it; the
-          caption here says the one thing about deleting that is not obvious. */}
-      <Section
-        title="Delete this program"
-        caption="Permanent, and only once nothing is left in it"
-      >
-        <div className="px-4 py-2 sm:px-5">
-          <DeleteProgramButton
-            programId={program.id}
-            programName={program.name}
-            blockedReason={blockedReason}
-          />
-        </div>
-      </Section>
+        {/* No eyebrows on this page. "People", "Structure", "Access",
+            "Identity" and "Permanent" each restated the title under it; the
+            caption here says the one thing about deleting that is not obvious. */}
+        <Section
+          title="Delete this program"
+          caption="Permanent, and only once nothing is left in it"
+        >
+          <div className="px-4 py-2 sm:px-5">
+            <DeleteProgramButton
+              programId={program.id}
+              programName={program.name}
+              blockedReason={blockedReason}
+            />
+          </div>
+        </Section>
+        </>
+      )}
     </div>
   );
 }
