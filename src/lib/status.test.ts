@@ -182,6 +182,17 @@ describe("studentStatuses", () => {
     expect(none?.label).toBe("No time with you");
   });
 
+  it("tells a mentor with no time that they can still log, as logging allows", () => {
+    // `logSession` stopped refusing a mentor with no allocation on 2 Sep: the
+    // meeting draws a bank or the pool, or overdraws. The row said otherwise.
+    const none = find(
+      studentStatuses(student({ allottedMinutes: 0, remainingMinutes: 0 }), view("mentor")),
+      "BALANCE_NONE"
+    );
+    expect(none?.explanation).not.toMatch(/before you can log/);
+    expect(none?.explanation).toMatch(/can still log/);
+  });
+
   it("blocks a mentor from logging against a student awaiting approval", () => {
     // Deliberately against the written spec, which had this invisible to a
     // mentor while also calling it their reason for not being able to log.

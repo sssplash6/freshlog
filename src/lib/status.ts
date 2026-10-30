@@ -349,9 +349,11 @@ type Meta = {
  * Two entries deliberately contradict the written spec, both for the same
  * reason. `STUDENT_PENDING_APPROVAL` and `BALANCE_NONE` were specified as
  * invisible to a mentor while also being the mentor's reason they cannot log a
- * session — but a status nobody can see cannot explain a disabled button, and
- * `logSession` genuinely refuses both cases (a non-ACTIVE student, and a mentor
- * with no allocation). A mentor gets told, as `blocked`.
+ * session — but a status nobody can see cannot explain a disabled button. A
+ * mentor gets told, as `blocked`. Only the first is still a refusal:
+ * `logSession` turns away a non-ACTIVE student, but since 05b5da3 a mentor
+ * with no allocation logs anyway — the meeting draws the student's bank or
+ * unassigned pool, or overdraws, warned — so that row says they still can.
  */
 const META: Record<StatusType, Meta> = {
   STUDENT_PENDING_APPROVAL: {
@@ -426,7 +428,7 @@ const META: Record<StatusType, Meta> = {
       mentor: {
         kind: "blocked",
         label: () => "No time with you",
-        explanation: () => "An admin allocates it before you can log against it.",
+        explanation: () => "An admin allocates it. You can still log a meeting meanwhile.",
       },
       student: {
         kind: "informational",
