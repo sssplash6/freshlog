@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { inboxPage, markRead } from "@/lib/api/v1/inbox";
+import { inboxPage, markRead, unreadOf } from "@/lib/api/v1/inbox";
 import type { InboxPage } from "@/lib/api/v1/types";
 import { prisma } from "@/lib/prisma";
 import { mentor, student, program } from "@/test/db";
@@ -108,6 +108,18 @@ describe("inboxPage", () => {
     expect(page.items[0].actor).toBeNull();
     expect(page.items[1].actor).toEqual({ id: akmal.id, name: "Akmal Karimov" });
     expect(page.items[1]).toMatchObject({ read: false, at: at(1).toISOString(), message: "Notice 1" });
+  });
+});
+
+describe("unreadOf", () => {
+  it("the homes' unread and unreadDeadlines leave out a category turned off In app", async () => {
+    const aziz = await student({ name: "Aziz Tursunov" });
+    await notice(aziz.userId, 1, { category: "DEADLINES" });
+    await notice(aziz.userId, 2, { category: "DEADLINES" });
+    await notice(aziz.userId, 3, { category: "SESSIONS" });
+    expect(await unreadOf(aziz.userId)).toEqual({ unread: 3, unreadDeadlines: 2 });
+    await prisma.notificationPreference.create({ data: { userId: aziz.userId, category: "DEADLINES", inApp: false } });
+    expect(await unreadOf(aziz.userId)).toEqual({ unread: 1, unreadDeadlines: 0 });
   });
 });
 

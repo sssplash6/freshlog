@@ -47,6 +47,7 @@ import { adminScope, scopeIsEmpty } from "@/lib/authz";
 import { hasUnseenChangelog, readChangelog } from "@/lib/changelog";
 import { canActAsMentor, inStudentLens, ROLES, USER_STATUS } from "@/lib/constants";
 import { navFor, type NavItem } from "@/lib/nav";
+import { mutedCategories } from "@/lib/notify";
 import { prisma } from "@/lib/prisma";
 import { canSwitchProfile, profileOf, type Profile } from "@/lib/profile";
 import { spaceOf, type Space } from "@/lib/space";
@@ -716,15 +717,17 @@ export async function AppShell({
 
   // Six rows and a count, in one round trip each. The panel is a glance, so
   // `take: 6` is the whole of it — `/notifications` is where the feed lives.
+  // Neither holds a category the reader turned off In app.
+  const muted = await mutedCategories(user.id);
   const [profile, unreadRows, recent, changelog] = await Promise.all([
     profileOf(user),
     prisma.notification.groupBy({
       by: ["category"],
-      where: { userId: user.id, read: false },
+      where: { userId: user.id, read: false, category: { notIn: muted } },
       _count: true,
     }),
     prisma.notification.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, category: { notIn: muted } },
       orderBy: { createdAt: "desc" },
       take: 6,
       select: {

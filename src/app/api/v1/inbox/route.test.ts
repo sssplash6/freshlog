@@ -81,6 +81,38 @@ describe("GET /api/v1/inbox", () => {
     expect(await bad.json()).toMatchObject({ field: "category" });
   });
 
+  it("leaves out a category turned off In app, from the list and every count, until it is turned back on", async () => {
+    const aziz = await student();
+    const notice = (category: string, read: boolean) =>
+      prisma.notification.create({ data: { userId: aziz.userId, type: "TASK_SET", category, read, message: category } });
+    await notice("HOURS", false);
+    await notice("HOURS", true);
+    await notice("DEADLINES", false);
+    await notice("TASKS", false);
+    await prisma.notificationPreference.createMany({
+      data: [
+        { userId: aziz.userId, category: "HOURS", inApp: false, email: false },
+        { userId: aziz.userId, category: "DEADLINES", inApp: false, email: false },
+        // Email off is not In app off: Tasks still shows.
+        { userId: aziz.userId, category: "TASKS", inApp: true, email: false },
+      ],
+    });
+    actor.value = { id: aziz.userId };
+    const all: InboxPage = await (await get()).json();
+    expect(all.items.map((i) => i.category)).toEqual(["TASKS"]);
+    expect(all.unread).toBe(1);
+    expect(all.unreadBy).toEqual([{ category: "TASKS", label: "Tasks and agenda", count: 1 }]);
+    expect(all.categories.map((c) => c.category)).toEqual(["TASKS"]);
+    // Asked for by name, a muted category is empty rather than a way round the switch.
+    const hours: InboxPage = await (await get("?category=HOURS")).json();
+    expect(hours.items).toEqual([]);
+    // The notices were kept: turning Hours back on shows them again.
+    await prisma.notificationPreference.delete({ where: { userId_category: { userId: aziz.userId, category: "HOURS" } } });
+    const back: InboxPage = await (await get()).json();
+    expect(back.items.map((i) => i.category).sort()).toEqual(["HOURS", "HOURS", "TASKS"]);
+    expect(back.unread).toBe(2);
+  });
+
   it("hands out only a link the website's /n/[id] would follow", async () => {
     const aziz = await student();
     for (const href of ["//evil.example/x", "/\\evil.example", "https://evil.example", "/student"])

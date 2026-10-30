@@ -113,14 +113,14 @@ export async function sweepPushes(now: Date, send: Sender): Promise<SweepResult>
           select: { token: true, userId: true },
         }),
         prisma.pushPreference.findMany({ where: { userId: { in: readers }, on: false } }),
-        prisma.notification.groupBy({ by: ["userId"], where: { userId: { in: readers }, read: false }, _count: true }),
+        unreadBadges(readers),
       ])
     : [[], [], []];
 
   const phonesOf = new Map<string, string[]>();
   for (const d of devices) phonesOf.set(d.userId, [...(phonesOf.get(d.userId) ?? []), d.token]);
   const off = new Set(offs.map((p) => `${p.userId}|${p.category}`));
-  const unreadOf = new Map(unread.map((u) => [u.userId, u._count]));
+  const unreadOf = new Map(unread);
 
   const messages: PushMessage[] = [];
   let skipped = mine.length - fresh.length;
@@ -162,4 +162,22 @@ export async function sweepPushes(now: Date, send: Sender): Promise<SweepResult>
   if (gone.length) await prisma.deviceToken.deleteMany({ where: { token: { in: gone } } });
 
   return { claimed: mine.length, sent, skipped, removed: gone.length };
+}
+
+/**
+ * Each reader's unread count for the badge, as the bell counts it: what they
+ * turned off In app is left out (`mutedCategories`), so the phone's icon never
+ * says more than the app's own bell.
+ */
+async function unreadBadges(readers: string[]): Promise<[string, number][]> {
+  const [rows, muted] = await Promise.all([
+    prisma.notification.groupBy({ by: ["userId", "category"], where: { userId: { in: readers }, read: false }, _count: true }),
+    prisma.notificationPreference.findMany({ where: { userId: { in: readers }, inApp: false }, select: { userId: true, category: true } }),
+  ]);
+  const off = new Set(muted.map((m) => `${m.userId}|${m.category}`));
+  const total = new Map<string, number>();
+  for (const r of rows) {
+    if (!off.has(`${r.userId}|${r.category}`)) total.set(r.userId, (total.get(r.userId) ?? 0) + r._count);
+  }
+  return [...total];
 }

@@ -9,6 +9,9 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ### New
 - **Your side follows you.** If you both mentor and administer, or study and mentor, the side you switch to is kept on your account, not in this browser. The website on any computer and the freshlog app all open on the side you last picked.
 
+### Fixed
+- **The In app switch now works.** Turn a category off under Settings, Notifications and its notices stay out of your bell, your feed, the app's Inbox and the number on the app's icon; turn it back on and they return.
+
 ## 2026-10-28
 
 ### New

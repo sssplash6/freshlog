@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { prisma } from "@/lib/prisma";
 import { CATEGORY_OF, type NotificationType } from "@/lib/constants";
 
@@ -65,6 +67,25 @@ export async function notify(db: Writer, notice: Notice): Promise<void> {
     })),
   });
 }
+
+/**
+ * The categories somebody turned "In app" off for on /settings.
+ *
+ * The notices are still written, so turning the switch back on shows them
+ * again; it is every reader that skips these — the feed, the bell, the Inbox
+ * and each unread count — because a switch that is stored and read by nothing
+ * changes nothing, and a notification that always arrives is one nobody reads.
+ * No row is the default, which is in the app. Push has its own switch.
+ *
+ * Request-cached: the shell's bell and the page beneath it both ask.
+ */
+export const mutedCategories = cache(async (userId: string): Promise<string[]> => {
+  const rows = await prisma.notificationPreference.findMany({
+    where: { userId, inApp: false },
+    select: { category: true },
+  });
+  return rows.map((r) => r.category);
+});
 
 /**
  * The staff who should hear about something that happened in ONE program: the

@@ -7,7 +7,7 @@ import {
   NOTIFICATION_META,
   type NotificationCategory,
 } from "@/lib/constants";
-import { neutralHref } from "@/lib/notify";
+import { mutedCategories, neutralHref } from "@/lib/notify";
 import { prisma } from "@/lib/prisma";
 import { summarizeUnread } from "@/lib/unread";
 import type { Prisma } from "@/generated/prisma/client";
@@ -46,15 +46,19 @@ export function followableHref(href: string | null): string | null {
 /**
  * What the bell's number is made of, as the website's shell reads it
  * (`summarizeUnread`): the total, and the deadlines in it, which the bell's
- * name calls out.
+ * name calls out. Like the bell, it leaves out what the reader turned off In app.
  */
 export async function unreadOf(userId: string): Promise<{ unread: number; unreadDeadlines: number }> {
-  const { total, urgent } = await unreadSummaryOf(userId);
+  const { total, urgent } = await unreadSummaryOf(userId, await mutedCategories(userId));
   return { unread: total, unreadDeadlines: urgent };
 }
 
-async function unreadSummaryOf(userId: string) {
-  const rows = await prisma.notification.groupBy({ by: ["category"], where: { userId, read: false }, _count: true });
+async function unreadSummaryOf(userId: string, muted: string[]) {
+  const rows = await prisma.notification.groupBy({
+    by: ["category"],
+    where: { userId, read: false, category: { notIn: muted } },
+    _count: true,
+  });
   return summarizeUnread(rows.map((r) => ({ category: r.category, count: r._count })));
 }
 
@@ -135,16 +139,23 @@ export async function inboxPage(
   const limit = limitOf(query.limit);
   if (limit === null) return { refused: "Send a page size from 1 to 100.", field: "limit" };
   if (query.category !== undefined && !isCategory(query.category)) return { refused: "Pick a category.", field: "category" };
+  // What the reader turned off In app is left out of the list and every count,
+  // as on the website; a muted category asked for by name is an empty page.
+  const muted = await mutedCategories(userId);
   const [rows, unread, byCategory] = await Promise.all([
     prisma.notification.findMany({
-      where: { userId, ...(query.category ? { category: query.category } : {}), ...(cursor ? after(cursor) : {}) },
+      where: {
+        userId,
+        category: { notIn: muted, ...(query.category ? { equals: query.category } : {}) },
+        ...(cursor ? after(cursor) : {}),
+      },
       include: { actor: { select: { id: true, name: true, email: true } } },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
     }),
-    unreadSummaryOf(userId),
+    unreadSummaryOf(userId, muted),
     // Counted across the whole feed, as the website's chips are: a chip is a category the reader has anything in.
-    prisma.notification.groupBy({ by: ["category"], where: { userId }, _count: true }),
+    prisma.notification.groupBy({ by: ["category"], where: { userId, category: { notIn: muted } }, _count: true }),
   ]);
   const items = rows.slice(0, limit);
   const countOf = new Map(byCategory.map((c) => [c.category, c._count]));

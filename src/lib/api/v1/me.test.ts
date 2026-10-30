@@ -178,4 +178,13 @@ describe("meFor: the picture and the bell", () => {
     await Promise.all([note(a.id, false), note(a.id, true), note(b.id, false)]);
     expect((await meFor(a)).unread).toBe(1);
   });
+
+  it("leaves a category turned off In app out of unread", async () => {
+    const a = await mentor("A Person");
+    const note = (category: string) =>
+      prisma.notification.create({ data: { userId: a.id, type: "SESSION_LOGGED", message: "x", category } });
+    await Promise.all([note("SESSIONS"), note("SESSIONS"), note("TASKS")]);
+    await prisma.notificationPreference.create({ data: { userId: a.id, category: "SESSIONS", inApp: false } });
+    expect((await meFor(a)).unread).toBe(1);
+  });
 });

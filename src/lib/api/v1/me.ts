@@ -6,6 +6,7 @@ import { adminScope, scopeIsEmpty } from "@/lib/authz";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { classProgramIds } from "@/lib/classes";
 import { navLevel } from "@/lib/nav";
+import { mutedCategories } from "@/lib/notify";
 import { prisma } from "@/lib/prisma";
 import { canSwitchProfile, isProfile } from "@/lib/profile";
 import type { User } from "@/generated/prisma/client";
@@ -28,7 +29,10 @@ export async function meFor(user: User): Promise<MeResponse> {
       select: { id: true, telegramUsername: true },
     }),
     adminScope(user),
-    prisma.notification.count({ where: { userId: user.id, read: false } }),
+    // As the bell counts it: not what the reader turned off In app.
+    mutedCategories(user.id).then((muted) =>
+      prisma.notification.count({ where: { userId: user.id, read: false, category: { notIn: muted } } })
+    ),
     navLevel(user),
     classProgramIds(user),
     sideOf(user),

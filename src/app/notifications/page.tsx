@@ -17,6 +17,7 @@ import { Pagination, parsePage } from "@/components/ui/pagination";
 import { attentionFor } from "@/lib/attention";
 import { inStudentLens } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
+import { mutedCategories } from "@/lib/notify";
 import { prisma } from "@/lib/prisma";
 import { profileOf } from "@/lib/profile";
 import type { Metadata } from "next";
@@ -85,7 +86,15 @@ export default async function NotificationsPage({
   // to nothing rather than widening the read — the params never decide reach.
   const wanted = params.category;
   const category = isCategory(wanted) ? wanted : undefined;
-  const where = { userId: user.id, ...(category ? { category } : {}) };
+  // What the reader turned off In app is left out of every read below. A URL
+  // naming a muted category narrows to nothing too, for the same reason as
+  // above: the switch decides what the feed holds, and a filter only narrows it.
+  const muted = await mutedCategories(user.id);
+  const visible = { userId: user.id, category: { notIn: muted } };
+  const where = {
+    userId: user.id,
+    category: { notIn: muted, ...(category ? { equals: category } : {}) },
+  };
 
   // The feed used to stop dead at the hundredth notification with nothing to
   // say so: older history simply did not exist as far as the page was
@@ -113,12 +122,12 @@ export default async function NotificationsPage({
         take: PER_PAGE,
       }),
       prisma.notification.count({ where }),
-      prisma.notification.count({ where: { userId: user.id, read: false } }),
+      prisma.notification.count({ where: { ...visible, read: false } }),
       // Counted across the whole feed, not the filtered slice: a chip reading
       // zero is what tells a reader the category exists and is empty.
       prisma.notification.groupBy({
         by: ["category"],
-        where: { userId: user.id },
+        where: visible,
         _count: true,
       }),
     ]);

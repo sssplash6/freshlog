@@ -75,6 +75,16 @@ describe("sweepPushes", () => {
     expect(calls).toHaveLength(1);
   });
 
+  it("leaves out of the badge what the reader turned off In app, as the bell does", async () => {
+    const { user } = await withPhone();
+    await prisma.notificationPreference.create({ data: { userId: user.id, category: "HOURS", inApp: false, email: false } });
+    await notice(user.id, { category: "HOURS", read: false, createdAt: new Date(NOW.getTime() - STALE_MS - 1000) });
+    await notice(user.id);
+    const { calls, send } = recorder();
+    await sweepPushes(NOW, send);
+    expect(calls[0].map((m) => m.badge)).toEqual([1]);
+  });
+
   it("sends a notice once when two sweeps overlap", async () => {
     await withPhone().then(({ user }) => notice(user.id));
     const { calls, send } = recorder();
