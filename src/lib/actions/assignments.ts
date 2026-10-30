@@ -142,7 +142,14 @@ export async function updateAssignment(
 
   // Empty = no mentor (yet): a task can be planned before anyone owns it,
   // and this same edit is how an unassigned task finally gets its mentor.
-  const mentorId = String(formData.get("mentorId") ?? "").trim() || null;
+  const posted = String(formData.get("mentorId") ?? "").trim() || null;
+  // The edit form also says which mentor it opened on. Posted back as it was,
+  // the select asks for nothing, and writing it would undo a hand-over somebody
+  // made while the form stood open — so the stored mentor stands.
+  const untouched =
+    formData.has("openedMentorId") &&
+    posted === (String(formData.get("openedMentorId")).trim() || null);
+  const mentorId = untouched ? existing.mentorId : posted;
   let newMentorName: string | null = null;
   if (mentorId) {
     const mentor = await prisma.user.findUnique({ where: { id: mentorId } });
@@ -154,6 +161,11 @@ export async function updateAssignment(
 
   const fields = parseFields(formData);
   if ("error" in fields) return { ok: false, error: fields.error };
+  // The edit form has no progress control and posts none: progress moves
+  // through `setAssignmentProgress`, which pins it. Absent, the stored state
+  // stands; the one a form held since it opened would put back whatever
+  // somebody set meanwhile, and leave it pinned.
+  if (!formData.has("progress")) fields.progress = existing.progress;
 
   /**
    * What this save actually CHANGES — which is the whole notice, not a

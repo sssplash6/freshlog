@@ -20,6 +20,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Book from your mentor's page.** Where your mentor's booking link was set for another of your programs, their page showed their email instead of Book. It now offers Book, as the Book page does.
 - **Read-only access shows no buttons that fail.** Leaders and Sales no longer see Allocate time, Add students, Assign or Remove mentor, or the program's settings controls, which refused when used; Log a session stays for those who mentor there.
 - **Archived programs take no new students.** An archived program no longer offers Add students, and adding, enrolling, moving or signing up a student into one is refused.
+- **Editing an agenda item keeps others' changes.** Saving an edit no longer puts back a progress or a mentor somebody else changed while your form was open.
 
 ## 2026-10-28
 

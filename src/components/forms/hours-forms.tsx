@@ -423,6 +423,11 @@ function TaskPanel({
   canDelete: boolean;
 }) {
   const [editing, setEditing] = useState(false);
+  // The mentor the edit face opened on, posted with every save so the action
+  // can tell a pick from the select merely carrying it. Frozen when the face
+  // opens, as the select's own value is: `task` follows the page as it
+  // refreshes, and the select does not.
+  const [openedMentorId, setOpenedMentorId] = useState(task.mentorId ?? "");
   const [, progressAction, progressSave] = useSaveState(setAssignmentProgress);
   const progressPending = progressSave.kind === "saving";
   const { formProps: editProps, save: editSave } =
@@ -455,7 +460,8 @@ function TaskPanel({
         <div ref={editBoxRef}>
           <form {...editProps} className="space-y-3">
             <input type="hidden" name="assignmentId" value={task.id} />
-            <input type="hidden" name="progress" value={task.progress} />
+            {/* No progress: it has its own control, on the other face. */}
+            <input type="hidden" name="openedMentorId" value={openedMentorId} />
 
             <Field label="Agenda item">
               <GrowingField
@@ -598,7 +604,10 @@ function TaskPanel({
         <button
           ref={editButtonRef}
           type="button"
-          onClick={() => setEditing(true)}
+          onClick={() => {
+            setOpenedMentorId(task.mentorId ?? "");
+            setEditing(true);
+          }}
           className="inline-flex min-h-10 items-center text-xs font-medium text-brand transition-colors hover:underline"
         >
           Edit this agenda item
