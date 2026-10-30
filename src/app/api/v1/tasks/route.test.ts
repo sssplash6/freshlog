@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { admin, grant, mentor, pairing, program, student } from "@/test/db";
+import { programToday } from "@/lib/when";
+import { admin, DAY, grant, mentor, pairing, program, student } from "@/test/db";
 
 /**
  * Setting a task. It runs `setStudentTask` itself, as the signed-in `actor`,
@@ -33,7 +34,7 @@ async function setUp(studentStatus?: string) {
   const st = await student({ programId: p.id, status: studentStatus, name: "Aziz" });
   const m = await mentor("Akmal Karimov");
   await pairing({ mentorId: m.id, programId: p.id });
-  const body = { studentProfileId: st.id, programId: p.id, title: "Rewrite the draft", due: "2026-11-03" };
+  const body = { studentProfileId: st.id, programId: p.id, title: "Rewrite the draft", due: "2099-11-03" };
   return { p, st, m, body };
 }
 
@@ -91,7 +92,7 @@ describe("POST /api/v1/tasks", () => {
       note: "Start with the intro.",
       percent: 0,
     });
-    expect(tasks[0].dueOn.toISOString()).toBe("2026-11-03T00:00:00.000Z");
+    expect(tasks[0].dueOn.toISOString()).toBe("2099-11-03T00:00:00.000Z");
     const notices = await prisma.notification.findMany({ where: { type: "TASK_SET" } });
     expect(notices).toHaveLength(1);
     expect(notices[0].userId).toBe(st.userId);
@@ -114,6 +115,18 @@ describe("POST /api/v1/tasks", () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ ok: false, field: "due" });
     expect(await prisma.studentTask.count()).toBe(0);
+  });
+
+  it("refuses a day already past in Tashkent, and sets nothing; today is fine", async () => {
+    const { m, body } = await setUp();
+    actor.value = { id: m.id };
+    const today = programToday();
+    const yesterday = new Date(Date.parse(today) - DAY).toISOString().slice(0, 10);
+    const res = await post({ ...body, due: yesterday });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ ok: false, error: "Pick today or a later day." });
+    expect(await prisma.studentTask.count()).toBe(0);
+    expect((await post({ ...body, due: today })).status).toBe(200);
   });
 
   it("refuses a body that is not an object, and a title over 100 characters", async () => {

@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
+import { programToday } from "@/lib/when";
 import {
   admin,
+  DAY,
   enroll,
   grant,
   mentor,
@@ -182,7 +184,7 @@ describe("setStudentTask email", () => {
         studentProfileId,
         programId,
         title: "Rewrite the draft",
-        dueOn: "2026-09-25",
+        dueOn: "2099-09-25",
       })
     );
 
@@ -340,6 +342,17 @@ describe("setProgramTask", () => {
     const state = await setProgramTask(null, form({ programId: p.id, ...task }));
 
     expect(state).toMatchObject({ ok: false });
+    expect(await prisma.studentTask.count()).toBe(0);
+  });
+
+  it("refuses a deadline already past in Tashkent, and sets nobody anything", async () => {
+    const { p, a } = await programScene();
+    actor.value = a;
+    const yesterday = new Date(Date.parse(programToday()) - DAY).toISOString().slice(0, 10);
+
+    const state = await setProgramTask(null, form({ programId: p.id, ...task, dueOn: yesterday }));
+
+    expect(state).toEqual({ ok: false, error: "Pick today or a later day." });
     expect(await prisma.studentTask.count()).toBe(0);
   });
 });

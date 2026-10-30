@@ -13,7 +13,7 @@ import {
   canActAsMentor,
 } from "@/lib/constants";
 import { sendTaskEmails, taskSetMail, taskSetMentorMail } from "@/lib/email/task";
-import { formatDate } from "@/lib/format";
+import { formatDate, toDateInputValue } from "@/lib/format";
 import { notify, notificationHref } from "@/lib/notify";
 import {
   MAX_TASK_NOTE,
@@ -21,6 +21,7 @@ import {
   parsePercentField,
 } from "@/lib/student-tasks";
 import { parseDateField, type ActionState } from "@/lib/actions/shared";
+import { programToday } from "@/lib/when";
 
 /**
  * Work a mentor sets a student, and the student's own progress on it.
@@ -95,6 +96,14 @@ function parseFields(
   return { title, dueOn: dueOn.value, note: note || null };
 }
 
+/**
+ * A new task is due today or later: the forms' pickers stop at today, and this
+ * is that rule for whatever posts around them. An edit may keep a day already
+ * behind it, so an overdue task can still be corrected, but not move to one.
+ */
+const PAST_DUE = "Pick today or a later day.";
+const pastDue = (dueOn: Date) => toDateInputValue(dueOn) < programToday();
+
 /** Set a student a piece of work, in one of the programs they study in. */
 export async function setStudentTask(
   _prev: ActionState,
@@ -123,6 +132,7 @@ export async function setStudentTask(
 
   const fields = parseFields(formData);
   if ("error" in fields) return { ok: false, error: fields.error };
+  if (pastDue(fields.dueOn)) return { ok: false, error: PAST_DUE };
 
   /**
    * The mentor on the row is the ACTOR, never a field.
@@ -245,6 +255,7 @@ export async function setProgramTask(
 
   const fields = parseFields(formData);
   if ("error" in fields) return { ok: false, error: fields.error };
+  if (pastDue(fields.dueOn)) return { ok: false, error: PAST_DUE };
 
   const [program, enrollments] = await Promise.all([
     prisma.program.findUnique({ where: { id: programId }, select: { name: true } }),
@@ -325,6 +336,8 @@ export async function updateStudentTask(
 
   const fields = parseFields(formData);
   if ("error" in fields) return { ok: false, error: fields.error };
+  const moved = toDateInputValue(fields.dueOn) !== toDateInputValue(existing.dueOn);
+  if (moved && pastDue(fields.dueOn)) return { ok: false, error: PAST_DUE };
 
   // What this save actually CHANGES, which is the whole notice rather than a
   // decoration on it — the same lesson `updateAssignment` records: a form that

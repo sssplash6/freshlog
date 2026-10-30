@@ -290,6 +290,12 @@ export function StudentTaskRowActions({
   );
 }
 
+/** Today, or the task's own day if it is already behind: an overdue task keeps a date the picker accepts. */
+function earliestDue(due: string): string {
+  const today = programToday();
+  return due < today ? due : today;
+}
+
 function TaskPanel({ task, canDelete }: { task: TaskFields; canDelete: boolean }) {
   const [, editAction, editSave] = useSaveState(updateStudentTask);
   const [, delAction, delSave] = useSaveState(deleteStudentTask);
@@ -315,6 +321,7 @@ function TaskPanel({ task, canDelete }: { task: TaskFields; canDelete: boolean }
               name="dueOn"
               label="Deadline"
               required
+              min={earliestDue(toDateInputValue(task.dueOn))}
               defaultValue={toDateInputValue(task.dueOn)}
             />
           </div>

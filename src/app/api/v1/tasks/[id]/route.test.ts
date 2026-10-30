@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { mentor, pairing, program, student, studentTask } from "@/test/db";
+import { programToday } from "@/lib/when";
+import { DAY, mentor, pairing, program, student, studentTask } from "@/test/db";
 
 /**
  * One task, to the people it belongs to. Anybody else's answers exactly like an
@@ -127,10 +128,24 @@ describe("PATCH /api/v1/tasks/:id", () => {
     const { m, t } = await setUp();
     await prisma.studentTask.update({ where: { id: t.id }, data: { note: "Start with the intro." } });
     actor.value = { id: m.id };
-    expect((await patch(t.id, { due: "2026-11-10", note: null })).status).toBe(200);
+    expect((await patch(t.id, { due: "2099-11-10", note: null })).status).toBe(200);
     const row = await stored(t.id);
     expect(row?.note).toBeNull();
-    expect(row?.dueOn.toISOString()).toBe("2026-11-10T00:00:00.000Z");
+    expect(row?.dueOn.toISOString()).toBe("2099-11-10T00:00:00.000Z");
+  });
+
+  it("refuses moving the day into the past, but an overdue task keeps its own day through an edit", async () => {
+    const { m, t } = await setUp();
+    actor.value = { id: m.id };
+    const yesterday = new Date(Date.parse(programToday()) - DAY);
+    const moved = await patch(t.id, { due: yesterday.toISOString().slice(0, 10) });
+    expect(moved.status).toBe(400);
+    expect(await moved.json()).toMatchObject({ ok: false, error: "Pick today or a later day." });
+    expect((await stored(t.id))?.dueOn.toISOString()).toBe("2026-11-03T00:00:00.000Z");
+
+    await prisma.studentTask.update({ where: { id: t.id }, data: { dueOn: yesterday } });
+    expect((await patch(t.id, { title: "Rewrite the essay" })).status).toBe(200);
+    expect(await stored(t.id)).toMatchObject({ title: "Rewrite the essay", dueOn: yesterday });
   });
 
   it("refuses 2026-02-31 on field \"due\" and changes nothing", async () => {
