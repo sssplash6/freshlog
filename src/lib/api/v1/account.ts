@@ -6,6 +6,7 @@ import { OPEN_BUG_STATUSES } from "@/lib/bugs";
 import { hasUnseenChangelog, readChangelog } from "@/lib/changelog";
 import {
   EMAIL_BY_DEFAULT,
+  EMAIL_SENT,
   NOTIFICATION_CATEGORY_HINTS,
   NOTIFICATION_CATEGORY_LABELS,
   canActAsMentor,
@@ -63,6 +64,7 @@ export async function accountFor(user: User): Promise<ApiAccount> {
     hint: NOTIFICATION_CATEGORY_HINTS[category],
     inApp: prefOf.get(category)?.inApp ?? true,
     email: prefOf.get(category)?.email ?? EMAIL_BY_DEFAULT[category],
+    emailSent: EMAIL_SENT[category],
     // No row is on: a person who allowed notifications on a phone wants them.
     push: pushOf.get(category) ?? true,
   }));

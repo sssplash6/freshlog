@@ -438,6 +438,22 @@ export const EMAIL_BY_DEFAULT: Record<NotificationCategory, boolean> = {
 };
 
 /**
+ * Which categories some sender emails. Only these get an Email switch.
+ *
+ * The other half of the promise above: a switch for mail nothing sends is the
+ * screen promising one thing while the mail does another. Tasks is the only
+ * category with a sender (`wantTaskEmail`); the Monday summary keeps its own
+ * switch. A category gains its switch here when it gains a sender.
+ */
+export const EMAIL_SENT: Record<NotificationCategory, boolean> = {
+  HOURS: false,
+  SESSIONS: false,
+  TASKS: true,
+  DEADLINES: false,
+  ACCOUNTS: false,
+};
+
+/**
  * Which category each type belongs to, stated once. The migration that added
  * the column derived exactly this in SQL; this is the same map for every row
  * written from here on, so a new type cannot land without being placed.

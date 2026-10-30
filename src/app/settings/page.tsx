@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn";
 import { SettingsRow } from "@/components/ui/settings-row";
 import {
   EMAIL_BY_DEFAULT,
+  EMAIL_SENT,
   NOTIFICATION_CATEGORY_LABELS,
   canActAsMentor,
   type NotificationCategory,
@@ -232,6 +233,7 @@ export default async function SettingsPage({
               // `EMAIL_BY_DEFAULT` says so.
               inApp: prefOf.get(key)?.inApp ?? true,
               email: prefOf.get(key)?.email ?? EMAIL_BY_DEFAULT[key],
+              emailSent: EMAIL_SENT[key],
             }))}
           />
         </div>

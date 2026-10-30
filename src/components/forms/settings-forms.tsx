@@ -146,6 +146,8 @@ export function NotificationMatrix({
     hint?: string;
     inApp: boolean;
     email: boolean;
+    /** Something emails this category (`EMAIL_SENT`); without it the row has no Email switch. */
+    emailSent: boolean;
   }[];
 }) {
   return (
@@ -173,7 +175,14 @@ export function NotificationMatrix({
 function CategoryRow({
   category,
 }: {
-  category: { key: string; label: string; hint?: string; inApp: boolean; email: boolean };
+  category: {
+    key: string;
+    label: string;
+    hint?: string;
+    inApp: boolean;
+    email: boolean;
+    emailSent: boolean;
+  };
 }) {
   const [inApp, setInApp] = useState(category.inApp);
   const [email, setEmail] = useState(category.email);
@@ -205,12 +214,19 @@ function CategoryRow({
           onChange={flip(setInApp)}
           aria-label={`${category.label} — in the app`}
         />
-        <Switch
-          name="email"
-          checked={email}
-          onChange={flip(setEmail)}
-          aria-label={`${category.label} — by email`}
-        />
+        {/* Only where something is emailed. Without the switch the row posts
+            email off, which is the default for every such category, and the
+            gap keeps the In app switch in its column. */}
+        {category.emailSent ? (
+          <Switch
+            name="email"
+            checked={email}
+            onChange={flip(setEmail)}
+            aria-label={`${category.label} — by email`}
+          />
+        ) : (
+          <span aria-hidden="true" className="w-[3.25rem]" />
+        )}
       </div>
     </form>
   );

@@ -86,6 +86,12 @@ describe("GET /api/v1/account", () => {
     expect(typeof weeklyDigest).toBe("boolean");
   });
 
+  it("says Tasks is the only category anything emails, so only it gets an Email switch", async () => {
+    as(await mentor());
+    const { notices } = await (await GET()).json();
+    expect(notices.filter((n: { emailSent: boolean }) => n.emailSent).map((n: { category: string }) => n.category)).toEqual(["TASKS"]);
+  });
+
   it("marks what's new until the changelog is read, and counts open reports only", async () => {
     const m = await mentor();
     await prisma.user.update({ where: { id: m.id }, data: { createdAt: new Date("2025-01-01T00:00:00Z") } });

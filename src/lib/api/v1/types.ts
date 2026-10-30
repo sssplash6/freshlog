@@ -1591,6 +1591,8 @@ export type NoticePref = {
   hint: string;
   inApp: boolean;
   email: boolean;
+  /** Something emails this category (freshform's EMAIL_SENT): the website draws its Email switch only then. */
+  emailSent: boolean;
   /** Pushed to the person's phones (Phase 7). No row is the default: on. */
   push: boolean;
 };
