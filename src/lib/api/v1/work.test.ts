@@ -55,14 +55,16 @@ describe("taskFor", () => {
     expect(read).toMatchObject({ id: t.id, mentor: { name: "Akmal Karimov" }, can: { progress: false, edit: false, delete: false } });
   });
 
-  it("a task due today reads daysLeft 0, and overdue once the day has begun (freshform's TASK_OVERDUE rule)", async () => {
+  it("a task due today reads daysLeft 0 all day, and overdue once the day is over (freshform's TASK_OVERDUE rule)", async () => {
     const { m, t } = await world();
     const reader = await asReader(m.id);
-    // 2026-11-03 is stored at UTC midnight: 05:00 Tashkent. Before that it has not begun.
-    const before = await taskFor(reader, t.id, new Date("2026-11-02T23:59:00.000Z"));
-    expect(before).toMatchObject({ daysLeft: 0, overdue: false });
-    const begun = await taskFor(reader, t.id, new Date("2026-11-03T00:00:01.000Z"));
-    expect(begun).toMatchObject({ daysLeft: 0, overdue: true });
+    // 2026-11-03 in Tashkent runs from 2026-11-02T19:00Z to 2026-11-03T19:00Z.
+    const morning = await taskFor(reader, t.id, new Date("2026-11-03T00:00:01.000Z"));
+    expect(morning).toMatchObject({ daysLeft: 0, overdue: false });
+    const evening = await taskFor(reader, t.id, new Date("2026-11-03T18:59:00.000Z"));
+    expect(evening).toMatchObject({ daysLeft: 0, overdue: false });
+    const over = await taskFor(reader, t.id, new Date("2026-11-03T19:00:00.000Z"));
+    expect(over).toMatchObject({ daysLeft: -1, overdue: true });
     const later = await taskFor(reader, t.id, new Date("2026-11-05T09:00:00.000Z"));
     expect(later).toMatchObject({ daysLeft: -2, overdue: true });
     // Done is never overdue.

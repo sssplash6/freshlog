@@ -524,7 +524,7 @@ export type ApiTask = {
   due: string;
   /** Tashkent days from today to the due day: 0 today, negative once past. */
   daysLeft: number;
-  /** freshform's TASK_OVERDUE rule: not done, and the due day has begun. */
+  /** freshform's TASK_OVERDUE rule: not done, and the due day is over in Tashkent. */
   overdue: boolean;
   /** 0-100. */
   percent: number;

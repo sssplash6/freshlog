@@ -382,6 +382,14 @@ describe("taskStatuses", () => {
     ).toContain("TASK_OVERDUE");
   });
 
+  it("keeps a task due all of its Tashkent day, as a grant's deadline is", () => {
+    const due = new Date("2026-11-13T00:00:00.000Z");
+    const at = (iso: string): ViewerContext => ({ ...view("mentor"), now: new Date(iso) });
+    // 20:00 Tashkent on the 13th, then the minute after its midnight.
+    expect(types(taskStatuses(task({ dueOn: due }), at("2026-11-13T15:00:00.000Z")))).not.toContain("TASK_OVERDUE");
+    expect(types(taskStatuses(task({ dueOn: due }), at("2026-11-13T19:01:00.000Z")))).toContain("TASK_OVERDUE");
+  });
+
   it("does not call a finished task overdue", () => {
     const done = task({ progress: ASSIGNMENT_PROGRESS.DONE, dueOn: inDays(-5) });
     expect(types(taskStatuses(done, view("mentor")))).not.toContain("TASK_OVERDUE");

@@ -1241,7 +1241,7 @@ export function taskStatuses(t: TaskStatusInput, v: ViewerContext): Status[] {
   );
 
   if (!t.mentorId) out.push(of("TASK_NEEDS_MENTOR"));
-  if (!done && t.dueOn && t.dueOn.getTime() < v.now.getTime()) {
+  if (!done && t.dueOn && deadlinePassed(t.dueOn, v.now.getTime())) {
     out.push(of("TASK_OVERDUE", { date: t.dueOn }, t.dueOn));
   }
   // Work given beyond its budget still counts toward the task, so this is a

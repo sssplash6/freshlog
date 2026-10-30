@@ -23,6 +23,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Editing an agenda item keeps others' changes.** Saving an edit no longer puts back a progress or a mentor somebody else changed while your form was open.
 - **An agenda item shows its mentor.** Editing an item whose mentor wasn't in your list showed "No one yet"; it now shows their name, and only the program's admins can change who it's with.
 - **Sign up for a program with levels.** The sign-up form now asks for your level, and then your cohort in it, so students can register for a program that has levels.
+- **A task is due all day.** Tasks and agenda items showed as overdue from 5 a.m. on their due date. They now turn overdue when the day ends.
 
 ## 2026-10-28
 

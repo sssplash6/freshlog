@@ -8,6 +8,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { SESSION_ANSWER, SESSION_STATUS } from "../../src/lib/constants";
+import { deadlinePassed } from "../../src/lib/deadlines";
 import { sessionStatuses } from "../../src/lib/status";
 import { daysAway, programToday } from "../../src/lib/when";
 
@@ -55,18 +56,18 @@ function main() {
   );
 
   // A mentor task's due day (`MentorTaskDue`): late before its day, soon from today to a week out; and a student
-  // task's TASK_OVERDUE (`taskStatuses`: due before now). Due days as the forms store them (UTC midnight), at
-  // instants every 5 hours over three weeks; `daysLeft` is what freshform sends with each.
+  // task's TASK_OVERDUE (`taskStatuses`: once its Tashkent day is over, `deadlinePassed`). Due days as the forms
+  // store them (UTC midnight), at instants every 5 hours over three weeks; `daysLeft` is what freshform sends with each.
   const dueDays = ["2026-10-30", "2026-11-02", "2026-11-06"];
   write(
     "task-due",
-    "MentorTaskDue: late = days < 0, soon = !late && days <= 7; TASK_OVERDUE = dueOn < now",
+    "MentorTaskDue: late = days < 0, soon = !late && days <= 7; TASK_OVERDUE = deadlinePassed(dueOn, now)",
     dueDays.flatMap((due) =>
       instants("2026-10-20T00:00:00.000Z", 5 * HOUR, Math.ceil((21 * DAY) / (5 * HOUR))).map((now) => {
         const dueOn = new Date(`${due}T00:00:00.000Z`);
         const days = daysAway(dueOn, now);
         const late = days < 0;
-        return { due, now: now.toISOString(), daysLeft: days, mentorLate: late, mentorSoon: !late && days <= 7, overdue: dueOn.getTime() < now.getTime() };
+        return { due, now: now.toISOString(), daysLeft: days, mentorLate: late, mentorSoon: !late && days <= 7, overdue: deadlinePassed(dueOn, now.getTime()) };
       })
     )
   );

@@ -4,6 +4,7 @@ import { nameOf, type Reader } from "@/lib/api/v1/sessions";
 import type { ApiPlanItem, ApiTask } from "@/lib/api/v1/types";
 import { mentorReaches, scopeCovers } from "@/lib/authz";
 import { ASSIGNMENT_PROGRESS, canActAsMentor, SESSION_STATUS, USER_STATUS } from "@/lib/constants";
+import { deadlinePassed } from "@/lib/deadlines";
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import type { studentLedger } from "@/lib/queries";
@@ -72,8 +73,7 @@ function changes(reader: Reader, row: { programId: string; mentorId: string | nu
  * the reader may already see.
  *
  * `overdue` is freshform's TASK_OVERDUE rule (`taskStatuses`): not done, and the
- * due day, stored at UTC midnight, has begun as a real instant. That is 05:00
- * Tashkent on the due day itself, not the day after.
+ * due day is over in Tashkent (`deadlinePassed`), as a grant's deadline is.
  */
 export function toApiTask(reader: Reader, row: TaskRow, now: Date): ApiTask {
   const done = row.completedAt !== null;
@@ -87,7 +87,7 @@ export function toApiTask(reader: Reader, row: TaskRow, now: Date): ApiTask {
     note: row.note,
     due: toDateInputValue(row.dueOn),
     daysLeft: daysAway(row.dueOn, now),
-    overdue: !done && row.dueOn.getTime() < now.getTime(),
+    overdue: !done && deadlinePassed(row.dueOn, now.getTime()),
     percent: row.percent,
     done,
     completedAt: row.completedAt?.toISOString() ?? null,
@@ -124,7 +124,7 @@ export function toApiPlanItem(reader: Reader, row: PlanItemRow, loggedMinutes: n
     // A string column that constants.ts keeps to these three values.
     progress: row.progress as ApiPlanItem["progress"],
     pinned: row.progressManual,
-    overdue: !done && row.dueOn !== null && row.dueOn.getTime() < now.getTime(),
+    overdue: !done && row.dueOn !== null && deadlinePassed(row.dueOn, now.getTime()),
     daysLeft: row.dueOn ? daysAway(row.dueOn, now) : null,
     // The website's flags on an agenda row, in the reader's words: no mentor yet, and how far over its budget.
     flags: taskStatuses(
