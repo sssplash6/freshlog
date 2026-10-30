@@ -6,7 +6,7 @@ import { refused } from "@/lib/api/v1/respond";
 import { nameOf, SESSION_INCLUDE, toApiSession, type Reader } from "@/lib/api/v1/sessions";
 import type { AllocatePicker, Cohort, ProgramDetail, ProgramOption } from "@/lib/api/v1/types";
 import { mentorPool, programCohorts, programGrants, programLevels, programPairings, programStudents, studentsOf } from "@/app/programs/reads";
-import { scopeCovers, scopeProgramFilter } from "@/lib/authz";
+import { ratingSeenByMentor, scopeCovers, scopeProgramFilter } from "@/lib/authz";
 import { PROGRAM_SPACE, PROGRAM_STATUS } from "@/lib/constants";
 import { programExchanges } from "@/lib/exchanges";
 import { programTotals } from "@/lib/hours";
@@ -75,6 +75,7 @@ export async function programDetailFor(reader: Reader, program: Program, now: Da
     programExchanges(program.id),
   ]);
   const byId = new Map(recentRows.map((r) => [r.id, r]));
+  const seenByMentor = await ratingSeenByMentor(recentRows);
   const totals = programTotals(students);
   const paired = new Set(pairings.map((p) => p.mentorId));
   const cohortOf = (c: { id: string; name: string; _count: { enrollments: number; mentorAssignments: number } }): Cohort => ({
@@ -137,7 +138,7 @@ export async function programDetailFor(reader: Reader, program: Program, now: Da
     })),
     recent: recent.flatMap((r) => {
       const row = byId.get(r.id);
-      return row ? [toApiSession(reader, row, now)] : [];
+      return row ? [toApiSession(reader, row, now, { seenByMentor })] : [];
     }),
     exchanges: [...lent.hosted, ...lent.sent].map((e) => apiExchange(e, { canReturn: false, withStudent: true, now })),
     admins: grants.map((g) => ({

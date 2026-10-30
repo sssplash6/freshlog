@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { User } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { admin, assignment, DAY, enroll, grant, mentor, pairing, program, session, student } from "@/test/db";
+import { admin, assignment, DAY, enroll, grant, mentor, pairing, platformAdmin, program, session, student } from "@/test/db";
 
 /**
  * Who may read one session, and what each of them is told about it.
@@ -130,6 +130,7 @@ describe("sessionFor: what each reader is told", () => {
       answerRating: null,
       statuses: [{ type: "SESSION_CONFIRMED", label: "Confirmed", severity: "ok", explanation: null }],
       needsAnswer: false,
+      mentorSeesRating: false,
       student: { id: st.id, userId: st.userId, name: "Aziz Tursunov" },
       mentor: { id: mentorUser.id, name: "Akmal Karimov" },
       program: { id: p.id, name: "Global Admissions", colorIndex: p.colorIndex },
@@ -205,6 +206,31 @@ describe("sessionFor: what each reader is told", () => {
     const reader = await readerFor(studentUser);
     expect((await sessionFor(reader, s.id, daysAfter(30)))?.needsAnswer).toBe(true);
     expect((await sessionFor(reader, s.id, daysAfter(31)))?.needsAnswer).toBe(false);
+  });
+
+  // The app's rating form says what the website's does, meeting by meeting
+  // (`ratingSeenByMentor`): a mentor who administers the program reads the
+  // ratings of their own meetings on Feedback.
+  it("says the mentor sees the rating where they administer the session's program", async () => {
+    const { p, studentUser, mentorUser, s } = await world();
+    const reader = await readerFor(studentUser);
+    expect((await sessionFor(reader, s.id))?.mentorSeesRating).toBe(false);
+    await grant({ userId: mentorUser.id, programId: p.id });
+    expect((await sessionFor(reader, s.id))?.mentorSeesRating).toBe(true);
+  });
+
+  it("not where the mentor only leads the session's program, or administers another", async () => {
+    const { p, studentUser, mentorUser, s } = await world();
+    await grant({ userId: mentorUser.id, programId: p.id, role: "LEADER" });
+    await grant({ userId: mentorUser.id, programId: (await program("Imkon")).id });
+    expect((await sessionFor(await readerFor(studentUser), s.id))?.mentorSeesRating).toBe(false);
+  });
+
+  it("says so of a platform admin's own meetings", async () => {
+    const { st, studentUser } = await world();
+    const founder = await platformAdmin("Valera");
+    const s = await session({ studentId: st.id, mentorId: founder.id, minutes: 60 });
+    expect((await sessionFor(await readerFor(studentUser), s.id))?.mentorSeesRating).toBe(true);
   });
 });
 

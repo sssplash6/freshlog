@@ -165,10 +165,11 @@ describe("GET /api/v1/ratings: meeting ratings, as the rebuilt page counts them"
     expect(body.filters.summary).toBe("1 rating matches these filters");
   });
 
-  // The website lists an admin's own meetings without the student's name; the
-  // app draws every meeting rating as "student → mentor", so it gets none of
-  // them until it can draw a row with no student.
-  it("never lists the reader's own meetings in the app's feed, though their score counts them", async () => {
+  // The website lists an admin's own meetings without the student's name. An
+  // installed app from before 30 October 2026 draws every meeting rating as
+  // "student → mentor" and would break on a row without one, so it gets none
+  // of them: only an app that says it can draw one (nameless=1) does.
+  it("never lists the reader's own meetings to an app that doesn't ask, though their score counts them", async () => {
     const { ga, high, aziz } = await scene();
     await grant({ userId: high.id, programId: ga.id });
     await rated(aziz.id, high.id, ga.id, 3, "About me");
@@ -176,6 +177,32 @@ describe("GET /api/v1/ratings: meeting ratings, as the rebuilt page counts them"
     const body = await (await getRatings()).json();
     expect(body.meetingRatings).toEqual([]);
     expect([...body.attention, ...body.mentors].find((m: { mentor: { id: string } }) => m.mentor.id === high.id).meetings.count).toBe(1);
+  });
+
+  it("lists an admin their own meetings, naming nobody, when the app asks with nameless=1", async () => {
+    const { ga, low, high, aziz } = await scene();
+    await grant({ userId: high.id, programId: ga.id });
+    await rated(aziz.id, high.id, ga.id, 3, "About me");
+    await rated(aziz.id, low.id, ga.id, 4, "About Akmal");
+    actor.value = { id: high.id };
+    const body = await (await getRatings("?nameless=1")).json();
+    expect(body.meetingTotal).toBe(2);
+    const about = (note: string) => body.meetingRatings.find((r: { note: string }) => r.note === note);
+    expect(about("About me")).toMatchObject({ rating: 3, mentor: { id: high.id, name: "Dilnoza High" }, student: null, program: "Global Admissions" });
+    expect(JSON.stringify(about("About me"))).not.toContain("Aziz");
+    // Everybody else's stay named, as on the website.
+    expect(about("About Akmal").student).toEqual({ id: aziz.userId, name: "Aziz Tursunov" });
+    // The app's word is not one of the page's filters.
+    expect(body.filters.summary).toBeNull();
+  });
+
+  it("lists a leader who mentors none of their own, even when the app asks", async () => {
+    const { ga, high, aziz } = await scene();
+    await grant({ userId: high.id, programId: ga.id, role: "LEADER" });
+    await rated(aziz.id, high.id, ga.id, 3, "About me");
+    actor.value = { id: high.id };
+    const body = await (await getRatings("?nameless=1")).json();
+    expect(body.meetingRatings).toEqual([]);
   });
 });
 

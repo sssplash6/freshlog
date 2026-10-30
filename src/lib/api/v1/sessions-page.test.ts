@@ -226,6 +226,19 @@ describe("sessionsPage: whose sessions", () => {
       expect(page.items[0]).toEqual(await sessionFor(reader, page.items[0].id, now));
     }
   });
+
+  // The app opens a session on the list's copy before its own read lands, so
+  // the list says what the single read says about who reads the rating.
+  it("tells the student which meetings' mentor sees the rating: the one who administers the program", async () => {
+    const { p, aziz, akmal } = await cast();
+    const valera = await mentor("Valera");
+    await grant({ userId: valera.id, programId: p.id });
+    const plain = await held({ studentId: aziz.profile.id, mentorId: akmal.id, programId: p.id });
+    const admins = await held({ studentId: aziz.profile.id, mentorId: valera.id, programId: p.id });
+    const page = await pageOf(await readerFor(aziz.user), {}, day("2026-10-22"));
+    const seen = Object.fromEntries(page.items.map((item) => [item.id, item.mentorSeesRating]));
+    expect(seen).toEqual({ [plain.id]: false, [admins.id]: true });
+  });
 });
 
 describe("sessionsPage: the filters", () => {

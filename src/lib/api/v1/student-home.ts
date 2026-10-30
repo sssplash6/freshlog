@@ -6,6 +6,7 @@ import { toTodoRows } from "@/lib/api/v1/todo";
 import { workOf } from "@/lib/api/v1/work";
 import type { HomeMeeting, StudentGrant, StudentHome } from "@/lib/api/v1/types";
 import { studentRows } from "@/lib/attention";
+import { ratingSeenByMentor } from "@/lib/authz";
 import { toDateInputValue } from "@/lib/format";
 import { templateName } from "@/lib/interview-templates";
 import { agendaLists, isFirstRun, withoutRepeats } from "@/lib/screens/student-home";
@@ -83,6 +84,7 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
     include: SESSION_INCLUDE,
   });
   const sessionById = new Map(sessionRows.map((row) => [row.id, row]));
+  const seenByMentor = await ratingSeenByMentor(sessionRows);
   const mentors = new Set([...ledger.tasks.map((t) => t.mentorId), ...ledger.assignments.map((a) => a.mentorId)]);
 
   return {
@@ -134,7 +136,7 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
           ];
         }
         const row = sessionById.get(item.session.id);
-        return row ? [{ kind: "session" as const, session: toApiSession(reader, row, now) }] : [];
+        return row ? [{ kind: "session" as const, session: toApiSession(reader, row, now, { seenByMentor }) }] : [];
       }),
     },
     ...unread,

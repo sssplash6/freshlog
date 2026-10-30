@@ -25,10 +25,11 @@ const figures = (k: { count: number; average: number | null }): RatingFigures =>
  * mentors who need a look and everyone else, the score per program, the newest
  * written ratings (the student named only where the reader administers one of
  * the writer's programs, and never to the mentor rated) and the newest meeting
- * ratings, through the page's filters. Never the reader's own meetings, which
- * the website lists an admin without the student's name: the app's meeting
- * line names a student on every row, so it gets none of them until it can
- * draw one without. A mentor with no
+ * ratings, through the page's filters. The reader's own meetings, which the
+ * website lists an admin without the student's name, go only to an app that
+ * asks with `nameless=1`: until 30 October 2026 the app's meeting line named a
+ * student on every row, and an installed build from before then never asks,
+ * so it is never sent a row without one. A mentor with no
  * readable grant: their combined score, and their own written ratings,
  * anonymous.
  */
@@ -55,7 +56,10 @@ export async function ratingsPageFor(user: User, params: SearchParams): Promise<
     };
   }
 
-  const read = await staffFeedback({ user, programIds, params, page, listOwnMeetings: false });
+  // The app's word that it draws a meeting rating with no student. It is not
+  // one of the page's filters, so it neither narrows nor counts as one.
+  const listOwnMeetings = readParam(params, "nameless") === "1";
+  const read = await staffFeedback({ user, programIds, params, page, listOwnMeetings });
   const kind = readRatingKind(params);
   const range = readRatingRange(params);
   const mentor = (m: MentorStanding & { who: { id: string; name: string | null; email: string }; low: boolean }): RatedMentor => ({
@@ -108,13 +112,14 @@ export async function ratingsPageFor(user: User, params: SearchParams): Promise<
       student: f.student ? { id: f.student.id, name: nameOf(f.student) } : null,
     })),
     total: read.stats._count,
-    meetingRatings: read.meetingRows.map((s) => ({
+    meetingRatings: read.meetingList.map((s) => ({
       id: s.id,
       day: dayOf(s.date),
       rating: s.studentRating ?? 0,
       note: s.studentNote,
       mentor: { id: s.mentor.id, name: nameOf(s.mentor) },
-      student: { id: s.student.user.id, name: nameOf(s.student.user) },
+      // Nobody, on the reader's own meetings, as the website lists them.
+      student: s.student ? { id: s.student.id, name: nameOf(s.student) } : null,
       program: s.program.name,
     })),
     meetingAverage: read.meetingStats._avg.studentRating,

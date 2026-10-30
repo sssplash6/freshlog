@@ -12,6 +12,7 @@ import {
   adminWriteScope,
   canManageStudent,
   mentorReaches,
+  ratingSeenByMentor,
   scopeCovers,
   scopeIsEmpty,
   scopeProgramFilter,
@@ -64,9 +65,10 @@ export async function readerFor(user: User): Promise<Reader> {
 
 /**
  * The include every session read uses. Each relation selects only what the
- * contract names, and the programs the student is in, which `can.restore` is
- * decided from and which are never sent; so nothing else of a person is ever
- * loaded to be mapped away.
+ * contract names, the programs the student is in, which `can.restore` is
+ * decided from, and whether the mentor is a platform admin, which
+ * `mentorSeesRating` is; neither is ever sent, so nothing else of a person is
+ * ever loaded to be mapped away.
  */
 export const SESSION_INCLUDE = {
   student: {
@@ -77,7 +79,7 @@ export const SESSION_INCLUDE = {
       enrollments: { select: { programId: true } },
     },
   },
-  mentor: { select: { id: true, name: true, email: true } },
+  mentor: { select: { id: true, name: true, email: true, platformAdmin: true } },
   program: { select: { id: true, name: true, colorIndex: true } },
   assignment: { select: { id: true, purpose: true } },
 } satisfies Prisma.SessionInclude;
@@ -140,9 +142,16 @@ export function toApiSession(
   row: SessionRow,
   now: Date,
   {
+    seenByMentor,
     reachesStudent = false,
     asMentor = false,
   }: {
+    /**
+     * The sessions whose mentor reads the student's rating of them
+     * (`ratingSeenByMentor`, asked once for every row in hand). It has no
+     * default: a read that forgot it would promise the student the opposite.
+     */
+    seenByMentor: ReadonlySet<string>;
     /** The reader reaches the student as their mentor: the student's page shows them every mentor's notes. */
     reachesStudent?: boolean;
     /**
@@ -151,7 +160,7 @@ export function toApiSession(
      * student's note only on a dispute).
      */
     asMentor?: boolean;
-  } = {}
+  }
 ): ApiSession {
   const isStudent = isStudentOf(reader, row);
   const loggedIt = row.mentorId === reader.user.id;
@@ -193,6 +202,8 @@ export function toApiSession(
     needsAnswer: sessionStatuses(row, { audience: "student", userId: row.student.userId, now }).some(
       (status) => status.type === "SESSION_UNCONFIRMED"
     ),
+    // What the rating form tells the student, as the website's does, meeting by meeting.
+    mentorSeesRating: seenByMentor.has(row.id),
     student: { id: row.student.id, userId: row.student.userId, name: nameOf(row.student.user) },
     mentor: { id: row.mentor.id, name: nameOf(row.mentor) },
     program: { id: row.program.id, name: row.program.name, colorIndex: row.program.colorIndex },
@@ -224,8 +235,10 @@ export async function sessionFor(reader: Reader, id: string, now: Date = new Dat
   // Loaded first and gated second, with one answer for both: a session that
   // isn't theirs must read exactly like one that doesn't exist.
   if (!row) return null;
-  if (canRead(reader, row)) return toApiSession(reader, row, now);
-  return (await canReadSession(reader, row)) ? toApiSession(reader, row, now, { reachesStudent: true }) : null;
+  if (canRead(reader, row)) return toApiSession(reader, row, now, { seenByMentor: await ratingSeenByMentor([row]) });
+  return (await canReadSession(reader, row))
+    ? toApiSession(reader, row, now, { seenByMentor: await ratingSeenByMentor([row]), reachesStudent: true })
+    : null;
 }
 
 /**
@@ -632,8 +645,9 @@ export async function sessionsPage(
   ]);
 
   const items = rows.slice(0, limit);
+  const seenByMentor = await ratingSeenByMentor(items);
   return {
-    items: items.map((row) => toApiSession(reader, row, now, { reachesStudent: asRecord })),
+    items: items.map((row) => toApiSession(reader, row, now, { seenByMentor, reachesStudent: asRecord })),
     nextCursor: rows.length > limit ? cursorAfter(items[items.length - 1]) : null,
     totals: totalsOf(groups),
     counts: { disputed, voided },

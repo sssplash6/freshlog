@@ -9,6 +9,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ### New
 - **Your side follows you.** If you both mentor and administer, or study and mentor, the side you switch to is kept on your account, not in this browser. The website on any computer and the freshlog app all open on the side you last picked.
 - **Admins read ratings of their own meetings.** If you mentor in a program you administer, Feedback on the website now lists students' ratings and notes on your own meetings there, without the student's name. When a student rates one of those meetings on the website, the form tells them you will see it.
+- **The app lists your own meeting ratings too.** If you mentor in a program you administer, Ratings in the freshlog app now lists students' ratings and notes on your own meetings there, without the student's name, as Feedback on the website does. When a student rates one of those meetings in the app, it tells them you will see it.
 
 ### Fixed
 - **Feedback counts meeting ratings when filtered.** Narrowing Feedback to a mentor rated only on meetings said "No ratings match these filters" above their meeting ratings. It now counts both kinds.

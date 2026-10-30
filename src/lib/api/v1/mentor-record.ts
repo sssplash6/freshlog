@@ -2,7 +2,7 @@ import "server-only";
 
 import type { ApiMentorRecord, RecordPeriod } from "@/lib/api/v1/types";
 import { nameOf, readerFor, SESSION_INCLUDE, toApiSession } from "@/lib/api/v1/sessions";
-import { canManageMentor } from "@/lib/authz";
+import { canManageMentor, ratingSeenByMentor } from "@/lib/authz";
 import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import type { SearchParams } from "@/lib/filters";
 import { toDateInputValue } from "@/lib/format";
@@ -48,6 +48,7 @@ export async function mentorRecordFor(viewer: User, id: string, query: SearchPar
   const recentIds = view.sessions.slice(0, RECENT).map((s) => s.id);
   const recentRows = recentIds.length > 0 ? await prisma.session.findMany({ where: { id: { in: recentIds } }, include: SESSION_INCLUDE }) : [];
   const byId = new Map(recentRows.map((row) => [row.id, row]));
+  const seenByMentor = await ratingSeenByMentor(recentRows);
   const program = (p: { id: string; name: string; colorIndex: number }) => ({ id: p.id, name: p.name, colorIndex: p.colorIndex });
 
   return {
@@ -96,7 +97,7 @@ export async function mentorRecordFor(viewer: User, id: string, query: SearchPar
     recent: recentIds.flatMap((sid) => {
       const row = byId.get(sid);
       // A mentor's own record is anonymous to them, as the page's (`feedback: !isSelf`), whatever grants they hold.
-      return row ? [toApiSession(reader, row, now, { asMentor: self })] : [];
+      return row ? [toApiSession(reader, row, now, { seenByMentor, asMentor: self })] : [];
     }),
     sessionCount: view.sessions.length,
     ratings:
