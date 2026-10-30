@@ -10,7 +10,7 @@ import { PageTitle, Section } from "@/components/ui/section";
 import { Pagination, parsePage } from "@/components/ui/pagination";
 import { StatusChip } from "@/components/ui/status-chip";
 import { ROLES, USER_STATUS } from "@/lib/constants";
-import { withoutMentorNotes } from "@/lib/authz";
+import { ratingSeenByMentor, withoutMentorNotes } from "@/lib/authz";
 import { requireRole } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
 import { templateName } from "@/lib/interview-templates";
@@ -117,6 +117,12 @@ export default async function StudentMeetingsPage({
       )
       .map((s) => s.id)
   );
+  // The meetings whose own mentor will read the rating, because they are an
+  // admin of its program. The form says so on those rather than promising
+  // every student the opposite.
+  const seenByMentor = await ratingSeenByMentor(
+    held.filter((s) => needsAnswer.has(s.id))
+  );
 
   // Practice interviews join the log once their time has come: a student reads
   // one history of who they met. They are rows, not sessions — no mentor, no
@@ -217,6 +223,7 @@ export default async function StudentMeetingsPage({
                         <SessionAnswerForm
                           sessionId={session.id}
                           mentorName={mentorName}
+                          mentorSees={seenByMentor.has(session.id)}
                         />
                       ) : undefined
                     }

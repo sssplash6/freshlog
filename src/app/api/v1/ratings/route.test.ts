@@ -156,7 +156,19 @@ describe("GET /api/v1/ratings: meeting ratings, as the rebuilt page counts them"
     expect(JSON.stringify(body)).not.toContain("Helpful");
   });
 
-  it("never lists the reader's own meetings in the feed, though their score counts them", async () => {
+  it("counts meeting ratings in the filter summary, not only written ones", async () => {
+    const { ga, aziz } = await scene();
+    const only = await mentor("Umid Meetings");
+    await rated(aziz.id, only.id, ga.id, 4);
+    actor.value = { id: (await platformAdmin()).id };
+    const body = await (await getRatings(`?mentor=${only.id}`)).json();
+    expect(body.filters.summary).toBe("1 rating matches these filters");
+  });
+
+  // The website lists an admin's own meetings without the student's name; the
+  // app draws every meeting rating as "student → mentor", so it gets none of
+  // them until it can draw a row with no student.
+  it("never lists the reader's own meetings in the app's feed, though their score counts them", async () => {
     const { ga, high, aziz } = await scene();
     await grant({ userId: high.id, programId: ga.id });
     await rated(aziz.id, high.id, ga.id, 3, "About me");

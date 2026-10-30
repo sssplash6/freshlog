@@ -319,6 +319,7 @@ async function AllRatings({
     others,
     general,
     meetingTotal,
+    ownWithheld,
     range,
     clearRating,
     bothKinds,
@@ -328,7 +329,8 @@ async function AllRatings({
     rated,
     programs,
     meetingStats,
-    meetingRows,
+    meetingList,
+    matched,
     formSpread,
     meetingSpread,
     writtenAll,
@@ -443,7 +445,7 @@ async function AllRatings({
         summary={
           filtered
             ? filterSummary(
-                stats._count,
+                matched,
                 { one: "rating", many: "ratings" },
                 params
               )
@@ -570,8 +572,15 @@ async function AllRatings({
               )
             }
           >
-            {meetingRows.length === 0 ? (
-              filtered ? (
+            {meetingList.length === 0 ? (
+              // A leader who mentors: their card counts these, so "no
+              // ratings match" would be the very thing they cannot square.
+              ownWithheld > 0 ? (
+                <EmptyState framed={false} variant="no-results">
+                  Ratings of your own meetings count in your score but
+                  aren&apos;t listed to you.
+                </EmptyState>
+              ) : filtered ? (
                 <EmptyState framed={false} variant="no-results">
                   No meeting ratings match these filters.
                 </EmptyState>
@@ -582,7 +591,7 @@ async function AllRatings({
               )
             ) : (
               <ul className="divide-y divide-line/70">
-                {meetingRows.map((s) => (
+                {meetingList.map((s) => (
                   <FeedItem
                     key={s.id}
                     score={s.studentRating}
@@ -594,7 +603,10 @@ async function AllRatings({
                     mentor={s.mentor}
                     aside={formatDate(s.date)}
                     text={s.studentNote}
-                    meta={`${s.student.user.name ?? s.student.user.email} · ${s.program.name}`}
+                    // The reader's own meetings name nobody.
+                    meta={`${
+                      s.student ? (s.student.name ?? s.student.email) : "Anonymous"
+                    } · ${s.program.name}`}
                   />
                 ))}
               </ul>

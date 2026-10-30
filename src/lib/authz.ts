@@ -102,6 +102,41 @@ export function scopeIsEmpty(scope: AdminScope): boolean {
 }
 
 /**
+ * Which of these meetings' own mentor reads the student's rating of it: a
+ * mentor who administers the meeting's program, by an ADMIN grant on it or as
+ * a platform admin — `adminWriteScope`'s answer, asked of the mentor.
+ *
+ * Since 30 October 2026 the Feedback page lists such a mentor the ratings of
+ * their own meetings there, without the student's name (`staffFeedback`), so
+ * the form that asks for a rating must not tell the student their mentor won't
+ * see it. One read for every mentor on the page.
+ */
+export async function ratingSeenByMentor(
+  meetings: readonly {
+    id: string;
+    programId: string;
+    mentor: { id: string; platformAdmin: boolean };
+  }[]
+): Promise<Set<string>> {
+  const asked = meetings.filter((m) => !m.mentor.platformAdmin);
+  const grants =
+    asked.length === 0
+      ? []
+      : await prisma.programStaff.findMany({
+          where: {
+            role: "ADMIN",
+            userId: { in: [...new Set(asked.map((m) => m.mentor.id))] },
+            programId: { in: [...new Set(asked.map((m) => m.programId))] },
+          },
+          select: { userId: true, programId: true },
+        });
+  const administers = (m: (typeof meetings)[number]) =>
+    m.mentor.platformAdmin ||
+    grants.some((g) => g.userId === m.mentor.id && g.programId === m.programId);
+  return new Set(meetings.filter(administers).map((m) => m.id));
+}
+
+/**
  * What this person may do inside one program, or null if they may not see it.
  *
  * LEADER and SALES are the two old roles, kept as grant levels. Both are

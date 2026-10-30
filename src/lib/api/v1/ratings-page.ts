@@ -25,7 +25,10 @@ const figures = (k: { count: number; average: number | null }): RatingFigures =>
  * mentors who need a look and everyone else, the score per program, the newest
  * written ratings (the student named only where the reader administers one of
  * the writer's programs, and never to the mentor rated) and the newest meeting
- * ratings (never the reader's own), through the page's filters. A mentor with no
+ * ratings, through the page's filters. Never the reader's own meetings, which
+ * the website lists an admin without the student's name: the app's meeting
+ * line names a student on every row, so it gets none of them until it can
+ * draw one without. A mentor with no
  * readable grant: their combined score, and their own written ratings,
  * anonymous.
  */
@@ -52,7 +55,7 @@ export async function ratingsPageFor(user: User, params: SearchParams): Promise<
     };
   }
 
-  const read = await staffFeedback({ user, programIds, params, page });
+  const read = await staffFeedback({ user, programIds, params, page, listOwnMeetings: false });
   const kind = readRatingKind(params);
   const range = readRatingRange(params);
   const mentor = (m: MentorStanding & { who: { id: string; name: string | null; email: string }; low: boolean }): RatedMentor => ({
@@ -94,7 +97,7 @@ export async function ratingsPageFor(user: User, params: SearchParams): Promise<
     filters: {
       mentors: read.rated.map((m) => ({ id: m.id, name: nameOf(m) })),
       programs: read.programs.map((p) => ({ id: p.id, name: p.name })),
-      summary: read.filtered ? filterSummary(read.stats._count, { one: "rating", many: "ratings" }, params) : null,
+      summary: read.filtered ? filterSummary(read.matched, { one: "rating", many: "ratings" }, params) : null,
     },
     ratings: read.list.map((f) => ({
       id: f.id,

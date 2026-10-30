@@ -201,11 +201,18 @@ export async function staffFeedback({
   programIds,
   params,
   page,
+  listOwnMeetings = true,
 }: {
   user: User;
   programIds: readonly string[] | undefined;
   params: SearchParams;
   page: number;
+  /**
+   * List the reader's own meetings where they administer the program, with no
+   * student named. The app draws every meeting rating as "student → mentor",
+   * so it asks for none of them until it can draw a row without a student.
+   */
+  listOwnMeetings?: boolean;
 }) {
   const now = new Date();
   // `userId` is what the literal `?mentor=me` resolves to, so the "Just mine"
@@ -231,19 +238,36 @@ export async function staffFeedback({
   const since = new Date(now.getTime() - RECENT_DAYS * 24 * 60 * 60 * 1000);
   const recentWhere = { AND: [where, { createdAt: { gte: since } }] };
 
+  // ADMIN-level grants — the "admin" a written rating's writer is named to,
+  // and the programs whose meetings the reader may read as their admin. A
+  // LEADER reads every row in reach and names none of them.
+  const writeScope = await adminWriteScope(user);
+
   // Ratings of single meetings, through the same filters. They are not
   // anonymous — the student rated one meeting so its mentor's program could act
-  // on it — so the writer is named. Never the reader's own meetings, though:
-  // a mentor is not shown what students thought of them (`/mentors/[id]`
-  // drops it for `isSelf`, `/sessions` for the mentor audience), and holding
-  // an admin grant does not change that here.
-  const notMine = { mentorId: { not: user.id } };
+  // on it — so the writer is named.
+  //
+  // The reader's OWN meetings are listed only where they ADMINISTER the
+  // meeting's program, and with no student named. Until 30 October 2026 they
+  // were never listed ("a mentor is not shown what students thought of
+  // them"), and an admin who mentors, filtering to themselves, found 23 rated
+  // meetings in their score and none in the list. Listing them was agreed that
+  // day, knowing the ratings already given were given under the form's "Your
+  // mentor won't see your rating", and that a one-to-one meeting's date says
+  // who wrote it. A LEADER's grant only reads, so a leader who mentors still
+  // gets their own as a number; the form now tells the student, per meeting,
+  // whether its mentor will read it (`ratingSeenByMentor`).
+  const notMine: Prisma.SessionWhereInput = { mentorId: { not: user.id } };
+  const ownListed: Prisma.SessionWhereInput = !listOwnMeetings
+    ? notMine
+    : writeScope === "ALL"
+      ? {}
+      : { OR: [notMine, { programId: { in: [...writeScope] } }] };
   const meetingAll = meetingRatingsWhere(params, scope, now);
   // The combined score on each mentor card counts meeting ratings too — the
-  // reader's own included, as a number. Only the LIST hides the reader's
-  // own meetings; their card's score is the one figure they asked to see.
+  // reader's own included, as a number, wherever the list leaves them out.
   const meetingCards = wantMeetings ? meetingAll : NO_MEETINGS;
-  const meetingWhere = { AND: [meetingCards, notMine] };
+  const meetingWhere = { AND: [meetingCards, ownListed] };
   const meetingInReach = meetingRatingsWhere({}, scope, now);
   const meetingPage = parsePage(readParam(params, MEETING_PAGE));
 
@@ -254,7 +278,6 @@ export async function staffFeedback({
     rows,
     rated,
     programs,
-    writeScope,
     meetingStats,
     meetingRows,
     meetingsByMentor,
@@ -325,9 +348,6 @@ export async function staffFeedback({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    // ADMIN-level grants — the "admin" the name is open to. A LEADER reads
-    // every row in reach and names none of them.
-    adminWriteScope(user),
     prisma.session.aggregate({
       where: meetingWhere,
       _avg: { studentRating: true },
@@ -484,6 +504,17 @@ export async function staffFeedback({
         ? f.student.user
         : null,
   }));
+  // The reader's own meetings name nobody: they are listed to the reader as
+  // the program's admin, not as the mentor the rating is about.
+  const meetingList = meetingRows.map((s) => ({
+    id: s.id,
+    date: s.date,
+    studentRating: s.studentRating,
+    studentNote: s.studentNote,
+    mentor: s.mentor,
+    student: s.mentor.id === user.id ? null : s.student.user,
+    program: s.program,
+  }));
 
   // The headline is the cards' own arithmetic, so it agrees with them: every
   // rating of either kind, pooled.
@@ -528,6 +559,15 @@ export async function staffFeedback({
 
   const general = byMentor.reduce((n, r) => n + r._count._all, 0);
   const meetingTotal = meetingsByMentor.reduce((n, r) => n + r._count._all, 0);
+  // The reader's own meetings the list leaves out: a leader's, or all of them
+  // for the app. The cards' `where` and the list's differ only by `ownListed`,
+  // so the gap between their counts is exactly those — and the page can say
+  // why a list the reader's own card counts is empty.
+  const ownWithheld = meetingTotal - meetingStats._count;
+  // Every rating the filters match, both kinds — the overview's own count —
+  // for the sentence beside Reset. It counted the written list alone, and said
+  // "No ratings match these filters" above a list of meeting ratings.
+  const matched = stats._count + meetingTotal;
   const range = readRatingRange(params);
   const clearRating = filterHref("/feedback", params, { rating: undefined });
   const bothKinds = filterHref("/feedback", params, { kind: undefined });
@@ -567,6 +607,8 @@ export async function staffFeedback({
     mentors,
     namesFor,
     list,
+    meetingList,
+    matched,
     lowCount,
     filtered,
     columns,
@@ -575,6 +617,7 @@ export async function staffFeedback({
     others,
     general,
     meetingTotal,
+    ownWithheld,
     range,
     clearRating,
     bothKinds,

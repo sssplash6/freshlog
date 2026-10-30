@@ -31,9 +31,12 @@ import { SESSION_ANSWER } from "@/lib/constants";
 export function SessionAnswerForm({
   sessionId,
   mentorName,
+  mentorSees,
 }: {
   sessionId: string;
   mentorName: string;
+  /** This meeting's mentor administers its program, so reads its rating. */
+  mentorSees: boolean;
 }) {
   const [, action, save] = useSaveState(answerSession);
   const [mode, setMode] = useState<"ask" | "confirm" | "dispute">("ask");
@@ -88,14 +91,25 @@ export function SessionAnswerForm({
         <>
           {/* Both optional. The rating is on THIS meeting and only your
               program's staff see it: ratings are anonymous to mentors
-              (October 2026), here as on the feedback page. */}
+              (October 2026), here as on the feedback page — except a mentor
+              who is one of those staff, an admin of the program, who since
+              30 October 2026 reads their own meetings' ratings on Feedback
+              without the student's name. So the promise is made meeting by
+              meeting, and never to a student whose mentor will read it. */}
           <StarRating
             name="studentRating"
             idPrefix={`session-${sessionId}`}
             legend="How did it go?"
             required={false}
           />
-          <Field label="Anything to add?" hint="Optional. Your mentor won't see your rating or this note.">
+          <Field
+            label="Anything to add?"
+            hint={
+              mentorSees
+                ? `Optional. ${mentorName} is an admin of your program, so they will see your rating and this note.`
+                : "Optional. Your mentor won't see your rating or this note."
+            }
+          >
             <Textarea name="studentNote" rows={2} placeholder="" />
           </Field>
         </>

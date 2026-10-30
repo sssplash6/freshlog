@@ -11,6 +11,7 @@ import {
   canManageProgram,
   canManageStudent,
   mentorReaches,
+  ratingSeenByMentor,
   scopeProgramIds,
   staffLevel,
   withoutMentorNotes,
@@ -397,5 +398,28 @@ describe("withoutMentorNotes", () => {
 
   it("is a no-op on a session that had no note", () => {
     expect(withoutMentorNotes([session(null)])[0].note).toBeNull();
+  });
+});
+
+describe("ratingSeenByMentor", () => {
+  it("names the meetings whose own mentor administers their program", async () => {
+    const ga = await program("Global Admissions");
+    const imkon = await program("Imkon");
+    const valera = await mentor("Valera");
+    await grant({ userId: valera.id, programId: ga.id });
+    await grant({ userId: valera.id, programId: imkon.id, role: "LEADER" });
+    const plain = await mentor("Plain Mentor");
+    const founder = await platformAdmin("Founder");
+    const seen = await ratingSeenByMentor([
+      { id: "admin-here", programId: ga.id, mentor: valera },
+      { id: "leader-there", programId: imkon.id, mentor: valera },
+      { id: "no-grant", programId: ga.id, mentor: plain },
+      { id: "platform", programId: imkon.id, mentor: founder },
+    ]);
+    expect([...seen].sort()).toEqual(["admin-here", "platform"]);
+  });
+
+  it("asks nothing of an empty page", async () => {
+    expect((await ratingSeenByMentor([])).size).toBe(0);
   });
 });

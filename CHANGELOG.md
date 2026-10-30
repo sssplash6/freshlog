@@ -8,8 +8,10 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ### New
 - **Your side follows you.** If you both mentor and administer, or study and mentor, the side you switch to is kept on your account, not in this browser. The website on any computer and the freshlog app all open on the side you last picked.
+- **Admins read ratings of their own meetings.** If you mentor in a program you administer, Feedback on the website now lists students' ratings and notes on your own meetings there, without the student's name. When a student rates one of those meetings on the website, the form tells them you will see it.
 
 ### Fixed
+- **Feedback counts meeting ratings when filtered.** Narrowing Feedback to a mentor rated only on meetings said "No ratings match these filters" above their meeting ratings. It now counts both kinds.
 - **The In app switch now works.** Turn a category off under Settings, Notifications and its notices stay out of your bell, your feed, the app's Inbox and the number on the app's icon; turn it back on and they return.
 - **Dictated interview notes stay interview notes.** Dictating notes on a practice interview you gave tidied them up as a session note; they are now written up as notes on the interview, with your student's name spelled right.
 - **Hours no longer "expire" on their last day.** From 5 a.m. on a use-by date, the date showed as expired and Home stopped warning about it, though the hours could be used until midnight.
