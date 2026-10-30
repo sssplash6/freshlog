@@ -1,3 +1,5 @@
+import { toDateInputValue } from "@/lib/format";
+
 /**
  * Shared result shape for form server actions driven by useActionState.
  * `null` is the initial state before any submission.
@@ -86,7 +88,7 @@ export function parseDateField(
   // A day that does not exist is not NaN: `new Date` rolls it into the next
   // month (2026-02-31 is March 3) and it was saved without a word. Only a day
   // that reads back as typed exists.
-  if (d.toISOString().slice(0, 10) !== s) return { error: "Pick a valid date." };
+  if (toDateInputValue(d) !== s) return { error: "Pick a valid date." };
   return { value: d };
 }
 

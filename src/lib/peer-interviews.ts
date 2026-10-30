@@ -8,7 +8,7 @@
  * student types "15:00" meaning 15:00 Tashkent, it is stored as 15:00Z, and
  * `now` has to be moved onto the same clock before the two are compared.
  */
-import { formatDate } from "@/lib/format";
+import { formatDate, toDateInputValue } from "@/lib/format";
 import type { InterviewTemplate } from "@/lib/interview-templates";
 import type { StatusType } from "@/lib/status";
 import { PROGRAM_ZONE, formatTimeOfDay, programWallClock } from "@/lib/when";
@@ -45,7 +45,7 @@ export function parseSlotStart(
   if (Number.isNaN(startsAt.getTime())) return { error: "Pick a valid date." };
   // A day that does not exist is not NaN either: `new Date` rolls it into the
   // next month, and 31 February was offered as 3 March.
-  if (startsAt.toISOString().slice(0, 10) !== date) return { error: "Pick a valid date." };
+  if (toDateInputValue(startsAt) !== date) return { error: "Pick a valid date." };
 
   const wallNow = programWallClock(now).getTime();
   if (startsAt.getTime() <= wallNow) {
