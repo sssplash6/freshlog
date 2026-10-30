@@ -499,9 +499,9 @@ describe("presets as queries", () => {
     });
   });
 
-  it("finds a student with no allocation at all", () => {
+  it("finds a student with no time granted, a grant set to 0 included", () => {
     expect(clauses(studentsWhere({ time: "none" }, {}, NOW))).toContainEqual({
-      hourAllocations: { none: {} },
+      hourAllocations: { none: { minutes: { gt: 0 } } },
     });
   });
 

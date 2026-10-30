@@ -863,7 +863,9 @@ export function studentsWhere(
       ? { programId: { in: [...scope.programIds] } }
       : {};
   if (time === "none") {
-    and.push({ hourAllocations: { none: grantScope } });
+    // A grant set to 0 minutes keeps its row, and the bell counts its student
+    // as having no time; asking for no row at all left them out of the list.
+    and.push({ hourAllocations: { none: { ...grantScope, minutes: { gt: 0 } } } });
   } else if (time === "expiring") {
     const days = EXPIRY_WINDOW_DAYS[scope.audience ?? "staff"];
     and.push({

@@ -97,6 +97,16 @@ describe("GET /api/v1/students", () => {
     expect(await names("?q=aziz")).toEqual(["Aziz Tursunov"]);
   });
 
+  it("counts a student whose only grant was set to 0 as having no time, as the bell does", async () => {
+    const { nodira, ga } = await school();
+    const m = await mentor("Umid Rashidov");
+    const otabek = await student({ programId: ga.id, name: "Otabek Yusupov" });
+    // "Correct this allocation" to a total of 0: the row stays, with no time in it.
+    await allocation({ studentId: otabek.id, mentorId: m.id, minutes: 0 });
+    actor.value = { id: nodira.id };
+    expect(await names("?time=none")).toEqual(["Malika Saidova", "Otabek Yusupov"]);
+  });
+
   it("orders by what is left, least first, a tie keeping name order", async () => {
     const { nodira, masters } = await school();
     await grant({ userId: nodira.id, programId: masters.id });
