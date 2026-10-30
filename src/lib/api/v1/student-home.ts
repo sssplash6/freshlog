@@ -12,6 +12,7 @@ import { agendaLists, isFirstRun, withoutRepeats } from "@/lib/screens/student-h
 import { meetingCount, meetingLog } from "@/lib/session-entries";
 import { interviewsForLog } from "@/lib/student-interviews";
 import { canActAsMentor } from "@/lib/constants";
+import { deadlinePassed } from "@/lib/deadlines";
 import { allocationSummary, canBookOn, type AllocationSummary } from "@/lib/hours";
 import { unreadOf } from "@/lib/api/v1/inbox";
 import { prisma } from "@/lib/prisma";
@@ -100,7 +101,7 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
           day: toDateInputValue(hours.expiring.date),
           // The page's DeadlineText for it: soon within the student's window, said as today, tomorrow or in N days.
           daysLeft: daysAway(hours.expiring.date, now),
-          soon: hours.expiring.date.getTime() >= now.getTime() && daysAway(hours.expiring.date, now) <= EXPIRY_WINDOW_DAYS.student,
+          soon: !deadlinePassed(hours.expiring.date, now.getTime()) && daysAway(hours.expiring.date, now) <= EXPIRY_WINDOW_DAYS.student,
         }
       : null,
     grants: withOneWayToBook(hours.perMentor.map((grant) => toGrant(grant, bookingUrlOf, now))),

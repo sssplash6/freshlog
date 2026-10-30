@@ -23,6 +23,7 @@ import {
   status,
   studentStatuses,
   taskStatuses,
+  timeStateHolds,
   type Audience,
   type Status,
   type StudentStatusInput,
@@ -231,6 +232,17 @@ describe("studentStatuses", () => {
   it("does not warn about a deadline that has already gone", () => {
     const past = student({ expiring: { minutes: 100, date: inDays(-2) } });
     expect(types(studentStatuses(past, view("staff")))).not.toContain("ALLOCATION_EXPIRING");
+  });
+
+  it("warns through the whole last day, until Tashkent midnight", () => {
+    // "Use by 13 November", stored at UTC midnight: 05:00 Tashkent on the day.
+    const s = student({ expiring: { minutes: 120, date: new Date("2026-11-13T00:00:00.000Z") } });
+    const at = (iso: string): ViewerContext => ({ ...view("staff"), now: new Date(iso) });
+    // 20:00 Tashkent on the 13th: the two hours can still be used.
+    expect(timeStateHolds("expiring", s, at("2026-11-13T15:00:00.000Z"))).toBe(true);
+    expect(types(studentStatuses(s, at("2026-11-13T15:00:00.000Z")))).toContain("ALLOCATION_EXPIRING");
+    // Midnight: they are gone.
+    expect(timeStateHolds("expiring", s, at("2026-11-13T19:00:00.000Z"))).toBe(false);
   });
 
   it("states the minutes behind THAT date, never the whole balance", () => {

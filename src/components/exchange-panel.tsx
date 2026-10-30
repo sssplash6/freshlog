@@ -6,6 +6,7 @@ import { ReturnExchangeButton } from "@/components/forms/exchange-forms";
 import { Disclosure } from "@/components/ui/disclosure";
 import { StatusChip } from "@/components/ui/status-chip";
 import { EXCHANGE_STATUS } from "@/lib/constants";
+import { deadlinePassed } from "@/lib/deadlines";
 import type { ExchangeView } from "@/lib/exchanges";
 import { formatDate, formatDuration } from "@/lib/format";
 import type { ViewerContext } from "@/lib/status";
@@ -88,7 +89,9 @@ export function ExchangeList({
                     {formatDuration(unallocated)} to allocate
                   </StatusChip>
                 )}
-                {open && e.deadline < viewer.now && (
+                {/* Only once its day is over: a stored day is 05:00 Tashkent
+                    as an instant, and the grants under it run to midnight. */}
+                {open && deadlinePassed(e.deadline, viewer.now.getTime()) && (
                   <StatusChip severity="problem">Ran out</StatusChip>
                 )}
               </span>

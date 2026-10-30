@@ -147,6 +147,20 @@ describe("studentHomeFor: the figures", () => {
     expect(home.expiring).toEqual({ minutes: 200, day: toDateInputValue(dayIn(10)), daysLeft: 10, soon: true });
   });
 
+  it("still calls a use-by soon on the evening of its day, until Tashkent midnight", async () => {
+    const p = await program("Global Admissions");
+    const m = await mentor("Akmal Karimov");
+    const st = await student({ programId: p.id, name: "Aziz Tursunov" });
+    await grantTo(st, m, p, 120, 0);
+    await homeOf(st);
+
+    // 20:00 Tashkent on the day: a stored day is 05:00 of it, and the hours run to midnight.
+    const evening = new Date(dayIn(0).getTime() + 15 * 60 * 60 * 1000);
+    const home = await studentHomeFor(await accountOf(st), evening);
+    if (!home || home === "onboarding") throw new Error("a student has a home");
+    expect(home.expiring).toEqual({ minutes: 120, day: toDateInputValue(dayIn(0)), daysLeft: 0, soon: true });
+  });
+
   it("answers a student with no time yet with nothing to show for it", async () => {
     const st = await student({ name: "Aziz Tursunov" });
     const home = await homeOf(st);

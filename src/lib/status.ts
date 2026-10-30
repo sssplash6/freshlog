@@ -6,7 +6,9 @@ import {
   SESSION_STATUS,
   USER_STATUS,
 } from "@/lib/constants";
+import { deadlinePassed } from "@/lib/deadlines";
 import { formatDate, formatDuration, toDateInputValue } from "@/lib/format";
+import { daysAway } from "@/lib/when";
 
 /**
  * Every state the product can be in, in one file.
@@ -293,7 +295,6 @@ export const GLYPH: Record<Severity, string> = {
 export const EXPIRY_WINDOW_DAYS = { staff: 14, mentor: 7, student: 30 } as const;
 
 const DAY = 24 * 60 * 60 * 1000;
-const daysUntil = (date: Date, now: Date) => (date.getTime() - now.getTime()) / DAY;
 /** Whole days since something happened. Negative for a date in the future. */
 const daysSince = (date: Date, now: Date) => (now.getTime() - date.getTime()) / DAY;
 
@@ -998,8 +999,11 @@ export function timeStateHolds(
   if (state === "none") return s.allottedMinutes === 0;
   if (state === "expired") return s.forfeitedMinutes > 0;
   if (!s.expiring || s.expiring.minutes <= 0) return false;
-  const days = daysUntil(s.expiring.date, v.now);
-  return days >= 0 && days <= EXPIRY_WINDOW_DAYS[v.audience];
+  // In Tashkent days, as `DeadlineText` draws the date. Counted from the stored
+  // instant, 05:00 on the last day, the row went quiet for that day's last
+  // nineteen hours while the time was still there to lose, and nothing warned.
+  if (deadlinePassed(s.expiring.date, v.now.getTime())) return false;
+  return daysAway(s.expiring.date, v.now) <= EXPIRY_WINDOW_DAYS[v.audience];
 }
 
 export function studentStatuses(

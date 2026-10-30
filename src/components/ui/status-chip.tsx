@@ -1,4 +1,5 @@
 import { cn } from "@/lib/cn";
+import { deadlinePassed } from "@/lib/deadlines";
 import { formatDate } from "@/lib/format";
 import { EXPIRY_WINDOW_DAYS, GLYPH, type Severity, type Status } from "@/lib/status";
 import { daysAway } from "@/lib/when";
@@ -147,7 +148,10 @@ export function DeadlineText({
   className?: string;
 }) {
   if (!deadline) return <span className="text-muted-fg">—</span>;
-  const expired = deadline.getTime() < now.getTime();
+  // The whole day is usable, as the ledger counts it: a stored day is 05:00
+  // Tashkent as an instant, and comparing to that called the hours expired
+  // for the nineteen hours they could still be used. On the day it is "today".
+  const expired = deadlinePassed(deadline, now.getTime());
   const days = daysAway(deadline, now);
   const soon = !expired && days <= within;
 

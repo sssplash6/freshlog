@@ -3,6 +3,7 @@ import "server-only";
 import type { ApiExchange } from "@/lib/api/v1/types";
 import { scopeCovers, type AdminScope } from "@/lib/authz";
 import { EXCHANGE_STATUS } from "@/lib/constants";
+import { deadlinePassed } from "@/lib/deadlines";
 import type { ExchangeView } from "@/lib/exchanges";
 import { toDateInputValue } from "@/lib/format";
 
@@ -36,7 +37,8 @@ export function apiExchange(e: ExchangeView, opts: { canReturn: boolean; withStu
     open,
     cap: f.cap,
     useBy: toDateInputValue(e.deadline),
-    ranOut: open && e.deadline < now,
+    // Its day runs to Tashkent midnight, as the grants under it do.
+    ranOut: open && deadlinePassed(e.deadline, now.getTime()),
     allocated: f.allocated,
     unallocated: f.unallocated,
     holders: e.mentors.map((m) => nameOf(m.mentor) ?? "nobody yet"),
