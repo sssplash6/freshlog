@@ -74,8 +74,13 @@ model User {
   // app promises (ACCOUNT_DELETION_DAYS); null when nothing is asked, and back
   // to null if they take it back first.
   deletionRequestedAt DateTime?
+  // The side somebody with two last switched to: "admin" or "mentor", the lens
+  // in src/lib/profile.ts. Kept on the account, not in a cookie, so the website
+  // and the phone open on the same side and a switch on one moves the other.
+  // Null until they switch; the old cookie answers until then.
+  profile String?
 
-  studentProfile      StudentProfile?          @relation("StudentUser")
+  studentProfile     StudentProfile?          @relation("StudentUser")
   createdStudents     StudentProfile[]         @relation("CreatedBy")
   enrolledStudents    StudentEnrollment[]      @relation("EnrolledBy")
   mentorAssignments   MentorAssignment[]       @relation("MentorUser")

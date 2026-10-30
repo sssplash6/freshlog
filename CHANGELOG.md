@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-10-30
+
+### New
+- **Your side follows you.** If you both mentor and administer, or study and mentor, the side you switch to is kept on your account, not in this browser. The website on any computer and the freshlog app all open on the side you last picked.
+
 ## 2026-10-28
 
 ### New

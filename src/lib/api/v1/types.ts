@@ -77,6 +77,12 @@ export type MeResponse = {
   onboarding: Onboarding;
   /** When they asked for their account to be deleted (`POST account/deletion`); null when they have not. */
   deletionRequestedAt: string | null;
+  /**
+   * For somebody with two sides, the one they last switched to, on the website
+   * or in the app (`PUT account/side`): the side to open on. Null for somebody
+   * with one side, or who has not switched since it was kept: `roles[0]` then.
+   */
+  side: ApiRole | null;
 };
 
 /** `POST /api/v1/auth/token`: the one-time code the sign-in redirect carried, with the proof it is ours. */
@@ -1617,12 +1623,15 @@ export type ApiAccount = {
  *   DELETE /api/v1/account/avatar
  *   PUT    /api/v1/account/notices/:category     NoticeSwitches
  *   PUT    /api/v1/account/weekly-digest         DigestSwitch
+ *   PUT    /api/v1/account/side                  SideSwitch (somebody with two sides)
  *   PUT    /api/v1/account/booking-links/:id     BookingLinkText (mentors, their own pairing)
  */
 export type NameText = { name: string };
 export type TelegramText = { telegram: string };
 export type NoticeSwitches = { inApp: boolean; email: boolean };
 export type DigestSwitch = { on: boolean };
+/** `PUT account/side`: one of the two sides `/me` lists. */
+export type SideSwitch = { side: ApiRole };
 export type BookingLinkText = { url: string };
 
 /** One changelog item: written `**Headline.** detail`, or plain text with no headline. */

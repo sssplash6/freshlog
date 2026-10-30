@@ -33,10 +33,11 @@ import type { User } from "@/generated/prisma/client";
  */
 export type Profile = "admin" | "mentor";
 
+/**
+ * Where the lens was kept before the account kept it. Still read, so somebody
+ * who has not switched since keeps their side; no longer written.
+ */
 export const PROFILE_COOKIE = "profile";
-
-/** A year: the lens is a preference, not a session. */
-export const PROFILE_MAX_AGE = 60 * 60 * 24 * 365;
 
 /** Is this a lens at all? Everything reading the cookie is reading a string. */
 export function isProfile(value: unknown): value is Profile {
@@ -60,8 +61,13 @@ export async function canSwitchProfile(user: User): Promise<boolean> {
   return user.role === ROLES.ADMIN || !scopeIsEmpty(await adminScope(user));
 }
 
-/** The lens as it was last set, before anybody's role is considered. */
-export const storedProfile = cache(async (): Promise<Profile | null> => {
+/**
+ * The lens as it was last set, before anybody's role is considered: the one on
+ * their account (`User.profile`), which the website and the phone both write,
+ * else this browser's cookie from before the account kept it.
+ */
+export const storedProfile = cache(async (user: User): Promise<Profile | null> => {
+  if (isProfile(user.profile)) return user.profile;
   const value = (await cookies()).get(PROFILE_COOKIE)?.value;
   return isProfile(value) ? value : null;
 });
@@ -69,8 +75,8 @@ export const storedProfile = cache(async (): Promise<Profile | null> => {
 /**
  * The lens this user is actually in.
  *
- * The cookie only decides for somebody who has a choice. Everyone else has
- * exactly one honest answer, and a stale cookie left behind by a role change —
+ * The stored lens only decides for somebody who has a choice. Everyone else has
+ * exactly one honest answer, and a stale lens left behind by a role change —
  * an admin who stopped mentoring, a mentor made an admin — must not be able to
  * put them in a lens their pages do not fit.
  */
@@ -78,7 +84,7 @@ export const profileOf = cache(async (user: User): Promise<Profile> => {
   if (!(await canSwitchProfile(user))) {
     return canActAsMentor(user) ? "mentor" : "admin";
   }
-  return (await storedProfile()) ?? "admin";
+  return (await storedProfile(user)) ?? "admin";
 });
 
 /**

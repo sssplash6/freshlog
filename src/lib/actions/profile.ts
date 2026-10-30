@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { ROLES } from "@/lib/constants";
@@ -12,8 +11,6 @@ import {
   canSwitchProfile,
   homeFor,
   isProfile,
-  PROFILE_COOKIE,
-  PROFILE_MAX_AGE,
 } from "@/lib/profile";
 import {
   AVATAR_MAX_BYTES,
@@ -41,10 +38,13 @@ import { type ActionState } from "@/lib/actions/shared";
  * below, but to which half of the app they are looking through; see
  * `src/lib/profile.ts` for what that does and does not decide.
  *
- * A server action rather than a link, because the lens is a cookie and the
+ * A server action rather than a link, because the lens is stored and the
  * switch has to leave you where you are: this writes and revalidates, and the
  * page you were on repaints in the other lens with the same URL. Nothing here
  * grants anything — a lens is emphasis, and every gate in the app ignores it.
+ *
+ * It is stored on the account (`User.profile`), where the phone's switch
+ * writes it too, so both open on the side last picked on either.
  *
  * Silent on refusal. The only ways to reach it are a control shown to people
  * who can switch and a keyboard chord, so a rejection is not a person making a
@@ -57,12 +57,7 @@ export async function setProfile(formData: FormData): Promise<void> {
   const next = formData.get("profile");
   if (!isProfile(next)) return;
 
-  (await cookies()).set(PROFILE_COOKIE, next, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: PROFILE_MAX_AGE,
-  });
+  await prisma.user.update({ where: { id: user.id }, data: { profile: next } });
   // The whole layout: the lens decides the sidebar as well as the page.
   revalidatePath("/", "layout");
 

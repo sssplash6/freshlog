@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { mentor, pairing, PNG_BYTES, program, student } from "@/test/db";
+import { grant, mentor, pairing, PNG_BYTES, program, student } from "@/test/db";
 
 /**
  * Account's writes, as the signed-in `actor`. Each is the reader's own; what is
@@ -23,6 +23,8 @@ const digest = await import("@/app/api/v1/account/weekly-digest/route");
 const booking = await import("@/app/api/v1/account/booking-links/[id]/route");
 const push = await import("@/app/api/v1/account/push/[category]/route");
 const account = await import("@/app/api/v1/account/route");
+const side = await import("@/app/api/v1/account/side/route");
+const me = await import("@/app/api/v1/me/route");
 
 const as = (s: { userId: string } | { id: string }) => {
   actor.value = { id: "userId" in s ? s.userId : s.id };
@@ -200,5 +202,42 @@ describe("PUT account/push/:category", () => {
     // TASKS back at its email default: setNotificationPreference deletes its own row, never this one.
     await notices.PUT(put({ inApp: true, email: true }), params({ category: "TASKS" }));
     expect(await pushOf("TASKS")).toBe(false);
+  });
+});
+
+describe("PUT account/side", () => {
+  const sideOnMe = async () => (await (await me.GET()).json()).side;
+
+  it("keeps a granted mentor's side on their account, where /me and the website read it", async () => {
+    const m = await mentor();
+    await grant({ userId: m.id, programId: (await program()).id });
+    as(m);
+    // Not switched yet: the app opens on roles[0], as the website opens on its default.
+    expect(await sideOnMe()).toBeNull();
+    expect(await (await side.PUT(put({ side: "mentor" }))).json()).toEqual({ ok: true });
+    expect(await sideOnMe()).toBe("mentor");
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: m.id } })).profile).toBe("mentor");
+    await side.PUT(put({ side: "admin" }));
+    expect(await sideOnMe()).toBe("admin");
+  });
+
+  it("calls a student's other side student, as their switch does", async () => {
+    const s = await student();
+    await prisma.user.update({ where: { id: s.userId }, data: { isMentor: true } });
+    as(s);
+    expect((await side.PUT(put({ side: "admin" }))).status).toBe(400);
+    await side.PUT(put({ side: "mentor" }));
+    await side.PUT(put({ side: "student" }));
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: s.userId } })).profile).toBe("admin");
+    expect(await sideOnMe()).toBe("student");
+  });
+
+  it("refuses somebody with one side, and says nothing of a side they no longer have", async () => {
+    const m = await mentor();
+    as(m);
+    expect((await side.PUT(put({ side: "mentor" }))).status).toBe(403);
+    // A side kept from before a role change is not offered: they have one now.
+    await prisma.user.update({ where: { id: m.id }, data: { profile: "admin" } });
+    expect(await sideOnMe()).toBeNull();
   });
 });

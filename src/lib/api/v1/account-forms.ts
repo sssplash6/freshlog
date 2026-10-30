@@ -1,7 +1,7 @@
 import type { ActionState } from "@/lib/actions/shared";
 import { isText } from "@/lib/api/v1/session-forms";
-import type { BookingLinkText, DigestSwitch, NameText, NoticeCategory, NoticeSwitches, PushSwitch, TelegramText } from "@/lib/api/v1/types";
-import { NOTIFICATION_CATEGORY } from "@/lib/constants";
+import type { BookingLinkText, DigestSwitch, NameText, NoticeCategory, NoticeSwitches, PushSwitch, SideSwitch, TelegramText } from "@/lib/api/v1/types";
+import { NOTIFICATION_CATEGORY, ROLES } from "@/lib/constants";
 
 /**
  * Account bodies as the FormData `lib/actions/profile.ts`, `email-prefs.ts` and
@@ -61,6 +61,20 @@ export function digestForm(body: Record<string, unknown> | null): FormData | Bad
   if (typeof on !== "boolean") return { field: "on", error: "Say whether the weekly email is on." };
   const form = new FormData();
   if (on) form.set("weeklyDigest", "on");
+  return form;
+}
+
+/**
+ * `setProfile`'s FormData: the app's side as the website's lens. "mentor" is
+ * the mentor lens; the other side is "admin", which for a student who mentors
+ * is their student side, so a student sends "student" and staff send "admin".
+ */
+export function sideForm(user: { role: string }, body: Record<string, unknown> | null): FormData | Bad {
+  const { side } = (body ?? {}) as Partial<Record<keyof SideSwitch, unknown>>;
+  const other = user.role === ROLES.STUDENT ? "student" : "admin";
+  if (side !== "mentor" && side !== other) return { field: "side", error: "Pick one of your two sides." };
+  const form = new FormData();
+  form.set("profile", side === "mentor" ? "mentor" : "admin");
   return form;
 }
 

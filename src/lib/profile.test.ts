@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { canSwitchProfile, homeFor, profileFrom } from "@/lib/profile";
+import { canSwitchProfile, homeFor, profileFrom, profileOf } from "@/lib/profile";
 import { canActAsMentor, inStudentLens } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { grant, mentor, program, student } from "@/test/db";
@@ -87,5 +87,17 @@ describe("profileFrom", () => {
     expect(await profileFrom(fresh, "student")).toBe("admin");
     const plain = await mentor("Dilnoza Yusupova");
     expect(await profileFrom(plain, "admin")).toBe("mentor");
+  });
+});
+
+describe("profileOf", () => {
+  it("reads the side kept on the account, which the phone writes too", async () => {
+    const m = await mentor();
+    await grant({ userId: m.id, programId: (await program()).id });
+    const kept = await prisma.user.update({ where: { id: m.id }, data: { profile: "mentor" } });
+    expect(await profileOf(kept)).toBe("mentor");
+    // Somebody with one side gets it, whatever the account kept.
+    const plain = await prisma.user.update({ where: { id: (await mentor("Plain Mentor")).id }, data: { profile: "admin" } });
+    expect(await profileOf(plain)).toBe("mentor");
   });
 });

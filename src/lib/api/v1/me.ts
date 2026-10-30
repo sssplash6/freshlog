@@ -7,6 +7,7 @@ import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
 import { classProgramIds } from "@/lib/classes";
 import { navLevel } from "@/lib/nav";
 import { prisma } from "@/lib/prisma";
+import { canSwitchProfile, isProfile } from "@/lib/profile";
 import type { User } from "@/generated/prisma/client";
 
 /** The roles whose home /admin is, as `requireStaff` lets them in (src/lib/dal.ts). */
@@ -21,7 +22,7 @@ const STAFF = new Set<string>([ROLES.ADMIN, ROLES.DEPT_LEADER, ROLES.SALES]);
  * `canActAsMentor`, and what is left to set up is what `/onboarding` checks.
  */
 export async function meFor(user: User): Promise<MeResponse> {
-  const [profile, scope, unread, level, classPrograms] = await Promise.all([
+  const [profile, scope, unread, level, classPrograms, side] = await Promise.all([
     prisma.studentProfile.findUnique({
       where: { userId: user.id },
       select: { id: true, telegramUsername: true },
@@ -30,6 +31,7 @@ export async function meFor(user: User): Promise<MeResponse> {
     prisma.notification.count({ where: { userId: user.id, read: false } }),
     navLevel(user),
     classProgramIds(user),
+    sideOf(user),
   ]);
 
   // The order is where the website sends somebody who has not picked a side: a
@@ -57,7 +59,20 @@ export async function meFor(user: User): Promise<MeResponse> {
     unread,
     onboarding: onboardingFor(roles[0], user, profile),
     deletionRequestedAt: user.deletionRequestedAt?.toISOString() ?? null,
+    side,
   };
+}
+
+/**
+ * The side somebody with two last switched to, as the account keeps it
+ * (`User.profile`, which `profileOf` reads): "mentor" is the mentor side, and
+ * "admin" the other, which for a student who mentors is their student side.
+ * Null for somebody with one side, and for whoever has not switched since.
+ */
+async function sideOf(user: User): Promise<ApiRole | null> {
+  if (!isProfile(user.profile) || !(await canSwitchProfile(user))) return null;
+  if (user.profile === "mentor") return "mentor";
+  return user.role === ROLES.STUDENT ? "student" : "admin";
 }
 
 /**

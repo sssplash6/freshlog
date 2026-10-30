@@ -35,6 +35,7 @@ describe("meFor: who and which roles", () => {
       unread: 0,
       onboarding: null,
       deletionRequestedAt: null,
+      side: null,
     });
   });
 
