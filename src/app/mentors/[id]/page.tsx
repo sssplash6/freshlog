@@ -31,6 +31,7 @@ import { type SearchParams } from "@/lib/filters";
 import { formatDate, formatDuration } from "@/lib/format";
 import { allocationSummary, canBookOn } from "@/lib/hours";
 
+import { MENTOR_ANCHOR } from "@/lib/screens/feedback";
 import { mentorRecordView } from "@/lib/screens/mentor-record";
 import { prisma } from "@/lib/prisma";
 import {
@@ -162,7 +163,7 @@ async function MentorRecord({
     programExtra,
     programExpired,
     allPairings,
-    feedback,
+    standing,
     pickerPrograms,
   } = await mentorRecordView({ viewer, mentor, isSelf, edits, query, now });
 
@@ -177,7 +178,6 @@ async function MentorRecord({
   const missed = sum((r) => r.missed);
   const meetings = sum((r) => r.sessions);
   const name = mentor.name ?? mentor.email;
-  const rated = feedback._count > 0 && feedback._avg.rating != null;
   const base = `/mentors/${mentor.id}`;
 
   // `AllocationRow`'s columns, in its order — see the comment on the table
@@ -618,31 +618,38 @@ async function MentorRecord({
       />
 
       {/* A group like every other, rather than a loose line under the last
-          card: one row, the figure leading and the way to the words trailing. */}
-      <Section title="Ratings" count={rated ? feedback._count : undefined}>
-        {rated ? (
+          card: one row, the figure leading and the way to the words trailing.
+          Both kinds of rating, pooled as /feedback pools them: it counted the
+          written form alone, and a mentor rated in twenty-three meetings read
+          "No ratings written so far", with no way on to what was said. */}
+      <Section title="Ratings" count={standing?.total}>
+        {standing ? (
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 sm:px-5">
             <p className="flex items-baseline gap-x-2 text-body text-muted-fg">
               <span className="text-figure-md font-semibold tabular-nums text-ink">
-                {feedback._avg.rating!.toFixed(1)}
+                {standing.average.toFixed(1)}
               </span>
               <span>
-                from {feedback._count}{" "}
-                {feedback._count === 1 ? "rating" : "ratings"}
+                from {standing.total}{" "}
+                {standing.total === 1 ? "rating" : "ratings"}
               </span>
             </p>
             {/* A mentor's own address for this is the bare page — /feedback
                 already answers with their ratings and nobody else's. */}
             <ArrowLink
-              href={isSelf ? "/feedback" : `/feedback?mentor=${mentor.id}`}
+              href={
+                isSelf
+                  ? "/feedback"
+                  : `/feedback?mentor=${mentor.id}#${MENTOR_ANCHOR}`
+              }
               className="text-body"
             >
-              {feedback._count === 1 ? "Read it" : "Read them"}
+              {standing.total === 1 ? "Read it" : "Read them"}
             </ArrowLink>
           </div>
         ) : (
           <p className="px-4 py-3 text-body text-muted-fg sm:px-5">
-            No ratings written{isSelf ? " about you" : ""} so far.
+            No ratings{isSelf ? " for you" : ""} so far.
           </p>
         )}
       </Section>

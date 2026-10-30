@@ -9,6 +9,7 @@ import {
   filterHref,
   meetingRatingsWhere,
   readParam,
+  readPerson,
   readRatingKind,
   readRatingRange,
   type FilterPreset,
@@ -38,6 +39,12 @@ export const RECENT_DAYS = 30;
 
 /** The page-number key for meeting ratings, which paginate beside the others. */
 export const MEETING_PAGE = "meetings";
+
+/**
+ * The header over one mentor's ratings: where a click on a mentor lands, on
+ * this page and from their record.
+ */
+export const MENTOR_ANCHOR = "mentor-ratings";
 
 /**
  * The Rating select: each star on its own, which is what clicking a bar on
@@ -479,6 +486,17 @@ export async function staffFeedback({
     ];
   });
 
+  // The mentor the page is narrowed to: the header a click on a mentor lands
+  // on, so the reader sees whose ratings follow. Looked up among the mentors
+  // somebody in reach has rated, so an id from another program names nobody.
+  // `standing` is null once the other filters leave none of their ratings —
+  // the name stays, so the way back out is still on the page.
+  const focusId = readPerson(params, "mentor", scope);
+  const focusWho = focusId ? person.get(focusId) : undefined;
+  const focus = focusWho
+    ? { who: focusWho, standing: mentors.find((m) => m.who.id === focusWho.id) ?? null }
+    : null;
+
   /**
    * The name is open to the writer's admins and to nobody else — including
    * the mentor the rating is about, whatever else they administer. Decided
@@ -641,5 +659,6 @@ export async function staffFeedback({
     meetingsRatedAll,
     avg,
     ratedCount,
+    focus,
   };
 }

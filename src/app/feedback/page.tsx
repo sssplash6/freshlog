@@ -4,12 +4,14 @@ import { redirect } from "next/navigation";
 import { ExpandableText } from "@/components/expandable-text";
 import { ChevronRightIcon } from "@/components/icons";
 import { PersonCell, PersonChip } from "@/components/person-chip";
+import { ScrollToAnchor } from "@/components/scroll-to-anchor";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
+import { LinkRow } from "@/components/ui/link-row";
 import { Pagination, parsePage } from "@/components/ui/pagination";
 import { Eyebrow, PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
-import { FILL_CELL, Table, Td, Tr } from "@/components/ui/table";
+import { FILL_CELL, Table, Td } from "@/components/ui/table";
 import {
   adminScope,
 } from "@/lib/authz";
@@ -21,6 +23,7 @@ import {
   LOW_RATING,
   lowReasons,
   MEETING_PAGE,
+  MENTOR_ANCHOR,
   MINE,
   RATING_OPTIONS,
   RECENT_DAYS,
@@ -30,6 +33,7 @@ import {
   tallyStars,
 } from "@/lib/screens/feedback";
 import {
+  activeFilterCount,
   filterHref,
   filterSummary,
   ratingLabel,
@@ -98,9 +102,13 @@ function starHref(params: SearchParams, star: number): string {
   return filterHref("/feedback", params, { rating: on ? undefined : String(star) });
 }
 
-/** The same page narrowed to one mentor's ratings. */
+/**
+ * The same page narrowed to one mentor's ratings, scrolled to them. It kept
+ * the reader's place instead, which left them at the table they had clicked
+ * in, with what was said about the mentor out of sight below it.
+ */
 function mentorHref(params: SearchParams, mentorId: string): string {
-  return filterHref("/feedback", params, { mentor: mentorId });
+  return `${filterHref("/feedback", params, { mentor: mentorId })}#${MENTOR_ANCHOR}`;
 }
 
 export default async function FeedbackPage({
@@ -337,7 +345,19 @@ async function AllRatings({
     meetingsRatedAll,
     avg,
     ratedCount,
+    focus,
   } = await staffFeedback({ user, programIds, params, page });
+
+  // Opened on one mentor, a kind they have none of is a line, not a column:
+  // an empty Written beside their meeting ratings said "Widen the window, or
+  // reset", as if the filters had hidden ratings that were never written.
+  const focusName = focus ? (focus.who.name ?? focus.who.email) : "";
+  const noneOf = (what: string) =>
+    `No ${what} of ${focusName}${activeFilterCount(params) > 1 ? " match these filters" : " yet"}.`;
+  const writtenNone = focus !== null && !kind && stats._count === 0 && meetingStats._count > 0;
+  const meetingsNone = focus !== null && !kind && meetingStats._count === 0 && stats._count > 0;
+  const showWritten = wantWritten && !writtenNone;
+  const showMeetings = wantMeetings && !meetingsNone;
 
   return (
     <div className="space-y-4">
@@ -453,7 +473,17 @@ async function AllRatings({
         }
       />
 
-      {flagged.length > 0 && (
+      {/* Narrowed to one mentor, the cards and the table would be one entry
+          about them; the header says who the ratings below are about, and is
+          where a click on a mentor lands. */}
+      {focus && (
+        <MentorFocus
+          focus={focus}
+          allHref={filterHref("/feedback", params, { mentor: undefined })}
+        />
+      )}
+
+      {!focus && flagged.length > 0 && (
         <Section
           id="attention"
           title="Needs attention"
@@ -472,7 +502,7 @@ async function AllRatings({
         </Section>
       )}
 
-      {others.length > 0 && (
+      {!focus && others.length > 0 && (
         <Section
           title={flagged.length > 0 ? "Other mentors" : "Mentors"}
           count={others.length}
@@ -497,8 +527,13 @@ async function AllRatings({
       {/* What was said, the two kinds side by side from `lg` up: the words
           are read together, and stacked the meeting ratings sat a whole
           page of comments below the mentors they explain. */}
-      <div className={cn("grid items-start gap-4", !kind && "lg:grid-cols-2")}>
-        {wantWritten && (
+      {(writtenNone || meetingsNone) && (
+        <p className="px-1 text-xs text-muted-fg">
+          {noneOf(writtenNone ? "written ratings" : "meeting ratings")}
+        </p>
+      )}
+      <div className={cn("grid items-start gap-4", showWritten && showMeetings && "lg:grid-cols-2")}>
+        {showWritten && (
         <div className="min-w-0 space-y-2">
           <Section
             id="written"
@@ -514,7 +549,11 @@ async function AllRatings({
             }
           >
             {list.length === 0 ? (
-              filtered ? (
+              focus ? (
+                <EmptyState framed={false} variant="no-results">
+                  {noneOf("written ratings")}
+                </EmptyState>
+              ) : filtered ? (
                 <EmptyState framed={false} variant="no-results">
                   Widen the window, or reset to read every rating.
                 </EmptyState>
@@ -553,7 +592,7 @@ async function AllRatings({
         </div>
         )}
 
-        {wantMeetings && (
+        {showMeetings && (
         <div className="min-w-0 space-y-2">
           <Section
             id="meetings"
@@ -657,8 +696,14 @@ function partCounts(mentor: MentorStanding): string {
 }
 
 /**
- * One mentor in the table. The name opens the mentor; the ratings count
- * narrows THIS page to them, which is where what was said about them is.
+ * One mentor in the table, and the way to what was said about them: a click
+ * anywhere on the row narrows THIS page to them and lands on their ratings.
+ *
+ * On this page a mentor is what students said about them, so the name leads
+ * there too. It opened the mentor's record, whose ratings count left out
+ * meetings — a mentor rated in twenty-three meetings read "No ratings written
+ * so far" there — and the only way to the ratings was the small count in the
+ * fourth column. The record is a link in the header the click lands on.
  */
 function MentorRow({
   mentor,
@@ -668,9 +713,9 @@ function MentorRow({
   ratingsHref: string;
 }) {
   return (
-    <Tr>
+    <LinkRow href={ratingsHref}>
       <Td label="Mentor" className={FILL_CELL}>
-        <PersonCell person={mentor.who} href={`/mentors/${mentor.who.id}`}>
+        <PersonCell person={mentor.who} href={ratingsHref}>
           {mentor.low && <StatusChip severity="attention">Low</StatusChip>}
         </PersonCell>
       </Td>
@@ -684,14 +729,7 @@ function MentorRow({
         </span>
       </Td>
       <Td label="Ratings" align="right" tone="muted" className="tabular-nums">
-        <Link
-          href={ratingsHref}
-          scroll={false}
-          title="Only this mentor's ratings"
-          className="hover:text-ink hover:underline"
-        >
-          {partCounts(mentor)}
-        </Link>
+        {partCounts(mentor)}
       </Td>
       <Td label="Lowest recent" align="right">
         {mentor.lowestRecent === null ? (
@@ -703,7 +741,7 @@ function MentorRow({
       <Td label="Last rated" align="right" tone="muted">
         {mentor.lastRated ? formatDate(mentor.lastRated) : "—"}
       </Td>
-    </Tr>
+    </LinkRow>
   );
 }
 
@@ -998,6 +1036,9 @@ function ProgramLine({
 /**
  * A mentor somebody should look at: who, the score, and the reason on screen —
  * not in a tooltip a phone never shows.
+ *
+ * The whole card is the way to their ratings, as a row of the table is. It was
+ * a small "Their ratings" in one corner, with the name leading elsewhere.
  */
 function AttentionCard({
   mentor,
@@ -1008,11 +1049,13 @@ function AttentionCard({
 }) {
   const filled = Math.round(mentor.average);
   return (
-    <article className="flex min-w-0 flex-col rounded-xl bg-surface shadow-sm">
+    <Link
+      href={ratingsHref}
+      className="group flex min-w-0 flex-col rounded-xl bg-surface shadow-sm transition-colors hover:bg-fill/40"
+    >
       <div className="px-4 pt-4 sm:px-5">
         <PersonCell
           person={mentor.who}
-          href={`/mentors/${mentor.who.id}`}
           secondary={false}
         >
           <StatusChip severity="attention">Low</StatusChip>
@@ -1055,12 +1098,68 @@ function AttentionCard({
           <span className="text-muted-fg">
             {mentor.lastRated ? `Last ${formatDate(mentor.lastRated)}` : null}
           </span>
+          <span className="font-medium text-brand group-hover:underline">
+            Their ratings
+          </span>
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+/**
+ * The mentor the page is narrowed to, where a click on them lands: who, the
+ * score the ratings below add up to, why they need a look if they do, and the
+ * two ways on — their record, or back to every mentor.
+ */
+function MentorFocus({
+  focus,
+  allHref,
+}: {
+  focus: { who: MentorCard["who"]; standing: MentorCard | null };
+  allHref: string;
+}) {
+  const { who, standing } = focus;
+  return (
+    // scroll-mt so the jump lands under the phone's top bar, not behind it.
+    <article id={MENTOR_ANCHOR} className="scroll-mt-20 rounded-xl bg-surface shadow-sm">
+      <ScrollToAnchor id={MENTOR_ANCHOR} />
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3 sm:px-5">
+        <PersonCell person={who} className="min-w-0 flex-1">
+          {standing?.low && <StatusChip severity="attention">Low</StatusChip>}
+        </PersonCell>
+        {standing ? (
+          <div className="text-right">
+            <span className="text-figure-md font-semibold tabular-nums text-ink">
+              {standing.average.toFixed(1)}
+            </span>
+            <AverageStars value={standing.average} />
+            <span className="block text-xs tabular-nums text-muted-fg">
+              {parts(standing)}
+            </span>
+            <span className="block text-xs tabular-nums text-muted-fg">
+              {partCounts(standing)}
+            </span>
+          </div>
+        ) : (
+          <span className="text-xs text-muted-fg">
+            None of their ratings match these filters.
+          </span>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-line/70 px-4 py-2.5 text-xs sm:px-5">
+        <span className="text-warn-ink">
+          {standing?.low ? lowReasons(standing).join(" · ") : null}
+        </span>
+        <span className="flex items-baseline gap-4">
+          <Link href={allHref} className="font-medium text-brand hover:underline">
+            All mentors
+          </Link>
           <Link
-            href={ratingsHref}
-            scroll={false}
+            href={`/mentors/${who.id}`}
             className="font-medium text-brand hover:underline"
           >
-            Their ratings
+            Open record
           </Link>
         </span>
       </div>

@@ -735,7 +735,7 @@ const CATEGORY_TYPES: Record<string, readonly string[]> = Object.fromEntries(
 /* ------------------------------------------------------------ the where's --- */
 
 /** `?mentor=me` is whoever is reading, so a lens URL survives being shared. */
-function readPerson(params: SearchParams, key: string, scope: FilterScope): string {
+export function readPerson(params: SearchParams, key: string, scope: FilterScope): string {
   const raw = readParam(params, key);
   return raw === "me" ? (scope.userId ?? "") : raw;
 }
