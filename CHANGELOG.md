@@ -11,6 +11,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ### Fixed
 - **The In app switch now works.** Turn a category off under Settings, Notifications and its notices stay out of your bell, your feed, the app's Inbox and the number on the app's icon; turn it back on and they return.
+- **Mentors' dictated interview notes read as interview notes.** Dictating notes on a practice interview you gave tidied them up as a session note; they are now written up as notes on the interview, with your student's name spelled right.
 
 ## 2026-10-28
 

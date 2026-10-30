@@ -12,8 +12,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * Turn a spoken note into text for the box somebody is typing into: a
- * mentor's session note, a student's notes on a practice interview, or their
- * spoken answer to a practice question.
+ * mentor's session note, either side's notes on a practice interview, or a
+ * student's spoken answer to a practice question.
  *
  * A route handler rather than a server action, for two reasons. The result has
  * to land in a form that has NOT been submitted — the mentor is still choosing
@@ -39,20 +39,21 @@ export async function POST(request: Request) {
 
   const form = await request.formData();
 
-  // Who may dictate, and about what. A mentor dictates session notes. A
-  // student dictates only the notes on a practice interview they are one of
-  // the two people in — named in the request and checked here, so the
-  // endpoint is not a free transcriber for anyone with a student account.
+  // Who may dictate, and about what. A mentor dictates session notes, and the
+  // notes on a practice interview they gave. A student dictates only the notes
+  // on a practice interview they are one of the two people in — named in the
+  // request and checked here, so the endpoint is not a free transcriber for
+  // anyone with a student account.
   let kind: DictationKind;
   let names: string[];
-  // A student who also mentors dictates in both halves; the interview they are
-  // naming decides which, since only the student half has one.
-  const ownInterview =
-    actor.role === ROLES.STUDENT && String(form.get("interviewId") ?? "").trim() !== "";
-  if (canActAsMentor(actor) && !ownInterview) {
+  // A student who also mentors dictates in both halves, and a mentor has
+  // practice interviews of their own with their students: naming an interview
+  // decides it is interview notes, and only one this person is in will do.
+  const namesInterview = String(form.get("interviewId") ?? "").trim() !== "";
+  if (canActAsMentor(actor) && !namesInterview) {
     kind = "session";
     names = await nameHints(actor, form);
-  } else if (actor.role === ROLES.STUDENT) {
+  } else if (actor.role === ROLES.STUDENT || canActAsMentor(actor)) {
     const partner = await interviewPartner(actor, form);
     if (partner === null) {
       return Response.json(
@@ -122,10 +123,10 @@ async function nameHints(actor: User, form: FormData): Promise<string[]> {
 }
 
 /**
- * The classmate on the other side of the student's practice interview, as a
- * spelling hint — or null when the request names no interview this student is
- * in, which refuses the request outright. An empty string is "yours, but the
- * classmate has no name set".
+ * The other person in this practice interview — a classmate, a student's
+ * mentor, or a mentor's student — as a spelling hint, or null when the request
+ * names no interview this person is in, which refuses the request outright. An
+ * empty string is "yours, but the other person has no name set".
  */
 async function interviewPartner(actor: User, form: FormData): Promise<string | null> {
   const interviewId = String(form.get("interviewId") ?? "").trim();

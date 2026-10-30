@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { program, student } from "@/test/db";
+import { mentor, program, student } from "@/test/db";
 
 /**
  * A student may dictate, but only the notes on a practice interview they are
@@ -86,5 +86,51 @@ describe("POST /api/notes/dictate, as a student", () => {
 
     expect((await post({ interviewId: interview.id, purpose: "answer" })).status).toBe(403);
     expect(heard.calls).toEqual([]);
+  });
+});
+
+describe("POST /api/notes/dictate, as a mentor", () => {
+  /** A practice interview a mentor gave one of their students: the mentor is the interviewer. */
+  async function mentorScene() {
+    const p = await program();
+    const m = await mentor("Akmal Karimov");
+    const s = await student({ programId: p.id, name: "Dilnoza" });
+    const slot = await prisma.interviewSlot.create({
+      data: { userId: m.id, asMentor: true, startsAt: new Date("2026-01-02T10:00:00Z"), minutes: 45 },
+    });
+    const interview = await prisma.peerInterview.create({
+      data: { slotId: slot.id, hostId: m.id, guestId: s.userId, mentorId: m.id, template: "visa" },
+    });
+    return { m, interview };
+  }
+
+  it("transcribes notes on a practice interview they gave as interview notes, hinting the student's name", async () => {
+    const { m, interview } = await mentorScene();
+    actor.value = { id: m.id };
+    heard.calls = [];
+
+    const response = await post({ interviewId: interview.id });
+
+    expect(response.status).toBe(200);
+    expect(heard.calls).toEqual([{ names: ["Dilnoza"], kind: "interview" }]);
+  });
+
+  it("refuses an interview they are not in", async () => {
+    const { interview } = await scene();
+    const m = await mentor("Umid Rashidov");
+    actor.value = { id: m.id };
+    heard.calls = [];
+
+    expect((await post({ interviewId: interview.id })).status).toBe(403);
+    expect(heard.calls).toEqual([]);
+  });
+
+  it("still dictates a session note when no interview is named", async () => {
+    const { m } = await mentorScene();
+    actor.value = { id: m.id };
+    heard.calls = [];
+
+    expect((await post({})).status).toBe(200);
+    expect(heard.calls).toEqual([{ names: [], kind: "session" }]);
   });
 });

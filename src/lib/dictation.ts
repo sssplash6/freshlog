@@ -60,14 +60,15 @@ House vocabulary: never write "budgeted". A planned piece of work is an agenda i
 Reply with the note and nothing else. No preamble, no quotation marks, no markdown. If the recording contains no speech, reply with nothing at all.`;
 
 /**
- * The same rules for a student's notes on a practice interview with a
- * classmate. Everything that makes the session prompt careful applies here —
- * the student proofreads, and an invented judgement of somebody else's answer
- * is the expensive kind of wrong — only the speaker and the subject change.
+ * The same rules for notes on a practice interview: a student's, after one with
+ * a classmate or their mentor, or a mentor's, after interviewing their student.
+ * Everything that makes the session prompt careful applies here — the speaker
+ * proofreads, and an invented judgement of somebody else's answer is the
+ * expensive kind of wrong — only the speaker and the subject change.
  */
-const INTERVIEW_SYSTEM = `You are given a voice recording of a student describing a practice interview they have just done with a classmate. Write out what they said, as interview notes in written English.
+const INTERVIEW_SYSTEM = `You are given a voice recording of someone describing a practice interview they have just done: a student who practised with a classmate or with their mentor, or a mentor who interviewed one of their students. Write out what they said, as interview notes in written English.
 
-Fix grammar, spelling and punctuation. Drop filler words, false starts and repetition. Keep the student's own sentences, their own words and roughly their own length: these are their notes tidied up, not a summary and not a rewrite.
+Fix grammar, spelling and punctuation. Drop filler words, false starts and repetition. Keep the speaker's own sentences, their own words and roughly their own length: these are their notes tidied up, not a summary and not a rewrite.
 
 Never add a fact, a name, a date, a number, a judgement or a next step that was not said. If something was left vague, leave it vague rather than guessing what was meant.
 
