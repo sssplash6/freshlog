@@ -158,6 +158,20 @@ describe("syncMeetDrafts", () => {
     expect((await syncMeetDrafts(NOW)).drafts).toBe(0);
   });
 
+  it("drafts a meeting whose only session that day was voided, and not one rescheduled", async () => {
+    const { mentor: m, student: s, program: p, fixture } = await setUp();
+    const that = { studentId: s.id, programId: p.id, mentorId: m.id, minutes: 60, date: new Date("2026-10-13T00:00:00.000Z") };
+    // Voided: nothing of that day is in the ledger.
+    const voided = await prisma.session.create({ data: { ...that, status: "VOIDED" } });
+    vi.stubGlobal("fetch", fakeGoogle(fixture));
+    expect((await syncMeetDrafts(NOW)).drafts).toBe(1);
+
+    // Rescheduled: the mentor has said what became of the meeting.
+    await prisma.meetDraft.deleteMany();
+    await prisma.session.update({ where: { id: voided.id }, data: { status: "RESCHEDULED" } });
+    expect((await syncMeetDrafts(NOW)).drafts).toBe(0);
+  });
+
   it("ignores invited guests who are not students this mentor reaches", async () => {
     const { fixture } = await setUp();
     vi.stubGlobal("fetch", fakeGoogle({ ...fixture, studentEmail: "stranger@example.com" }));
@@ -230,6 +244,23 @@ describe("a draft in the mentor's Needs you", () => {
     });
     const after = await attentionFor(m, "mentor");
     expect(after.statuses.some((r) => r.type === "MEETING_TO_LOG")).toBe(false);
+  });
+
+  it("stays while the day's only session is voided, and goes once one is rescheduled", async () => {
+    const { mentor: m, student: s, program: p, fixture } = await setUp();
+    vi.stubGlobal("fetch", fakeGoogle(fixture));
+    await syncMeetDrafts(NOW);
+    const asks = async () =>
+      (await attentionFor(m, "mentor")).statuses.some((r) => r.type === "MEETING_TO_LOG");
+
+    const logged = await prisma.session.create({
+      data: { studentId: s.id, programId: p.id, mentorId: m.id, minutes: 50, date: new Date("2026-10-13T00:00:00.000Z") },
+    });
+    await prisma.session.update({ where: { id: logged.id }, data: { status: "VOIDED" } });
+    expect(await asks()).toBe(true);
+
+    await prisma.session.update({ where: { id: logged.id }, data: { status: "RESCHEDULED" } });
+    expect(await asks()).toBe(false);
   });
 
   it("asks a mentor whose connection failed to reconnect", async () => {

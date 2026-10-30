@@ -559,6 +559,8 @@ const MEET_DRAFT_DAYS = 14;
  * day — logged from the draft or by hand, either way the meeting is in the
  * ledger, and the draft is only ever a suggestion of one. Nothing marks it;
  * it is a question this asks each time, like every other row in the list.
+ * A voided session is not in the ledger, so it leaves the draft open; a
+ * rescheduled one is the mentor saying what became of that day's meeting.
  */
 async function meetRows(mentorId: string, viewer: ViewerContext): Promise<Status[]> {
   if (!googleConfigured()) return [];
@@ -588,6 +590,7 @@ async function meetRows(mentorId: string, viewer: ViewerContext): Promise<Status
         mentorId,
         studentId: { in: [...new Set(drafts.map((d) => d.studentId))] },
         date: { in: [...new Set(drafts.map((d) => d.date.getTime()))].map((t) => new Date(t)) },
+        status: { not: SESSION_STATUS.VOIDED },
       },
       select: { studentId: true, date: true },
     }),

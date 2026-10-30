@@ -2,7 +2,7 @@ import "server-only";
 
 import type { User } from "@/generated/prisma/client";
 import { mentorReaches } from "@/lib/authz";
-import { canActAsMentor } from "@/lib/constants";
+import { canActAsMentor, SESSION_STATUS } from "@/lib/constants";
 import {
   accessToken,
   googleConfigured,
@@ -100,7 +100,8 @@ async function syncMentor(mentor: User, token: string, now: Date): Promise<numbe
 
     // Skip whoever already has a draft from this event, or a session with
     // this mentor that day: a mentor who logged by hand before the sync
-    // reached the meeting must not then be asked to log it again.
+    // reached the meeting must not then be asked to log it again. A voided
+    // session logged nothing, so it does not count as that log.
     const [drafted, logged] = await Promise.all([
       prisma.meetDraft.findMany({
         where: { mentorId: mentor.id, eventId: event.id },
@@ -111,6 +112,7 @@ async function syncMentor(mentor: User, token: string, now: Date): Promise<numbe
           mentorId: mentor.id,
           date: meeting.date,
           studentId: { in: students.map((s) => s.profileId) },
+          status: { not: SESSION_STATUS.VOIDED },
         },
         select: { studentId: true },
       }),
