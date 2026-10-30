@@ -6,7 +6,7 @@ import { formatBalance, formatDuration } from "@/lib/format";
 import { mentorOwnTasks } from "@/lib/mentor-tasks";
 import { prisma } from "@/lib/prisma";
 import type { Profile } from "@/lib/profile";
-import { mentorCaseload, type CaseloadStudent } from "@/lib/queries";
+import { mentorCaseload, toClaim, type CaseloadStudent } from "@/lib/queries";
 import { applySort, readSort } from "@/lib/sort";
 import { spaceOf } from "@/lib/space";
 import type { ViewerContext } from "@/lib/status";
@@ -169,7 +169,6 @@ export async function mentorHomeView(
   // reached — the caseload, the log picker and the student's page all keep
   // them — but listed apart, as time to claim rather than as students. A bank
   // stays in the caseload: every meeting draws it, whoever delivers it.
-  const toClaim = (s: CaseloadStudent) => s.reach === "pool" && !s.bank;
   const inView = inLens.filter((s) => !toClaim(s));
   const claimRows = inLens.filter(toClaim).sort(byUrgency);
 

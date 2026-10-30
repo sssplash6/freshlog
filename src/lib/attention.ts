@@ -24,6 +24,7 @@ import {
   mentorCaseload,
   studentLedger,
   studentsWithHours,
+  toClaim,
   type CaseloadStudent,
 } from "@/lib/queries";
 import {
@@ -431,6 +432,9 @@ export async function staffAttention(
  * Mentor
  * ------------------------------------------------------------------ */
 
+/** What a to-claim row's own time says, which its Time to claim row says already. */
+const CLAIM_STATES = new Set<StatusType>(["BALANCE_NONE", "POOL_UNASSIGNED"]);
+
 async function mentorAttention(user: User): Promise<Attention> {
   const viewer: ViewerContext = {
     audience: "mentor",
@@ -471,7 +475,15 @@ async function mentorAttention(user: User): Promise<Attention> {
       // /settings — not on the page other people read about them.
       s.type === "BOOKING_LINK_MISSING" ? { ...s, href: "/settings" } : s
     ),
-    ...students.flatMap((s) => caseloadStatuses(s, viewer)),
+    // Time nobody holds yet is listed under Home's Time to claim, which says
+    // what it is and how to take it. Said again here, as "No time with you"
+    // and "unassigned", the same student sat twice in this list as well, the
+    // first time as blocked. Anything else true of them stays.
+    ...students.flatMap((s) =>
+      caseloadStatuses(s, viewer).filter(
+        (row) => !(toClaim(s) && CLAIM_STATES.has(row.type))
+      )
+    ),
     ...sent.flatMap((e) =>
       exchangeStatuses(
         {
@@ -503,7 +515,8 @@ async function mentorAttention(user: User): Promise<Attention> {
 
 /**
  * What is true of one caseload row, in a mentor's words: the rows
- * `mentorAttention` lists for it above, and the statuses the freshlog app
+ * `mentorAttention` lists for it above (less a to-claim row's time, which Time
+ * to claim says), and the statuses the freshlog app
  * (src/lib/api/v1/mentor-home.ts) picks each row's most serious from.
  */
 export function caseloadStatuses(s: CaseloadStudent, viewer: ViewerContext): Status[] {

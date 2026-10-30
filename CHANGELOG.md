@@ -15,6 +15,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **Hours read "today" on their last day, not "expired".** From 5 a.m. on a use-by date, the date showed as expired and Home stopped warning about it, though the hours could be used until midnight.
 - **No time lists every student without hours.** A student whose only grant had been set to zero was missing from the list, though Home counted them.
 - **Needs you no longer says you can't log.** A student with no time with you said an admin had to allocate it before you could log. You can log a meeting meanwhile; what it draws shows when you log it.
+- **Time to claim is listed once.** A student whose time no mentor has claimed yet also showed in your Needs you as "No time with you" and as unassigned time. They now show only under Time to claim.
 
 ## 2026-10-28
 

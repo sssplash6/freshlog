@@ -1108,6 +1108,15 @@ export type CaseloadStudent = {
 };
 
 /**
+ * A row whose only time here is the student's unassigned pool: any mentor of
+ * the program may claim it by logging, so the mentor's Home lists it under Time
+ * to claim, apart from their own students. A bank is not that — every meeting
+ * draws it, whoever delivers it.
+ */
+export const toClaim = (s: Pick<CaseloadStudent, "reach" | "bank">) =>
+  s.reach === "pool" && !s.bank;
+
+/**
  * An agenda item the log form offers. `label` is what the list shows, marks
  * and all; `purpose` is the name alone, so the form need not offer a preset
  * the student's agenda already has.

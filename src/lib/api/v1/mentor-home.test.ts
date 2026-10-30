@@ -310,6 +310,33 @@ describe("mentorHomeFor: To do", () => {
     });
   });
 
+  it("leaves time to claim to Time to claim, and keeps anything else true of that student", async () => {
+    const w = await atWork();
+    const pooled = await student({ programId: w.p.id, name: "Malika Rahimova" });
+    await prisma.studentProfile.update({ where: { id: pooled.id }, data: { telegramUsername: "malika" } });
+    // Never signed in: that is still worth saying, whoever's time it is.
+    const unseen = await student({ programId: w.p.id, name: "Dilnoza Yusupova" });
+    const banked = await student({ programId: w.p.id, name: "Nigora Qodirova" });
+    await prisma.studentProfile.update({ where: { id: banked.id }, data: { telegramUsername: "nigora" } });
+    const unassigned = (studentId: string, isBank = false) =>
+      prisma.hourAllocation.create({
+        data: { studentId, programId: w.p.id, mentorId: null, minutes: 90, deadline: dayIn(60), isBank },
+      });
+    await unassigned(pooled.id);
+    await unassigned(unseen.id);
+    await unassigned(banked.id, true);
+
+    const home = await mentorHomeFor(w.m, {}, NOW);
+    expect(home.claim.map((row) => row.student.id).sort()).toEqual([pooled.id, unseen.id].sort());
+    const about = (id: string) => home.todo.filter((row) => row.subject?.id === id).map((row) => row.type);
+    expect(about(pooled.id)).toEqual([]);
+    expect(about(unseen.id)).toEqual(["STUDENT_NOT_SIGNED_IN"]);
+    // A bank is in the caseload, not to claim, so its rows are unchanged.
+    expect(about(banked.id)).toEqual(["BALANCE_NONE"]);
+    // The row in Time to claim keeps its own status, which the app words it by.
+    expect(home.claim.find((row) => row.student.id === pooled.id)?.status?.type).toBe("BALANCE_NONE");
+  });
+
   it("gives a student whose time is running out in two programs a row for each, under keys of their own", async () => {
     const w = await atWork();
     const other = await program("Master's Program");
