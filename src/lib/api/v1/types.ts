@@ -1425,7 +1425,12 @@ export type PracticeTodo = {
   /** "University admissions · Aziz" */
   title: string;
   when: SlotTime;
-  /** join: starts within a day, until it ends. mark: it has started. feedback: done, and mine is not sent. */
+  /**
+   * join: starts within a day, until it ends. mark: it has ended, and nobody
+   * has said how it went; until then the row is still "join", though the
+   * interview's own page (phase "to-mark") lets it be marked from the start.
+   * feedback: done, and mine is not sent.
+   */
   need: "join" | "mark" | "feedback";
   /** Only for "join". */
   meetingUrl: string | null;
