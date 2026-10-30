@@ -133,10 +133,16 @@ export function DetailsStepForm({ defaultName }: { defaultName: string }) {
  * The self-signup: an email nobody registered, so the student says which
  * program they are in and waits for an admin to agree.
  *
+ * A program with levels asks for the level, and then for a cohort in it where
+ * the level has any — the three answers `resolveEnrollment` needs, the same
+ * three the admin's Enroll form asks. Without the level no student could sign
+ * up for a leveled program at all.
+ *
  * The cohort select is keyed on the program, so switching program cannot leave
  * the previous program's cohort id in the hidden input the form submits —
  * `resolveEnrollment` would refuse it, but only after the student had filled
- * the form in twice.
+ * the form in twice. The level select is keyed the same way, and the cohort on
+ * the level too, for the same reason one step down.
  */
 export function RegistrationStepForm({
   defaultName,
@@ -147,7 +153,13 @@ export function RegistrationStepForm({
 }) {
   const [, action, save] = useSaveState(completeOnboarding);
   const [programId, setProgramId] = useState("");
-  const cohorts = programs.find((p) => p.id === programId)?.cohorts ?? [];
+  const [levelId, setLevelId] = useState("");
+  const levels = programs.find((p) => p.id === programId)?.levels ?? [];
+  // A program has levels (its cohorts live under them) or flat cohorts, never both.
+  const cohorts =
+    levels.length > 0
+      ? (levels.find((l) => l.id === levelId)?.cohorts ?? [])
+      : (programs.find((p) => p.id === programId)?.cohorts ?? []);
 
   return (
     <form action={action} className="space-y-4">
@@ -167,10 +179,31 @@ export function RegistrationStepForm({
             name="programId"
             ariaLabel="Your program"
             options={programs.map((p) => ({ value: p.id, label: p.name }))}
-            onChange={setProgramId}
+            onChange={(id) => {
+              setProgramId(id);
+              setLevelId("");
+            }}
           />
         </div>
       </div>
+
+      {levels.length > 0 && (
+        <div>
+          <span className="block text-sm font-medium text-ink">
+            Your level
+            <RequiredMark />
+          </span>
+          <div className="mt-1.5">
+            <Select
+              key={programId}
+              name="levelId"
+              ariaLabel="Your level"
+              options={levels.map((l) => ({ value: l.id, label: l.name }))}
+              onChange={setLevelId}
+            />
+          </div>
+        </div>
+      )}
 
       {cohorts.length > 0 && (
         <div>
@@ -180,7 +213,7 @@ export function RegistrationStepForm({
           </span>
           <div className="mt-1.5">
             <Select
-              key={programId}
+              key={`${programId}:${levelId}`}
               name="cohortId"
               ariaLabel="Your cohort"
               options={cohorts.map((c) => ({ value: c.id, label: c.name }))}
