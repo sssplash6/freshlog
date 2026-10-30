@@ -77,7 +77,9 @@ export async function GET(
   if (notification && !notification.read) {
     await prisma.notification.update({
       where: { id: notification.id },
-      data: { read: true },
+      // The instant too, as "Mark all read" stamps it: it is what lets a feed
+      // say which of these are new since somebody last looked.
+      data: { read: true, readAt: new Date() },
     });
     // The unread count is drawn in the shell of every page, not just this one.
     revalidatePath("/", "layout");
