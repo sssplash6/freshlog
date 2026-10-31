@@ -7,6 +7,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-10-30
 
 ### New
+- **Click a mentor to read what students said.** On Feedback, click anywhere on a mentor's row or card, name included. The page jumps to their ratings, under a header with their score and a link to their record.
 - **Your side follows you.** If you both mentor and administer, or study and mentor, the side you switch to is kept on your account, not in this browser. The website on any computer and the freshlog app all open on the side you last picked.
 - **Admins read ratings of their own meetings.** If you mentor in a program you administer, Feedback on the website now lists students' ratings and notes on your own meetings there, without the student's name. When a student rates one of those meetings on the website, the form tells them you will see it.
 - **The app lists your own meeting ratings too.** If you mentor in a program you administer, Ratings in the freshlog app now lists students' ratings and notes on your own meetings there, without the student's name, as Feedback on the website does. When a student rates one of those meetings in the app, it tells them you will see it.
@@ -29,6 +30,8 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 - **A task is due all day.** Tasks and agenda items showed as overdue from 5 a.m. on their due date. They now turn overdue when the day ends.
 - **A task's deadline can't move into the past.** Editing a task let you pick a day already gone. It now offers today or later, and an overdue task keeps its own date.
 - **Settings offers email only where we send it.** Hours, Sessions, Deadlines and Your account had an Email switch, but nothing is emailed for them yet. Tasks and agenda and the Weekly summary keep theirs.
+- **A mentor's page counts their rated meetings.** A mentor rated only in meetings read "No ratings written so far" on their page. Ratings there now pools both kinds, as Feedback does, and Read them opens what students said.
+- **No empty Written column beside meetings.** Opening a mentor rated only in meetings showed an empty Written ratings column that suggested a filter was hiding some. It now says they have none, and their meeting ratings take the full width.
 
 ## 2026-10-28
 

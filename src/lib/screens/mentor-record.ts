@@ -1,7 +1,8 @@
 import "server-only";
 
 import { adminScope, scopeProgramFilter } from "@/lib/authz";
-import { readParam, type SearchParams } from "@/lib/filters";
+import { meetingRatingsWhere, readParam, type SearchParams } from "@/lib/filters";
+import { mentorStandings } from "@/lib/mentor-standing";
 import { mentorWindow } from "@/lib/mentor-window";
 import { prisma } from "@/lib/prisma";
 import { mentorAssignments, mentorOverview, programOptions } from "@/lib/queries";
@@ -48,7 +49,7 @@ export async function mentorRecordView({
   // anything is typed — an empty pair of fields is how it asks for one.
   const choosingDates = win.kind === "custom" || readParam(query, "period") === "custom";
 
-  const [allPairings, overview, feedback, pickerPrograms] = await Promise.all([
+  const [allPairings, overview, feedback, meetingRatings, pickerPrograms] = await Promise.all([
     mentorAssignments(mentor.id),
     mentorOverview(mentor.id, { from: win.from, to: win.to }),
     prisma.mentorFeedback.aggregate({
@@ -59,6 +60,15 @@ export async function mentorRecordView({
           : {}),
       },
       _avg: { rating: true },
+      _sum: { rating: true },
+      _count: true,
+    }),
+    // The meetings students rated, through the same reach: a session names its
+    // program, so the scope asks the row. A number only — the page links on to
+    // /feedback for the ratings themselves.
+    prisma.session.aggregate({
+      where: meetingRatingsWhere({}, { programIds, mentorId: mentor.id }, now),
+      _sum: { studentRating: true },
       _count: true,
     }),
     // The picker is built from the READER's programs, which is what makes an
@@ -119,6 +129,22 @@ export async function mentorRecordView({
   const programMissed = ledger.some((r) => r.missedAll > 0);
   const programExtra = ledger.some((r) => r.extraAll > 0);
   const programExpired = ledger.some((r) => r.forfeited > 0);
+  // Both kinds pooled, by the Feedback page's own arithmetic, so the score
+  // here and the one /feedback shows for this mentor are the same number. It
+  // counted the written form alone, and a mentor rated only in meetings read
+  // "No ratings written so far". Null when nobody in reach has rated them.
+  const [standing = null] = mentorStandings(
+    [{ mentorId: mentor.id, sum: feedback._sum.rating ?? 0, count: feedback._count, last: null, lowestRecent: null }],
+    [
+      {
+        mentorId: mentor.id,
+        sum: meetingRatings._sum.studentRating ?? 0,
+        count: meetingRatings._count,
+        last: null,
+        lowestRecent: null,
+      },
+    ]
+  );
   return {
     programIds,
     inReach,
@@ -138,6 +164,7 @@ export async function mentorRecordView({
     allPairings,
     overview,
     feedback,
+    standing,
     pickerPrograms,
   };
 }
