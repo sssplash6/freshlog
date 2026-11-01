@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-11-01
+
+### New
+- **See when each session was logged.** Every row on Sessions now says when the mentor logged it, for example "Logged November 3, 14:32", under the meeting's own date, so you can tell a meeting logged days later. Hover it for the full date and time.
+
 ## 2026-10-30
 
 ### New

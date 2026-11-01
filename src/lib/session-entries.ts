@@ -6,6 +6,8 @@ export type LoggedSession = {
   id: string;
   minutes: number;
   date: Date;
+  /** When the row was written. Absent when the query did not select it. */
+  createdAt?: Date;
   attended: boolean;
   late: boolean;
   note: string | null;
@@ -43,6 +45,7 @@ export function toSessionEntries(
   return sessions.map((s) => ({
     id: s.id,
     date: s.date,
+    loggedAt: s.createdAt ?? null,
     minutes: s.minutes,
     attended: s.attended,
     late: s.late,

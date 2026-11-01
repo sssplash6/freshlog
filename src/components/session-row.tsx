@@ -23,7 +23,13 @@ import {
   timeKindOf,
 } from "@/lib/constants";
 import { cn } from "@/lib/cn";
-import { formatDate, formatMinutes, toDateInputValue } from "@/lib/format";
+import {
+  formatDate,
+  formatDateTime,
+  formatMinutes,
+  formatShortDateTime,
+  toDateInputValue,
+} from "@/lib/format";
 import { sessionsCaption } from "@/lib/session-entries";
 import { sessionStatuses, type ViewerContext } from "@/lib/status";
 
@@ -82,6 +88,12 @@ export type SessionEntry = {
   id: string;
   /** A calendar date at UTC midnight: a session records a day, not an instant. */
   date: Date;
+  /**
+   * When the mentor logged it — an instant, unlike `date`. A meeting dated
+   * November 1 may have been entered on the 5th, and the ledger is where
+   * staff look for that.
+   */
+  loggedAt?: Date | null;
   minutes: number;
   attended: boolean;
   late: boolean;
@@ -483,6 +495,16 @@ function SessionRowContent({
   // names with its own dot.
   const topic = [showTask ? task?.purpose : null, showNote ? note : null].filter(Boolean);
   const when = formatDate(date);
+  const loggedAt = session.loggedAt ?? null;
+  const logged = loggedAt && (
+    <time
+      dateTime={loggedAt.toISOString()}
+      title={`Logged ${formatDateTime(loggedAt)}`}
+      className="mt-0.5 block text-caption tabular-nums text-muted-fg"
+    >
+      Logged {formatShortDateTime(loggedAt)}
+    </time>
+  );
   const program = student?.programRef ?? null;
   const programName = student?.program ?? null;
 
@@ -574,6 +596,10 @@ function SessionRowContent({
             lines={2}
             className="mt-0.5 text-xs leading-snug text-muted-fg @4xl:hidden"
           />
+          {/* When it was entered, under what it was about: the leaf says
+              which day the meeting was, this says when the mentor wrote it
+              down, and the gap between the two is what a reader is after. */}
+          <div className="@4xl:hidden">{logged}</div>
           <div className="hidden min-w-0 flex-1 @4xl:block">
             {topic.length > 0 && (
               <ExpandableText
@@ -582,6 +608,7 @@ function SessionRowContent({
                 className="text-xs leading-relaxed text-muted-fg"
               />
             )}
+            {logged}
           </div>
           {/* A fixed slot when any row in the list has a chip, right-aligned,
               so the chip and the figure land at the same x down the page

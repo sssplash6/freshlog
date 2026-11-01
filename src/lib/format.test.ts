@@ -6,6 +6,7 @@ import {
   formatDuration,
   formatMinutes,
   formatRough,
+  formatShortDateTime,
 } from "@/lib/format";
 
 /**
@@ -112,5 +113,16 @@ describe("formatDaysAgo", () => {
   it("treats a late-evening UTC instant as already tomorrow in Tashkent", () => {
     const lateEvening = new Date("2026-10-05T20:00:00Z"); // 01:00 on the 6th there
     expect(formatDaysAgo(new Date("2026-10-05T00:00:00Z"), lateEvening)).toBe("yesterday");
+  });
+});
+
+describe("formatShortDateTime", () => {
+  it("reads the instant on Tashkent's clock, so an evening entry lands on the next day", () => {
+    const year = new Date().getUTCFullYear();
+    expect(formatShortDateTime(new Date(`${year}-11-01T20:15:00Z`))).toBe("November 2, 01:15");
+  });
+
+  it("names the year only when it is not this one", () => {
+    expect(formatShortDateTime(new Date("2024-03-09T04:05:00Z"))).toBe("March 9, 2024, 09:05");
   });
 });

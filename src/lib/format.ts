@@ -173,6 +173,19 @@ export function formatDateTime(d: Date): string {
   return `${MONTHS[wall.getUTCMonth()]} ${wall.getUTCDate()}, ${wall.getUTCFullYear()}, ${hh}:${mm} Tashkent`;
 }
 
+/**
+ * An instant on a row: "November 1, 14:32". The same Tashkent clock as
+ * `formatDateTime`, with the year only when it is not this one — the way
+ * `formatDate` reads — and no zone, since the row's `title` carries the full
+ * form.
+ */
+export function formatShortDateTime(d: Date): string {
+  const wall = new Date(d.getTime() + 5 * 60 * 60 * 1000);
+  const hh = String(wall.getUTCHours()).padStart(2, "0");
+  const mm = String(wall.getUTCMinutes()).padStart(2, "0");
+  return `${formatDate(wall)}, ${hh}:${mm}`;
+}
+
 
 
 
