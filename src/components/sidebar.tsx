@@ -43,42 +43,43 @@ export function Sidebar({
 }) {
   return (
     // A SHUT RAIL OPENS WHILE THE CURSOR IS ON IT, and shuts again when it
-    // leaves. Every `rail-collapsed:` below has a `rail-collapsed:group-hover`
-    // twin putting it back, so the peek is the open rail rather than a third
-    // state somebody has to maintain.
+    // leaves. Every `rail-collapsed:` below has a `rail-peek:` twin putting it
+    // back, so the peek is the open rail rather than a third state somebody has
+    // to maintain. The peek is its own variant so the toggle can hold it off
+    // after a click (globals.css).
     //
     // The page does NOT move: the aside is `fixed` and the wrapper's padding
     // follows `data-rail` alone, so the rail slides out over the content with a
     // shadow under it. Widening the page instead would reflow a table under the
     // reader's cursor every time they crossed the left edge of the window.
-    <aside className="vt-rail group/rail fixed inset-y-0 left-0 z-30 hidden w-[13.75rem] flex-col border-r border-line bg-surface/80 shadow-rail backdrop-blur-xl backdrop-saturate-150 transition-[width] duration-200 lg:flex rail-collapsed:w-16 rail-collapsed:hover:w-[13.75rem] rail-collapsed:hover:shadow-lg">
-      <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-5 rail-collapsed:px-2 rail-collapsed:group-hover/rail:px-3">
-        <div className="flex flex-col gap-3 px-1 rail-collapsed:px-0 rail-collapsed:group-hover/rail:px-1">
+    <aside className="vt-rail group/rail fixed inset-y-0 left-0 z-30 hidden w-[13.75rem] flex-col border-r border-line bg-surface/80 shadow-rail backdrop-blur-xl backdrop-saturate-150 transition-[width] duration-200 lg:flex rail-collapsed:w-16 rail-peek:w-[13.75rem] rail-peek:shadow-lg">
+      <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-5 rail-collapsed:px-2 rail-peek:px-3">
+        <div className="flex flex-col gap-3 px-1 rail-collapsed:px-0 rail-peek:px-1">
           {/* The wordmark and the toggle share the top line, and the wordmark
               is what gives way when the rail shuts: the control that reopens
               it has to survive being collapsed, or there is no way back. */}
-          <div className="flex items-center justify-between gap-2 rail-collapsed:justify-center rail-collapsed:group-hover/rail:justify-between">
+          <div className="flex items-center justify-between gap-2 rail-collapsed:justify-center rail-peek:justify-between">
             <BrandWordmark
               version={pkg.version}
-              className="rail-collapsed:hidden rail-collapsed:group-hover/rail:block"
+              className="rail-collapsed:hidden rail-peek:block"
             />
             <RailToggle />
           </div>
           {place && (
-            <div className="rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
+            <div className="rail-collapsed:hidden rail-peek:block">
               {place}
             </div>
           )}
-          <div className="rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
+          <div className="rail-collapsed:hidden rail-peek:block">
             {switcher}
           </div>
         </div>
-        <div className="rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
+        <div className="rail-collapsed:hidden rail-peek:block">
           {search && <NavSearch mentors={search.mentors} />}
         </div>
         <SidebarNav items={items} utility={utility} />
       </div>
-      <div className="border-t border-line/60 p-2 rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
+      <div className="border-t border-line/60 p-2 rail-collapsed:hidden rail-peek:block">
         {account}
       </div>
     </aside>

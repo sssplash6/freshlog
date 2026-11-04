@@ -199,7 +199,7 @@ export function SidebarNav({
           "relative flex min-h-10 items-center gap-3 rounded-lg px-3 text-body transition-colors",
           // Shut: the mark alone, centred. Peeking: the row it always was.
           "rail-collapsed:justify-center rail-collapsed:px-0",
-          "rail-collapsed:group-hover/rail:justify-start rail-collapsed:group-hover/rail:px-3",
+          "rail-peek:justify-start rail-peek:px-3",
           active
             ? "bg-brand-soft font-semibold text-brand before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-brand"
             : "font-medium text-ink hover:bg-fill"
@@ -211,11 +211,11 @@ export function SidebarNav({
         />
         {/* A program's name is the one label that can be long, and it takes a
             second line rather than sliding out of view. */}
-        <span className="min-w-0 flex-1 rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
+        <span className="min-w-0 flex-1 rail-collapsed:hidden rail-peek:block">
           {item.label}
         </span>
         {item.count != null && item.count > 0 && (
-          <span className="rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
+          <span className="rail-collapsed:hidden rail-peek:block">
             <NavCount count={item.count} muted={active} />
           </span>
         )}
@@ -230,7 +230,7 @@ export function SidebarNav({
         // when the rail is shut: a heading is words, and a shut rail is marks.
         item.group && item.group !== items[i - 1]?.group ? (
           <div key={item.href} className="flex flex-col gap-0.5">
-            <p className="px-3 pt-3 text-xs font-medium text-muted-fg rail-collapsed:hidden rail-collapsed:group-hover/rail:block">
+            <p className="px-3 pt-3 text-xs font-medium text-muted-fg rail-collapsed:hidden rail-peek:block">
               {item.group}
             </p>
             {row(item)}

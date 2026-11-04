@@ -976,6 +976,26 @@ body {
 }
 
 /*
+ * THE PEEK: a shut rail under the cursor, which is the open rail again.
+ *
+ * Its own variant rather than `rail-collapsed:` stacked on a hover, so that one
+ * attribute can hold it off. `data-rail-hold` is set by the toggle when it
+ * shuts the rail under the very cursor that clicked it — without it the rail
+ * shut and peeked back open in the same click, and all that moved was the page,
+ * sliding in under it. The hold lifts as soon as the cursor leaves the rail.
+ *
+ * `:is()` rather than Tailwind's `:where()` for the hover, so a peek rule
+ * outweighs the `rail-collapsed:` rule it puts back whatever order they print.
+ */
+@custom-variant rail-peek {
+  @media (width >= 64rem) and (hover: hover) {
+    :where(html[data-rail="collapsed"]:not([data-rail-hold])) &:is(.group\/rail:hover, .group\/rail:hover *) {
+      @slot;
+    }
+  }
+}
+
+/*
  * A thread of brand orange running round a control's edge — twice, then still.
  *
  * One conic gradient, spun by animating its own angle. `@property` is what

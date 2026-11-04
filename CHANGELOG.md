@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-11-04
+
+### Fixed
+- **The sidebar button hides the sidebar again.** Clicking the button beside freshlog at the top of the sidebar now collapses it to icons straight away. Before, the sidebar stayed open while your cursor was on it and only the page moved. Pointing at the collapsed sidebar still opens it until you move away.
+
 ## 2026-11-01
 
 ### New
