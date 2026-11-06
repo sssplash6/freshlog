@@ -7,7 +7,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { NOTIFICATION_TYPES } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/dal";
 import { actsAs, capacityFrom, mayBook } from "@/lib/interview-partners";
-import { templateById } from "@/lib/interview-templates";
+import { findInterviewTemplate } from "@/lib/interview-template-store";
 import { notify } from "@/lib/notify";
 import {
   FEEDBACK_EDIT_MINUTES,
@@ -162,8 +162,12 @@ export async function bookInterview(
   const as = capacityFrom(formData.get("as"));
   if (!actsAs(me.user, as)) return NOT_A_STUDENT;
 
-  const template = templateById(String(formData.get("template") ?? ""));
-  if (!template) return { ok: false, error: "Pick what kind of interview to practise." };
+  // A retired template stays readable for interviews already booked with it,
+  // and is never booked again.
+  const template = await findInterviewTemplate(String(formData.get("template") ?? ""));
+  if (!template || template.retiredAt || template.questions.length === 0) {
+    return { ok: false, error: "Pick what kind of interview to practise." };
+  }
 
   const slotId = String(formData.get("slotId") ?? "");
   if (!slotId) return { ok: false, error: "Pick a time." };
@@ -459,7 +463,7 @@ export async function saveInterviewAnswer(
   const notAQuestion: ActionState = { ok: false, error: "That question isn't in this interview." };
   if (!/^\d+$/.test(rawIndex)) return notAQuestion;
   const questionIndex = Number(rawIndex);
-  const question = questionAt(templateById(interview.template), questionIndex);
+  const question = questionAt(await findInterviewTemplate(interview.template), questionIndex);
   if (question === null) return notAQuestion;
 
   const text = String(formData.get("text") ?? "").trim();

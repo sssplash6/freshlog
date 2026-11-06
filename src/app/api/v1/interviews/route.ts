@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   // A mentor books a student's time as a mentor (`as`), and the action sends them to the mentor's interview page.
   const viewer = practiceViewer(user, capacityOf(body.as));
   if (!viewer) return refused(NOT_A_STUDENT, 403);
-  const form = bookForm(body);
+  const form = await bookForm(body);
   if (!(form instanceof FormData)) return refused(form.error, 400, { field: form.field });
   form.set("as", viewer.as);
   return fromCreatingAction(() => bookInterview(null, form), `${viewer.base}/`);

@@ -1,4 +1,5 @@
 import { PersonCell, PersonChip } from "@/components/person-chip";
+import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PAGE_SIZE, Pagination, parsePage } from "@/components/ui/pagination";
 import { PageTitle, Section } from "@/components/ui/section";
@@ -13,7 +14,7 @@ import {
   prepByStudent,
   type PrepInterview,
 } from "@/lib/interview-prep";
-import { templateName } from "@/lib/interview-templates";
+import { templateNames } from "@/lib/interview-template-store";
 import { PHASE_STATUS, formatSlotWhen } from "@/lib/peer-interviews";
 import { status, type ViewerContext } from "@/lib/status";
 import type { Metadata } from "next";
@@ -52,6 +53,11 @@ export default async function InterviewsPage({
     <div className="space-y-4">
       <PageTitle
         title="Interview prep"
+        actions={
+          <LinkButton href="/interviews/templates" variant="secondary" size="sm">
+            Templates
+          </LinkButton>
+        }
         subtitle={
           held.length > 0
             ? `${held.length} held · ${formatDuration(heldMinutes)} practised`
@@ -140,7 +146,7 @@ export default async function InterviewsPage({
 }
 
 /** Who met whom, when, for how long — and, once the time has passed, whether it happened. */
-function MeetingsTable({
+async function MeetingsTable({
   rows,
   viewer,
   withStatus = false,
@@ -149,6 +155,7 @@ function MeetingsTable({
   viewer: ViewerContext;
   withStatus?: boolean;
 }) {
+  const templateName = await templateNames();
   return (
     <Table
       label="Practice interviews"

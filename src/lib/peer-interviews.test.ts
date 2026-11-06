@@ -12,7 +12,6 @@ import {
   parseSlotStart,
   questionAt,
 } from "@/lib/peer-interviews";
-import { INTERVIEW_TEMPLATES, templateById } from "@/lib/interview-templates";
 
 /** 12:00 UTC is 17:00 in Tashkent — the clock every time here is read on. */
 const NOW = new Date("2026-09-03T12:00:00.000Z");
@@ -117,7 +116,12 @@ describe("parseMeetingUrl", () => {
 });
 
 describe("questionAt", () => {
-  const t = templateById("freshman-session-1");
+  const t = {
+    id: "t",
+    name: "T",
+    summary: "",
+    questions: ["First?", "Describe a teacher you really enjoyed learning from.", "Third?", "Fourth?"],
+  };
 
   it("gives the question at an index the template has", () => {
     expect(questionAt(t, 1)).toBe("Describe a teacher you really enjoyed learning from.");
@@ -167,12 +171,5 @@ describe("feedbackEditable", () => {
   it("is never open for unsent feedback or an absent interview", () => {
     expect(feedbackEditable({ ...slot, minutes: 60 }, null, NOW)).toBe(false);
     expect(feedbackEditable({ ...slot, minutes: 60 }, sent, NOW, "s1")).toBe(false);
-  });
-});
-
-describe("Session 1", () => {
-  it("is offered first, with the school's four questions", () => {
-    expect(INTERVIEW_TEMPLATES[0].id).toBe("freshman-session-1");
-    expect(INTERVIEW_TEMPLATES[0].questions).toHaveLength(4);
   });
 });

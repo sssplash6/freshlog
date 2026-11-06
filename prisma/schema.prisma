@@ -1050,8 +1050,10 @@ model PeerInterview {
   hostId      String
   guestId     String
   mentorId    String?
-  // An id from INTERVIEW_TEMPLATES in lib/interview-templates.ts. Fixed by the
-  // product; students choose one and never write their own.
+  // An `InterviewTemplate.id`. Students choose one and never write their own.
+  // Not a relation on purpose: a template is retired, never deleted, and a
+  // row naming an id that is gone reads as "Practice interview" rather than
+  // failing.
   template    String
   completedAt DateTime?
   // The student marked absent by their partner — hostId or guestId — or null.
@@ -1112,6 +1114,31 @@ model InterviewFeedback {
   from      User           @relation(fields: [fromId], references: [id], onDelete: Cascade)
 
   @@unique([interviewId, fromId])
+}
+
+// An interview students practise on each other: a name, a line on who asks it,
+// and the questions in order.
+//
+// Students pick one when they book and never write their own. Platform admins
+// write them, on /interviews/templates; anyone who administers a program reads
+// them there. They were a constant in lib/interview-templates.ts until
+// 6 Nov 2026, which meant nobody running the school could see them.
+//
+// A booked interview stores the id, so editing a question changes it for every
+// interview not yet held, and answers already given keep the wording they
+// answered (`InterviewAnswer.question`). Retiring hides a template from the
+// picker; it is never deleted, so old interviews keep their name.
+model InterviewTemplate {
+  id        String    @id @default(cuid())
+  name      String
+  summary   String    @default("")
+  // A JSON array of strings, in the order they are asked.
+  questions String
+  // Lowest first in the picker and on the templates page.
+  position  Int       @default(0)
+  retiredAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 // Something somebody reported as broken. See docs/superpowers/specs/2026-10-02-bug-reports-design.md.

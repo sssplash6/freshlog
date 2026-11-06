@@ -15,7 +15,7 @@ import { StatusChip } from "@/components/ui/status-chip";
 import { dictationConfigured } from "@/lib/dictation";
 import { formatDate } from "@/lib/format";
 import type { InterviewViewer } from "@/lib/interview-viewer";
-import { templateById } from "@/lib/interview-templates";
+import { findInterviewTemplate } from "@/lib/interview-template-store";
 import {
   PHASE_STATUS,
   feedbackEditable,
@@ -84,7 +84,7 @@ export async function InterviewDetail({ viewer: v, id }: { viewer: InterviewView
   const other = side === "host" ? interview.guest : interview.host;
   const part = partOf(interview, me.id);
   const myNotes = (side === "host" ? interview.hostNotes : interview.guestNotes) ?? "";
-  const template = templateById(interview.template);
+  const template = await findInterviewTemplate(interview.template);
   const phase = interviewPhase(interview, now);
   const chip = status(PHASE_STATUS[phase], viewer);
   const myFeedback = interview.feedback.find((f) => f.fromId === me.id) ?? null;

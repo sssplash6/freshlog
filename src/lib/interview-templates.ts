@@ -1,17 +1,22 @@
 /**
- * The interviews students practise on each other.
+ * The interviews students practise on each other: what one is, and the rules
+ * for writing one.
  *
- * Fixed by the product, on purpose: a student chooses one when they book, and
- * never writes their own. The set is short because a list of twelve is a list
- * nobody reads to the end; each template is the handful of questions an
- * interviewer of that kind actually opens with, so the student playing the
- * interviewer has something to ask and the one being interviewed has something
- * real to rehearse.
+ * A student chooses a template when they book, and never writes their own. The
+ * templates themselves are rows (`InterviewTemplate`), written by platform
+ * admins on /interviews/templates and read through
+ * lib/interview-template-store.ts; this file holds only what a client
+ * component may import too.
+ *
+ * Keep the set short: a list of twelve is a list nobody reads to the end. Each
+ * template is the handful of questions an interviewer of that kind actually
+ * opens with, so the student playing the interviewer has something to ask and
+ * the one being interviewed has something real to rehearse.
  *
  * A booked interview stores the `id`, never the text — so editing a question
- * here changes it for interviews not yet held, and an `id` must never be
- * reused for a different interview. Retire one by removing it; a row that still
- * names it reads as a plain "Practice interview" rather than failing.
+ * changes it for interviews not yet held. A template is retired, never deleted;
+ * a row naming an id that no longer exists reads as a plain "Practice
+ * interview" rather than failing.
  */
 export type InterviewTemplate = {
   id: string;
@@ -21,81 +26,60 @@ export type InterviewTemplate = {
   questions: readonly string[];
 };
 
-export const INTERVIEW_TEMPLATES: readonly InterviewTemplate[] = [
-  {
-    id: "freshman-session-1",
-    name: "Freshman Interview Practice: Session 1",
-    summary: "The school's first session: getting to know you, and why college.",
-    questions: [
-      "What are you reading, watching, or working on right now? Is there anything that has caught your attention recently?",
-      "Describe a teacher you really enjoyed learning from.",
-      "What are you most excited about in college?",
-      "Tell me about a situation when you had to change your mind or adapt to make something work.",
-    ],
-  },
-  {
-    id: "university-admissions",
-    name: "University admissions",
-    summary: "An admissions officer or alumnus meeting an applicant.",
-    questions: [
-      "Tell me about yourself.",
-      "Why do you want to study this subject?",
-      "Why this university in particular?",
-      "What have you read or done outside class that shaped your interest?",
-      "Describe a challenge you faced and how you handled it.",
-      "What will you contribute to our campus community?",
-      "What questions do you have for me?",
-    ],
-  },
-  {
-    id: "scholarship",
-    name: "Scholarship panel",
-    summary: "A funding panel deciding who to invest in.",
-    questions: [
-      "Why do you deserve this scholarship over other strong applicants?",
-      "What do you plan to do after graduating, and how does this help?",
-      "Tell me about a time you led others.",
-      "How have you given back to your community?",
-      "What is your biggest weakness, and what are you doing about it?",
-      "Where do you see yourself in ten years?",
-    ],
-  },
-  {
-    id: "behavioral",
-    name: "Behavioral (STAR)",
-    summary: "Questions answered as situation, task, action, result.",
-    questions: [
-      "Tell me about a time you failed. What did you learn?",
-      "Describe a time you disagreed with a teammate. What happened?",
-      "Tell me about a goal you set and how you reached it.",
-      "Describe a time you had to learn something quickly.",
-      "Tell me about a decision you made with incomplete information.",
-      "Describe a time you helped someone who was struggling.",
-    ],
-  },
-  {
-    id: "visa",
-    name: "Student visa",
-    summary: "A consular officer checking study plans and ties to home.",
-    questions: [
-      "Why did you choose this country and this university?",
-      "What will you study, and why is it useful for you?",
-      "Who is paying for your studies?",
-      "What do your parents do?",
-      "What are your plans after you finish your degree?",
-      "Do you have relatives in this country?",
-    ],
-  },
-];
+/** What an interview is called when its template is gone. */
+export const FALLBACK_TEMPLATE_NAME = "Practice interview";
 
-/** A template by id, or null when a stored id no longer names one. */
-export function templateById(id: string): InterviewTemplate | null {
-  return INTERVIEW_TEMPLATES.find((t) => t.id === id) ?? null;
-}
+export const TEMPLATE_LIMITS = {
+  name: 80,
+  summary: 160,
+  question: 400,
+  questions: 15,
+} as const;
 
-/** What an interview is called in a list: the template's name, always. */
-export function templateName(id: string): string {
-  return templateById(id)?.name ?? "Practice interview";
+/** What a template's form says, checked; or the first thing wrong with it. */
+export type TemplateInput =
+  | { ok: true; name: string; summary: string; questions: string[] }
+  | { ok: false; error: string };
+
+/**
+ * Read a template's form: a name, an optional one-line summary, and the
+ * questions one per line. Blank lines are dropped and spaces tidied, so a list
+ * pasted from a document comes through as the questions it shows.
+ */
+export function readTemplateInput(form: {
+  name: unknown;
+  summary: unknown;
+  questions: unknown;
+}): TemplateInput {
+  const tidy = (v: unknown) => String(v ?? "").replace(/\s+/g, " ").trim();
+  const name = tidy(form.name);
+  const summary = tidy(form.summary);
+  const questions = String(form.questions ?? "")
+    .split(/\r?\n/)
+    .map(tidy)
+    // A pasted numbered list keeps its numbers otherwise: "1. Tell me…".
+    .map((q) => q.replace(/^(\d+[.)]|[-*•])\s+/, ""))
+    .filter((q) => q.length > 0);
+
+  if (name.length < 3) return { ok: false, error: "Give the template a name (3+ characters)." };
+  if (name.length > TEMPLATE_LIMITS.name) {
+    return { ok: false, error: `Keep the name under ${TEMPLATE_LIMITS.name} characters.` };
+  }
+  if (summary.length > TEMPLATE_LIMITS.summary) {
+    return { ok: false, error: `Keep the summary under ${TEMPLATE_LIMITS.summary} characters.` };
+  }
+  if (questions.length === 0) return { ok: false, error: "Add at least one question." };
+  if (questions.length > TEMPLATE_LIMITS.questions) {
+    return { ok: false, error: `Keep it to ${TEMPLATE_LIMITS.questions} questions or fewer.` };
+  }
+  const long = questions.findIndex((q) => q.length > TEMPLATE_LIMITS.question);
+  if (long >= 0) {
+    return {
+      ok: false,
+      error: `Question ${long + 1} is too long. Keep each under ${TEMPLATE_LIMITS.question} characters.`,
+    };
+  }
+  return { ok: true, name, summary, questions };
 }
 
 /**

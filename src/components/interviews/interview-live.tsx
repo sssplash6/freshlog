@@ -5,7 +5,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
 import { dictationConfigured } from "@/lib/dictation";
 import type { InterviewViewer } from "@/lib/interview-viewer";
-import { templateById } from "@/lib/interview-templates";
+import { findInterviewTemplate } from "@/lib/interview-template-store";
+import { FALLBACK_TEMPLATE_NAME } from "@/lib/interview-templates";
 import { formatSlotWhen, guideClosedAt, hasStarted, partOf, sideOf } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
 
@@ -54,9 +55,9 @@ export async function InterviewLive({ viewer, id }: { viewer: InterviewViewer; i
     redirect(`${base}/${interview.id}`);
   }
 
-  const template = templateById(interview.template);
+  const template = await findInterviewTemplate(interview.template);
   const partner = (side === "host" ? interview.guest : interview.host).name ?? "your partner";
-  const title = template?.name ?? "Practice interview";
+  const title = template?.name ?? FALLBACK_TEMPLATE_NAME;
 
   if (!hasStarted(interview.slot.startsAt, now)) {
     return (

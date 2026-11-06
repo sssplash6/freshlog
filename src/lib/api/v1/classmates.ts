@@ -3,7 +3,7 @@ import "server-only";
 import { personOf, slotTime } from "@/lib/api/v1/practice";
 import type { Classmate } from "@/lib/api/v1/types";
 import { studiesIn } from "@/lib/enrollments";
-import { INTERVIEW_TEMPLATES } from "@/lib/interview-templates";
+import { bookableTemplates } from "@/lib/interview-template-store";
 import type { InterviewViewer } from "@/lib/interview-viewer";
 import { interviewPersonData } from "@/lib/screens/interviews";
 
@@ -16,7 +16,7 @@ import { interviewPersonData } from "@/lib/screens/interviews";
  */
 export async function classmateFor(viewer: InterviewViewer, id: string): Promise<Classmate | null> {
   if (id === viewer.user.id) return null;
-  const found = await interviewPersonData(viewer, id);
+  const [found, templates] = await Promise.all([interviewPersonData(viewer, id), bookableTemplates()]);
   if (!found) return null;
   const { person, asStudent, asMentor } = found;
   return {
@@ -25,6 +25,6 @@ export async function classmateFor(viewer: InterviewViewer, id: string): Promise
     mentor: asMentor,
     shared: asStudent ? studiesIn(person.studentProfile?.enrollments ?? []).map((e) => e.program.name) : [],
     slots: person.interviewSlots.filter((s) => (s.asMentor ? asMentor : asStudent)).map((s) => ({ id: s.id, when: slotTime(s) })),
-    templates: INTERVIEW_TEMPLATES.map((t) => ({ id: t.id, name: t.name, summary: t.summary })),
+    templates: templates.map((t) => ({ id: t.id, name: t.name, summary: t.summary })),
   };
 }

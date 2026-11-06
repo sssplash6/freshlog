@@ -13,7 +13,7 @@ import type {
 } from "@/lib/api/v1/types";
 import { toDateInputValue } from "@/lib/format";
 import { actsAs, type Capacity } from "@/lib/interview-partners";
-import { templateName } from "@/lib/interview-templates";
+import { templateNames } from "@/lib/interview-template-store";
 import type { InterviewViewer } from "@/lib/interview-viewer";
 import {
   SLOT_LENGTHS,
@@ -109,7 +109,7 @@ type HomeInterview = {
   feedback: { submittedAt: Date | null }[];
 };
 
-function rowOf(i: HomeInterview, userId: string, now: Date): InterviewRow {
+function rowOf(i: HomeInterview, userId: string, now: Date, templateName: (id: string) => string): InterviewRow {
   const hosting = sideOf(i, userId) === "host";
   return {
     id: i.id,
@@ -128,13 +128,18 @@ function rowOf(i: HomeInterview, userId: string, now: Date): InterviewRow {
  * - **mark** once it has ended and nobody has said how it went;
  * - **feedback** once it is done and this student's is still to send.
  */
-export function practiceTodo(interviews: readonly HomeInterview[], studentId: string, now: Date): PracticeTodo[] {
+export function practiceTodo(
+  interviews: readonly HomeInterview[],
+  studentId: string,
+  now: Date,
+  templateName: (id: string) => string
+): PracticeTodo[] {
   const wallNow = programWallClock(now).getTime();
   return interviews.flatMap((i): PracticeTodo[] => {
     const start = i.slot.startsAt.getTime();
     const end = start + i.slot.minutes * MINUTE;
     const mine = i.feedback[0]?.submittedAt ?? null;
-    const row = rowOf(i, studentId, now);
+    const row = rowOf(i, studentId, now, templateName);
     const base = { interview: i.id, title: `${row.template.name} · ${row.partner.name}`, when: row.when, meetingUrl: null };
     if (!i.completedAt && !i.absentId) {
       if (start - wallNow <= DAY && wallNow < end) return [{ ...base, need: "join", meetingUrl: i.slot.meetingUrl }];
@@ -163,7 +168,7 @@ export async function practiceHomeFor(viewer: InterviewViewer): Promise<Practice
   const { user, as, now } = viewer;
   const wallNow = programWallClock(now);
 
-  const [data, interviews, mySlots] = await Promise.all([
+  const [data, interviews, mySlots, templateName] = await Promise.all([
     interviewsHomeData(viewer),
     prisma.peerInterview.findMany({
       where: { OR: [{ hostId: user.id }, { guestId: user.id }] },
@@ -195,9 +200,10 @@ export async function practiceHomeFor(viewer: InterviewViewer): Promise<Practice
       },
       orderBy: { startsAt: "asc" },
     }),
+    templateNames(),
   ]);
 
-  const rows = interviews.map((i) => rowOf(i, user.id, now));
+  const rows = interviews.map((i) => rowOf(i, user.id, now, templateName));
   // The page's Coming up and Done: open until somebody marks it, however long ago it ended.
   const coming = rows.filter((r) => r.phase === "booked" || r.phase === "to-mark");
   const done = rows.filter((r) => r.phase === "completed" || r.phase === "absent").reverse();
@@ -216,7 +222,7 @@ export async function practiceHomeFor(viewer: InterviewViewer): Promise<Practice
     ),
     classmates: [...data.offering, ...data.quiet].map(partnerRow),
     mentors: data.mentorsOffering.map(partnerRow),
-    todo: as === "student" ? practiceTodo(interviews, user.id, now) : [],
+    todo: as === "student" ? practiceTodo(interviews, user.id, now, templateName) : [],
     offer: { today: data.today, day: data.tomorrow, time: "15:00", lastDay: data.lastDay, lengths: [...SLOT_LENGTHS] },
     zone: PROGRAM_ZONE,
   };

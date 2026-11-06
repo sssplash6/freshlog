@@ -45,7 +45,20 @@ export async function resetDb() {
   await prisma.cohort.deleteMany();
   await prisma.programLevel.deleteMany();
   await prisma.program.deleteMany();
+  // The five templates the migration wrote stay, as they are in production;
+  // anything a test added goes, and anything it retired comes back.
+  await prisma.interviewTemplate.deleteMany({ where: { id: { notIn: [...MIGRATED_TEMPLATES] } } });
+  await prisma.interviewTemplate.updateMany({ data: { retiredAt: null } });
 }
+
+/** The templates the 20261106120000_interview_templates migration writes. */
+export const MIGRATED_TEMPLATES = [
+  "freshman-session-1",
+  "university-admissions",
+  "scholarship",
+  "behavioral",
+  "visa",
+] as const;
 
 /** Unique-per-call email, so two factories in one test never collide. */
 let seq = 0;

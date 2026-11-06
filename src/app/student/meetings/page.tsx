@@ -13,7 +13,7 @@ import { ROLES, USER_STATUS } from "@/lib/constants";
 import { ratingSeenByMentor, withoutMentorNotes } from "@/lib/authz";
 import { requireRole } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
-import { templateName } from "@/lib/interview-templates";
+import { templateNames } from "@/lib/interview-template-store";
 import {
   PHASE_STATUS,
   formatSlotWhen,
@@ -59,6 +59,7 @@ export default async function StudentMeetingsPage({
 }) {
   const user = await requireRole(ROLES.STUDENT);
   const now = new Date();
+  const templateName = await templateNames();
   const viewer: ViewerContext = { audience: "student", userId: user.id, now };
   const params = await searchParams;
 

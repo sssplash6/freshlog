@@ -5,7 +5,7 @@ import { DateLeaf } from "@/components/session-row";
 import { StatusChip } from "@/components/ui/status-chip";
 import { cn } from "@/lib/cn";
 import { formatDate, formatMinutes } from "@/lib/format";
-import { templateName } from "@/lib/interview-templates";
+import { templateNames } from "@/lib/interview-template-store";
 import { PHASE_STATUS, type InterviewPhase } from "@/lib/peer-interviews";
 import { status, type ViewerContext } from "@/lib/status";
 
@@ -15,7 +15,7 @@ import { status, type ViewerContext } from "@/lib/status";
  * bold — they were not drawn from any allocation — and the row says so,
  * because a figure in a ledger column is otherwise read as time spent.
  */
-export function InterviewLogRow({
+export async function InterviewLogRow({
   interview,
   viewer,
   index,
@@ -31,6 +31,8 @@ export function InterviewLogRow({
   viewer: ViewerContext;
   index?: number;
 }) {
+  // Request-cached: a log of twenty rows reads the templates once.
+  const templateName = await templateNames();
   const chip = status(PHASE_STATUS[interview.phase], viewer);
   const stagger =
     index == null ? undefined : { animationDelay: `${Math.min(index, 14) * 24}ms` };

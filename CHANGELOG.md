@@ -9,6 +9,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ### New
 - **Analytics shows the hours still to deliver.** Hours with students now has a Remaining figure: hours granted that are unused and have not expired. It matches Remaining on a program's page and covers the whole school or the program you open. It always counts up to today, whatever period you pick, and does not appear when you open one mentor.
 - **Mentors see the breakdown of all their ratings.** On Feedback and in the app, the bars beside your score now count every rating by star, rated meetings included. Before, they counted written ratings only, so a mentor rated only in meetings saw five empty bars. You see how many gave each score, not which meeting or what the student noted.
+- **See and edit the practice interview templates.** Interview prep now has a Templates button. It lists every template students can pick, with its questions. Platform admins can add a template, change its questions, or retire one so students can no longer pick it. Interviews already booked keep a retired template.
 
 ## 2026-11-04
 

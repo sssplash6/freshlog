@@ -8,7 +8,7 @@ import type { HomeMeeting, StudentGrant, StudentHome } from "@/lib/api/v1/types"
 import { studentRows } from "@/lib/attention";
 import { ratingSeenByMentor } from "@/lib/authz";
 import { toDateInputValue } from "@/lib/format";
-import { templateName } from "@/lib/interview-templates";
+import { templateNames } from "@/lib/interview-template-store";
 import { agendaLists, isFirstRun, withoutRepeats } from "@/lib/screens/student-home";
 import { meetingCount, meetingLog } from "@/lib/session-entries";
 import { interviewsForLog } from "@/lib/student-interviews";
@@ -51,6 +51,7 @@ export async function studentHomeFor(user: User, now: Date = new Date()): Promis
   // /student sends a student with no name or Telegram yet to onboarding, and so does this.
   if (!user.name?.trim() || !profile.telegramUsername) return "onboarding";
 
+  const templateName = await templateNames();
   const [hours, ledger, pairings, unread, reader, interviews] = await Promise.all([
     // Every program the student is in, as /student reads it: their balance is
     // one figure however many programs hold it.

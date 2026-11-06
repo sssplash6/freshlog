@@ -1,7 +1,7 @@
 import { isText } from "@/lib/api/v1/session-forms";
 import type { BookInterview, FeedbackText, OfferSlot } from "@/lib/api/v1/types";
 import { isDay } from "@/lib/api/v1/work-forms";
-import { templateById } from "@/lib/interview-templates";
+import { findInterviewTemplate } from "@/lib/interview-template-store";
 import { NOTES_MAX, parseMeetingUrl, parseSlotLength, parseSlotStart } from "@/lib/peer-interviews";
 
 /**
@@ -42,10 +42,11 @@ export function offerSlotForm(body: Record<string, unknown>, now: Date): FormDat
 }
 
 /** `bookInterview`'s FormData, or the first bad field, in the action's words. */
-export function bookForm(body: Record<string, unknown>): FormData | { field: string; error: string } {
+export async function bookForm(body: Record<string, unknown>): Promise<FormData | { field: string; error: string }> {
   const { slot, template } = body as Partial<Record<keyof BookInterview, unknown>>;
   if (!isText(slot) || !slot) return { field: "slot", error: "Pick a time." };
-  if (!isText(template) || !templateById(template)) {
+  const known = isText(template) ? await findInterviewTemplate(template) : null;
+  if (!isText(template) || !known || known.retiredAt) {
     return { field: "template", error: "Pick what kind of interview to practise." };
   }
   const form = new FormData();

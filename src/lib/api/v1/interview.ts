@@ -11,9 +11,9 @@ import {
   INTERVIEW_INTRO,
   INTERVIEW_RUBRIC,
   INTERVIEW_TURNS,
-  templateById,
-  templateName,
+  FALLBACK_TEMPLATE_NAME,
 } from "@/lib/interview-templates";
+import { findInterviewTemplate } from "@/lib/interview-template-store";
 import {
   answers as answersFor,
   feedbackEditable,
@@ -74,7 +74,7 @@ export async function interviewFor({ user }: { user: User }, id: string, now: Da
   if (!row || !side) return null;
 
   const hosting = side === "host";
-  const template = templateById(row.template);
+  const template = await findInterviewTemplate(row.template);
   const phase = interviewPhase(row, now);
   const mine = row.feedback.find((f) => f.fromId === user.id) ?? null;
   const theirs = row.feedback.find((f) => f.fromId !== user.id && f.submittedAt !== null) ?? null;
@@ -100,7 +100,7 @@ export async function interviewFor({ user }: { user: User }, id: string, now: Da
     meetingUrl: row.slot.meetingUrl,
     template: {
       id: row.template,
-      name: templateName(row.template),
+      name: template?.name ?? FALLBACK_TEMPLATE_NAME,
       summary: template?.summary ?? "",
       questions: [...(template?.questions ?? [])],
     },

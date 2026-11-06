@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
 import { studiesIn } from "@/lib/enrollments";
 import type { InterviewViewer } from "@/lib/interview-viewer";
-import { INTERVIEW_TEMPLATES } from "@/lib/interview-templates";
+import { bookableTemplates } from "@/lib/interview-template-store";
 import { formatSlotDay, formatSlotSpan } from "@/lib/peer-interviews";
 import { interviewPersonData } from "@/lib/screens/interviews";
 
@@ -24,7 +24,10 @@ export async function InterviewPerson({ viewer, id }: { viewer: InterviewViewer;
   const { user, as, base } = viewer;
   if (id === user.id) redirect(base);
 
-  const found = await interviewPersonData(viewer, id);
+  const [found, templates] = await Promise.all([
+    interviewPersonData(viewer, id),
+    bookableTemplates(),
+  ]);
   if (!found) notFound();
   const { person, asStudent, asMentor } = found;
   if (!person.name) notFound();
@@ -61,7 +64,7 @@ export async function InterviewPerson({ viewer, id }: { viewer: InterviewViewer;
             {`${first} hasn’t offered any times yet.`}
           </EmptyState>
         ) : (
-          <BookInterviewForm as={as} slots={slots} templates={INTERVIEW_TEMPLATES} classmate={first} />
+          <BookInterviewForm as={as} slots={slots} templates={templates} classmate={first} />
         )}
       </Section>
     </div>

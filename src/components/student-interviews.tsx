@@ -3,7 +3,7 @@ import { Disclosure } from "@/components/ui/disclosure";
 import { Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import { formatDate } from "@/lib/format";
-import { templateById } from "@/lib/interview-templates";
+import { templateNames } from "@/lib/interview-template-store";
 import {
   PHASE_STATUS,
   formatSlotSpan,
@@ -36,13 +36,14 @@ function FeedbackBlock({ title, feedback }: { title: string; feedback: Feedback 
  * rows come from `interviewsOfStudent`, which has already left out the
  * partner's private side and every unsent draft.
  */
-export function StudentInterviews({
+export async function StudentInterviews({
   interviews,
   viewer,
 }: {
   interviews: StudentInterview[];
   viewer: ViewerContext;
 }) {
+  const templateName = await templateNames();
   return (
     <Section
       title="Practice interviews"
@@ -52,7 +53,6 @@ export function StudentInterviews({
       <ul className="divide-y divide-line">
         {interviews.map((i) => {
           const chip = status(PHASE_STATUS[interviewPhase(i, viewer.now)], viewer);
-          const template = templateById(i.template);
           const hasDetail =
             i.answers.length > 0 || i.notes.trim() !== "" || i.given || i.received;
           return (
@@ -60,7 +60,7 @@ export function StudentInterviews({
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 sm:px-5">
                 <div className="min-w-0">
                   <p className="font-semibold text-ink">
-                    {template?.name ?? "Practice interview"}
+                    {templateName(i.template)}
                   </p>
                   <p className="text-xs text-muted-fg">
                     {formatSlotWhen(i.slot.startsAt)} · {formatSlotSpan(i.slot)}

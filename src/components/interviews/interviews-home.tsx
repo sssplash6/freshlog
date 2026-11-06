@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
 import type { InterviewViewer } from "@/lib/interview-viewer";
-import { templateName } from "@/lib/interview-templates";
+import { templateNames } from "@/lib/interview-template-store";
 import {
   PHASE_STATUS,
   formatSlotDay,
@@ -36,6 +36,7 @@ export async function InterviewsHome({ viewer }: { viewer: InterviewViewer }) {
   const { user, as, base, now } = viewer;
   const context = { audience: as, userId: user.id, now } as const;
   const { mySlots, open, completed, named, offering, quiet, mentorsOffering, today, tomorrow, lastDay } = await interviewsHomeData(viewer);
+  const templateName = await templateNames();
 
   const row = (i: (typeof open)[number]) => {
     const other = sideOf(i, user.id) === "host" ? i.guest : i.host;

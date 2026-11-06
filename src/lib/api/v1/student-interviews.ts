@@ -6,7 +6,7 @@ import { nameOf } from "@/lib/api/v1/sessions";
 import type { FeedbackText, StudentInterviews } from "@/lib/api/v1/types";
 import { mentorHasWorkedWith } from "@/lib/authz";
 import { canActAsMentor } from "@/lib/constants";
-import { templateName } from "@/lib/interview-templates";
+import { templateNames } from "@/lib/interview-template-store";
 import { interviewPhase } from "@/lib/peer-interviews";
 import { prisma } from "@/lib/prisma";
 import { interviewsOfStudent } from "@/lib/student-interviews";
@@ -34,7 +34,10 @@ export async function studentInterviewsFor(reader: User, studentProfileId: strin
   const text = (f: { summary: string | null; wentWell: string | null; toImprove: string | null } | null): FeedbackText | null =>
     f && { summary: f.summary ?? "", wentWell: f.wentWell ?? "", toImprove: f.toImprove ?? "" };
 
-  const rows = await interviewsOfStudent(profile.userId);
+  const [rows, templateName] = await Promise.all([
+    interviewsOfStudent(profile.userId),
+    templateNames(),
+  ]);
   return {
     student: { id: profile.id, userId: profile.userId, name: nameOf(profile.user) },
     interviews: rows.map((r) => ({

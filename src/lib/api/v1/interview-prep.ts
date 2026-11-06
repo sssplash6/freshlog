@@ -6,12 +6,12 @@ import { adminScope, scopeIsEmpty, scopeProgramFilter } from "@/lib/authz";
 import { PAGE_SIZE } from "@/components/ui/pagination";
 import { toDateInputValue } from "@/lib/format";
 import { interviewsForStaff, prepByStudent, type PrepInterview } from "@/lib/interview-prep";
-import { templateName } from "@/lib/interview-templates";
+import { templateNames } from "@/lib/interview-template-store";
 import type { User } from "@/generated/prisma/client";
 
 const nameOf = (p: { name: string | null }) => p.name?.trim() || "A student";
 
-function rowOf(iv: PrepInterview): PrepRow {
+function rowOf(iv: PrepInterview, templateName: (id: string) => string): PrepRow {
   const absent = iv.absent ? iv[iv.absent] : null;
   return {
     id: iv.id,
@@ -31,7 +31,11 @@ function rowOf(iv: PrepInterview): PrepRow {
 export async function interviewPrepFor(user: User, page: number, now: Date = new Date()): Promise<InterviewPrep | null> {
   const scope = await adminScope(user);
   if (scopeIsEmpty(scope)) return null;
-  const interviews = await interviewsForStaff(scopeProgramFilter(scope), now);
+  const [interviews, templateName] = await Promise.all([
+    interviewsForStaff(scopeProgramFilter(scope), now),
+    templateNames(),
+  ]);
+  const row = (iv: PrepInterview) => rowOf(iv, templateName);
   const upcoming = interviews.filter((i) => i.phase === "booked").reverse();
   const past = interviews.filter((i) => i.phase !== "booked");
   const held = past.filter((i) => i.phase === "completed");
@@ -40,7 +44,7 @@ export async function interviewPrepFor(user: User, page: number, now: Date = new
   return {
     held: held.length,
     minutesHeld: held.reduce((sum, i) => sum + i.minutes, 0),
-    coming: upcoming.map(rowOf),
+    coming: upcoming.map(row),
     students: prepByStudent(interviews).map((s) => ({
       student: { id: s.person.profileId, userId: s.person.id, name: nameOf(s.person) },
       held: s.held,
@@ -49,7 +53,7 @@ export async function interviewPrepFor(user: User, page: number, now: Date = new
       missed: s.missed,
       last: s.lastAt ? toDateInputValue(s.lastAt) : null,
     })),
-    history: past.slice((at - 1) * PAGE_SIZE, at * PAGE_SIZE).map(rowOf),
+    history: past.slice((at - 1) * PAGE_SIZE, at * PAGE_SIZE).map(row),
     page: at,
     pages,
     total: past.length,
