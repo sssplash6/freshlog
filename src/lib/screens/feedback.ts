@@ -148,7 +148,8 @@ export async function ownFeedback({ user, params, page }: { user: User; params: 
   // star just clicked.
   const range = readRatingRange(params);
   const listWhere = range === undefined ? where : { ...where, rating: range };
-  const [rows, listCount, stats, meetings, spread] = await Promise.all([
+  const meetingWhere = meetingRatingsWhere({}, { mentorId: user.id }, new Date());
+  const [rows, listCount, stats, meetings, spread, meetingSpread] = await Promise.all([
     prisma.mentorFeedback.findMany({
       where: listWhere,
       orderBy: { createdAt: "desc" },
@@ -165,18 +166,35 @@ export async function ownFeedback({ user, params, page }: { user: User; params: 
     // Their meeting ratings join the average as a number only — no row, no
     // note, no date is selected, so none can reach the render.
     prisma.session.aggregate({
-      where: meetingRatingsWhere({}, { mentorId: user.id }, new Date()),
+      where: meetingWhere,
       _sum: { studentRating: true },
       _count: true,
     }),
-    // The written ratings' spread only: each of them is already on this page
-    // with its score, so the bars say nothing the list does not. The meetings'
-    // spread would — with one rated meeting, it is that meeting's score.
     prisma.mentorFeedback.groupBy({
       by: ["rating"],
       where,
       _count: { _all: true },
     }),
+    // The meetings' spread joins the bars as counts only, like the average.
+    // Until 6 November 2026 the bars were the written ratings' alone, so a
+    // mentor rated only in meetings read "From 11 ratings" above five empty
+    // bars, and asked where the breakdown was that other mentors had. A count
+    // per star says no more than the average and the count beside it already
+    // said: with one rated meeting the average is that meeting's score too.
+    // Still no row, note or date is selected, so none can reach the render.
+    prisma.session.groupBy({
+      by: ["studentRating"],
+      where: meetingWhere,
+      _count: { _all: true },
+    }),
+  ]);
+  // Every rating per star, which the bars draw, and the written ones per star,
+  // which say which bars narrow the list: a star only meetings gave has no row
+  // to show.
+  const writtenStars = tallyStars(spread.map((r) => [r.rating, r._count._all] as const));
+  const stars = tallyStars([
+    ...spread.map((r) => [r.rating, r._count._all] as const),
+    ...meetingSpread.map((r) => [r.studentRating, r._count._all] as const),
   ]);
   const [own] = mentorStandings(
     [
@@ -199,7 +217,7 @@ export async function ownFeedback({ user, params, page }: { user: User; params: 
     ]
   );
 
-  return { where, range, listWhere, rows, listCount, stats, meetings, spread, own };
+  return { where, range, listWhere, rows, listCount, stats, meetings, stars, writtenStars, own };
 }
 
 /** Every rating the reader's grants reach: what `AllRatings` reads. */

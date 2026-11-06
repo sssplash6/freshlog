@@ -1941,8 +1941,13 @@ export type ApiRatings =
       count: number;
       written: RatingFigures;
       meetings: RatingFigures;
-      /** The written ratings' spread: each is on the page with its score. */
+      /**
+       * Every rating per star, 1 to 5, written and meeting pooled, as the
+       * score is. Until 6 November 2026 it was the written ones only.
+       */
       stars: number[];
+      /** The written ratings per star: a star with none has no row to narrow the list to. */
+      writtenStars: number[];
       star: number | null;
       ratings: RatingRow[];
       total: number;

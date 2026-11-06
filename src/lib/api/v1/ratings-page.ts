@@ -30,8 +30,8 @@ const figures = (k: { count: number; average: number | null }): RatingFigures =>
  * asks with `nameless=1`: until 30 October 2026 the app's meeting line named a
  * student on every row, and an installed build from before then never asks,
  * so it is never sent a row without one. A mentor with no
- * readable grant: their combined score, and their own written ratings,
- * anonymous.
+ * readable grant: their combined score, its spread over both kinds, and their
+ * own written ratings, anonymous.
  */
 export async function ratingsPageFor(user: User, params: SearchParams): Promise<ApiRatings | null> {
   const page = parsePage(readParam(params, "page"));
@@ -40,14 +40,15 @@ export async function ratingsPageFor(user: User, params: SearchParams): Promise<
 
   if (!staffReader) {
     if (!canActAsMentor(user)) return null;
-    const { range, rows, listCount, stats, spread, own } = await ownFeedback({ user, params, page });
+    const { range, rows, listCount, stats, stars, writtenStars, own } = await ownFeedback({ user, params, page });
     return {
       kind: "own",
       average: own?.average ?? null,
       count: own?.total ?? 0,
       written: own ? figures(own.general) : { count: stats._count, average: null },
       meetings: own ? figures(own.meetings) : { count: 0, average: null },
-      stars: tallyStars(spread.map((r) => [r.rating, r._count._all] as const)),
+      stars,
+      writtenStars,
       star: typeof range === "number" ? range : null,
       ratings: rows.map((f) => ({ id: f.id, rating: f.rating, comment: f.comment, sentOn: dayOf(f.createdAt), mentor: null, student: null })),
       total: listCount,

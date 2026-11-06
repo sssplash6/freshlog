@@ -156,6 +156,35 @@ describe("GET /api/v1/ratings: meeting ratings, as the rebuilt page counts them"
     expect(JSON.stringify(body)).not.toContain("Helpful");
   });
 
+  it("gives a mentor the spread of every rating, meetings counted, though only written ones are listed", async () => {
+    const { ga, high, aziz } = await scene();
+    // High has two written ratings, a 5 and a 1; add three rated meetings.
+    await rated(aziz.id, high.id, ga.id, 4, "Clear plan");
+    await rated(aziz.id, high.id, ga.id, 4);
+    await rated(aziz.id, high.id, ga.id, 5);
+    actor.value = { id: high.id };
+    const body = await (await getRatings()).json();
+    expect(body).toMatchObject({ kind: "own", count: 5, written: { count: 2 }, meetings: { count: 3 } });
+    expect(body.stars).toEqual([1, 0, 0, 2, 2]);
+    expect(body.writtenStars).toEqual([1, 0, 0, 0, 1]);
+    // The bars are counts: the list is still the written ones, and no meeting's note or day.
+    expect(body.ratings.map((r: { comment: string }) => r.comment).sort()).toEqual(["Great.", "Zara's words"]);
+    expect(JSON.stringify(body)).not.toContain("Clear plan");
+    // Narrowed to a star, the bars keep counting everything.
+    const fours = await (await getRatings("?rating=4")).json();
+    expect(fours).toMatchObject({ star: 4, ratings: [], stars: [1, 0, 0, 2, 2] });
+  });
+
+  it("gives a mentor rated only in meetings their spread, not five empty bars", async () => {
+    const { ga, aziz } = await scene();
+    const only = await mentor("Gulya Meetings");
+    await pairing({ mentorId: only.id, programId: ga.id });
+    for (const stars of [5, 5, 4, 3]) await rated(aziz.id, only.id, ga.id, stars);
+    actor.value = { id: only.id };
+    const body = await (await getRatings()).json();
+    expect(body).toMatchObject({ kind: "own", count: 4, average: 4.25, stars: [0, 0, 1, 1, 2], writtenStars: [0, 0, 0, 0, 0], ratings: [] });
+  });
+
   it("counts meeting ratings in the filter summary, not only written ones", async () => {
     const { ga, aziz } = await scene();
     const only = await mentor("Umid Meetings");

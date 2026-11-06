@@ -172,7 +172,11 @@ async function OwnRatings({
   params: SearchParams;
   page: number;
 }) {
-  const { range, rows, listCount, stats, spread, own } = await ownFeedback({ user, params, page });
+  const { range, rows, listCount, stats, stars, writtenStars, own } = await ownFeedback({
+    user,
+    params,
+    page,
+  });
 
   return (
     <div className="space-y-4">
@@ -183,13 +187,14 @@ async function OwnRatings({
           average={own.average}
           total={own.total}
           basis="both kinds pooled"
-          spread={{
-            title: "Written ratings",
-            counts: tallyStars(
-              spread.map((r) => [r.rating, r._count._all] as const)
-            ),
-          }}
-          starHref={(star) => starHref(params, star)}
+          spread={{ title: "Every rating", counts: stars }}
+          // A bar narrows the list of written ratings, so a star only meetings
+          // gave is drawn but leads nowhere: there is no row to narrow to.
+          starHref={(star) =>
+            writtenStars[star - 1] > 0 || range === star
+              ? starHref(params, star)
+              : undefined
+          }
           activeStar={typeof range === "number" ? range : undefined}
           clearHref={
             range === undefined
@@ -223,8 +228,9 @@ async function OwnRatings({
         </EmptyState>
       ) : stats._count === 0 ? (
         <EmptyState title="No written ratings yet">
-          Your combined score comes from the meetings students rated. You see
-          the score, not the ratings.
+          Your score and the bars above come from the meetings students rated.
+          You see how many gave each score, not which meeting or what they
+          noted.
         </EmptyState>
       ) : (
         <>
@@ -236,7 +242,12 @@ async function OwnRatings({
             count={listCount}
             caption={
               range === undefined ? (
-                ANONYMOUS
+                own.meetings.count > 0 ? (
+                  // The bars count more ratings than this list holds; say why.
+                  `${ANONYMOUS} Meeting ratings are counted above, not listed.`
+                ) : (
+                  ANONYMOUS
+                )
               ) : (
                 <>
                   {ratingLabel(params)} only ·{" "}
@@ -806,8 +817,12 @@ function Overview({
     /** The figure is the narrowing currently in force. */
     active?: boolean;
   }[];
-  /** The link a star's bar is. */
-  starHref: (star: number) => string;
+  /**
+   * The link a star's bar is, or nothing where it has nothing to narrow to: a
+   * mentor's bars count meetings they can't list, and a star only meetings
+   * gave is a bar to read, not one to click.
+   */
+  starHref: (star: number) => string | undefined;
   /** The one star the page is narrowed to, if any. */
   activeStar?: number;
   /** Offered beside the bars while any rating window is on. */
@@ -854,54 +869,66 @@ function Overview({
             {[5, 4, 3, 2, 1].map((star) => {
               const n = spread.counts[star - 1];
               const active = activeStar === star;
-              return (
-                <li key={star}>
-                  <Link
-                    href={starHref(star)}
-                    // Narrowing is not going somewhere: the reader stays
-                    // where they were looking, the same rule the chips keep.
-                    scroll={false}
-                    aria-current={active ? "true" : undefined}
-                    title={
-                      active
-                        ? "Show every rating"
-                        : `Only ${star === 1 ? "1-star" : `${star}-star`} ratings`
-                    }
+              const href = starHref(star);
+              const row = cn(
+                "grid grid-cols-[2.25rem_1fr_2.5rem] items-center gap-3 rounded-md px-2 py-1 text-xs",
+                href && "transition-colors hover:bg-fill",
+                active && "bg-fill"
+              );
+              const body = (
+                <>
+                  <span
                     className={cn(
-                      "grid grid-cols-[2.25rem_1fr_2.5rem] items-center gap-3 rounded-md px-2 py-1 text-xs transition-colors hover:bg-fill",
-                      active && "bg-fill"
+                      "tabular-nums",
+                      active ? "font-semibold text-ink" : "text-muted-fg"
                     )}
+                  >
+                    {star} ★
+                  </span>
+                  <span
+                    className="h-2 overflow-hidden rounded-full bg-fill"
+                    role="img"
+                    aria-label={`${count(n, "rating")} of ${star}`}
                   >
                     <span
                       className={cn(
-                        "tabular-nums",
-                        active ? "font-semibold text-ink" : "text-muted-fg"
+                        "bar-grow block h-full rounded-full",
+                        star <= LOW_RATING ? "bg-warn-ink" : "bg-ink/70"
                       )}
+                      style={{ width: `${(n / most) * 100}%` }}
+                    />
+                  </span>
+                  <span
+                    className={cn(
+                      "text-right tabular-nums text-ink",
+                      active && "font-semibold"
+                    )}
+                  >
+                    {n}
+                  </span>
+                </>
+              );
+              return (
+                <li key={star}>
+                  {href ? (
+                    <Link
+                      href={href}
+                      // Narrowing is not going somewhere: the reader stays
+                      // where they were looking, the same rule the chips keep.
+                      scroll={false}
+                      aria-current={active ? "true" : undefined}
+                      title={
+                        active
+                          ? "Show every rating"
+                          : `Only ${star === 1 ? "1-star" : `${star}-star`} ratings`
+                      }
+                      className={row}
                     >
-                      {star} ★
-                    </span>
-                    <span
-                      className="h-2 overflow-hidden rounded-full bg-fill"
-                      role="img"
-                      aria-label={`${count(n, "rating")} of ${star}`}
-                    >
-                      <span
-                        className={cn(
-                          "bar-grow block h-full rounded-full",
-                          star <= LOW_RATING ? "bg-warn-ink" : "bg-ink/70"
-                        )}
-                        style={{ width: `${(n / most) * 100}%` }}
-                      />
-                    </span>
-                    <span
-                      className={cn(
-                        "text-right tabular-nums text-ink",
-                        active && "font-semibold"
-                      )}
-                    >
-                      {n}
-                    </span>
-                  </Link>
+                      {body}
+                    </Link>
+                  ) : (
+                    <div className={row}>{body}</div>
+                  )}
                 </li>
               );
             })}
