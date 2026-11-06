@@ -1,7 +1,8 @@
 import "server-only";
 
 import { avatarUrl } from "@/lib/avatar";
-import { PROGRAM_STATUS, SESSION_STATUS } from "@/lib/constants";
+import { CHARGED_SESSION, PROGRAM_STATUS, SESSION_STATUS, drawKey } from "@/lib/constants";
+import { deadlinePassed } from "@/lib/deadlines";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -38,6 +39,11 @@ import { prisma } from "@/lib/prisma";
  * students, so a program card can say how far through its grant the delivered
  * hours have come — the question "% of all hours" was being asked and could
  * not answer.
+ *
+ * FORFEITED (November 2026). And the minutes of those grants that passed their
+ * use-by date unused, so the dashboard can say what is still left to deliver
+ * — the program page's Remaining, `granted − drawn − forfeited` — and not a
+ * figure that counts expired time as still to come.
  */
 
 export const SESSION_KIND = { COMPLETED: 0, EXTRA: 1, NO_SHOW: 2 } as const;
@@ -76,6 +82,13 @@ export type AnalyticsProgram = {
    * does not narrow with the year picker the way the session rows do.
    */
   granted: number;
+  /**
+   * Of `granted`, the minutes lost to a passed use-by date: per allocation,
+   * what it held less what its own meetings drew, once its deadline is gone —
+   * the ledger's "expired unused" (`studentsWithHours`). A stock, like
+   * `granted`, judged at the moment of the read.
+   */
+  forfeited: number;
 };
 export type AnalyticsMentor = { id: string; name: string; avatar: string | null };
 
@@ -130,15 +143,16 @@ export async function analyticsData(
         },
       },
     }),
-    prisma.hourAllocation.groupBy({
-      by: ["programId"],
-      ...(inScope ? { where: { programId: inScope } } : {}),
-      _sum: { minutes: true },
-    }),
+    grantsIn(programIds),
   ]);
 
   const programIndex = new Map(programs.map((p, i) => [p.id, i]));
-  const granted = new Map(grants.map((g) => [g.programId, g._sum.minutes ?? 0]));
+  const granted = new Map<string, number>();
+  const forfeited = new Map<string, number>();
+  for (const g of grants) {
+    granted.set(g.programId, (granted.get(g.programId) ?? 0) + g.minutes);
+    forfeited.set(g.programId, (forfeited.get(g.programId) ?? 0) + g.forfeited);
+  }
   const { mentors, rows } = toRows(sessions, (s) => programIndex.get(s.programId));
 
   return {
@@ -148,10 +162,57 @@ export async function analyticsData(
       colorIndex: p.colorIndex,
       archived: p.status === PROGRAM_STATUS.ARCHIVED,
       granted: granted.get(p.id) ?? 0,
+      forfeited: forfeited.get(p.id) ?? 0,
     })),
     mentors,
     rows,
   };
+}
+
+/** One allocation, as the dashboard needs it: what it granted and what of that expired unused. */
+type Grant = { studentId: string; programId: string; minutes: number; forfeited: number };
+
+/**
+ * Every allocation in these programs (`undefined`: all of them), with the
+ * minutes it forfeited.
+ *
+ * Worked out as `studentsWithHours` does it, so the dashboard's Remaining is
+ * the program page's: an allocation is drawn only by the charging sessions
+ * that draw IT (`drawKey` — a bank meeting draws the bank, any other meeting
+ * that mentor's own time), and once its deadline passes, what it held beyond
+ * them is lost. Charging sessions that match no allocation — a mentor whose
+ * grant was later removed — forfeit nothing, and still count as drawn where
+ * the dashboard sums its rows.
+ */
+async function grantsIn(programIds: readonly string[] | undefined): Promise<Grant[]> {
+  const inScope = programIds ? { programId: { in: [...programIds] } } : {};
+  const [allocations, drawn] = await Promise.all([
+    prisma.hourAllocation.findMany({
+      where: inScope,
+      select: { studentId: true, programId: true, mentorId: true, isBank: true, minutes: true, deadline: true },
+    }),
+    prisma.session.groupBy({
+      by: ["studentId", "programId", "mentorId", "fromBank"],
+      where: { ...CHARGED_SESSION, ...inScope },
+      _sum: { minutes: true },
+    }),
+  ]);
+  const key = (r: { studentId: string; programId: string }, draws: string | null) =>
+    `${r.studentId}:${r.programId}:${draws}`;
+  const drawnBy = new Map<string, number>();
+  for (const s of drawn) {
+    const k = key(s, drawKey(s));
+    drawnBy.set(k, (drawnBy.get(k) ?? 0) + (s._sum.minutes ?? 0));
+  }
+  const now = Date.now();
+  return allocations.map((a) => ({
+    studentId: a.studentId,
+    programId: a.programId,
+    minutes: a.minutes,
+    forfeited: deadlinePassed(a.deadline, now)
+      ? Math.max(0, a.minutes - (drawnBy.get(key(a, drawKey(a))) ?? 0))
+      : 0,
+  }));
 }
 
 /** A session as `toRows` needs it. */
@@ -249,11 +310,7 @@ export async function instituteAnalyticsData(programId: string): Promise<Analyti
         },
       },
     }),
-    prisma.hourAllocation.groupBy({
-      by: ["studentId"],
-      where: { programId },
-      _sum: { minutes: true },
-    }),
+    grantsIn([programId]),
   ]);
 
   const levelOf = new Map(enrollments.map((e) => [e.studentId, e.levelId]));
@@ -266,7 +323,11 @@ export async function instituteAnalyticsData(programId: string): Promise<Analyti
 
   const { mentors, rows } = toRows(sessions, (s) => bucketOf(s.studentId));
   const granted = new Array<number>(levels.length + 1).fill(0);
-  for (const g of grants) granted[bucketOf(g.studentId)] += g._sum.minutes ?? 0;
+  const forfeited = new Array<number>(levels.length + 1).fill(0);
+  for (const g of grants) {
+    granted[bucketOf(g.studentId)] += g.minutes;
+    forfeited[bucketOf(g.studentId)] += g.forfeited;
+  }
 
   const entries: AnalyticsProgram[] = levels.map((l, i) => ({
     id: l.id,
@@ -274,10 +335,19 @@ export async function instituteAnalyticsData(programId: string): Promise<Analyti
     colorIndex: i,
     archived: false,
     granted: granted[i],
+    forfeited: forfeited[i],
   }));
-  const unleveled = rows.some((r) => r[0] === levels.length) || granted[levels.length] > 0;
+  const none = levels.length;
+  const unleveled = rows.some((r) => r[0] === none) || granted[none] > 0;
   if (unleveled) {
-    entries.push({ id: NO_LEVEL_ID, name: "No level", colorIndex: null, archived: false, granted: granted[levels.length] });
+    entries.push({
+      id: NO_LEVEL_ID,
+      name: "No level",
+      colorIndex: null,
+      archived: false,
+      granted: granted[none],
+      forfeited: forfeited[none],
+    });
   }
   return { programs: entries, mentors, rows };
 }

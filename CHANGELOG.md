@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-11-06
+
+### New
+- **Analytics shows the hours still to deliver.** Hours with students now has a Remaining figure: hours granted that are not used yet and have not expired. It matches Remaining on a program's page and covers the whole school or the program you open. It always counts up to today, whatever period you pick, and it does not appear when you open one mentor.
+
 ## 2026-11-04
 
 ### Fixed

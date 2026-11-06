@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     frame: inInstitute ? { kind: "institute", name: space.name } : { kind: "school" },
     other: space.kind !== "institute" ? null : inInstitute ? { label: "Whole school", school: true } : { label: space.name, school: false },
     today: programToday(new Date()),
-    programs: data.programs.map((p) => ({ id: p.id, name: p.name, colorIndex: p.colorIndex, archived: p.archived, granted: p.granted })),
+    programs: data.programs.map((p) => ({ id: p.id, name: p.name, colorIndex: p.colorIndex, archived: p.archived, granted: p.granted, forfeited: p.forfeited })),
     mentors: data.mentors.map((m) => ({ id: m.id, name: m.name })),
     sessions: data.rows.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5]]),
   } satisfies ApiAnalytics);

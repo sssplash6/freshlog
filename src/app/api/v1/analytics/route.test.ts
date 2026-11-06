@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@/lib/prisma";
-import { admin, grant, mentor, program, session, student } from "@/test/db";
+import { grantOf } from "@/lib/analytics-math";
+import { programTotals } from "@/lib/hours";
+import { studentsWithHours } from "@/lib/queries";
+import { admin, allocation, grant, mentor, program, session, student } from "@/test/db";
 
 /** Analytics: the website's read for staff and mentors, never a student's name, and nothing for a student. */
 const actor = vi.hoisted(() => ({ value: null as { id: string } | null }));
@@ -58,5 +61,38 @@ describe("GET /api/v1/analytics", () => {
     const m = await mentor("Dilnoza Yusupova");
     actor.value = { id: m.id };
     expect(await (await get("?as=admin")).json()).toMatchObject({ audience: "mentor", self: m.id });
+  });
+
+  it("sends what expired unused, so the hours left are the program page's Remaining", async () => {
+    const p = await program("Master's Program");
+    const m1 = await mentor("Dilnoza Yusupova");
+    const m2 = await mentor("Bekzod Karimov");
+    const s1 = await student({ programId: p.id, name: "Aziz Tursunov" });
+    const s2 = await student({ programId: p.id, name: "Laylo Rahimova" });
+    // 10h with one mentor, used in part: attended, missed, and some extra on top.
+    await allocation({ studentId: s1.id, mentorId: m1.id, minutes: 600 });
+    await session({ studentId: s1.id, mentorId: m1.id, minutes: 60 });
+    await session({ studentId: s1.id, mentorId: m1.id, minutes: 30, attended: false });
+    await session({ studentId: s1.id, mentorId: m1.id, minutes: 45, withinPlan: false });
+    // 2h with another, past its deadline after 30 minutes: 90 forfeited.
+    await allocation({ studentId: s1.id, mentorId: m2.id, minutes: 120, deadlineInDays: -5 });
+    await session({ studentId: s1.id, mentorId: m2.id, minutes: 30 });
+    // A student 30 minutes over their 1h.
+    await allocation({ studentId: s2.id, mentorId: m1.id, minutes: 60 });
+    await session({ studentId: s2.id, mentorId: m1.id, minutes: 90 });
+
+    const a = await admin();
+    await grant({ userId: a.id, programId: p.id });
+    actor.value = { id: a.id };
+    const body = await (await get()).json();
+    const at = body.programs.findIndex((x: { id: string }) => x.id === p.id);
+    expect(body.programs[at]).toMatchObject({ granted: 780, forfeited: 90 });
+    const rows = body.sessions;
+    expect(grantOf(rows, body.programs, at)).toEqual({ granted: 780, drawn: 210, forfeited: 90, remaining: 480 });
+
+    const page = programTotals(
+      await studentsWithHours({ enrollments: { some: { programId: p.id } } }, { programIds: [p.id] })
+    );
+    expect(page.remaining).toBe(480);
   });
 });

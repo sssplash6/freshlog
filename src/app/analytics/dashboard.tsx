@@ -18,6 +18,7 @@ import {
   dateOf,
   dayKeyOf,
   drawnByProgram,
+  grantOf,
   hoursByDay,
   hoursOf,
   meetingsOf,
@@ -32,6 +33,7 @@ import {
   weeksOf,
   yearOf,
   yearsOf,
+  type GrantState,
   type Ranked,
   type Tally,
 } from "@/lib/analytics-math";
@@ -52,7 +54,7 @@ import {
 } from "@/lib/analytics-view";
 import { isoOf, msOf } from "@/lib/calendar";
 import { cn } from "@/lib/cn";
-import { formatDuration } from "@/lib/format";
+import { formatBalance, formatDuration } from "@/lib/format";
 import { initials, personTone } from "@/lib/person-tone";
 
 import s from "./dashboard.module.css";
@@ -617,6 +619,15 @@ function Hero({
   // A mentor has no "mentors" figure; their busiest month says more.
   const busiest = useMemo(() => busiestMonth(yearRows), [yearRows]);
 
+  // What is still to be delivered (November 2026, asked for on this card):
+  // the program page's Remaining, of the program in view or of all of them.
+  // Not for one mentor — a grant is the student's, and an hour bank is drawn
+  // by whichever mentor meets them, so a mentor holds no "left" of their own.
+  const grant = useMemo(
+    () => grantOf(data.rows, data.programs, view.program),
+    [data.rows, data.programs, view.program]
+  );
+
   // No caption: the period is already in the header, in the year switcher and
   // the month chip beside it, and "2026" printed twice read as two things.
   return (
@@ -655,8 +666,15 @@ function Hero({
           weight is the stat strip DESIGN.md bans: nothing ranked, so nothing
           read. Extra and missed time are already the bar beside the lead; the
           count of missed meetings rides as the hint of the figure it
-          qualifies. */}
-      <dl className="grid grid-cols-3 gap-x-6 gap-y-3 border-t border-line px-4 py-3 sm:px-5">
+          qualifies. A fourth, Remaining, where a grant is in view
+          (November 2026): the one figure here that is not the period's, so
+          its hint says "to date". */}
+      <dl
+        className={cn(
+          "grid gap-x-6 gap-y-3 border-t border-line px-4 py-3 sm:px-5",
+          mentor == null ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"
+        )}
+      >
         <Stat
           label="Sessions"
           value={meetings.toLocaleString("en-US")}
@@ -672,11 +690,14 @@ function Hero({
           hint={t.students ? `${formatDuration(t.hours / t.students)} each` : "—"}
         />
         {mentor == null ? (
-          <Stat
-            label="Mentors active"
-            value={t.mentors.toLocaleString("en-US")}
-            hint={t.mentors ? `${formatDuration(t.hours / t.mentors)} each` : "—"}
-          />
+          <>
+            <Stat
+              label="Mentors active"
+              value={t.mentors.toLocaleString("en-US")}
+              hint={t.mentors ? `${formatDuration(t.hours / t.mentors)} each` : "—"}
+            />
+            <Remaining grant={grant} />
+          </>
         ) : (
           <Stat
             label="Busiest month"
@@ -734,11 +755,61 @@ function PlanSplit({ completed, extra, missed }: { completed: number; extra: num
   );
 }
 
-function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
+/**
+ * Hours still to be delivered, to date. Said as the program page says it —
+ * "12h over" in red when students have used more than they were granted — and
+ * with what it is out of, plus what expired, so it reconciles without leaving
+ * the card.
+ */
+function Remaining({ grant }: { grant: GrantState }) {
+  if (grant.granted === 0 && grant.drawn === 0) {
+    return <Stat label="Remaining" value="—" hint="no total set" />;
+  }
+  // Broken only between its parts: mid-phrase, "expired" was left alone on a
+  // line under a figure it qualifies.
+  return (
+    <Stat
+      label="Remaining"
+      value={formatBalance(grant.remaining)}
+      hint={
+        <>
+          <span className="whitespace-nowrap">of {formatDuration(grant.granted)} total,</span>{" "}
+          <span className="whitespace-nowrap">to date</span>
+          {grant.forfeited > 0 && (
+            <>
+              {" · "}
+              <span className="whitespace-nowrap">{formatDuration(grant.forfeited)} expired</span>
+            </>
+          )}
+        </>
+      }
+      danger={grant.remaining < 0}
+    />
+  );
+}
+
+function Stat({
+  label,
+  value,
+  hint,
+  danger,
+}: {
+  label: string;
+  value: string;
+  hint: React.ReactNode;
+  danger?: boolean;
+}) {
   return (
     <div className="min-w-0">
       <dt className="min-w-0 truncate text-xs text-muted-fg">{label}</dt>
-      <dd className="mt-0.5 text-figure-md font-semibold leading-tight tabular-nums text-ink">{value}</dd>
+      <dd
+        className={cn(
+          "mt-0.5 text-figure-md font-semibold leading-tight tabular-nums",
+          danger ? "text-danger-ink" : "text-ink"
+        )}
+      >
+        {value}
+      </dd>
       {/* Wraps rather than truncating: a third of a phone is narrow, and the
           hint now carries the no-shows the strip used to give a column. */}
       <dd className="min-w-0 text-xs text-muted-fg">{hint}</dd>

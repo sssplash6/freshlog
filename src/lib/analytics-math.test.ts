@@ -6,6 +6,7 @@ import {
   byMonth,
   change,
   drawnByProgram,
+  grantOf,
   hoursByDay,
   meetingsOf,
   niceAxis,
@@ -104,6 +105,25 @@ describe("drawnByProgram", () => {
     // charged like any other; the 30 extra minutes charged nobody
     // program 1: 120 this year + 45 last year — the grant gauge is all-time
     expect(drawnByProgram(ROWS, 2)).toEqual([210, 165]);
+  });
+});
+
+describe("grantOf", () => {
+  const PROGRAMS = [
+    { granted: 600, forfeited: 30 },
+    { granted: 100 }, // forfeited missing: a server from before it was sent
+  ];
+
+  it("leaves granted, less what was charged, less what expired — whatever the year", () => {
+    expect(grantOf(ROWS, PROGRAMS, 0)).toEqual({ granted: 600, drawn: 210, forfeited: 30, remaining: 360 });
+  });
+
+  it("goes negative where more was used than granted", () => {
+    expect(grantOf(ROWS, PROGRAMS, 1)).toEqual({ granted: 100, drawn: 165, forfeited: 0, remaining: -65 });
+  });
+
+  it("nets every program together when none is picked, as Home does", () => {
+    expect(grantOf(ROWS, PROGRAMS, null)).toEqual({ granted: 700, drawn: 375, forfeited: 30, remaining: 295 });
   });
 });
 

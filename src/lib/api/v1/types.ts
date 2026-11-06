@@ -2063,7 +2063,12 @@ export type ApiAnalytics = {
   frame: { kind: "school" } | { kind: "institute"; name: string };
   other: { label: string; school: boolean } | null;
   today: string;
-  programs: { id: string; name: string; colorIndex: number | null; archived: boolean; granted: number }[];
+  /**
+   * `granted`: minutes ever allocated to the program's students. `forfeited`:
+   * of those, the minutes that passed their use-by date unused. Both are
+   * stocks, judged now, and read with the sessions by `grantOf`.
+   */
+  programs: { id: string; name: string; colorIndex: number | null; archived: boolean; granted: number; forfeited: number }[];
   mentors: PersonRef[];
   sessions: AnalyticsSession[];
 };

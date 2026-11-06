@@ -164,6 +164,47 @@ export function drawnByProgram(
   return out;
 }
 
+/** A grant as it stands today: what was granted, drawn, lost to a deadline, and is left. */
+export type GrantState = {
+  granted: number;
+  /** In-plan meetings, attended or missed: what the ledger charged. */
+  drawn: number;
+  /** Unused minutes of grants whose use-by date has passed. */
+  forfeited: number;
+  /** `granted − drawn − forfeited`: still to be delivered. Negative when overdrawn. */
+  remaining: number;
+};
+
+/**
+ * What is left to deliver of one program's grant (`program`), or of every
+ * program's (`null`), to date.
+ *
+ * It is the program page's Remaining, the same subtraction over the same
+ * minutes — granted, less what was charged, less what expired unused — so the
+ * two pages cannot disagree. Like `drawnByProgram` it ignores the year: hours
+ * left are a stock, and a past year has no "left" of its own. Students who
+ * are over net against those who are not, as on the program page and Home.
+ *
+ * `forfeited` may be missing: an app talking to a server from before it was
+ * sent reads it as none expired rather than as no figure at all.
+ */
+export function grantOf(
+  rows: readonly AnalyticsRow[],
+  programs: readonly { granted: number; forfeited?: number }[],
+  program: number | null
+): GrantState {
+  const drawn = drawnByProgram(rows, programs.length);
+  const out: GrantState = { granted: 0, drawn: 0, forfeited: 0, remaining: 0 };
+  programs.forEach((p, i) => {
+    if (program != null && i !== program) return;
+    out.granted += p.granted;
+    out.drawn += drawn[i];
+    out.forfeited += p.forfeited ?? 0;
+  });
+  out.remaining = out.granted - out.drawn - out.forfeited;
+  return out;
+}
+
 /** Hours per program index, per month: `[program][month]`. */
 export function monthsByProgram(
   rows: readonly AnalyticsRow[],
