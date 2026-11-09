@@ -245,6 +245,37 @@ describe("giving a mentor a share of the bank", () => {
       give(kid, prog, sega.id, { mode: "set", minutes: "30" })
     ).resolves.toMatchObject({ ok: false, error: expect.stringContaining("already used") });
   });
+
+  it("can be topped up after the mentor has used more than it, by any amount", async () => {
+    const { prog, boss, kid } = await setup();
+    const sega = await mentor("Sega");
+    await pairing({ mentorId: sega.id, programId: prog.id });
+    await addBank(kid, prog, { includePrevious: "no" });
+    await give(kid, prog, sega.id);
+    actor.value = sega;
+    await logSession(null, form({ studentProfileId: kid.id, minutes: "300", date: "2026-09-03" }));
+    actor.value = boss;
+    const shareMinutes = async () =>
+      (await prisma.hourAllocation.findFirstOrThrow({ where: { mentorId: sega.id } })).minutes;
+
+    // 120 given, 300 used: another 60 still leaves Sega over, and is allowed.
+    await expect(give(kid, prog, sega.id, { minutes: "60" })).resolves.toMatchObject({
+      ok: true,
+    });
+    expect(await shareMinutes()).toBe(180);
+
+    // Raised outright to 240, still under 300: also a raise, also allowed.
+    await expect(
+      give(kid, prog, sega.id, { mode: "set", minutes: "240" })
+    ).resolves.toMatchObject({ ok: true });
+    expect(await shareMinutes()).toBe(240);
+
+    // A cut is still held to what was used.
+    await expect(
+      give(kid, prog, sega.id, { mode: "set", minutes: "200" })
+    ).resolves.toMatchObject({ ok: false, error: expect.stringContaining("already used") });
+    expect(await shareMinutes()).toBe(240);
+  });
 });
 
 describe("including the meetings already logged", () => {

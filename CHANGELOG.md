@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-11-09
+
+### Fixed
+- **Topping up a mentor who has used more than their share works again.** When a mentor had already used more time than they were given from a student's hour bank, giving them more was refused unless it covered everything they had used. Now any top-up goes through. Cutting a share still can't take it below what the mentor has used.
+
 ## 2026-11-06
 
 ### New

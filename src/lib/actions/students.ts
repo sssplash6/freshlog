@@ -1768,6 +1768,8 @@ export async function setMentorAllocation(
    * Cut, it gives back only what the mentor has not used: delivered minutes
    * returned to the bank would be the same hour spent twice. Checked here and
    * again inside the transaction, where a meeting logged meanwhile is visible.
+   * Only a cut is held to the used minutes: a mentor who has used more than
+   * their share is topped up by any amount, even one that leaves them over.
    */
   const shareUsed =
     share && mentorId ? await mentorDrawn(prisma, profile.id, program.id, mentorId) : 0;
@@ -1782,7 +1784,7 @@ export async function setMentorAllocation(
             : `Their hour bank has nothing left to give. Add to the bank first.`,
       };
     }
-    if (newMinutes < shareUsed) {
+    if (newMinutes < oldMinutes && newMinutes < shareUsed) {
       return {
         ok: false,
         error: `${mentorLabelOf(mentor)} has already used ${formatDuration(shareUsed)} of this time, so it can't go below that.`,
@@ -1901,7 +1903,10 @@ export async function setMentorAllocation(
         if (!fresh) throw new BankShareExceeded(0);
         const left = await bankRemaining(tx, fresh);
         if (granted > left) throw new BankShareExceeded(left);
-        if (newMinutes < (await mentorDrawn(tx, profile.id, program.id, mentorId!))) {
+        if (
+          newMinutes < oldMinutes &&
+          newMinutes < (await mentorDrawn(tx, profile.id, program.id, mentorId!))
+        ) {
           throw new BankShareExceeded(left);
         }
         await tx.hourAllocation.update({
