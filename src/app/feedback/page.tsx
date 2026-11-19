@@ -275,6 +275,7 @@ async function OwnRatings({
                     scoreHref={starHref(params, f.rating)}
                     text={f.comment}
                     aside={formatDate(f.createdAt)}
+                    noText="No comment, rating only"
                   />
                 ))}
               </ul>
@@ -369,16 +370,17 @@ async function AllRatings({
   const meetingsNone = focus !== null && !kind && meetingStats._count === 0 && stats._count > 0;
   const showWritten = wantWritten && !writtenNone;
   const showMeetings = wantMeetings && !meetingsNone;
+  // Ratings of the reader's own meetings listed with no student named, so the
+  // list can say why the name is missing.
+  const ownUnnamed = meetingList.some((s) => s.student === null);
 
-  return (
-    <div className="space-y-4">
-      <PageTitle title="Feedback" />
-
-      {/* Shown whenever anybody in reach has been rated, even when the
-          filters leave nothing: the bars and figures are how the filters are
-          taken off again. */}
-      {rated.length > 0 && (
-        <Overview
+  // The overview and the programs, read through the page's filters. Opened on
+  // one mentor they are that mentor's alone, and they move under the mentor's
+  // header: the click lands there, and above it they sat out of sight, so a
+  // mentor's page read as having no breakdown at all. "Need attention" is a
+  // count of mentors, which says nothing about one.
+  const overview = (
+    <Overview
           average={avg}
           total={ratedCount}
           basis={basis}
@@ -400,13 +402,17 @@ async function AllRatings({
           activeStar={typeof range === "number" ? range : undefined}
           clearHref={range === undefined ? undefined : clearRating}
           figures={[
-            {
-              label: "Need attention",
-              value: String(lowCount),
-              hint: `of ${count(mentors.length, "mentor")}`,
-              tone: lowCount > 0 ? "attention" : "ink",
-              href: lowCount > 0 ? "#attention" : undefined,
-            },
+            ...(focus
+              ? []
+              : [
+                  {
+                    label: "Need attention",
+                    value: String(lowCount),
+                    hint: `of ${count(mentors.length, "mentor")}`,
+                    tone: lowCount > 0 ? ("attention" as const) : ("ink" as const),
+                    href: lowCount > 0 ? "#attention" : undefined,
+                  },
+                ]),
             {
               label: "Written ratings",
               value: String(writtenAll ?? general),
@@ -421,23 +427,34 @@ async function AllRatings({
             },
           ]}
         />
-      )}
+  );
 
-      {/* One line each, not a card each: a program is a row of the school's
-          score, and a reader with one program has nothing to compare it to. */}
-      {programScores.length > 1 && (
-        <Section
-          title="Programs"
-          count={programScores.length}
-          caption="A written rating counts in every program its writer studies in."
-        >
-          <ul className="divide-y divide-line/70">
-            {programScores.map((p) => (
-              <ProgramLine key={p.id} program={p} params={params} />
-            ))}
-          </ul>
-        </Section>
-      )}
+  // One line each, not a card each: a program is a row of the school's score,
+  // and a reader with one program has nothing to compare it to. One mentor's
+  // single program still shows, since it is their breakdown.
+  const programList = programScores.length > (focus ? 0 : 1) && (
+    <Section
+      title="Programs"
+      count={programScores.length}
+      caption="A written rating counts in every program its writer studies in."
+    >
+      <ul className="divide-y divide-line/70">
+        {programScores.map((p) => (
+          <ProgramLine key={p.id} program={p} params={params} />
+        ))}
+      </ul>
+    </Section>
+  );
+
+  return (
+    <div className="space-y-4">
+      <PageTitle title="Feedback" />
+
+      {/* Shown whenever anybody in reach has been rated, even when the
+          filters leave nothing: the bars and figures are how the filters are
+          taken off again. */}
+      {!focus && rated.length > 0 && overview}
+      {!focus && programList}
 
       <FilterBar
         basePath="/feedback"
@@ -493,6 +510,8 @@ async function AllRatings({
           allHref={filterHref("/feedback", params, { mentor: undefined })}
         />
       )}
+      {focus && overview}
+      {focus && programList}
 
       {!focus && flagged.length > 0 && (
         <Section
@@ -583,6 +602,7 @@ async function AllRatings({
                     mentor={f.mentor}
                     aside={formatDate(f.createdAt)}
                     text={f.comment}
+                    noText="No comment, rating only"
                     // Who said it is open to the writer's admins only.
                     meta={
                       f.student ? (f.student.name ?? f.student.email) : "Anonymous"
@@ -615,10 +635,18 @@ async function AllRatings({
             title="Meeting ratings"
             count={meetingStats._count}
             caption={
-              kind && (
-                <Link href={bothKinds} scroll={false} className="text-brand hover:underline">
-                  Show written ratings too
-                </Link>
+              (ownUnnamed || kind) && (
+              <>
+                {/* The 30 October decision, said where it shows: an admin
+                    asked who had rated them and read "Anonymous" as a gap. */}
+                {ownUnnamed && "Ratings of your own meetings don't name the student."}
+                {ownUnnamed && kind && " "}
+                {kind && (
+                  <Link href={bothKinds} scroll={false} className="text-brand hover:underline">
+                    Show written ratings too
+                  </Link>
+                )}
+              </>
               )
             }
           >
@@ -1237,6 +1265,7 @@ function FeedItem({
   aside,
   text,
   meta,
+  noText,
 }: {
   score: number | null;
   /** Where the score tile leads: the page narrowed to that score. */
@@ -1245,6 +1274,11 @@ function FeedItem({
   aside: string;
   text: string | null;
   meta?: string;
+  /**
+   * Said where there is no text. A written rating's comment is optional, and a
+   * row with none read as a comment the page had failed to show.
+   */
+  noText?: string;
 }) {
   return (
     <li className="flex gap-3 px-4 py-3 sm:px-5">
@@ -1258,10 +1292,12 @@ function FeedItem({
           )}
           <span className="shrink-0 text-xs tabular-nums text-muted-fg">{aside}</span>
         </div>
-        {text && (
+        {text?.trim() ? (
           <div className="mt-1 text-body">
             <ExpandableText text={text} lines={2} className="text-ink" />
           </div>
+        ) : (
+          noText && <p className="mt-1 text-sm italic text-muted-fg">{noText}</p>
         )}
         {mentor && meta && <p className="mt-1 text-xs text-muted-fg">{meta}</p>}
       </div>

@@ -6,7 +6,12 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ## 2026-11-19
 
+### New
+- **Each mentor's ratings have their own breakdown.** Opening one mentor now shows, under their name, their combined score, how their ratings spread from 1 to 5 stars, their written and meeting counts, and their score in each program. All of it counts that mentor's ratings only.
+
 ### Fixed
+- **Written ratings without a comment say so.** A rating left with no comment now reads "No comment, rating only" instead of showing an empty row.
+- **Your own meeting ratings say why they're unnamed.** Admins who mentor still don't see which student rated their own meetings, and the list now says so.
 - **Existing hour banks can be added to again.** When a program stopped offering hour banks, a student who still held one could be given no more time: the app said to add to the bank first, and the bank could not be added to. Admins can now add to such a bank, give mentors time from it and manage it on the student's page.
 
 ## 2026-11-09
