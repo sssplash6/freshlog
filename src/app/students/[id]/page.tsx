@@ -82,7 +82,7 @@ import {
   toDateInputValue,
 } from "@/lib/format";
 import { readParam, type SearchParams } from "@/lib/filters";
-import { allocationSummary } from "@/lib/hours";
+import { allocationSummary, banksIn } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { profileOf } from "@/lib/profile";
 import { interviewsOfStudent } from "@/lib/student-interviews";
@@ -371,9 +371,15 @@ export default async function StudentWorkspacePage({
   // Any of the reader's programs that bills per student. The money fields
   // belong to the grant, and the grant names its program, so the form asks
   // per program rather than once for the whole student.
+  //
+  // Where their time is a bank there is no money to ask about — and that is a
+  // question about the bank they HOLD as much as the program's setting, which
+  // may have been switched off since (`banksIn`).
+  const holdsBank = new Set(timeByMentor.filter((entry) => entry.bank).map((entry) => entry.program.id));
+  const banked = (e: (typeof enrollments)[number]) => banksIn(e.program, holdsBank.has(e.programId));
   const paymentPrograms = new Set(
     enrollments
-      .filter((e) => e.program.tracksPayment && !e.program.hourBank)
+      .filter((e) => e.program.tracksPayment && !banked(e))
       .map((e) => e.programId)
   );
   const tracksPayment = paymentPrograms.size > 0;
@@ -383,7 +389,7 @@ export default async function StudentWorkspacePage({
     (
       await Promise.all(
         enrollments
-          .filter((e) => e.program.hourBank)
+          .filter(banked)
           .map(async (e) =>
             manages && (await staffLevel(me, e.programId)) === "ADMIN" ? e.programId : null
           )
@@ -848,7 +854,7 @@ export default async function StudentWorkspacePage({
                       {c.changedBy.name ?? c.changedBy.email} set{" "}
                       {c.mentor ? (
                         <PersonChip person={c.mentor} size="sm" href={`/mentors/${c.mentor.id}`} />
-                      ) : enrollments.some((e) => e.programId === c.programId && e.program.hourBank) ? (
+                      ) : enrollments.some((e) => e.programId === c.programId && banked(e)) ? (
                         "the hour bank"
                       ) : (
                         "unassigned time"

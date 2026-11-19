@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-11-19
+
+### Fixed
+- **Existing hour banks can be added to again.** When a program stopped offering hour banks, a student who still held one could be given no more time. Giving a mentor time said to add to the bank first, and the bank itself could not be added to. Admins can now add to a bank a student already holds, give mentors time from it and manage it on the student's page. New banks are still made only where the program offers them.
+
 ## 2026-11-09
 
 ### Fixed

@@ -9,7 +9,7 @@ import { requireProgramScope } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
 import { formatMinutes, toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { bankRemaining, pastHours } from "@/lib/hours";
+import { bankRemaining, banksIn, pastHours } from "@/lib/hours";
 import { studentLedger } from "@/lib/queries";
 
 import { allocatePicker, allocateWarning } from "@/lib/screens/program-allocate";
@@ -71,15 +71,17 @@ export default async function AllocateInProgramPage({
   const chosenRow = pickerRows.find((r) => r.s.id === chosen?.id);
 
   const ledger = chosen ? await studentLedger(chosen.id, [id]) : null;
-  // "Hour bank" leads the Agenda list only for an admin of a program that has
-  // one — the only people who may change it.
-  const bankOn = program.hourBank && (await staffLevel(me, id)) === "ADMIN";
   const bankRow = chosen
     ? await prisma.hourAllocation.findFirst({
         where: { studentId: chosen.id, programId: id, isBank: true },
       })
     : null;
   const banked = bankRow !== null;
+  // "Hour bank" leads the Agenda list only for an admin of a program that has
+  // one — the only people who may change it. A bank this student already
+  // holds is theirs to add to and give out of even where the program has
+  // stopped offering new ones (`banksIn`).
+  const bankOn = banksIn(program, banked) && (await staffLevel(me, id)) === "ADMIN";
   // What the bank still has to give a mentor, and the date a share may not pass.
   const bank = bankRow
     ? { left: await bankRemaining(prisma, bankRow), useBy: toDateInputValue(bankRow.deadline) }
@@ -146,7 +148,7 @@ export default async function AllocateInProgramPage({
               programs={[{ value: id, label: program.name }]}
               mentors={mentors}
               openTasksByMentor={openTasksByMentor}
-              paymentPrograms={program.tracksPayment && !program.hourBank ? [id] : []}
+              paymentPrograms={program.tracksPayment && !banksIn(program, banked) ? [id] : []}
               bankPrograms={bankOn ? [id] : []}
               bankedPrograms={banked ? [id] : []}
               banks={bank ? { [id]: bank } : {}}

@@ -278,6 +278,89 @@ describe("giving a mentor a share of the bank", () => {
   });
 });
 
+/**
+ * SAT Individuals, 19 November 2026. The program stopped offering banks while
+ * 26 students still held one. A student whose bank was used up could then be
+ * given no time at all: a mentor's grant was a share of the bank and was told
+ * "add to the bank first", and adding to the bank was told the program "doesn't
+ * use an hour bank". The setting says whether a NEW bank is offered; a bank
+ * already held is still the student's balance and has to stay manageable.
+ */
+describe("a bank held in a program that stopped offering banks", () => {
+  /** A bank of 8h with all 8h drawn, in a program whose setting is now off. */
+  async function usedUp() {
+    const { prog, kid } = await setup();
+    const sega = await mentor("Sega");
+    await pairing({ mentorId: sega.id, programId: prog.id });
+    await addBank(kid, prog, { minutes: "480", includePrevious: "no" });
+    await session({ studentId: kid.id, programId: prog.id, mentorId: sega.id, minutes: 480, fromBank: true });
+    await prisma.program.update({ where: { id: prog.id }, data: { hourBank: false } });
+    return { prog, kid, sega };
+  }
+  const topUp = (kid: { id: string }, prog: { id: string }) =>
+    setMentorAllocation(
+      null,
+      form({
+        studentProfileId: kid.id,
+        programId: prog.id,
+        bank: "1",
+        mode: "add",
+        minutes: "120",
+        deadline: "2027-06-01",
+      })
+    );
+
+  it("can still be added to, and a mentor given a share of what was added", async () => {
+    const { prog, kid, sega } = await usedUp();
+
+    await expect(topUp(kid, prog)).resolves.toMatchObject({ ok: true });
+    const bank = await prisma.hourAllocation.findFirstOrThrow({ where: { isBank: true } });
+    expect(bank.minutes).toBe(600);
+
+    const share = await setMentorAllocation(
+      null,
+      form({
+        studentProfileId: kid.id,
+        programId: prog.id,
+        mentorId: sega.id,
+        mode: "add",
+        minutes: "60",
+        deadline: "2027-06-01",
+      })
+    );
+    expect(share).toMatchObject({ ok: true });
+    await expect(
+      prisma.hourAllocation.findFirstOrThrow({ where: { mentorId: sega.id } })
+    ).resolves.toMatchObject({ minutes: 60, fromBankShare: true });
+    expect((await allocationSummary(kid.id)).allotted).toBe(600);
+  });
+
+  it("asks for no payment, though the program now bills per student", async () => {
+    const { prog, kid } = await usedUp();
+    await prisma.program.update({ where: { id: prog.id }, data: { tracksPayment: true } });
+
+    await expect(topUp(kid, prog)).resolves.toMatchObject({ ok: true });
+    const bank = await prisma.hourAllocation.findFirstOrThrow({ where: { isBank: true } });
+    expect(bank).toMatchObject({ minutes: 600, amountPaid: null });
+  });
+
+  it("is still an admin's alone to change, and no new bank is made there", async () => {
+    const { prog, kid } = await usedUp();
+    const other = await student({ programId: prog.id });
+
+    await expect(addBank(other, prog, { includePrevious: "no" })).resolves.toMatchObject({
+      ok: false,
+      error: expect.stringContaining("doesn't use an hour bank"),
+    });
+
+    await prisma.programStaff.updateMany({ data: { role: "LEADER" } });
+    await expect(topUp(kid, prog)).resolves.toMatchObject({
+      ok: false,
+      error: expect.stringContaining("admin"),
+    });
+  });
+});
+
 describe("including the meetings already logged", () => {
   it("yes: the number entered is the bank's size, and per-mentor time is folded in", async () => {
     const { prog, kid } = await setup();

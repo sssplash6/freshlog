@@ -10,7 +10,7 @@ import { canActAsMentor, SESSION_STATUS, USER_STATUS } from "@/lib/constants";
 import { enrollmentLabel, sortEnrollments, studiesIn } from "@/lib/enrollments";
 import { visibleExchanges } from "@/lib/exchanges";
 import { toDateInputValue } from "@/lib/format";
-import { allocationSummary } from "@/lib/hours";
+import { allocationSummary, banksIn } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { programOptions, studentLedger, toProgramOptions } from "@/lib/queries";
 import { logAdvice, mentorsIn, programLines, studentHeadline } from "@/lib/screens/student-record";
@@ -102,12 +102,15 @@ export async function studentRecordFor(
   ]);
 
   const programOf = new Map(enrollments.map((e) => [e.programId, e.program]));
+  // Where their time is a bank: the program offers them, or they still hold one from when it did (`banksIn`).
+  const holdsBank = new Set(hours.perMentor.filter((m) => m.bank).map((m) => m.program.id));
+  const banked = (program: { id: string; hourBank: boolean }) => banksIn(program, holdsBank.has(program.id));
   // A bank is changed by the program's admins only: a Leader or Sales grant reads it.
   const bankAdmin = new Set(
     (
       await Promise.all(
         enrollments
-          .filter((e) => e.program.hourBank)
+          .filter((e) => banked(e.program))
           .map(async (e) => ((await staffLevel(reader.user, e.programId)) === "ADMIN" ? e.programId : null))
       )
     ).filter((v): v is string => v !== null)
@@ -137,7 +140,7 @@ export async function studentRecordFor(
       daysLeft: entry.deadline ? daysAway(entry.deadline, now) : null,
       expired: entry.expired,
       // The money is the grant's, where the program bills per student, and only staff read it.
-      amountPaid: manages && program && program.tracksPayment && !program.hourBank ? (entry.amountPaid ?? 0) : null,
+      amountPaid: manages && program && program.tracksPayment && !banked(program) ? (entry.amountPaid ?? 0) : null,
       can: {
         edit,
         // In date and unspent is what a transfer can move, to another of the program's mentors. A bank moves no way.
@@ -152,7 +155,7 @@ export async function studentRecordFor(
     program: { id: c.program.id, name: c.program.name, colorIndex: c.program.colorIndex },
     mentor: c.mentor ? { id: c.mentor.id, name: nameOf(c.mentor) } : null,
     // The website names a mentorless change "the hour bank" where the program has one.
-    bank: c.mentor === null && c.program.hourBank,
+    bank: c.mentor === null && banked(c.program),
     from: c.oldMinutes,
     to: c.newMinutes,
     by: { id: c.changedBy.id, name: nameOf(c.changedBy) },
@@ -178,7 +181,7 @@ export async function studentRecordFor(
 
   const headline = studentHeadline({ mentorLens: !manages || mentorLens, reaches, hours, userId: reader.user.id, now });
   const byProgram = await programLines(profile.id, enrollments);
-  const tracksPayment = enrollments.some((e) => e.program.tracksPayment && !e.program.hourBank);
+  const tracksPayment = enrollments.some((e) => e.program.tracksPayment && !banked(e.program));
   return {
     student: {
       id: profile.id,

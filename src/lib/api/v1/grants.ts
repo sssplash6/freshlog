@@ -6,7 +6,7 @@ import type { GrantOptions } from "@/lib/api/v1/types";
 import { scopeCovers, scopeProgramFilter, staffLevel } from "@/lib/authz";
 import { ASSIGNMENT_PROGRESS } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/format";
-import { bankRemaining, pastHours } from "@/lib/hours";
+import { bankRemaining, banksIn, pastHours } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
 import { studentLedger } from "@/lib/queries";
 import { programToday } from "@/lib/when";
@@ -43,7 +43,10 @@ export async function grantOptionsFor(reader: Reader, profile: ManagedStudent, n
       const p = e.program;
       const bankRow = banks.find((b) => b.programId === p.id);
       // A bank is changed by the program's admins only; the write scope says so today, and `staffLevel` is the action's own question.
-      const bankAllowed = p.hourBank && (await staffLevel(reader.user, p.id)) === "ADMIN";
+      // Asked of the bank they hold as well as of the setting: one held from before the program stopped offering them
+      // is still an admin's to add to and give out of (`banksIn`).
+      const banked = banksIn(p, bankRow !== undefined);
+      const bankAllowed = banked && (await staffLevel(reader.user, p.id)) === "ADMIN";
       const past = bankAllowed && !bankRow ? await pastHours(prisma, profile.id, p.id) : null;
       // The level's pair where it has one, else the program's: what joining gives.
       const minutes = e.level?.standardMinutes ?? p.standardMinutes;
@@ -52,8 +55,8 @@ export async function grantOptionsFor(reader: Reader, profile: ManagedStudent, n
         id: p.id,
         name: p.name,
         colorIndex: p.colorIndex,
-        // A bank program asks for no payment: its hours are one balance.
-        tracksPayment: p.tracksPayment && !p.hourBank,
+        // A bank asks for no payment: its hours are one balance.
+        tracksPayment: p.tracksPayment && !banked,
         bankAllowed,
         bank: bankRow ? { left: await bankRemaining(prisma, bankRow), deadline: toDateInputValue(bankRow.deadline) } : null,
         askPast: !!past && (past.allocated > 0 || past.logged > 0),

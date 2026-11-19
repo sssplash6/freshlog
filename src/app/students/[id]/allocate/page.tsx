@@ -13,7 +13,7 @@ import { requireUser } from "@/lib/dal";
 import { readParam, type SearchParams } from "@/lib/filters";
 import { formatMinutes, toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { bankRemaining, pastHours } from "@/lib/hours";
+import { bankRemaining, banksIn, pastHours } from "@/lib/hours";
 import { studentLedger } from "@/lib/queries";
 import type { Metadata } from "next";
 
@@ -80,25 +80,30 @@ export default async function AllocateStudentTimePage({
     value: mentor.id,
     label: mentor.name ?? mentor.email,
   }));
-  // A bank program asks for no payment: its hours are one balance.
+  const bankRows = await prisma.hourAllocation.findMany({
+    where: { studentId: profile.id, isBank: true, programId: { in: visible } },
+  });
+  const bankedPrograms = bankRows.map((b) => b.programId);
+  // Is this student's time there a bank: the program offers them, or they
+  // still hold one from when it did (`banksIn`).
+  const banked = (e: (typeof enrollments)[number]) =>
+    banksIn(e.program, bankedPrograms.includes(e.programId));
+  // A bank asks for no payment: its hours are one balance.
   const paymentPrograms = enrollments
-    .filter((e) => e.program.tracksPayment && !e.program.hourBank)
+    .filter((e) => e.program.tracksPayment && !banked(e))
     .map((e) => e.programId);
   // "Hour bank" is on the Agenda list only where the program has one and the
-  // reader is an admin of it, who alone may change it.
+  // reader is an admin of it, who alone may change it. A bank already held is
+  // theirs to add to and give out of wherever it is.
   const bankPrograms = (
     await Promise.all(
       enrollments
-        .filter((e) => e.program.hourBank)
+        .filter(banked)
         .map(async (e) =>
           (await staffLevel(me, e.programId)) === "ADMIN" ? e.programId : null
         )
     )
   ).filter((id): id is string => id !== null);
-  const bankRows = await prisma.hourAllocation.findMany({
-    where: { studentId: profile.id, isBank: true, programId: { in: visible } },
-  });
-  const bankedPrograms = bankRows.map((b) => b.programId);
   // What each bank still has to give a mentor, and the date a share may not pass.
   const banks = Object.fromEntries(
     await Promise.all(

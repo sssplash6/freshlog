@@ -43,7 +43,7 @@ import { sendWelcomeEmails, welcomeMail } from "@/lib/email/welcome";
 import { enrollmentsLabel } from "@/lib/enrollments";
 import { allocatedUnder, ExchangeCapExceeded, openExchangeFrom } from "@/lib/exchanges";
 import { deadlinePassed } from "@/lib/deadlines";
-import { bankRemaining, pastHours } from "@/lib/hours";
+import { bankRemaining, banksIn, pastHours } from "@/lib/hours";
 import { grantStandardHours } from "@/lib/standard-hours";
 import { groupEmail } from "@/lib/groups";
 import { carryForward } from "@/lib/carry-forward";
@@ -1620,8 +1620,18 @@ export async function setMentorAllocation(
   const denied = await assertProgramScope(actor, program.id);
   if (denied) return denied;
 
+  // The bank this student already holds here, whatever the setting says now.
+  // `Program.hourBank` decides whether a NEW bank is offered; a bank a student
+  // holds outlives the setting being switched off (`setProgramHourBank`), is
+  // still what their meetings draw, and so is still an admin's to add to and
+  // to give out of. Refusing that left a used-up bank with no way to hold more
+  // time at all — the mentor's grant was told to add to the bank first, and
+  // the bank was told the program had none (SAT Individuals, 19 November 2026).
+  const heldBank = await prisma.hourAllocation.findFirst({
+    where: { studentId: profile.id, programId: program.id, isBank: true },
+  });
   if (isBank) {
-    if (!program.hourBank) {
+    if (!banksIn(program, heldBank !== null)) {
       return { ok: false, error: `${program.name} doesn't use an hour bank.` };
     }
     // Admins only — the same reading of "admin" the rest of the app has:
@@ -1637,8 +1647,9 @@ export async function setMentorAllocation(
   // Programs that bill per student also record what was paid. A column on the
   // program, not a comparison against its name: renaming a program must not
   // change what the app collects. A bank program is the exception: its hours
-  // are one balance, and nobody is asked what was paid for them.
-  const tracksPayment = program.tracksPayment && !program.hourBank;
+  // are one balance, and nobody is asked what was paid for them — nor for a
+  // bank a student still holds where the program has stopped offering them.
+  const tracksPayment = program.tracksPayment && !banksIn(program, heldBank !== null);
   let enteredPaid: number | null = null;
   if (tracksPayment) {
     const raw = String(formData.get("amountPaid") ?? "").trim();
@@ -1677,11 +1688,7 @@ export async function setMentorAllocation(
   // allocate time from that hour bank to different mentors"). The minutes the
   // share gains, the bank loses, so the student's total does not move. The
   // unassigned pool beside a bank is still refused: nobody would ever draw it.
-  const bank = isBank
-    ? null
-    : await prisma.hourAllocation.findFirst({
-        where: { studentId: profile.id, programId: program.id, isBank: true },
-      });
+  const bank = isBank ? null : heldBank;
   const share = bank !== null;
   if (bank && !mentorId) {
     return {
@@ -1693,9 +1700,7 @@ export async function setMentorAllocation(
     return { ok: false, error: "Only an admin of this program can change an hour bank." };
   }
   const existing = isBank
-    ? await prisma.hourAllocation.findFirst({
-        where: { studentId: profile.id, programId: program.id, isBank: true },
-      })
+    ? heldBank
     : mentorId
       ? await prisma.hourAllocation.findUnique({
           where: {

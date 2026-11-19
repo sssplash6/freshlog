@@ -433,3 +433,18 @@ export async function bankDrawnBy(
   ]);
   return share ? null : bank;
 }
+
+/**
+ * Is a student's time in this program an hour bank — to this form, this row,
+ * this figure?
+ *
+ * Asked of the ROW as well as of the setting, and the two are not the same
+ * question. `Program.hourBank` says whether the program OFFERS banks, which an
+ * admin can switch off; a bank a student already holds is still theirs
+ * afterwards, still what `bankDrawnBy` charges their meetings to, and so still
+ * has to be shown, added to and given out of as a bank. Every place that asked
+ * the setting alone lost the bank the day the setting changed: no controls on
+ * its row, no way to add to it, and a refusal that told the admin to add to it.
+ */
+export const banksIn = (program: { hourBank: boolean }, holdsBank: boolean) =>
+  program.hourBank || holdsBank;
