@@ -30,7 +30,7 @@ export function CopyText({ value, className }: { value: string; className?: stri
         timer.current = window.setTimeout(() => setCopied(false), 1400);
       }}
       className={cn(
-        "inline cursor-copy rounded-sm text-left underline-offset-2 hover:text-ink hover:underline focus-visible:outline-2 focus-visible:outline-brand",
+        "inline cursor-copy rounded-md text-left underline-offset-2 hover:text-ink hover:underline focus-visible:outline-2 focus-visible:outline-brand",
         className
       )}
     >

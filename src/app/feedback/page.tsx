@@ -1061,7 +1061,7 @@ function ProgramLine({
         className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 hover:bg-fill/60 sm:px-5"
       >
         <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-medium text-ink">{program.name}</span>
+          <span className="min-w-0 truncate text-sm font-medium text-ink">{program.name}</span>
           {low && <StatusChip severity="attention">Low</StatusChip>}
         </span>
         <span className="flex items-baseline gap-4">

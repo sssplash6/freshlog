@@ -382,7 +382,7 @@ export function StudentsTable({
               )}
               {/* Under the address, in line with it (avatar 32 + gap 10). */}
               {cohort && (
-                <span title={cohort} className="mt-1 block truncate pl-12 text-xs text-muted-fg">
+                <span title={cohort} className="mt-1 block min-w-0 truncate pl-12 text-xs text-muted-fg">
                   {cohort}
                 </span>
               )}

@@ -5,6 +5,8 @@ import { dirname, join, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
 
+import { isoOf } from "@/lib/calendar";
+
 /** How many days of daily backups stay on the disk. */
 export const KEEP_DAYS = 30;
 
@@ -52,7 +54,7 @@ export async function backupDatabase(now = new Date(), keepDays = KEEP_DAYS): Pr
   const dir = join(dirname(source), "backups");
   await mkdir(dir, { recursive: true });
 
-  const day = now.toISOString().slice(0, 10);
+  const day = isoOf(now.getTime());
   const plain = join(dir, `.app-${day}.db.tmp`);
   const zipped = join(dir, `.app-${day}.db.gz.tmp`);
   const final = join(dir, `app-${day}.db.gz`);
@@ -81,7 +83,7 @@ export async function backupDatabase(now = new Date(), keepDays = KEEP_DAYS): Pr
     await rm(zipped, { force: true });
   }
 
-  const cutoff = new Date(now.getTime() - keepDays * 86_400_000).toISOString().slice(0, 10);
+  const cutoff = isoOf(now.getTime() - keepDays * 86_400_000);
   const names = (await readdir(dir)).filter((n) => NAME.test(n)).sort().reverse();
   const pruned = names.filter((n) => NAME.exec(n)![1] < cutoff);
   for (const old of pruned) await rm(join(dir, old), { force: true });

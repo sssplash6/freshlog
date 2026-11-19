@@ -66,11 +66,17 @@ const RULES = [
       // each layout is the whole shell.
       "src/app/f/[slug]/(form)/layout.tsx",
       "src/app/f/[slug]/staff/layout.tsx",
+      // The public pages the App Store listing links to: each is its own shell.
+      "src/app/privacy/page.tsx",
+      "src/app/support/page.tsx",
       "src/components/sidebar.tsx",
       "src/components/tab-bar.tsx",
       // Deliberately large quiet areas.
       // The headline panel: one per page, and its figure is the point of the page.
       "src/components/ui/stat-strip.tsx",
+      // Feedback's score card is the StatStrip shape, drawn in place for its
+      // bars, and keeps the strip's padding so the two read as one panel.
+      "src/app/feedback/page.tsx",
       // ...and its loading shape, which has to stand exactly where it will.
       "src/components/page-skeleton.tsx",
       "src/components/ui/empty-state.tsx",
