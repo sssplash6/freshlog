@@ -8,6 +8,8 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ### New
 - **Each mentor's ratings have their own breakdown.** Opening one mentor now shows, under their name, their combined score, how their ratings spread from 1 to 5 stars, their written and meeting counts, and their score in each program. All of it counts that mentor's ratings only.
+- **See who logged each day's hours.** In Analytics, open a month and click a day in its chart to see each mentor's hours that day. Click another day to switch, or the cross to close it.
+- **A mentor's rating sits beside their rank.** A mentor's Analytics page now shows their rating at the top, the same score Feedback gives for that program and period. Click it to see the ratings. It shows only to people who can read that mentor's ratings on Feedback.
 
 ### Fixed
 - **Written ratings without a comment say so.** A rating left with no comment now reads "No comment, rating only" instead of showing an empty row.

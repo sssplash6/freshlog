@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { analyticsData, instituteAnalyticsData } from "@/lib/analytics";
+import { analyticsRatings } from "@/lib/analytics-ratings";
 import { canActAsMentor, ROLES } from "@/lib/constants";
 import { requireRole } from "@/lib/dal";
 import { profileOf } from "@/lib/profile";
@@ -56,10 +57,14 @@ export default async function AnalyticsPage({
   const data = inInstitute
     ? await instituteAnalyticsData(space.programId)
     : await analyticsData(undefined);
+  // A mentor's rating beside their rank, through /feedback's own gate. Not in
+  // an institute's frame: its "programs" are levels, which no rating names.
+  const ratings = inInstitute ? null : await analyticsRatings(viewer, data);
 
   return (
     <Dashboard
       data={data}
+      ratings={ratings}
       audience={asMentor ? "mentor" : "staff"}
       selfMentorId={asMentor ? viewer.id : undefined}
       frame={inInstitute ? { kind: "institute", name: space.name } : { kind: "school" }}

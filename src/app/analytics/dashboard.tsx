@@ -11,12 +11,14 @@ import { Input } from "@/components/ui/field";
 import { Popover } from "@/components/ui/popover";
 import { PageTitle, Section } from "@/components/ui/section";
 import type { AnalyticsData, AnalyticsMentor, AnalyticsProgram, AnalyticsRow } from "@/lib/analytics";
+import type { AnalyticsRatings } from "@/lib/analytics-ratings";
 import {
   byDay,
   byMonth,
   change,
   dateOf,
   dayKeyOf,
+  daysIn,
   drawnByProgram,
   grantOf,
   hoursByDay,
@@ -115,6 +117,7 @@ function colorOf(data: AnalyticsData, program: number): string {
 
 export function Dashboard({
   data,
+  ratings = null,
   today,
   audience = "staff",
   selfMentorId,
@@ -122,6 +125,11 @@ export function Dashboard({
   elsewhere,
 }: {
   data: AnalyticsData;
+  /**
+   * The ratings the reader may read on /feedback, for the score beside a
+   * mentor's rank; null when they may read none (`lib/analytics-ratings.ts`).
+   */
+  ratings?: AnalyticsRatings | null;
   today: Today;
   /** The school, or one institute with its levels in the program slots. */
   frame?: Frame;
@@ -313,7 +321,15 @@ export function Dashboard({
       ) : (
         <div key={`${level}`} className={cn(s.enter, "space-y-4")}>
           {mentor != null && (
-            <MentorScope data={data} view={view} go={go} ranked={audience === "staff"} words={words} period={period} />
+            <MentorScope
+              data={data}
+              view={view}
+              go={go}
+              ranked={audience === "staff"}
+              words={words}
+              period={period}
+              ratings={ratings && (ratings.reach === "all" || self) ? ratings : null}
+            />
           )}
           <Hero data={data} view={view} today={today} yearRows={yearRows} periodRows={periodRows} />
           <MonthsCard data={data} view={view} go={go} yearRows={yearRows} />
@@ -903,6 +919,14 @@ function MonthsCard({
   const { year, month } = view;
   const { segments, legend } = useMemo(() => seriesFor(data, view, yearRows), [data, view, yearRows]);
 
+  // The day picked in the month's chart, for its mentors. Remembered with the
+  // view it was picked in, so another month, program or year starts closed.
+  // Only where the chart holds more than one mentor: on a mentor's own page
+  // the breakdown would be one row repeating the bar.
+  const dayScope = `${year}-${month}-${view.program}-${view.mentor}`;
+  const [picked, setPicked] = useState<{ scope: string; day: number } | null>(null);
+  const pickedDay = view.mentor == null && picked?.scope === dayScope ? picked.day : null;
+
   const columns = useMemo<Column[]>(() => {
     const buckets: AnalyticsRow[][] = Array.from({ length: 12 }, () => []);
     for (const r of yearRows) buckets[monthOf(r[3])].push(r);
@@ -984,10 +1008,119 @@ function MonthsCard({
               )}
             </div>
           </div>
-          <Columns columns={days} height={140} thin labelEvery={days.length > 20 ? 5 : 1} />
+          <Columns
+            columns={days}
+            height={140}
+            thin
+            labelEvery={days.length > 20 ? 5 : 1}
+            selected={pickedDay}
+            onSelect={
+              view.mentor == null
+                ? (i) => setPicked(pickedDay === i ? null : { scope: dayScope, day: i })
+                : undefined
+            }
+            hint="Click to see each mentor's hours"
+          />
+          {pickedDay != null && days[pickedDay] && (
+            <DayMentors
+              key={pickedDay}
+              data={data}
+              title={days[pickedDay].title}
+              rows={yearRows.filter((r) => monthOf(r[3]) === month && dateOf(r[3]) === pickedDay + 1)}
+              onOpen={(m) => go({ mentor: m })}
+              onClose={() => setPicked(null)}
+            />
+          )}
         </div>
       )}
     </Section>
+  );
+}
+
+/**
+ * One day of the month chart, by mentor: who logged the hours on the bar, with
+ * each mentor's share of it. The same rows the bar adds up, so the list sums
+ * to the bar's figure — in plan, extra and missed, as everywhere on this page.
+ */
+function DayMentors({
+  data,
+  title,
+  rows,
+  onOpen,
+  onClose,
+}: {
+  data: AnalyticsData;
+  title: string;
+  rows: AnalyticsRow[];
+  onOpen: (mentor: number) => void;
+  onClose: () => void;
+}) {
+  const ranked = useMemo(() => rankBy(rows, rows, 1), [rows]);
+  const total = ranked.reduce((sum, r) => sum + r.hours, 0);
+  const top = ranked[0]?.hours ?? 0;
+  return (
+    <div className={cn(s.enter, "mt-3 rounded-lg bg-fill/60")} role="region" aria-label={`Mentors on ${title}`}>
+      <div className="flex items-center justify-between gap-3 border-b border-line px-3 py-2">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+          <h4 className="text-body font-semibold text-ink">{title}</h4>
+          <span className="text-xs text-muted-fg">
+            <span className="font-medium tabular-nums text-ink">{formatDuration(total)}</span> ·{" "}
+            {count(ranked.length, "mentor")}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="grid h-11 w-11 place-items-center rounded-md text-muted-fg transition-colors hover:bg-surface hover:text-ink sm:h-8 sm:w-8"
+          aria-label="Close this day"
+          onClick={onClose}
+        >
+          <XIcon className="h-4 w-4" />
+        </button>
+      </div>
+      {ranked.length === 0 ? (
+        <p className="px-3 py-3 text-body text-muted-fg">No sessions logged on this day.</p>
+      ) : (
+        <div className="divide-y divide-line">
+          {ranked.map((r) => {
+            const mentor = data.mentors[r.index];
+            const scale = top ? 100 / top : 0;
+            return (
+              <button
+                key={r.index}
+                type="button"
+                className="group grid min-h-11 w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-surface"
+                onClick={() => onOpen(r.index)}
+              >
+                <MentorAvatar mentor={mentor} />
+                <span className="flex min-w-0 flex-col">
+                  <span className="min-w-0 truncate text-body font-medium text-ink">{mentor.name}</span>
+                  <span className="mt-1 flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-fill" aria-hidden>
+                    <span className={s.barSeg} style={{ width: `${r.completed * scale}%`, background: HOURS }} />
+                    {r.extra > 0 && (
+                      <span
+                        className={s.barSeg}
+                        style={{ width: `${r.extra * scale}%`, background: HOURS, opacity: EXTRA_OPACITY }}
+                      />
+                    )}
+                    {r.noShow > 0 && (
+                      <span className={s.barSeg} style={{ width: `${r.noShow * scale}%`, background: fillOf(HOURS, true) }} />
+                    )}
+                  </span>
+                  <span className="mt-1 min-w-0 truncate text-xs text-muted-fg">
+                    {meetingsOf(r)} {meetingsOf(r) === 1 ? "session" : "sessions"}
+                    {r.noShows ? ` (${r.noShows} missed)` : ""} · {r.students} {r.students === 1 ? "student" : "students"}
+                  </span>
+                </span>
+                <span className="min-w-12 whitespace-nowrap text-right text-body font-semibold tabular-nums text-ink">
+                  {formatDuration(r.hours)}
+                </span>
+                <ChevronRightIcon className="h-4 w-4 text-muted-fg transition-transform group-hover:translate-x-0.5" />
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1635,6 +1768,7 @@ function MentorScope({
   ranked = true,
   words,
   period,
+  ratings = null,
 }: {
   words: Words;
   data: AnalyticsData;
@@ -1644,8 +1778,44 @@ function MentorScope({
   ranked?: boolean;
   /** The period inside a sentence, from `periodLabel`. */
   period: string;
+  /** Ratings the reader may read of this mentor; null shows no rating at all. */
+  ratings?: AnalyticsRatings | null;
 }) {
   const { year, program, mentor } = view;
+
+  // Their Combined score on /feedback, for the same program and days: every
+  // rating of either kind, pooled — the sum over the count, never an average
+  // of the two averages (`mentor-standing.ts`).
+  const rating = useMemo(() => {
+    if (!ratings || mentor == null) return null;
+    const { from, to, year: y, month: mo } = periodOf(view);
+    let sum = 0;
+    let n = 0;
+    for (const [m, day, score, ...programs] of ratings.rows) {
+      if (m !== mentor) continue;
+      if (from != null && day < from) continue;
+      if (to != null && day > to) continue;
+      if (y != null && yearOf(day) !== y) continue;
+      if (mo != null && monthOf(day) !== mo) continue;
+      if (program != null && !programs.includes(program)) continue;
+      sum += score;
+      n += 1;
+    }
+    return { average: n ? sum / n : null, count: n };
+  }, [ratings, view, program, mentor]);
+
+  // The same view on /feedback, where the ratings behind the figure are listed.
+  const feedbackHref = useMemo(() => {
+    if (mentor == null) return "/feedback";
+    const { from, to, year: y, month: mo } = periodOf(view);
+    const iso = (k: number) =>
+      `${yearOf(k)}-${String(monthOf(k) + 1).padStart(2, "0")}-${String(dateOf(k)).padStart(2, "0")}`;
+    const first = from ?? (y! * 10000 + ((mo ?? 0) + 1) * 100 + 1);
+    const last = to ?? (y! * 10000 + ((mo ?? 11) + 1) * 100 + daysIn(y!, mo ?? 11));
+    const q = new URLSearchParams({ mentor: data.mentors[mentor].id, from: iso(first), to: iso(last) });
+    if (program != null) q.set("program", data.programs[program].id);
+    return `/feedback?${q.toString()}`;
+  }, [data, view, program, mentor]);
 
   // Every program this mentor has hours in this year, for the switcher.
   const theirPrograms = useMemo(() => {
@@ -1687,10 +1857,32 @@ function MentorScope({
           Works in {data.programs[theirPrograms[0]]?.name}
         </span>
       )}
-      {ranked && standing && (
-        <span className="text-xs text-muted-fg">
-          <span className="font-medium tabular-nums text-ink">#{standing.rank}</span> of {standing.of} mentors
-          {program != null ? ` in ${data.programs[program].name}` : ""} · {period}
+      {((ranked && standing) || rating) && (
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-fg">
+          {rating && (
+            <a
+              href={feedbackHref}
+              className="inline-flex items-center gap-1 rounded-md transition-colors hover:text-ink"
+              title="Combined rating on Feedback: the mentor form and single meetings"
+            >
+              {rating.average === null ? (
+                <span>No ratings</span>
+              ) : (
+                <>
+                  <span aria-hidden className="text-ink">★</span>
+                  <span className="font-medium tabular-nums text-ink">{rating.average.toFixed(1)}</span>
+                  <span>· {count(rating.count, "rating")}</span>
+                </>
+              )}
+              {!(ranked && standing) && <span>· {period}</span>}
+            </a>
+          )}
+          {ranked && standing && (
+            <span>
+              <span className="font-medium tabular-nums text-ink">#{standing.rank}</span> of {standing.of} mentors
+              {program != null ? ` in ${data.programs[program].name}` : ""} · {period}
+            </span>
+          )}
         </span>
       )}
     </div>
