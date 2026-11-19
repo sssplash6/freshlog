@@ -7,12 +7,12 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-11-19
 
 ### Fixed
-- **Existing hour banks can be added to again.** When a program stopped offering hour banks, a student who still held one could be given no more time. Giving a mentor time said to add to the bank first, and the bank itself could not be added to. Admins can now add to a bank a student already holds, give mentors time from it and manage it on the student's page. New banks are still made only where the program offers them.
+- **Existing hour banks can be added to again.** When a program stopped offering hour banks, a student who still held one could be given no more time: the app said to add to the bank first, and the bank could not be added to. Admins can now add to such a bank, give mentors time from it and manage it on the student's page.
 
 ## 2026-11-09
 
 ### Fixed
-- **Topping up a mentor who has used more than their share works again.** When a mentor had already used more time than they were given from a student's hour bank, giving them more was refused unless it covered everything they had used. Now any top-up goes through. Cutting a share still can't take it below what the mentor has used.
+- **Topping up an overdrawn share works again.** When a mentor had already used more time than they were given from a student's hour bank, giving them more was refused unless it covered everything they had used. Now any top-up goes through. Cutting a share still can't take it below what the mentor has used.
 
 ## 2026-11-06
 
