@@ -72,6 +72,20 @@ describe("GET and POST /api/v1/feedback", () => {
     expect(await prisma.notification.count({ where: { userId: m.id } })).toBe(0);
   });
 
+  // The app's form does not tell the student that a mentor who administers
+  // their program would see who wrote it, so nothing it sends is marked as
+  // named: that mentor reads it anonymous, as the app promised.
+  it("never marks a rating sent from the app as named to the mentor, even one who administers the program", async () => {
+    const p = await program();
+    const s = await student({ programId: p.id });
+    const m = await mentor();
+    await grant({ userId: m.id, programId: p.id });
+    await pairing({ mentorId: m.id, programId: p.id });
+    actor.value = { id: s.userId };
+    expect(await (await post({ mentor: m.id, rating: 2, comment: "Late twice.", toldNamed: m.id })).json()).toMatchObject({ ok: true });
+    expect((await prisma.mentorFeedback.findFirstOrThrow({ where: { mentorId: m.id } })).namedToMentor).toBe(false);
+  });
+
   it("refuses a mentor the student doesn't work with, and a rating out of range, on their fields", async () => {
     const s = await student();
     const stranger = await mentor();

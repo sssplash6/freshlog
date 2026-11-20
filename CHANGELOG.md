@@ -4,16 +4,21 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-11-20
+
+### New
+- **Admins see who rated their own meetings.** If you mentor in a program you administer, Feedback now names the student on each rating of your own meetings, as it does for every other mentor's. Students rating such a meeting are told their name goes with it.
+- **New written ratings of an admin carry a name.** When a student rates a mentor who administers their program, the form now says that mentor will see who wrote it, and Feedback names the student to them. Ratings written before this, or sent from the app, stay anonymous to the mentor.
+
 ## 2026-11-19
 
 ### New
-- **Each mentor's ratings have their own breakdown.** Opening one mentor now shows, under their name, their combined score, how their ratings spread from 1 to 5 stars, their written and meeting counts, and their score in each program. All of it counts that mentor's ratings only.
-- **See who logged each day's hours.** In Analytics, open a month and click a day in its chart to see each mentor's hours that day. Click another day to switch, or the cross to close it.
-- **A mentor's rating sits beside their rank.** A mentor's Analytics page now shows their rating at the top, the same score Feedback gives for that program and period. Click it to see the ratings. It shows only to people who can read that mentor's ratings on Feedback.
+- **Each mentor's ratings have their own breakdown.** Opening one mentor now shows, under their name, their combined score, how their ratings spread from 1 to 5 stars, how many of their ratings need attention (2 stars or fewer), their written and meeting counts, and their score in each program. All of it counts that mentor's ratings only.
+- **See who logged each day's hours.** In Analytics, open a month and click a day to see each mentor's hours that day. On one mentor's page the day shows their hours by program, and a day in the year grid opens it too. The day stays in the link, so you can reload or send it.
+- **A mentor's rating sits beside their rank.** A mentor's Analytics page now shows their rating at the top, with stars and the number of ratings: the score Feedback gives for that program and period. Click it to see the ratings. Admins and leaders see it for the mentors whose ratings they read on Feedback; mentors read their own there.
 
 ### Fixed
 - **Written ratings without a comment say so.** A rating left with no comment now reads "No comment, rating only" instead of showing an empty row.
-- **Your own meeting ratings say why they're unnamed.** Admins who mentor still don't see which student rated their own meetings, and the list now says so.
 - **Report a mentor is easier to read in dark mode.** The red button's label now uses dark text in dark mode, which stands out more against the lighter red.
 - **Existing hour banks can be added to again.** When a program stopped offering hour banks, a student who still held one could be given no more time: the app said to add to the bank first, and the bank could not be added to. Admins can now add to such a bank, give mentors time from it and manage it on the student's page.
 

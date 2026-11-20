@@ -194,10 +194,10 @@ describe("GET /api/v1/ratings: meeting ratings, as the rebuilt page counts them"
     expect(body.filters.summary).toBe("1 rating matches these filters");
   });
 
-  // The website lists an admin's own meetings without the student's name. An
-  // installed app from before 30 October 2026 draws every meeting rating as
-  // "student → mentor" and would break on a row without one, so it gets none
-  // of them: only an app that says it can draw one (nameless=1) does.
+  // The website lists an admin's own meetings. From 30 October to 20 November
+  // 2026 it named no student on them, and an installed app from before then,
+  // which would have broken on such a row, got none of them: only an app that
+  // asks (nameless=1) does. The rows name the student now; the switch stays.
   it("never lists the reader's own meetings to an app that doesn't ask, though their score counts them", async () => {
     const { ga, high, aziz } = await scene();
     await grant({ userId: high.id, programId: ga.id });
@@ -208,7 +208,7 @@ describe("GET /api/v1/ratings: meeting ratings, as the rebuilt page counts them"
     expect([...body.attention, ...body.mentors].find((m: { mentor: { id: string } }) => m.mentor.id === high.id).meetings.count).toBe(1);
   });
 
-  it("lists an admin their own meetings, naming nobody, when the app asks with nameless=1", async () => {
+  it("lists an admin their own meetings, with the student, when the app asks with nameless=1", async () => {
     const { ga, low, high, aziz } = await scene();
     await grant({ userId: high.id, programId: ga.id });
     await rated(aziz.id, high.id, ga.id, 3, "About me");
@@ -217,9 +217,8 @@ describe("GET /api/v1/ratings: meeting ratings, as the rebuilt page counts them"
     const body = await (await getRatings("?nameless=1")).json();
     expect(body.meetingTotal).toBe(2);
     const about = (note: string) => body.meetingRatings.find((r: { note: string }) => r.note === note);
-    expect(about("About me")).toMatchObject({ rating: 3, mentor: { id: high.id, name: "Dilnoza High" }, student: null, program: "Global Admissions" });
-    expect(JSON.stringify(about("About me"))).not.toContain("Aziz");
-    // Everybody else's stay named, as on the website.
+    expect(about("About me")).toMatchObject({ rating: 3, mentor: { id: high.id, name: "Dilnoza High" }, student: { id: aziz.userId, name: "Aziz Tursunov" }, program: "Global Admissions" });
+    // Everybody else's are named too, as on the website.
     expect(about("About Akmal").student).toEqual({ id: aziz.userId, name: "Aziz Tursunov" });
     // The app's word is not one of the page's filters.
     expect(body.filters.summary).toBeNull();

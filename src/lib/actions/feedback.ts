@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { mentorsNamedTo } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { NOTIFICATION_TYPES, ROLES } from "@/lib/constants";
@@ -33,6 +34,13 @@ async function requireStudentProfile() {
  * relevant to the student: currently assigned to their program (or cohort),
  * or someone they've had a session with. The writer's name is shown to their
  * admins and to nobody else — anonymous to the mentor and to leaders.
+ *
+ * Except a mentor who IS one of those admins, from 20 November 2026, and only
+ * where the student was told first. The form names the mentor it warned about
+ * in `toldNamed`; the rating is marked `namedToMentor` when that is this
+ * mentor AND they do administer one of the student's programs. A form that
+ * says nothing (the app's, an old page) marks nothing, so its rating stays
+ * anonymous to the mentor, as it promised.
  */
 export async function submitMentorFeedback(
   _prev: ActionState,
@@ -60,6 +68,19 @@ export async function submitMentorFeedback(
     return { ok: false, error: "Pick one of your mentors." };
   }
 
+  const told = String(formData.get("toldNamed") ?? "") === mentorId;
+  const namedToMentor =
+    told &&
+    (
+      await mentorsNamedTo(
+        await prisma.user.findMany({
+          where: { id: mentorId },
+          select: { id: true, platformAdmin: true },
+        }),
+        profile.enrollments.map((e) => e.programId)
+      )
+    ).has(mentorId);
+
   // Every program the student is in: a rating is about a mentor they work
   // with, and which of their programs that mentor sits in is not a question the
   // student was asked. The admins of all of them hear it.
@@ -69,7 +90,7 @@ export async function submitMentorFeedback(
 
   await prisma.$transaction(async (tx) => {
     await tx.mentorFeedback.create({
-      data: { studentId: profile.id, mentorId, rating, comment },
+      data: { studentId: profile.id, mentorId, rating, comment, namedToMentor },
     });
     // The rating, not the comment. A low score is the thing staff need to see
     // today; what the student wrote about their mentor belongs on the feedback

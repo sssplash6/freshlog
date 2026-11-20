@@ -977,6 +977,14 @@ model MentorFeedback {
   comment   String?
   createdAt DateTime @default(now())
 
+  // The form this was sent from told the student that this mentor administers
+  // one of their programs and would read it WITH their name. A written rating
+  // is anonymous to the mentor it is about ("Your mentor can't see who wrote
+  // this") unless this is set, and it is set only when the student was told
+  // before they sent it: never on a rating from before 20 November 2026, and
+  // never on one from a form that did not say so (the app's, until it does).
+  namedToMentor Boolean @default(false)
+
   student StudentProfile @relation(fields: [studentId], references: [id])
   mentor  User           @relation("FeedbackMentor", fields: [mentorId], references: [id])
 }

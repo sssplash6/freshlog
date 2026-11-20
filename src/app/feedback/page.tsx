@@ -96,6 +96,9 @@ function count(n: number, one: string): string {
   return `${n} ${one}${n === 1 ? "" : "s"}`;
 }
 
+/** The Rating filter's "2 stars or fewer", which the Low chip and a mentor's Need attention figure both set. */
+const LOW_RANGE = `1-${LOW_RATING}`;
+
 /** The same page with one rating narrowed to, or widened back out when it is on. */
 function starHref(params: SearchParams, star: number): string {
   const on = readRatingRange(params) === star;
@@ -370,15 +373,22 @@ async function AllRatings({
   const meetingsNone = focus !== null && !kind && meetingStats._count === 0 && stats._count > 0;
   const showWritten = wantWritten && !writtenNone;
   const showMeetings = wantMeetings && !meetingsNone;
-  // Ratings of the reader's own meetings listed with no student named, so the
-  // list can say why the name is missing.
-  const ownUnnamed = meetingList.some((s) => s.student === null);
 
   // The overview and the programs, read through the page's filters. Opened on
   // one mentor they are that mentor's alone, and they move under the mentor's
   // header: the click lands there, and above it they sat out of sight, so a
-  // mentor's page read as having no breakdown at all. "Need attention" is a
-  // count of mentors, which says nothing about one.
+  // mentor's page read as having no breakdown at all.
+  //
+  // "Need attention" counts mentors on the school's card. One mentor's card
+  // keeps the figure, and the three-figure shape Valera asked to see on every
+  // mentor, by counting what there is to look at about them: their ratings of
+  // `LOW_RATING` or lower. It leads to those ratings, as the Low chip does.
+  const starCounts = tallyStars([
+    ...formSpread.map((r) => [r.rating, r._count._all] as const),
+    ...meetingSpread.map((r) => [r.studentRating, r._count._all] as const),
+  ]);
+  const lowRatings = starCounts.slice(0, LOW_RATING).reduce((n, c) => n + c, 0);
+  const lowOn = readParam(params, "rating") === LOW_RANGE;
   const overview = (
     <Overview
           average={avg}
@@ -391,28 +401,31 @@ async function AllRatings({
                 : kind === "meetings"
                   ? "Meeting ratings"
                   : "Every rating",
-            counts: tallyStars([
-              ...formSpread.map((r) => [r.rating, r._count._all] as const),
-              ...meetingSpread.map(
-                (r) => [r.studentRating, r._count._all] as const
-              ),
-            ]),
+            counts: starCounts,
           }}
           starHref={(star) => starHref(params, star)}
           activeStar={typeof range === "number" ? range : undefined}
           clearHref={range === undefined ? undefined : clearRating}
           figures={[
-            ...(focus
-              ? []
-              : [
-                  {
-                    label: "Need attention",
-                    value: String(lowCount),
-                    hint: `of ${count(mentors.length, "mentor")}`,
-                    tone: lowCount > 0 ? ("attention" as const) : ("ink" as const),
-                    href: lowCount > 0 ? "#attention" : undefined,
-                  },
-                ]),
+            focus
+              ? {
+                  label: "Need attention",
+                  value: String(lowRatings),
+                  hint: `of ${count(ratedCount, "rating")}`,
+                  tone: lowRatings > 0 ? ("attention" as const) : ("ink" as const),
+                  href:
+                    lowRatings > 0
+                      ? filterHref("/feedback", params, { rating: lowOn ? undefined : LOW_RANGE })
+                      : undefined,
+                  active: lowOn,
+                }
+              : {
+                  label: "Need attention",
+                  value: String(lowCount),
+                  hint: `of ${count(mentors.length, "mentor")}`,
+                  tone: lowCount > 0 ? ("attention" as const) : ("ink" as const),
+                  href: lowCount > 0 ? "#attention" : undefined,
+                },
             {
               label: "Written ratings",
               value: String(writtenAll ?? general),
@@ -635,18 +648,10 @@ async function AllRatings({
             title="Meeting ratings"
             count={meetingStats._count}
             caption={
-              (ownUnnamed || kind) && (
-              <>
-                {/* The 30 October decision, said where it shows: an admin
-                    asked who had rated them and read "Anonymous" as a gap. */}
-                {ownUnnamed && "Ratings of your own meetings don't name the student."}
-                {ownUnnamed && kind && " "}
-                {kind && (
-                  <Link href={bothKinds} scroll={false} className="text-brand hover:underline">
-                    Show written ratings too
-                  </Link>
-                )}
-              </>
+              kind && (
+                <Link href={bothKinds} scroll={false} className="text-brand hover:underline">
+                  Show written ratings too
+                </Link>
               )
             }
           >
@@ -681,10 +686,9 @@ async function AllRatings({
                     mentor={s.mentor}
                     aside={formatDate(s.date)}
                     text={s.studentNote}
-                    // The reader's own meetings name nobody.
-                    meta={`${
-                      s.student ? (s.student.name ?? s.student.email) : "Anonymous"
-                    } · ${s.program.name}`}
+                    // Named on every row, the reader's own meetings included
+                    // (20 November 2026, `staffFeedback`).
+                    meta={`${s.student.name ?? s.student.email} · ${s.program.name}`}
                   />
                 ))}
               </ul>

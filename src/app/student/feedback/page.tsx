@@ -7,6 +7,7 @@ import { Rating } from "@/components/rating";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageTitle, Section } from "@/components/ui/section";
+import { mentorsNamedTo } from "@/lib/authz";
 import { ROLES } from "@/lib/constants";
 import { requireRole } from "@/lib/dal";
 import { formatDate } from "@/lib/format";
@@ -42,7 +43,7 @@ export default async function StudentFeedbackPage({
 
   const profile = await prisma.studentProfile.findUnique({
     where: { userId: user.id },
-    select: { id: true },
+    select: { id: true, enrollments: { select: { programId: true } } },
   });
   if (!profile) redirect("/onboarding");
 
@@ -62,12 +63,20 @@ export default async function StudentFeedbackPage({
     }),
   ]);
 
-  const mentors = [
+  const rateable = [
     ...hours.perMentor.flatMap((m) => (m.mentor ? [m.mentor] : [])),
     ...met.map((s) => s.mentor),
-  ]
-    .filter((m, i, all) => all.findIndex((x) => x.id === m.id) === i)
-    .map((m) => ({ id: m.id, label: m.name ?? m.email }))
+  ].filter((m, i, all) => all.findIndex((x) => x.id === m.id) === i);
+  // A mentor who administers one of this student's programs reads the rating
+  // with their name (20 November 2026). The form says so for that mentor
+  // before anything is sent, where it tells everyone else "Your mentor can't
+  // see who wrote this".
+  const named = await mentorsNamedTo(
+    rateable,
+    profile.enrollments.map((e) => e.programId)
+  );
+  const mentors = rateable
+    .map((m) => ({ id: m.id, label: m.name ?? m.email, seesName: named.has(m.id) }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
   // A deep link from a past session — "rate the person you just met" — but only

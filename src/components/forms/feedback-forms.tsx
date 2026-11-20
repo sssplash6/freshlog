@@ -100,10 +100,16 @@ export function MentorFeedbackForm({
   /** From `/student/feedback?mentor=` — the person a "Rate" link came from. */
   defaultMentorId,
 }: {
-  mentors: { id: string; label: string }[];
+  /** `seesName`: they administer one of the student's programs, so the rating reaches them named. */
+  mentors: { id: string; label: string; seesName?: boolean }[];
   defaultMentorId?: string;
 }) {
   const [, action, save] = useSaveState(submitMentorFeedback);
+  // The promise under Comment is about the mentor chosen. "Your mentor can't
+  // see who wrote this" is true of every mentor but one who administers the
+  // student's program, and that one it must not be said about.
+  const [mentorId, setMentorId] = useState(defaultMentorId ?? "");
+  const chosen = mentors.find((m) => m.id === mentorId);
 
   return (
     // No heading of its own: the page's title says "Report a mentor" directly
@@ -123,7 +129,11 @@ export function MentorFeedbackForm({
               title="Mentor"
               defaultValue={defaultMentorId ?? ""}
               options={mentors.map((m) => ({ value: m.id, label: m.label }))}
+              onChange={setMentorId}
             />
+            {/* Who the student was warned about, so the rating is marked as
+                named only when this form said so (`submitMentorFeedback`). */}
+            <input type="hidden" name="toldNamed" value={chosen?.seesName ? chosen.id : ""} />
           </div>
         </div>
         <StarRating name="rating" idPrefix="mentor-rating" />
@@ -131,7 +141,9 @@ export function MentorFeedbackForm({
           <span className="block text-sm font-medium text-ink">Comment</span>
           {/* Under the label, where the worry starts. */}
           <span className="block text-xs text-muted-fg">
-            Your mentor can&apos;t see who wrote this.
+            {chosen?.seesName
+              ? `${chosen.label} is an admin of your program, so they will see who wrote this.`
+              : "Your mentor can't see who wrote this."}
           </span>
           <textarea
             name="comment"

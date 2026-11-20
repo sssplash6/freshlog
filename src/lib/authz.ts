@@ -102,14 +102,45 @@ export function scopeIsEmpty(scope: AdminScope): boolean {
 }
 
 /**
+ * Which of these mentors would read a WRITTEN rating by a student of these
+ * programs with the student's name: a mentor who administers one of them, by
+ * an ADMIN grant or as a platform admin — the same admin a written rating's
+ * writer is named to about any other mentor (`staffFeedback`'s `namesFor`).
+ *
+ * The form asks this before it promises anything, so it can say "they will
+ * see who wrote this" in place of "Your mentor can't see who wrote this", and
+ * `submitMentorFeedback` asks it again before it records that the student was
+ * told (`MentorFeedback.namedToMentor`).
+ */
+export async function mentorsNamedTo(
+  mentors: readonly { id: string; platformAdmin: boolean }[],
+  programIds: readonly string[]
+): Promise<Set<string>> {
+  const asked = mentors.filter((m) => !m.platformAdmin);
+  const grants =
+    asked.length === 0 || programIds.length === 0
+      ? []
+      : await prisma.programStaff.findMany({
+          where: {
+            role: "ADMIN",
+            userId: { in: asked.map((m) => m.id) },
+            programId: { in: [...programIds] },
+          },
+          select: { userId: true },
+        });
+  const granted = new Set(grants.map((g) => g.userId));
+  return new Set(mentors.filter((m) => m.platformAdmin || granted.has(m.id)).map((m) => m.id));
+}
+
+/**
  * Which of these meetings' own mentor reads the student's rating of it: a
  * mentor who administers the meeting's program, by an ADMIN grant on it or as
  * a platform admin — `adminWriteScope`'s answer, asked of the mentor.
  *
  * Since 30 October 2026 the Feedback page lists such a mentor the ratings of
- * their own meetings there, without the student's name (`staffFeedback`), so
- * the form that asks for a rating must not tell the student their mentor won't
- * see it. One read for every mentor on the page.
+ * their own meetings there, and since 20 November 2026 with the student's
+ * name (`staffFeedback`), so the form that asks for a rating must not tell the
+ * student their mentor won't see it. One read for every mentor on the page.
  */
 export async function ratingSeenByMentor(
   meetings: readonly {

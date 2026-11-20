@@ -24,12 +24,13 @@ const figures = (k: { count: number; average: number | null }): RatingFigures =>
  * Staff: the combined score of written and meeting ratings, its spread, the
  * mentors who need a look and everyone else, the score per program, the newest
  * written ratings (the student named only where the reader administers one of
- * the writer's programs, and never to the mentor rated) and the newest meeting
+ * the writer's programs, and to the mentor rated only where the form told the
+ * student so first, `MentorFeedback.namedToMentor`) and the newest meeting
  * ratings, through the page's filters. The reader's own meetings, which the
- * website lists an admin without the student's name, go only to an app that
- * asks with `nameless=1`: until 30 October 2026 the app's meeting line named a
- * student on every row, and an installed build from before then never asks,
- * so it is never sent a row without one. A mentor with no
+ * website lists an admin, go only to an app that asks with `nameless=1`: from
+ * 30 October to 20 November 2026 those rows named no student, and an installed
+ * build from before then never asks. They name the student now, as the website
+ * does; the switch stays so each build is sent what it was sent before. A mentor with no
  * readable grant: their combined score, its spread over both kinds, and their
  * own written ratings, anonymous.
  */
@@ -119,8 +120,8 @@ export async function ratingsPageFor(user: User, params: SearchParams): Promise<
       rating: s.studentRating ?? 0,
       note: s.studentNote,
       mentor: { id: s.mentor.id, name: nameOf(s.mentor) },
-      // Nobody, on the reader's own meetings, as the website lists them.
-      student: s.student ? { id: s.student.id, name: nameOf(s.student) } : null,
+      // Named on every row since 20 November 2026, the reader's own included.
+      student: { id: s.student.id, name: nameOf(s.student) },
       program: s.program.name,
     })),
     meetingAverage: read.meetingStats._avg.studentRating,

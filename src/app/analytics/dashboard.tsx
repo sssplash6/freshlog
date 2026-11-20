@@ -126,8 +126,9 @@ export function Dashboard({
 }: {
   data: AnalyticsData;
   /**
-   * The ratings the reader may read on /feedback, for the score beside a
-   * mentor's rank; null when they may read none (`lib/analytics-ratings.ts`).
+   * The ratings a staff reader may read on /feedback, for the score beside a
+   * mentor's rank; null for a mentor, who is sent none
+   * (`lib/analytics-ratings.ts`).
    */
   ratings?: AnalyticsRatings | null;
   today: Today;
@@ -158,7 +159,7 @@ export function Dashboard({
     },
     [data.mentors, selfMentorId]
   );
-  const [view, go] = useView(data, today, audience === "mentor" ? selfIndex : null);
+  const [view, go, day] = useView(data, today, audience === "mentor" ? selfIndex : null);
   const words = wordsFor(frame);
   const { year, month, program, mentor } = view;
   const accent = program != null ? colorOf(data, program) : DEFAULT;
@@ -328,11 +329,11 @@ export function Dashboard({
               ranked={audience === "staff"}
               words={words}
               period={period}
-              ratings={ratings && (ratings.reach === "all" || self) ? ratings : null}
+              ratings={ratings && ratings.withheld !== mentor ? ratings : null}
             />
           )}
           <Hero data={data} view={view} today={today} yearRows={yearRows} periodRows={periodRows} />
-          <MonthsCard data={data} view={view} go={go} yearRows={yearRows} />
+          <MonthsCard data={data} view={view} go={go} day={day} yearRows={yearRows} />
           {program == null && mentor == null && (
             <>
               <ProgramCards data={data} view={view} go={go} last={last} words={words} period={period} />
@@ -367,7 +368,7 @@ export function Dashboard({
               last={last}
             />
           )}
-          {mentor != null && <MentorDetail view={view} today={today} go={go} yearRows={yearRows} accent={accent} self={self} />}
+          {mentor != null && <MentorDetail view={view} today={today} go={go} day={day} yearRows={yearRows} accent={accent} self={self} />}
         </div>
       )}
     </div>
@@ -500,11 +501,17 @@ function DatesPicker({
  * waits on the server — Next keeps `useSearchParams` in step with it — while
  * the back button still walks back up the levels and a view can be shared.
  */
+/**
+ * Move the view. `day` (0-based, inside the month the view ends on) opens that
+ * day's breakdown; any move made without it closes the breakdown.
+ */
+type Go = (next: Partial<View>, extra?: { day?: number | null }) => void;
+
 function useView(
   data: AnalyticsData,
   today: Today,
   selfIndex: number | null
-): [View, (next: Partial<View>) => void] {
+): [View, Go, number | null] {
   const params = useSearchParams();
   // The self-default applies only to the landing — once the reader navigates,
   // "All programs" must actually reach it rather than snapping back to them.
@@ -536,8 +543,19 @@ function useView(
     };
   }, [params, data.programs, data.mentors, today.year, selfIndex, navigated]);
 
-  const go = useCallback(
-    (next: Partial<View>) => {
+  // The day opened inside the month (`?d=`), 0-based. Not a field of `View`:
+  // that type is the app's too (`analytics-view.ts` is copied whole), and the
+  // day is this page's own drill. In the URL so a reload keeps it and a link
+  // to "who worked on the 12th" can be sent.
+  const day = useMemo(() => {
+    const d = Number(params.get("d"));
+    return view.month != null && Number.isInteger(d) && d >= 1 && d <= daysIn(view.year, view.month)
+      ? d - 1
+      : null;
+  }, [params, view.year, view.month]);
+
+  const go = useCallback<Go>(
+    (next, extra) => {
       setNavigated(true);
       const v = { ...view, ...next };
       // A window and a month are two answers to "which days": picking one
@@ -554,7 +572,10 @@ function useView(
         q.set("to", isoOf(msOfDay(v.to)));
       } else {
         if (v.year !== today.year) q.set("y", String(v.year));
-        if (v.month != null) q.set("m", String(v.month + 1));
+        if (v.month != null) {
+          q.set("m", String(v.month + 1));
+          if (extra?.day != null) q.set("d", String(extra.day + 1));
+        }
       }
       if (v.program != null) q.set("p", data.programs[v.program].id);
       if (v.mentor != null) q.set("u", data.mentors[v.mentor].id);
@@ -564,7 +585,7 @@ function useView(
     [view, today.year, data.programs, data.mentors, params]
   );
 
-  return [view, go];
+  return [view, go, day];
 }
 
 /** Ease a number toward its target, so a changed figure is seen to change. */
@@ -909,23 +930,25 @@ function MonthsCard({
   data,
   view,
   go,
+  day,
   yearRows,
 }: {
   data: AnalyticsData;
   view: View;
-  go: (next: Partial<View>) => void;
+  go: Go;
+  /** The day opened inside the month, from the URL (`useView`). */
+  day: number | null;
   yearRows: AnalyticsRow[];
 }) {
   const { year, month } = view;
   const { segments, legend } = useMemo(() => seriesFor(data, view, yearRows), [data, view, yearRows]);
 
-  // The day picked in the month's chart, for its mentors. Remembered with the
-  // view it was picked in, so another month, program or year starts closed.
-  // Only where the chart holds more than one mentor: on a mentor's own page
-  // the breakdown would be one row repeating the bar.
-  const dayScope = `${year}-${month}-${view.program}-${view.mentor}`;
-  const [picked, setPicked] = useState<{ scope: string; day: number } | null>(null);
-  const pickedDay = view.mentor == null && picked?.scope === dayScope ? picked.day : null;
+  // The day picked in the month's chart opens who logged it: each mentor, or,
+  // on one mentor's page, each of their programs — one mentor's day by mentor
+  // would be a single row repeating the bar. It lives in the URL, and every
+  // other move (`go` without a day) closes it, so another month, program or
+  // year starts closed.
+  const pickedDay = day;
 
   const columns = useMemo<Column[]>(() => {
     const buckets: AnalyticsRow[][] = Array.from({ length: 12 }, () => []);
@@ -1014,21 +1037,18 @@ function MonthsCard({
             thin
             labelEvery={days.length > 20 ? 5 : 1}
             selected={pickedDay}
-            onSelect={
-              view.mentor == null
-                ? (i) => setPicked(pickedDay === i ? null : { scope: dayScope, day: i })
-                : undefined
-            }
-            hint="Click to see each mentor's hours"
+            onSelect={(i) => go({}, { day: pickedDay === i ? null : i })}
+            hint={view.mentor == null ? "Click to see each mentor's hours" : "Click to see each program's hours"}
           />
           {pickedDay != null && days[pickedDay] && (
-            <DayMentors
+            <DayBreakdown
               key={pickedDay}
               data={data}
+              by={view.mentor == null ? "mentor" : "program"}
               title={days[pickedDay].title}
               rows={yearRows.filter((r) => monthOf(r[3]) === month && dateOf(r[3]) === pickedDay + 1)}
-              onOpen={(m) => go({ mentor: m })}
-              onClose={() => setPicked(null)}
+              onOpen={(i) => go(view.mentor == null ? { mentor: i } : { program: i })}
+              onClose={() => go({})}
             />
           )}
         </div>
@@ -1039,33 +1059,47 @@ function MonthsCard({
 
 /**
  * One day of the month chart, by mentor: who logged the hours on the bar, with
- * each mentor's share of it. The same rows the bar adds up, so the list sums
- * to the bar's figure — in plan, extra and missed, as everywhere on this page.
+ * each mentor's share of it. On one mentor's page, by program instead. The
+ * same rows the bar adds up, so the list sums to the bar's figure — in plan,
+ * extra and missed, as everywhere on this page.
  */
-function DayMentors({
+function DayBreakdown({
   data,
+  by,
   title,
   rows,
   onOpen,
   onClose,
 }: {
   data: AnalyticsData;
+  by: "mentor" | "program";
   title: string;
   rows: AnalyticsRow[];
-  onOpen: (mentor: number) => void;
+  /** The mentor's or the program's index, as `by` says. */
+  onOpen: (index: number) => void;
   onClose: () => void;
 }) {
-  const ranked = useMemo(() => rankBy(rows, rows, 1), [rows]);
+  const ranked = useMemo(() => rankBy(rows, rows, by === "mentor" ? 1 : 0), [rows, by]);
   const total = ranked.reduce((sum, r) => sum + r.hours, 0);
   const top = ranked[0]?.hours ?? 0;
+  // A day picked in the year's grid opens this panel a screen above the click.
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    panel.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, []);
   return (
-    <div className={cn(s.enter, "mt-3 rounded-lg bg-fill/60")} role="region" aria-label={`Mentors on ${title}`}>
+    <div
+      ref={panel}
+      className={cn(s.enter, "mt-3 scroll-mt-20 rounded-lg bg-fill/60")}
+      role="region"
+      aria-label={`${by === "mentor" ? "Mentors" : "Programs"} on ${title}`}
+    >
       <div className="flex items-center justify-between gap-3 border-b border-line px-3 py-2">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
           <h4 className="text-body font-semibold text-ink">{title}</h4>
           <span className="text-xs text-muted-fg">
             <span className="font-medium tabular-nums text-ink">{formatDuration(total)}</span> ·{" "}
-            {count(ranked.length, "mentor")}
+            {count(ranked.length, by)}
           </span>
         </div>
         <button
@@ -1082,7 +1116,7 @@ function DayMentors({
       ) : (
         <div className="divide-y divide-line">
           {ranked.map((r) => {
-            const mentor = data.mentors[r.index];
+            const name = by === "mentor" ? data.mentors[r.index].name : data.programs[r.index].name;
             const scale = top ? 100 / top : 0;
             return (
               <button
@@ -1091,9 +1125,13 @@ function DayMentors({
                 className="group grid min-h-11 w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-surface"
                 onClick={() => onOpen(r.index)}
               >
-                <MentorAvatar mentor={mentor} />
+                {by === "mentor" ? (
+                  <MentorAvatar mentor={data.mentors[r.index]} />
+                ) : (
+                  <Dot color={colorOf(data, r.index)} className="h-3 w-3" />
+                )}
                 <span className="flex min-w-0 flex-col">
-                  <span className="min-w-0 truncate text-body font-medium text-ink">{mentor.name}</span>
+                  <span className="min-w-0 truncate text-body font-medium text-ink">{name}</span>
                   <span className="mt-1 flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-fill" aria-hidden>
                     <span className={s.barSeg} style={{ width: `${r.completed * scale}%`, background: HOURS }} />
                     {r.extra > 0 && (
@@ -1645,13 +1683,16 @@ function MentorDetail({
   view,
   today,
   go,
+  day,
   yearRows,
   accent,
   self = false,
 }: {
   view: View;
   today: Today;
-  go: (next: Partial<View>) => void;
+  go: Go;
+  /** The day opened inside the month, marked in the grid. */
+  day: number | null;
   yearRows: AnalyticsRow[];
   accent: string;
   /** The reader is this mentor: speak to them, not about them. */
@@ -1682,7 +1723,17 @@ function MentorDetail({
     <>
       <Section title={`Every day of ${year}`}>
         <div className="px-4 py-3 sm:px-5">
-          <Heatmap rows={yearRows} year={year} color={accent} selected={month} onPick={(m) => go({ month: m })} />
+          {/* A day opens its month on that day: the month chart above shows
+              the day's hours by program. Until 20 November 2026 a click only
+              opened the month, and the day pressed was the one thing lost. */}
+          <Heatmap
+            rows={yearRows}
+            year={year}
+            color={accent}
+            selected={month}
+            picked={month != null && day != null ? { month, day } : null}
+            onPick={(m, d) => go({ month: m }, { day: d })}
+          />
         </div>
       </Section>
       <Section
@@ -1858,20 +1909,26 @@ function MentorScope({
         </span>
       )}
       {((ranked && standing) || rating) && (
-        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-fg">
+        // The score as Feedback's own mentor header draws it — the figure, its
+        // five stars, the count — with the rank on a quieter line under it.
+        // It was one line of caption beside the rank, which Valera, asking for
+        // "the rating at the top", would have had to look for.
+        <span className="flex flex-col items-end gap-0.5 text-xs text-muted-fg">
           {rating && (
             <a
               href={feedbackHref}
-              className="inline-flex items-center gap-1 rounded-md transition-colors hover:text-ink"
+              className="inline-flex items-baseline gap-1.5 rounded-md transition-colors hover:text-ink"
               title="Combined rating on Feedback: the mentor form and single meetings"
             >
               {rating.average === null ? (
                 <span>No ratings</span>
               ) : (
                 <>
-                  <span aria-hidden className="text-ink">★</span>
-                  <span className="font-medium tabular-nums text-ink">{rating.average.toFixed(1)}</span>
-                  <span>· {count(rating.count, "rating")}</span>
+                  <span className="text-figure-md font-semibold tabular-nums text-ink">
+                    {rating.average.toFixed(1)}
+                  </span>
+                  <Stars value={rating.average} />
+                  <span>{count(rating.count, "rating")}</span>
                 </>
               )}
               {!(ranked && standing) && <span>· {period}</span>}
@@ -1889,18 +1946,37 @@ function MentorScope({
   );
 }
 
+/**
+ * A score's shape beside its number, as Feedback draws it. Ink, not the accent
+ * orange: orange means hours everywhere on this page. Hidden from a screen
+ * reader, which has just read the number.
+ */
+function Stars({ value }: { value: number }) {
+  const filled = Math.round(value);
+  return (
+    <span aria-hidden="true" className="text-body tracking-tight text-ink">
+      {"★".repeat(filled)}
+      <span className="text-muted-fg">{"☆".repeat(5 - filled)}</span>
+    </span>
+  );
+}
+
 function Heatmap({
   rows,
   year,
   color,
   selected,
+  picked,
   onPick,
 }: {
   rows: AnalyticsRow[];
   year: number;
   color: string;
   selected: number | null;
-  onPick: (month: number) => void;
+  /** The day whose breakdown is open, ringed in the grid. */
+  picked: { month: number; day: number } | null;
+  /** A day was pressed: its month and its day in it, both 0-based. */
+  onPick: (month: number, day: number) => void;
 }) {
   const weeks = useMemo(() => weeksOf(year), [year]);
   const hours = useMemo(() => hoursByDay(rows), [rows]);
@@ -1935,14 +2011,16 @@ function Heatmap({
                 const mo = monthOf(d);
                 const date = new Date(Date.UTC(year, mo, dateOf(d)));
                 const label = `${WEEKDAYS[date.getUTCDay()]}, ${dateOf(d)} ${MONTHS[mo]}: ${m ? formatDuration(m) : "no sessions"}`;
+                const open = picked != null && picked.month === mo && picked.day === dateOf(d) - 1;
                 return (
                   <button
                     key={`${w}-${k}`}
                     type="button"
-                    className={s.heatCell}
+                    className={cn(s.heatCell, open && "ring-2 ring-ink ring-offset-1 ring-offset-surface")}
                     title={label}
                     aria-label={label}
-                    onClick={() => onPick(mo)}
+                    aria-pressed={open}
+                    onClick={() => onPick(mo, dateOf(d) - 1)}
                     style={{
                       background: fill(level(m)),
                       opacity: selected != null && selected !== mo ? 0.35 : 1,

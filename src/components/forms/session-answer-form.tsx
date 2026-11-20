@@ -93,9 +93,10 @@ export function SessionAnswerForm({
               program's staff see it: ratings are anonymous to mentors
               (October 2026), here as on the feedback page — except a mentor
               who is one of those staff, an admin of the program, who since
-              30 October 2026 reads their own meetings' ratings on Feedback
-              without the student's name. So the promise is made meeting by
-              meeting, and never to a student whose mentor will read it. */}
+              30 October 2026 reads their own meetings' ratings on Feedback,
+              and since 20 November 2026 with the student's name. So the
+              promise is made meeting by meeting, and never to a student whose
+              mentor will read it; that student is told their name goes too. */}
           <StarRating
             name="studentRating"
             idPrefix={`session-${sessionId}`}
@@ -106,7 +107,7 @@ export function SessionAnswerForm({
             label="Anything to add?"
             hint={
               mentorSees
-                ? `Optional. ${mentorName} is an admin of your program, so they will see your rating and this note.`
+                ? `Optional. ${mentorName} is an admin of your program, so they will see your rating and this note, with your name.`
                 : "Optional. Your mentor won't see your rating or this note."
             }
           >

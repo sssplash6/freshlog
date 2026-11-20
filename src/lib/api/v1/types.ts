@@ -155,10 +155,11 @@ export type ApiSession = {
   /**
    * Its mentor reads the student's rating and note of it: they administer its
    * program (an ADMIN grant, or a platform admin), and since 30 October 2026
-   * Feedback lists them their own meetings' ratings without the student's
-   * name (`ratingSeenByMentor`). The rating form says so on such a meeting, as
-   * the website's does, instead of "Your mentor won't see your rating or this
-   * note."
+   * Feedback lists them their own meetings' ratings, since 20 November 2026
+   * with the student's name (`ratingSeenByMentor`). The rating form says so on
+   * such a meeting, as the website's does ("… so they will see your rating and
+   * this note, with your name."), instead of "Your mentor won't see your
+   * rating or this note."
    */
   mentorSeesRating: boolean;
   student: StudentRef;
@@ -1877,9 +1878,10 @@ export type RatedMentor = {
 
 /**
  * A meeting a student rated, as the page's feed says it: who rated it, of whom,
- * in which program. `student` is null on the reader's own meetings, listed
- * (with `nameless=1`) where they administer the program, as the website lists
- * them: without the student's name.
+ * in which program. The reader's own meetings are listed (with `nameless=1`)
+ * where they administer the program. From 30 October to 20 November 2026
+ * `student` was null on those; it is the student now, as on every other row,
+ * and stays nullable only for builds written against that.
  */
 export type MeetingRatingRow = { id: string; day: string; rating: number; note: string | null; mentor: PersonRef; student: PersonRef | null; program: string };
 
@@ -1888,10 +1890,10 @@ export type MeetingRatingRow = { id: string; day: string; rating: number; note: 
  * `kind` (written, meetings), `rating` (1 to 5, or 1-3, 1-2), `mentor` (an id,
  * or `me`), `program`, `period`/`from`/`to`, `q`, `sort`/`dir` (mentor, score,
  * ratings, recent, last), `page` and `meetings` (the meeting feed's page).
- * `nameless=1` is the app's own, not the page's: it draws a meeting rating
- * with no student, so the feed lists the reader's own meetings where they
- * administer the program, as the website does. Without it they are left out,
- * as they are to an installed build from before 30 October 2026.
+ * `nameless=1` is the app's own, not the page's: with it the feed lists the
+ * reader's own meetings where they administer the program, as the website
+ * does, each with its student since 20 November 2026. Without it they are
+ * left out, as they are to an installed build from before 30 October 2026.
  *
  * `staff`: every rating the reader's ADMIN and LEADER grants reach (a SALES
  * grant reads none). The combined score and its spread over 1 to 5 (`stars`,

@@ -233,9 +233,11 @@ export async function staffFeedback({
   params: SearchParams;
   page: number;
   /**
-   * List the reader's own meetings where they administer the program, with no
-   * student named. The app draws every meeting rating as "student → mentor",
-   * so it asks for none of them until it can draw a row without a student.
+   * List the reader's own meetings where they administer the program. From
+   * 30 October to 20 November 2026 those rows named no student, and the app,
+   * which drew every meeting rating as "student → mentor", asked for none of
+   * them until it could draw such a row (`nameless=1`). They are named now;
+   * the switch stays so an installed build is sent what it was sent before.
    */
   listOwnMeetings?: boolean;
 }) {
@@ -273,15 +275,24 @@ export async function staffFeedback({
   // on it — so the writer is named.
   //
   // The reader's OWN meetings are listed only where they ADMINISTER the
-  // meeting's program, and with no student named. Until 30 October 2026 they
-  // were never listed ("a mentor is not shown what students thought of
-  // them"), and an admin who mentors, filtering to themselves, found 23 rated
-  // meetings in their score and none in the list. Listing them was agreed that
-  // day, knowing the ratings already given were given under the form's "Your
-  // mentor won't see your rating", and that a one-to-one meeting's date says
-  // who wrote it. A LEADER's grant only reads, so a leader who mentors still
-  // gets their own as a number; the form now tells the student, per meeting,
-  // whether its mentor will read it (`ratingSeenByMentor`).
+  // meeting's program. Until 30 October 2026 they were never listed ("a mentor
+  // is not shown what students thought of them"), and an admin who mentors,
+  // filtering to themselves, found 23 rated meetings in their score and none
+  // in the list. Listing them was agreed that day, knowing the ratings already
+  // given were given under the form's "Your mentor won't see your rating", and
+  // that a one-to-one meeting's date says who wrote it. A LEADER's grant only
+  // reads, so a leader who mentors still gets their own as a number; the form
+  // tells the student, per meeting, whether its mentor will read it
+  // (`ratingSeenByMentor`).
+  //
+  // From that day to 20 November 2026 those rows named no student. Valera,
+  // who owns the school, opened his own 41 rated meetings, read "Anonymous" on
+  // each, and asked to see who had sent them: an admin acts on a low rating by
+  // talking to the student, and could do that for every mentor but themselves.
+  // So the student is named on them too, as on everybody else's meetings. The
+  // WRITTEN ratings are a different promise and keep it for every rating
+  // already given: the mentor a written rating is about reads the writer's
+  // name only where the form told the student so first (`list` below).
   const notMine: Prisma.SessionWhereInput = { mentorId: { not: user.id } };
   const ownListed: Prisma.SessionWhereInput = !listOwnMeetings
     ? notMine
@@ -345,6 +356,7 @@ export async function staffFeedback({
         rating: true,
         comment: true,
         createdAt: true,
+        namedToMentor: true,
         mentor: { select: PERSON },
         student: {
           select: {
@@ -517,7 +529,12 @@ export async function staffFeedback({
 
   /**
    * The name is open to the writer's admins and to nobody else — including
-   * the mentor the rating is about, whatever else they administer. Decided
+   * the mentor the rating is about, whatever else they administer, UNLESS the
+   * student was told before sending it that this mentor would see who wrote
+   * it (`namedToMentor`, from 20 November 2026: a rating the form warned
+   * about, by a mentor who administers the writer's program). Every earlier
+   * rating was written under "Your mentor can't see who wrote this" and stays
+   * anonymous to that mentor. Decided
    * per row by the reader's ADMIN grants against the writer's own programs:
    * a rating is readable through any one of a student's programs, but its
    * author is named only where the reader actually administers one — the
@@ -536,19 +553,20 @@ export async function staffFeedback({
     createdAt: f.createdAt,
     mentor: f.mentor,
     student:
-      f.mentor.id !== user.id && namesFor(f.student.enrollments)
+      (f.mentor.id !== user.id || f.namedToMentor) && namesFor(f.student.enrollments)
         ? f.student.user
         : null,
   }));
-  // The reader's own meetings name nobody: they are listed to the reader as
-  // the program's admin, not as the mentor the rating is about.
+  // Every listed meeting names its student, the reader's own included: those
+  // are listed only where the reader administers the program (`ownListed`),
+  // and the program's admin is who the name is open to.
   const meetingList = meetingRows.map((s) => ({
     id: s.id,
     date: s.date,
     studentRating: s.studentRating,
     studentNote: s.studentNote,
     mentor: s.mentor,
-    student: s.mentor.id === user.id ? null : s.student.user,
+    student: s.student.user,
     program: s.program,
   }));
 
