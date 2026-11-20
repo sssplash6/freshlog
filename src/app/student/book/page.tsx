@@ -11,7 +11,7 @@ import {
 } from "@/components/allocation-row";
 import { PageTitle, Section } from "@/components/ui/section";
 import { StatusChip } from "@/components/ui/status-chip";
-import { ROLES, USER_STATUS, canActAsMentor } from "@/lib/constants";
+import { ROLES, USER_STATUS, canActAsMentor, isArchived } from "@/lib/constants";
 import { requireRole } from "@/lib/dal";
 
 import {
@@ -331,6 +331,13 @@ function MentorRow({
           >
             Book with {firstName}
           </ExternalLink>
+        ) : isArchived(mentor) ? (
+          // A mentor who has left. The time is still the student's — archiving
+          // moves nothing — so the row stays, and says who can put it to use
+          // rather than offering an address nobody answers any more.
+          <p className="text-sm text-muted-fg">
+            {`${firstName} is no longer at Freshman. Ask your program’s admin to move this time to another mentor.`}
+          </p>
         ) : (
           <>
             {blocked ? <StatusChip status={blocked} /> : <span />}

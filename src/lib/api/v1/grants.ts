@@ -4,7 +4,7 @@ import type { ManagedStudent } from "@/lib/api/v1/admin-student";
 import { nameOf, type Reader } from "@/lib/api/v1/sessions";
 import type { GrantOptions } from "@/lib/api/v1/types";
 import { scopeCovers, scopeProgramFilter, staffLevel } from "@/lib/authz";
-import { ASSIGNMENT_PROGRESS } from "@/lib/constants";
+import { ASSIGNMENT_PROGRESS, NOT_ARCHIVED } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/format";
 import { bankRemaining, banksIn, pastHours } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
@@ -29,6 +29,7 @@ export async function grantOptionsFor(reader: Reader, profile: ManagedStudent, n
     prisma.user.findMany({
       where: {
         OR: [{ role: "MENTOR" }, { isMentor: true }],
+        ...NOT_ARCHIVED,
         ...(programIds ? { mentorAssignments: { some: { programId: { in: [...programIds] } } } } : {}),
       },
       orderBy: [{ name: "asc" }],

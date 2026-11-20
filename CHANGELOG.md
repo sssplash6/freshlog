@@ -7,6 +7,8 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-11-20
 
 ### New
+- **Archive a student or mentor who has left.** Open their page and choose Archive (for a mentor, under Edit). They leave every list and picker and can no longer sign in, on the website or in the app. Nothing is deleted: their hours, sessions, tasks and ratings stay as they were. You need to administer every program they are in.
+- **Find and restore archived people.** On Students, set Show to Archived; on Mentors, use the Archived chip. Their page shows who archived them and when, with a Restore button that puts them back exactly as they were.
 - **Admins see who rated their own meetings.** If you mentor in a program you administer, Feedback now names the student on each rating of your own meetings, as it does for every other mentor's. Students rating such a meeting are told their name goes with it.
 - **New written ratings of an admin carry a name.** When a student rates a mentor who administers their program, the form now says that mentor will see who wrote it, and Feedback names the student to them. Ratings written before this, or sent from the app, stay anonymous to the mentor.
 

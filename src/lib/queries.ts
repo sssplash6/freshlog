@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import {
   ASSIGNMENT_PROGRESS,
   CHARGED_SESSION,
+  NOT_ARCHIVED,
   SESSION_STATUS,
   USER_STATUS,
   drawKey,
@@ -54,6 +55,7 @@ export async function studentsWithHours(
     now = new Date(),
     programIds,
     order = "asc",
+    includeArchived = false,
   }: {
     slice?: { skip: number; take: number };
     now?: Date;
@@ -67,11 +69,21 @@ export async function studentsWithHours(
      * place.
      */
     order?: "asc" | "desc";
+    /**
+     * Read the students who have left as well.
+     *
+     * Off by default, and here rather than in each caller's `where`: these rows
+     * are what every roster lists and every program total is summed from, and
+     * a student who has left belongs in neither. Their hours are not gone —
+     * the allocations and sessions are untouched, and the Archived list (the
+     * one caller that passes this) shows them exactly as they stood.
+     */
+    includeArchived?: boolean;
   } = {}
 ) {
   const visible = programIds ? new Set(programIds) : null;
   const profiles = await prisma.studentProfile.findMany({
-    where,
+    where: includeArchived ? where : { AND: [where, { user: NOT_ARCHIVED }] },
     include: {
       user: true,
       enrollments: {
@@ -739,7 +751,9 @@ export type MentorOverview = Awaited<ReturnType<typeof mentorOverview>>;
  */
 export async function mentorsInProgram(programId: string) {
   const assignments = await prisma.mentorAssignment.findMany({
-    where: { programId },
+    // A mentor who has left keeps their pairings, so that restoring them puts
+    // them back where they were — and is not somebody to grant new time with.
+    where: { programId, mentor: NOT_ARCHIVED },
     include: { mentor: true },
     orderBy: { createdAt: "asc" },
   });
@@ -771,6 +785,9 @@ export function assignmentsForStudentWhere(profile: {
   }[];
 }): Prisma.MentorAssignmentWhereInput {
   return {
+    // Not a mentor who has left: their pairing rows stay, for the day they are
+    // restored, but a student is not offered somebody who is no longer here.
+    mentor: NOT_ARCHIVED,
     OR: profile.enrollments.map((e) => ({
       programId: e.programId,
       OR: [
@@ -996,7 +1013,11 @@ export function mentorReachWhere(
     });
   }
 
-  return { OR: reach };
+  // A student who has left is reached by nobody: off the caseload, out of
+  // the log picker, and — because `mentorReaches` asks this same `where` —
+  // not somebody a session can be logged against either. Their record stays
+  // with the admins, under Archived.
+  return { user: NOT_ARCHIVED, OR: reach };
 }
 
 /**
@@ -1162,12 +1183,12 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
     await Promise.all([
       mentorAssignments(mentorId),
       prisma.hourAllocation.findMany({
-        where: { mentorId },
+        where: { mentorId, student: { user: NOT_ARCHIVED } },
         include: { program: true, student: { include: { user: true, enrollments: { include: { program: true, cohort: true, level: true } } } } },
         orderBy: { createdAt: "asc" },
       }),
       prisma.hourAllocation.findMany({
-        where: { mentorId: null },
+        where: { mentorId: null, student: { user: NOT_ARCHIVED } },
         include: { program: true, student: { include: { user: true, enrollments: { include: { program: true, cohort: true, level: true } } } } },
         orderBy: { createdAt: "asc" },
       }),
@@ -1361,7 +1382,9 @@ export async function mentorCaseload(mentorId: string): Promise<MentorCaseload> 
     const ids = [...new Set(pairs.map((k) => k.split(":")[0]))];
     if (ids.length === 0) return new Map<string, CaseloadStudent["profile"]>();
     const rows = await prisma.studentProfile.findMany({
-      where: { id: { in: ids } },
+      // Somebody this mentor met and who has since left is no longer on their
+      // list; every loop below already skips a profile it was not handed.
+      where: { id: { in: ids }, user: NOT_ARCHIVED },
       include: { user: true, enrollments: { include: { program: true, cohort: true, level: true } } },
     });
     return new Map(rows.map((r) => [r.id, r]));

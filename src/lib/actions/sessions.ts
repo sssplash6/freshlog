@@ -29,6 +29,7 @@ import {
   SESSION_ANSWER,
   SESSION_STATUS,
   USER_STATUS,
+  isArchived,
 } from "@/lib/constants";
 import {
   formatDuration,
@@ -326,6 +327,9 @@ export async function logSession(
     },
   });
   if (!profile) return bad("Student not found.", "studentProfileId");
+  if (isArchived(profile.user)) {
+    return bad("That student is archived. Restore them before logging time for them.", "studentProfileId");
+  }
   if (profile.user.status !== USER_STATUS.ACTIVE) {
     return bad("That student hasn't been approved by an admin yet.", "studentProfileId");
   }

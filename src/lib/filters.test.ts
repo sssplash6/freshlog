@@ -495,7 +495,31 @@ describe("presets as queries", () => {
     // two states cannot both be true of one row.
     expect(clauses(studentsWhere({ status: "not-signed-in" }, {}, NOW))).toContainEqual({
       telegramUsername: null,
-      user: { status: { not: "PENDING" } },
+      user: { status: { notIn: ["PENDING", "ARCHIVED"] } },
+    });
+  });
+
+  it("leaves the archived off every reading but their own", () => {
+    // Archiving removes nothing, so this clause is all that keeps somebody who
+    // has left off a roster, out of search and out of the log picker.
+    const here = { user: { status: { not: "ARCHIVED" } } };
+    expect(clauses(studentsWhere({}, {}, NOW))).toContainEqual(here);
+    expect(clauses(studentsWhere({ time: "expiring" }, {}, NOW))).toContainEqual(here);
+    expect(clauses(mentorsWhere({}, {}))).toContainEqual({ status: { not: "ARCHIVED" } });
+    expect(clauses(mentorsWhere({ link: "missing" }, {}))).toContainEqual({
+      status: { not: "ARCHIVED" },
+    });
+
+    // The Archived list is them and nobody else.
+    const gone = clauses(studentsWhere({ status: "archived" }, {}, NOW));
+    expect(gone).toContainEqual({ user: { status: "ARCHIVED" } });
+    expect(gone).not.toContainEqual(here);
+    expect(clauses(mentorsWhere({ status: "archived" }, {}))).toContainEqual({
+      status: "ARCHIVED",
+    });
+    // "Pending" and "archived" are different accounts: one chip never shows the other.
+    expect(clauses(studentsWhere({ status: "pending" }, {}, NOW))).not.toContainEqual({
+      user: { status: "ARCHIVED" },
     });
   });
 
@@ -512,7 +536,9 @@ describe("presets as queries", () => {
     const staff = clauses(studentsWhere({ time: "expiring" }, { audience: "staff" }, NOW));
     const mentor = clauses(studentsWhere({ time: "expiring" }, { audience: "mentor" }, NOW));
     const upperBound = (list: object[]) =>
-      JSON.parse(JSON.stringify(list))[0].hourAllocations.some.deadline.lte as string;
+      JSON.parse(JSON.stringify(list)).find(
+        (c: { hourAllocations?: unknown }) => c.hourAllocations
+      ).hourAllocations.some.deadline.lte as string;
     expect(EXPIRY_WINDOW_DAYS.staff).toBeGreaterThan(EXPIRY_WINDOW_DAYS.mentor);
     expect(upperBound(staff)).toBe("2026-09-18T23:59:59.999Z");
     expect(upperBound(mentor)).toBe("2026-09-11T23:59:59.999Z");

@@ -17,9 +17,27 @@ export const USER_STATUS = {
   ACTIVE: "ACTIVE",
   UNASSIGNED: "UNASSIGNED", // freshly signed-up mentors awaiting cohort assignment
   PENDING: "PENDING", // self-signed-up students awaiting admin approval
+  ARCHIVED: "ARCHIVED", // left the school: no sign-in, off every list, record kept
 } as const;
 
 export type UserStatus = (typeof USER_STATUS)[keyof typeof USER_STATUS];
+
+/**
+ * A `User` who has not been archived, as a `where`.
+ *
+ * Archiving is for people who have left. It deletes nothing — their hours,
+ * sessions, tasks and ratings all stay — so the only thing that keeps a
+ * departed student off a roster or a departed mentor out of a picker is the
+ * query that builds it. Every list of PEOPLE TO WORK WITH spreads this in;
+ * the history (sessions, analytics, feedback) deliberately does not, because
+ * what somebody did here before they left still happened.
+ */
+export const NOT_ARCHIVED = { status: { not: USER_STATUS.ARCHIVED } } as const;
+
+/** Has this account been archived? */
+export function isArchived(user: { status: string }): boolean {
+  return user.status === USER_STATUS.ARCHIVED;
+}
 
 /**
  * `Program.status`. Two values, and they are the whole lifecycle: a finished

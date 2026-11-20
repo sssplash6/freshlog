@@ -23,6 +23,7 @@ import {
   ROLES,
   STANDING_SESSION,
   USER_STATUS,
+  isArchived,
 } from "@/lib/constants";
 import { formatDate, formatDuration, formatMoney } from "@/lib/format";
 import { syncGoalProgress } from "@/lib/goal-progress";
@@ -1593,6 +1594,14 @@ export async function setMentorAllocation(
     },
   });
   if (!profile) return { ok: false, error: "Student not found." };
+  // Archiving keeps their time exactly as it stood on the day they left, and
+  // that is only true if nothing is granted to them afterwards.
+  if (isArchived(profile.user)) {
+    return {
+      ok: false,
+      error: "This student is archived. Restore them before changing their time.",
+    };
+  }
 
   // WHICH program these hours are granted in. A grant is program time: it has
   // that program's deadline, it appears in that program's totals, and only its
@@ -1668,6 +1677,12 @@ export async function setMentorAllocation(
     : null;
   if (mentorId && (!mentor || !canActAsMentor(mentor))) {
     return { ok: false, error: "Pick a mentor." };
+  }
+  if (mentor && isArchived(mentor)) {
+    return {
+      ok: false,
+      error: `${mentor.name ?? mentor.email} is archived. Move this time to another mentor instead.`,
+    };
   }
 
   // Hours are granted from mentors within the student's program. If the
@@ -2402,7 +2417,9 @@ export async function transferMentorAllocation(
   if (denied) return { ok: false, error: "That allocation no longer exists." };
 
   const target = await prisma.user.findUnique({ where: { id: toMentorId } });
-  if (!target || !canActAsMentor(target)) return { ok: false, error: "Pick a mentor." };
+  if (!target || !canActAsMentor(target) || isArchived(target)) {
+    return { ok: false, error: "Pick a mentor." };
+  }
 
   if (deadlinePassed(source.deadline)) {
     return {

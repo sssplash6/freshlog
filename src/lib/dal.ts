@@ -8,7 +8,7 @@ import { bearerFrom, userForToken } from "@/lib/api/tokens";
 import { auth } from "@/lib/auth";
 import { adminScope, scopeCovers, scopeIsEmpty } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-import { canActAsMentor, ROLES, type Role } from "@/lib/constants";
+import { canActAsMentor, isArchived, ROLES, type Role } from "@/lib/constants";
 import { homeFor, profileOf } from "@/lib/profile";
 import type { User } from "@/generated/prisma/client";
 
@@ -25,13 +25,29 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
   // is nobody, and so is a header that isn't "Bearer <token>" (Basic, say), even
   // with a valid cookie beside it.
   const bearer = bearerFrom((await headers()).get("authorization"));
-  if (bearer !== undefined) return bearer ? userForToken(bearer) : null;
+  if (bearer !== undefined) {
+    return bearer ? stillHere(await userForToken(bearer)) : null;
+  }
 
   const session = await auth();
   const id = session?.user?.id;
   if (!id) return null;
-  return prisma.user.findUnique({ where: { id } });
+  return stillHere(await prisma.user.findUnique({ where: { id } }));
 });
+
+/**
+ * An archived account is nobody.
+ *
+ * Asked here, on every request, rather than only at sign-in: a mentor who is
+ * archived at noon is still carrying the cookie they signed in with at nine,
+ * and a phone its ninety-day token. Every gate, action and route handler in
+ * the app resolves its reader through `getCurrentUser`, so this one line is
+ * what makes "they can no longer get in" true the moment the button is
+ * pressed — and true again the other way round the moment they are restored.
+ */
+function stillHere(user: User | null): User | null {
+  return user && !isArchived(user) ? user : null;
+}
 
 /** Require a signed-in user; otherwise send them to the login page. */
 export async function requireUser(): Promise<User> {

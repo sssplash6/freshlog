@@ -3,7 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { notFound } from "next/navigation";
 
-import { ROLES } from "@/lib/constants";
+import { ROLES, NOT_ARCHIVED } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { studentsWithHours, type StudentWithHours } from "@/lib/queries";
 
@@ -72,7 +72,9 @@ export const programStudents = cache((id: string) =>
 /** Mentor pairings — the program's own rows, not the mentors' whole reach. */
 export const programPairings = cache((id: string) =>
   prisma.mentorAssignment.findMany({
-    where: { programId: id },
+    // A mentor who has left keeps the pairing row, so restoring them puts them
+    // back; until then they are not one of this program's mentors.
+    where: { programId: id, mentor: NOT_ARCHIVED },
     include: { mentor: true, cohort: true, level: true },
     orderBy: { createdAt: "asc" },
   })
@@ -118,7 +120,7 @@ export const programCohorts = cache((id: string) =>
  */
 export const mentorPool = cache(() =>
   prisma.user.findMany({
-    where: { OR: [{ role: ROLES.MENTOR }, { isMentor: true }] },
+    where: { OR: [{ role: ROLES.MENTOR }, { isMentor: true }], ...NOT_ARCHIVED },
     orderBy: [{ name: "asc" }],
     select: { id: true, name: true, email: true },
   })

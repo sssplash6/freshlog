@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 
 import { Avatar } from "@/components/avatar";
 import { BookingLinksForm } from "@/components/forms/booking-link-form";
+import { ArchivedNotice } from "@/components/archived-notice";
+import { ArchiveButton, RestoreButton } from "@/components/forms/archive-forms";
 import { EditMentorForm } from "@/components/forms/mentor-forms";
 import { AvatarForm, OwnNameForm } from "@/components/forms/profile-forms";
 import { CreateButton, CreatePanel, CreateSlot } from "@/components/page-create";
@@ -25,7 +27,7 @@ import {
   canManageMentor,
 } from "@/lib/authz";
 import { cn } from "@/lib/cn";
-import { canActAsMentor, ROLES, USER_STATUS } from "@/lib/constants";
+import { canActAsMentor, ROLES, USER_STATUS, isArchived } from "@/lib/constants";
 import { requireUser } from "@/lib/dal";
 import { type SearchParams } from "@/lib/filters";
 import { formatDate, formatDuration } from "@/lib/format";
@@ -110,6 +112,11 @@ export default async function MentorPage({
   const manages = !isStudent && (await canManageMentor(viewer, mentor.id));
   const edits = !isStudent && (await canAdministerMentor(viewer, mentor.id));
 
+  // A mentor who has left is the admins' record and nobody else's: a student
+  // or a colleague who follows an old link is not shown a card offering to
+  // book somebody who is no longer here.
+  if (isArchived(mentor) && !manages) notFound();
+
   if (isSelf || manages) {
     return (
       <MentorRecord
@@ -178,6 +185,7 @@ async function MentorRecord({
   const missed = sum((r) => r.missed);
   const meetings = sum((r) => r.sessions);
   const name = mentor.name ?? mentor.email;
+  const archived = isArchived(mentor);
   const base = `/mentors/${mentor.id}`;
 
   // `AllocationRow`'s columns, in its order — see the comment on the table
@@ -211,7 +219,16 @@ async function MentorRecord({
         <PageTitle
           backHref={manages ? "/mentors" : undefined}
           backLabel={manages ? "Mentors" : undefined}
-          title={name}
+          title={
+            archived ? (
+              <span className="flex flex-wrap items-center gap-2">
+                {name}
+                <StatusChip severity="neutral">Archived</StatusChip>
+              </span>
+            ) : (
+              name
+            )
+          }
           subtitle={
             /*
               Programs, each carrying whether a student can book through it.
@@ -275,7 +292,23 @@ async function MentorRecord({
               // another admin's sign-in can become them.
               canEditIdentity={viewer.platformAdmin}
             />
+            {/* Last and quiet, as "Remove student" is on a student's page —
+                and not offered on your own record, which the action refuses. */}
+            {!archived && !isSelf && (
+              <div className="mt-4 border-t border-line pt-3">
+                <ArchiveButton who={{ kind: "mentor", mentorId: mentor.id }} name={name} />
+              </div>
+            )}
           </CreatePanel>
+        )}
+
+        {archived && (
+          <ArchivedNotice
+            user={mentor}
+            restore={
+              edits ? <RestoreButton who={{ kind: "mentor", mentorId: mentor.id }} /> : undefined
+            }
+          />
         )}
 
         {/*

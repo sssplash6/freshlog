@@ -19,6 +19,7 @@ import {
   readTimeState,
   studentsWhere,
   type SearchParams,
+  readArchived,
 } from "@/lib/filters";
 import { prisma } from "@/lib/prisma";
 import { applySort, readSort } from "@/lib/sort";
@@ -156,6 +157,7 @@ export default async function StudentsPage({
       now,
       programIds,
       order: nameOrder,
+      includeArchived: readArchived(params),
     }),
     prisma.studentProfile.count({ where }),
     adminWriteScope(user),
@@ -232,10 +234,10 @@ export default async function StudentsPage({
         basePath="/students"
         params={params}
         q="students"
-        selects={
+        selects={[
           // One program is not a choice, and a select that offers exactly one
           // option is a fold, a tap and a line of height for nothing.
-          programs.length > 1
+          ...(programs.length > 1
             ? [
                 {
                   name: "program",
@@ -244,8 +246,22 @@ export default async function StudentsPage({
                   options: programs.map((p) => ({ value: p.id, label: p.name })),
                 },
               ]
-            : []
-        }
+            : []),
+          // The students who have left. A select and not a chip, for the
+          // reason the program is one (see below): these rows are simply not
+          // on the page, so no amount of reading the table finds them. Staff
+          // only — a mentor reaches nobody who has been archived.
+          ...(administers
+            ? [
+                {
+                  name: "status",
+                  label: "Show",
+                  all: "Current students",
+                  options: [{ value: "archived", label: "Archived" }],
+                },
+              ]
+            : []),
+        ]}
         // NO CHIPS. Mine, Pending, Not signed in, No time, Expiring and Expired
         // were six link-pills wrapping to their own row above a roster of
         // twelve, and every one of them answers a question the table already

@@ -1,3 +1,4 @@
+import { NOT_ARCHIVED } from "@/lib/constants";
 import Link from "next/link";
 
 import {
@@ -43,7 +44,7 @@ export default async function ProgramMentorTasksPage({
     programTeam(id),
     programMentorTasks(id),
     prisma.studentEnrollment.findMany({
-      where: { programId: id },
+      where: { programId: id, student: { user: NOT_ARCHIVED } },
       select: {
         student: {
           select: { id: true, user: { select: { name: true, email: true } } },

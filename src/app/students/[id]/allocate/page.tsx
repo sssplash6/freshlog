@@ -1,3 +1,4 @@
+import { NOT_ARCHIVED } from "@/lib/constants";
 import { notFound } from "next/navigation";
 
 import { AssignTaskForm } from "@/components/forms/assign-task-form";
@@ -54,6 +55,7 @@ export default async function AllocateStudentTimePage({
     prisma.user.findMany({
       where: {
         OR: [{ role: "MENTOR" }, { isMentor: true }],
+        ...NOT_ARCHIVED,
         ...(programIds
           ? { mentorAssignments: { some: { programId: { in: [...programIds] } } } }
           : {}),

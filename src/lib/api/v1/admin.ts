@@ -7,7 +7,7 @@ import { toTodoRows } from "@/lib/api/v1/todo";
 import type { AdminHome, ProgramRow, TodoRow } from "@/lib/api/v1/types";
 import { staffAttention } from "@/lib/attention";
 import { scopeCovers, scopeIsEmpty, scopeProgramFilter } from "@/lib/authz";
-import { PROGRAM_STATUS, USER_STATUS } from "@/lib/constants";
+import { PROGRAM_STATUS, USER_STATUS, NOT_ARCHIVED } from "@/lib/constants";
 import { programTotals } from "@/lib/hours";
 import { unreadOf } from "@/lib/api/v1/inbox";
 import { prisma } from "@/lib/prisma";
@@ -49,7 +49,7 @@ export async function schoolOf(reader: Reader, now: Date = new Date()): Promise<
     }),
     studentsWithHours(inScope ? { enrollments: { some: { programId: inScope } } } : {}, { now, programIds }),
     prisma.mentorAssignment.findMany({
-      where: inScope ? { programId: inScope } : {},
+      where: { ...(inScope ? { programId: inScope } : {}), mentor: NOT_ARCHIVED },
       select: { mentorId: true, programId: true },
     }),
   ]);

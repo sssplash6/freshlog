@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { assertProgramScope } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
-import { NOTIFICATION_TYPES } from "@/lib/constants";
+import { NOTIFICATION_TYPES, NOT_ARCHIVED } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import {
   MAX_MENTOR_TASK_NOTE,
@@ -90,7 +90,11 @@ export async function setMentorTask(
   const studentIds = idsOf(formData, "studentIds");
   if (studentIds.length > 0) {
     const found = await prisma.studentProfile.count({
-      where: { id: { in: studentIds }, enrollments: { some: { programId } } },
+      where: {
+        id: { in: studentIds },
+        user: NOT_ARCHIVED,
+        enrollments: { some: { programId } },
+      },
     });
     if (found !== studentIds.length) {
       return { ok: false, error: "One of those students is no longer in this program." };

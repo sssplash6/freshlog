@@ -1,6 +1,6 @@
 import "server-only";
 
-import { USER_STATUS } from "@/lib/constants";
+import { USER_STATUS, NOT_ARCHIVED } from "@/lib/constants";
 import { deadlinePassed, soonestExpiry } from "@/lib/deadlines";
 import { sortEnrollments } from "@/lib/enrollments";
 import { formatDate, formatDuration } from "@/lib/format";
@@ -73,7 +73,9 @@ export function logAdvice({
   );
   const active = status === USER_STATUS.ACTIVE;
   const canLog = reaches && active;
-  const logReason = !active
+  const logReason = status === USER_STATUS.ARCHIVED
+    ? undefined
+    : !active
     ? "This student is not approved yet."
     : // "You" is the reader as a MENTOR. An admin who is not this student's
       // mentor holds no time with anybody and logs on someone else's behalf, so
@@ -167,6 +169,9 @@ export function mentorsIn(programIds: readonly string[] | undefined) {
   return prisma.user.findMany({
     where: {
       OR: [{ role: "MENTOR" }, { isMentor: true }],
+      // Nobody new is granted time with a mentor who has left. One who still
+      // HOLDS a student's time is put back on the list by `withHolder`.
+      ...NOT_ARCHIVED,
       ...(programIds
         ? { mentorAssignments: { some: { programId: { in: [...programIds] } } } }
         : {}),

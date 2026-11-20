@@ -1,3 +1,4 @@
+import { NOT_ARCHIVED } from "@/lib/constants";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -209,7 +210,7 @@ export default async function AdminHomePage({
       { now, programIds }
     ),
     prisma.mentorAssignment.findMany({
-      where: inScope ? { programId: inScope } : {},
+      where: { ...(inScope ? { programId: inScope } : {}), mentor: NOT_ARCHIVED },
       select: { mentorId: true, programId: true },
     }),
   ]);

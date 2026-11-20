@@ -2,7 +2,7 @@ import "server-only";
 
 import type { User } from "@/generated/prisma/client";
 import { mentorReaches } from "@/lib/authz";
-import { canActAsMentor, SESSION_STATUS } from "@/lib/constants";
+import { canActAsMentor, SESSION_STATUS, isArchived } from "@/lib/constants";
 import {
   accessToken,
   googleConfigured,
@@ -58,7 +58,9 @@ export async function syncMeetDrafts(now = new Date()): Promise<SyncResult> {
   for (const connection of connections) {
     // A mentor who has since lost the role keeps the row (they may get it
     // back) but is not read on anybody's behalf in the meantime.
-    if (!canActAsMentor(connection.user)) continue;
+    // Nor is one who has left: archiving keeps the connection for the day
+    // they are restored, and stops reading their calendar until then.
+    if (!canActAsMentor(connection.user) || isArchived(connection.user)) continue;
     mentors++;
     try {
       const token = await accessToken(openToken(connection.refreshToken));

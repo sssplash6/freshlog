@@ -2,7 +2,7 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { notify, notificationHref } from "@/lib/notify";
-import { CHARGED_SESSION, NOTIFICATION_TYPES, drawKey } from "@/lib/constants";
+import { CHARGED_SESSION, NOTIFICATION_TYPES, drawKey, NOT_ARCHIVED } from "@/lib/constants";
 import { deadlinePassed } from "@/lib/deadlines";
 import { formatDate, formatDuration } from "@/lib/format";
 import { programDayEnds } from "@/lib/when";
@@ -35,6 +35,10 @@ export async function ensureDeadlineReminders() {
   const due = await prisma.hourAllocation.findMany({
     where: {
       deadline: { lte: soon },
+      // Nobody is reminded about a student who has left. The stage is not
+      // advanced either, so a student restored before the date still gets
+      // the reminder they would have had.
+      student: { user: NOT_ARCHIVED },
       OR: [
         { deadlineStage: null },
         { deadlineStage: "UPCOMING_SENT", deadline: { lte: endedBy } },

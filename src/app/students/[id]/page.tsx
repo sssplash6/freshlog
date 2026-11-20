@@ -27,7 +27,9 @@ import {
   StudentTaskRowActions,
   TaskProgressControl,
 } from "@/components/forms/student-task-forms";
+import { ArchivedNotice } from "@/components/archived-notice";
 import { Avatar } from "@/components/avatar";
+import { ArchiveButton, RestoreButton } from "@/components/forms/archive-forms";
 import { PersonChip } from "@/components/person-chip";
 import { LinkButton } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
@@ -46,6 +48,7 @@ import {
   attendanceOf,
   canActAsMentor,
   timeKindOf,
+  isArchived,
 } from "@/lib/constants";
 import {
   adminScope,
@@ -272,6 +275,7 @@ export default async function StudentWorkspacePage({
 
   const name = profile.user.name ?? profile.user.email;
   const isPending = profile.user.status === USER_STATUS.PENDING;
+  const archived = isArchived(profile.user);
   const handle = profile.telegramUsername?.replace(/^@/, "");
 
   const { canLog, logReason, logWarns } = logAdvice({ hours, userId: me.id, reaches, status: profile.user.status });
@@ -453,7 +457,9 @@ export default async function StudentWorkspacePage({
   // session should always be in right corner, Allocate time to the left"). It
   // had followed whichever button was primary, so the two swapped places
   // between a mentor's view and an admin's.
-  const headerButtons = [allocateButton, logButton];
+  // Nothing new is granted to or logged for somebody who has left — both
+  // actions refuse it — so their page offers neither.
+  const headerButtons = archived ? [] : [allocateButton, logButton];
 
   return (
     <div className="space-y-4">
@@ -496,6 +502,7 @@ export default async function StudentWorkspacePage({
             {isPending && (
               <StatusChip severity="attention">Pending approval</StatusChip>
             )}
+            {archived && <StatusChip severity="neutral">Archived</StatusChip>}
           </span>
         }
         subtitle={
@@ -552,6 +559,17 @@ export default async function StudentWorkspacePage({
           </div>
         }
       />
+
+      {archived && (
+        <ArchivedNotice
+          user={profile.user}
+          restore={
+            writes ? (
+              <RestoreButton who={{ kind: "student", studentProfileId: profile.id }} />
+            ) : undefined
+          }
+        />
+      )}
 
       {reaches && logReason && (
         // When the log would add to an overdraw it is a warning, and it reads
@@ -938,6 +956,15 @@ export default async function StudentWorkspacePage({
           </div>
           {writes && (
             <div className="border-t border-line px-4 py-2 sm:px-5">
+              {/* What to do with somebody who has left, above what to do with a
+                  record made by mistake: archiving keeps everything, and it
+                  is the one that is almost always meant. */}
+              {!archived && !isPending && (
+                <ArchiveButton
+                  who={{ kind: "student", studentProfileId: profile.id }}
+                  name={name}
+                />
+              )}
               {/* Last, and quiet: a red word with its reason beside it, not an
                   outlined red box at the foot of the page's calmest group. */}
               <RemoveStudentButton

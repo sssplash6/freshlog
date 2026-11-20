@@ -1,5 +1,6 @@
 import {
 
+  NOT_ARCHIVED,
   NOTIFICATION_TYPES,
   ROLES,
   SESSION_STATUS,
@@ -563,6 +564,25 @@ function dateWhere(window: DateWindow): { gte?: Date; lte?: Date } | undefined {
  * the second only when the first is false), and the three `time` chips share
  * theirs for the same reason.
  */
+/**
+ * "Archived", on both rosters.
+ *
+ * It shares `status` with the chips beside it because it is one more state of
+ * the same account — and it is the only value of that param that ADDS people
+ * to a list: every other reading of `studentsWhere` and `mentorsWhere` leaves
+ * the archived out, and this one shows nobody else.
+ */
+export const ARCHIVED_PRESET: FilterPreset = {
+  label: "Archived",
+  params: { status: "archived" },
+  hint: "Left the school. Their hours and history are kept.",
+};
+
+/** Is this list being read for the people who have left? */
+export function readArchived(params: SearchParams): boolean {
+  return readParam(params, "status") === "archived";
+}
+
 export const STUDENT_PRESETS: readonly FilterPreset[] = [
   {
     label: "Pending",
@@ -585,6 +605,7 @@ export const STUDENT_PRESETS: readonly FilterPreset[] = [
     params: { time: "expired" },
     hint: "Has time whose use-by date has passed.",
   },
+  ARCHIVED_PRESET,
 ];
 
 /** The mentor list's chips. */
@@ -599,6 +620,7 @@ export const MENTOR_PRESETS: readonly FilterPreset[] = [
     params: { link: "missing" },
     hint: "A pairing with no way for a student to book.",
   },
+  ARCHIVED_PRESET,
 ];
 
 /** What a mentor viewing their own list means by "mine". */
@@ -839,15 +861,23 @@ export function studentsWhere(
   if (mentor) and.push(reachOf(mentor, scope.programIds));
 
   const status = readParam(params, "status");
-  if (status === "pending") {
+  if (status === "archived") {
+    // The one reading that shows the people who have left, and only them.
+    and.push({ user: { status: USER_STATUS.ARCHIVED } });
+  } else if (status === "pending") {
     and.push({ user: { status: USER_STATUS.PENDING } });
   } else if (status === "not-signed-in") {
     // Never having set a Telegram handle is the only signal a registered
     // student has not signed in yet, and a pending one has not been let in.
     and.push({
       telegramUsername: null,
-      user: { status: { not: USER_STATUS.PENDING } },
+      user: { status: { notIn: [USER_STATUS.PENDING, USER_STATUS.ARCHIVED] } },
     });
+  } else {
+    // Every other reading is of the students who are here. Somebody archived
+    // keeps their whole record, so only this clause keeps them off the roster,
+    // out of search and out of every figure summed from these rows.
+    and.push({ user: NOT_ARCHIVED });
   }
 
   // Asked of the grants in the programs being read, not of every grant the
@@ -908,6 +938,11 @@ export function mentorsWhere(
 
   const program = readParam(params, "program");
   if (program) and.push({ mentorAssignments: { some: { programId: program } } });
+
+  // Archived mentors are a list of their own; every other reading — this
+  // roster, search, the Log session picker, the bell — is of the mentors who
+  // are still here.
+  and.push(readArchived(params) ? { status: USER_STATUS.ARCHIVED } : NOT_ARCHIVED);
 
   if (readParam(params, "status") === "unassigned") {
     // The same test the bell's "not in any program" row makes

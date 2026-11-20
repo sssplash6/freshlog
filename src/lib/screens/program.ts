@@ -3,7 +3,7 @@ import "server-only";
 import { STUDENT_SORTS } from "@/components/students-table";
 import { parsePage, PAGE_SIZE } from "@/components/ui/pagination";
 import { SESSION_STATUS } from "@/lib/constants";
-import { readParam, readTimeState, studentsWhere, type SearchParams } from "@/lib/filters";
+import { readParam, readTimeState, studentsWhere, type SearchParams, readArchived } from "@/lib/filters";
 import { prisma } from "@/lib/prisma";
 import { studentsWithHours } from "@/lib/queries";
 import { applySort, readSort } from "@/lib/sort";
@@ -50,6 +50,7 @@ export async function programRoster<L extends Level>(
     now,
     // This page IS one program, so the hours on it are that program's.
     programIds: [id],
+    includeArchived: readArchived(query),
   });
   const asked = readSort(
     {

@@ -11,7 +11,7 @@ import { PageTitle } from "@/components/ui/section";
 import { TabLinks } from "@/components/ui/segmented";
 import { FILL_CELL, Table, Td, Tr, type Column } from "@/components/ui/table";
 import { adminScope, scopeIsEmpty, scopeProgramFilter } from "@/lib/authz";
-import { canActAsMentor } from "@/lib/constants";
+import { canActAsMentor, NOT_ARCHIVED } from "@/lib/constants";
 import { requireAdminAccess, requireUser } from "@/lib/dal";
 import { profileOf } from "@/lib/profile";
 import { readParam, type SearchParams } from "@/lib/filters";
@@ -91,7 +91,7 @@ export default async function ProgramsPage({
       { now, programIds }
     ),
     prisma.mentorAssignment.findMany({
-      where: inScope ? { programId: inScope } : {},
+      where: { ...(inScope ? { programId: inScope } : {}), mentor: NOT_ARCHIVED },
       include: { mentor: true },
     }),
   ]);

@@ -63,6 +63,35 @@ describe("requirePlatformAdmin", () => {
   });
 });
 
+describe("getCurrentUser and an archived account", () => {
+  it("is nobody to the cookie they signed in with before they left", async () => {
+    const m = await mentor();
+    session.id = m.id;
+    await prisma.user.update({ where: { id: m.id }, data: { status: "ARCHIVED" } });
+    const { getCurrentUser, requireUser } = await load();
+    expect(await getCurrentUser()).toBeNull();
+    expect(await digestOf(requireUser())).toContain("NEXT_REDIRECT");
+  });
+
+  it("is nobody to the app's token either", async () => {
+    const m = await mentor();
+    const { token } = await issueToken(m.id, "Phone");
+    await prisma.user.update({ where: { id: m.id }, data: { status: "ARCHIVED" } });
+    request.authorization = `Bearer ${token}`;
+    const { getCurrentUser } = await load();
+    expect(await getCurrentUser()).toBeNull();
+  });
+
+  it("is themselves again once restored", async () => {
+    const m = await mentor();
+    session.id = m.id;
+    await prisma.user.update({ where: { id: m.id }, data: { status: "ARCHIVED" } });
+    await prisma.user.update({ where: { id: m.id }, data: { status: "ACTIVE" } });
+    const { getCurrentUser } = await load();
+    expect((await getCurrentUser())?.id).toBe(m.id);
+  });
+});
+
 describe("getCurrentUser with a bearer token", () => {
   it("with no Authorization header returns the cookie's user", async () => {
     const m = await mentor();

@@ -12,6 +12,8 @@ export const metadata: Metadata = { title: "Sign in" };
 const ERROR_MESSAGES: Record<string, string> = {
   AccessDenied:
     "Something blocked your sign-in. Students can sign up with any Google account; mentors must use their @freshman.academy account.",
+  Archived:
+    "This account has been archived, so it can no longer sign in. If that's a mistake, ask your program's admin to restore it.",
   Configuration: "Sign-in is misconfigured. Please contact the site admin.",
   Default: "Something went wrong signing you in. Please try again.",
 };

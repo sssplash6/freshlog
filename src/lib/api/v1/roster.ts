@@ -5,7 +5,7 @@ import type { RosterPage, RosterQuery, RosterRow } from "@/lib/api/v1/types";
 import { scopeProgramFilter } from "@/lib/authz";
 import { USER_STATUS } from "@/lib/constants";
 import { sortEnrollments } from "@/lib/enrollments";
-import { studentsWhere, type SearchParams } from "@/lib/filters";
+import { studentsWhere, type SearchParams, readArchived } from "@/lib/filters";
 import { toDateInputValue } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { studentsWithHours, type StudentWithHours } from "@/lib/queries";
@@ -58,6 +58,7 @@ export async function rosterFor(reader: Reader, query: RosterQuery, now: Date = 
       ...(readAll ? {} : { slice: { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE } }),
       now,
       programIds,
+      includeArchived: readArchived(params),
     }),
     prisma.studentProfile.count({ where }),
   ]);

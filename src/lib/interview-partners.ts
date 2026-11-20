@@ -84,7 +84,7 @@ export async function mentorsOfStudent(studentUserId: string, wallNow: Date) {
     where: {
       id: { not: studentUserId },
       name: { not: null },
-      status: { not: USER_STATUS.PENDING },
+      status: { notIn: [USER_STATUS.PENDING, USER_STATUS.ARCHIVED] },
       OR: [
         { hourAllocations: { some: { studentId } } },
         { mentorSessions: { some: { studentId } } },

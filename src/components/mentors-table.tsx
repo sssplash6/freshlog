@@ -1,3 +1,4 @@
+import { USER_STATUS } from "@/lib/constants";
 import { StarIcon } from "@/components/icons";
 import { PersonCell } from "@/components/person-chip";
 import { ProgramChip, type ProgramRef } from "@/components/program-chip";
@@ -125,7 +126,13 @@ export function MentorsTable({
                       Admin
                     </span>
                   )}
-                  {top && <StatusChip status={top} />}
+                  {m.accountStatus === USER_STATUS.ARCHIVED ? (
+                    <span className="shrink-0 text-xs font-normal text-muted-fg">
+                      archived
+                    </span>
+                  ) : (
+                    top && <StatusChip status={top} />
+                  )}
                 </PersonCell>
                 {/* On a phone the row folds to its headline — who, and what
                     the students who met them said back. Programs, booking

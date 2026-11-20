@@ -9,6 +9,7 @@ import {
   USER_STATUS,
   canActAsMentor,
   inStudentLens,
+  NOT_ARCHIVED,
 } from "@/lib/constants";
 import { soonestExpiry } from "@/lib/deadlines";
 import { formatDate, formatMinutes } from "@/lib/format";
@@ -229,7 +230,7 @@ export async function staffAttention(
         { now, programIds }
       ),
     prisma.mentorAssignment.findMany({
-      where: inScope ? { programId: inScope } : {},
+      where: { ...(inScope ? { programId: inScope } : {}), mentor: NOT_ARCHIVED },
       select: { mentorId: true, programId: true, calendlyUrl: true },
     }),
     // The same pool the mentors list works from: plain mentors plus dual-role

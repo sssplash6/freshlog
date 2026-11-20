@@ -1,3 +1,4 @@
+import { isArchived } from "@/lib/constants";
 import { FolderIcon, SendIcon } from "@/components/icons";
 
 import { PersonCell } from "@/components/person-chip";
@@ -335,7 +336,16 @@ export function StudentsTable({
                     ) : undefined
                   }
                 >
-                  {top && <StatusChip status={top} className="shrink-0" />}
+                  {/* Only ever seen on the Archived list, where it is the one
+                      fact about the account worth a word — and never "has not
+                      signed in", which nobody can act on for somebody gone. */}
+                  {isArchived(s.user) ? (
+                    <span className="shrink-0 whitespace-nowrap text-xs font-normal text-muted-fg">
+                      archived
+                    </span>
+                  ) : (
+                    top && <StatusChip status={top} className="shrink-0" />
+                  )}
                   {s.enrollments.length === 0 && (
                     <span className="shrink-0 whitespace-nowrap text-xs font-normal text-muted-fg">
                       not in a program

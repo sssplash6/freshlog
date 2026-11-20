@@ -1,3 +1,4 @@
+import { NOT_ARCHIVED } from "@/lib/constants";
 import "server-only";
 
 import { nameOf } from "@/lib/api/v1/sessions";
@@ -44,7 +45,7 @@ function toProgramMentorTask(row: TaskRow, now: Date): ProgramMentorTask {
  */
 async function programStudentRefs(programId: string) {
   const rows = await prisma.studentEnrollment.findMany({
-    where: { programId },
+    where: { programId, student: { user: NOT_ARCHIVED } },
     select: { student: { select: { id: true, userId: true, user: { select: { name: true, email: true } } } } },
   });
   return rows

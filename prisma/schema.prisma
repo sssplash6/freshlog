@@ -36,7 +36,14 @@ model User {
   // person who can write ProgramStaff rows. Everyone else who administers
   // anything does it through the grants below, program by program.
   platformAdmin Boolean  @default(false)
-  status        String   @default("ACTIVE") // ACTIVE | UNASSIGNED (freshly signed-up mentors) | PENDING (self-signed-up students awaiting approval)
+  status        String   @default("ACTIVE") // ACTIVE | UNASSIGNED (freshly signed-up mentors) | PENDING (self-signed-up students awaiting approval) | ARCHIVED (left the school)
+  // Somebody who has left. Archiving changes these three columns and nothing
+  // else: every enrollment, pairing, grant, session and rating stays exactly
+  // where it was, which is the whole difference from deleting. `status` is
+  // what every reader filters on; these two say when and by whom, for the
+  // record's own page. Both go back to null when the person is restored.
+  archivedAt    DateTime?
+  archivedById  String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

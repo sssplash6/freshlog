@@ -80,7 +80,8 @@ async function audience(now: Date, force: boolean, only?: string) {
     where: {
       telegramUsername: null,
       user: {
-        status: { not: USER_STATUS.PENDING },
+        // Nor anybody archived: they have left, and cannot sign in to act on it.
+        status: { notIn: [USER_STATUS.PENDING, USER_STATUS.ARCHIVED] },
         NOT: { email: { endsWith: `@${PLACEHOLDER_EMAIL_DOMAIN}` } },
         ...(only ? { email: only.toLowerCase() } : {}),
       },

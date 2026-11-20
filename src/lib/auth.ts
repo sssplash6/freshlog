@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 
 import { ALLOWED_MENTOR_DOMAIN } from "../../config/app-config";
-import { ROLES, USER_STATUS } from "@/lib/constants";
+import { isArchived, ROLES, USER_STATUS } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -47,6 +47,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       const existing = await prisma.user.findUnique({ where: { email } });
       if (existing) {
+        // Somebody who has left. Sent back to the login page with a sentence
+        // of their own rather than let through to a cookie `getCurrentUser`
+        // would then refuse, which reads as a sign-in that silently failed.
+        if (isArchived(existing)) return "/login?error=Archived";
         // Backfill the name from Google for staff/students created by email only.
         if (!existing.name?.trim() && name) {
           await prisma.user.update({

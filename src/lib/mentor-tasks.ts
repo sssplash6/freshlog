@@ -1,3 +1,4 @@
+import { NOT_ARCHIVED } from "@/lib/constants";
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
@@ -27,7 +28,7 @@ export const MAX_MENTOR_TASK_NOTE = 500;
  */
 export async function programTeam(programId: string) {
   const pairings = await prisma.mentorAssignment.findMany({
-    where: { programId },
+    where: { programId, mentor: NOT_ARCHIVED },
     select: {
       mentor: {
         select: { id: true, name: true, email: true, avatarUpdatedAt: true },
