@@ -79,6 +79,14 @@ function webHref(url: string): string | null {
 }
 
 /** A contact link: a ghost icon button, the glyph on nothing until hovered. */
+/**
+ * Started gives way by the TABLE's width only, under 50rem (800px), where the
+ * name would drop below 15rem. Measured 23 November 2026: the name keeps 243px
+ * at 1366 with Program and Last session beside it, and 262px on a program's
+ * page beside the mentors rail. On a phone it folds.
+ */
+const STARTED_HIDDEN = "sm:@max-[50rem]:hidden";
+
 const ICON_LINK =
   "inline-flex h-11 w-11 items-center justify-center rounded-lg text-brand transition-colors hover:bg-fill sm:h-8 sm:w-8";
 
@@ -228,6 +236,12 @@ export function StudentsTable({
       // Up first: soonest at the top is the whole reason to click it. Rows
       // with nothing left to expire sit at the bottom either way (`lib/sort`).
       ...(on("deadline") ? { sort: "deadline" } : {}),
+    },
+    {
+      // The first sign-in (`User.firstSignInAt`). An eighth column, so it gives
+      // way when the table is narrow (`STARTED_HIDDEN`): the name keeps its width.
+      label: "Started",
+      className: STARTED_HIDDEN,
     },
     {
       label: "Last session",
@@ -449,6 +463,14 @@ export function StudentsTable({
                     {formatDuration(s.expiring.minutes)} to use
                   </span>
                 </span>
+              ) : (
+                <span className="text-muted-fg">—</span>
+              )}
+            </Td>
+
+            <Td label="Started" className={cn("whitespace-nowrap", STARTED_HIDDEN)} data-fold>
+              {s.user.firstSignInAt ? (
+                <span className="text-ink">{formatDate(s.user.firstSignInAt)}</span>
               ) : (
                 <span className="text-muted-fg">—</span>
               )}

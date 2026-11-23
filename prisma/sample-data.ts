@@ -108,6 +108,8 @@ async function main() {
         name: s.name,
         role: "STUDENT",
         status: "ACTIVE",
+        // A handle means they have signed in (the "Not signed in" chip's test).
+        ...(s.telegram ? { firstSignInAt: new Date() } : {}),
       },
     });
     const profile = await prisma.studentProfile.upsert({

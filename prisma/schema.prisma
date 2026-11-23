@@ -86,6 +86,11 @@ model User {
   // and the phone open on the same side and a switch on one moves the other.
   // Null until they switch; the old cookie answers until then.
   profile String?
+  // When they first signed in, on the web or in the app: a student's start
+  // date on the roster. Stamped once and never moved. Whoever had signed in
+  // before this was recorded (23 November 2026) carries the day they were
+  // added instead, as the owner chose. Null: never signed in.
+  firstSignInAt       DateTime?
 
   studentProfile     StudentProfile?          @relation("StudentUser")
   createdStudents     StudentProfile[]         @relation("CreatedBy")

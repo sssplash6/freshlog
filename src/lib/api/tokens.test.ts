@@ -21,6 +21,13 @@ describe("bearer tokens", () => {
     expect(expiresAt).toEqual(at(90 * DAY));
   });
 
+  it("records the first sign-in once, and a later one never moves it", async () => {
+    const m = await mentor();
+    await issueToken(m.id, null, T0);
+    await issueToken(m.id, null, at(5 * DAY));
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: m.id } })).firstSignInAt).toEqual(T0);
+  });
+
   it("stores only the token's SHA-256", async () => {
     const m = await mentor();
     const { token } = await issueToken(m.id, null, T0);

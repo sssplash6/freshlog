@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 
 import { ALLOWED_MENTOR_DOMAIN } from "../../config/app-config";
+import { stampFirstSignIn } from "@/lib/api/tokens";
 import { isArchived, ROLES, USER_STATUS } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 
@@ -103,7 +104,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { email: user.email.toLowerCase() },
           select: { id: true },
         });
-        if (dbUser) token.uid = dbUser.id;
+        if (dbUser) {
+          token.uid = dbUser.id;
+          await stampFirstSignIn(dbUser.id);
+        }
       }
       return token;
     },

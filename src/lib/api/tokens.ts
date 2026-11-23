@@ -55,6 +55,16 @@ export function bearerFrom(header: string | null): string | null | undefined {
  * `userForToken` refuses such a row from that moment, and nothing else would ever
  * remove it.
  */
+/**
+ * The first sign-in, web or app: a student's start date. Only ever set once,
+ * and never fatal, since a sign-in must not fail over a roster date.
+ */
+export async function stampFirstSignIn(userId: string, now: Date = new Date()): Promise<void> {
+  await prisma.user
+    .updateMany({ where: { id: userId, firstSignInAt: null }, data: { firstSignInAt: now } })
+    .catch((error) => console.error("[auth] first sign-in not recorded:", error));
+}
+
 export async function issueToken(
   userId: string,
   deviceName: string | null,
@@ -64,6 +74,7 @@ export async function issueToken(
     where: { OR: [{ expiresAt: { lte: now } }, { revokedAt: { not: null } }] },
   });
 
+  await stampFirstSignIn(userId, now);
   const token = newSecret();
   const expiresAt = addDays(now, TOKEN_TTL_DAYS);
   // The clock is the caller's, so the three dates are written here and not left

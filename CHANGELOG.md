@@ -8,6 +8,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 
 ### New
 - **Hours left on each Analytics program card.** Beside a program's total, each card now says how many hours its students still have to use, and how many expired unused. The figures match the Programs page.
+- **See when each student started.** The student list has a Started column: the day the student first signed in, on the web or in the app. Students who signed in before 23 November show the day they were added. On a phone, open a student's row to see it.
 
 ## 2026-11-20
 
