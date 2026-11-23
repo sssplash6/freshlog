@@ -1410,7 +1410,7 @@ function ProgramCards({
                     whole year both "13% of the 734h granted". */}
                 <span className="min-w-0 text-xs tabular-nums text-muted-fg">
                   {p.granted > 0
-                    ? `${Math.round(progress * 100)}% of ${formatDuration(p.granted)} total, to date`
+                    ? `${Math.round(progress * 100)}% of ${formatDuration(p.granted)} total, to date · ${stockOf(grantOf(data.rows, data.programs, i))}`
                     : "no total set"}
                 </span>
               </span>
@@ -1443,7 +1443,7 @@ function ProgramCards({
                 <span className="min-w-0 truncate font-medium text-ink">{p.name}</span>
                 <span className="min-w-0 flex-1 truncate">
                   · nothing logged in {period}
-                  {p.granted > 0 ? ` · ${formatDuration(p.granted)} total` : ""}
+                  {p.granted > 0 ? ` · ${formatDuration(p.granted)} total · ${stockOf(grantOf(data.rows, data.programs, i))}` : ""}
                 </span>
                 <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-fg" />
               </button>
@@ -1453,6 +1453,15 @@ function ProgramCards({
       )}
     </section>
   );
+}
+
+/**
+ * "210h left", "9h over", plus "· 12h expired" when any expired: without the
+ * expired hours, the total, the percentage and what is left do not add up.
+ */
+function stockOf({ remaining, forfeited }: GrantState): string {
+  const left = remaining < 0 ? formatBalance(remaining) : `${formatBalance(remaining)} left`;
+  return forfeited > 0 ? `${left} · ${formatDuration(forfeited)} expired` : left;
 }
 
 /** "1 mentor", "13 mentors". */

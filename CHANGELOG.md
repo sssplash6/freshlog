@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-11-23
+
+### New
+- **Hours left on each Analytics program card.** Beside a program's total, each card now says how many hours its students still have to use, and how many expired unused. The figures match the Programs page.
+
 ## 2026-11-20
 
 ### New
