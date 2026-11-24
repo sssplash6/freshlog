@@ -116,7 +116,7 @@ export default async function ClassesPage({
               const mine = c.mentorId === viewer.id;
               const started = c.startsAt.getTime() <= nowWall.getTime();
               const day = formatFullDate(c.startsAt);
-              const logHref = `/sessions/new?student=${c.studentId}&programId=${c.programId}&minutes=${c.minutes}&date=${toDateInputValue(c.startsAt)}`;
+              const logHref = `/sessions/new?student=${c.studentId}&programId=${c.programId}&minutes=${c.minutes}&date=${toDateInputValue(c.startsAt)}&classId=${c.id}`;
               return (
                 <li key={c.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-5">
                   <div className="min-w-0">

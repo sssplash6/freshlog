@@ -4,6 +4,15 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-11-24
+
+### New
+- **Log a Meet call in one click.** With the Freshlog call logger in Chrome, a prompt appears when your Google Meet call ends. It opens Log a session with the length, the day, the student and whether they came already filled in. Check it and save.
+- **Logging a class marks it held.** Log a session from a class on the Classes page, or from a call matched to one, and the class is marked held when you save. You no longer mark it by hand afterwards.
+
+### Fixed
+- **Signing in takes you back where you were.** Opening a Freshlog link while signed out used to land you on your home page after Google sign-in. It now opens the page the link was for.
+
 ## 2026-11-23
 
 ### New

@@ -155,7 +155,16 @@ export default async function LogSessionPage({
         note: one("note"),
     attendance: one("attendance"),
     timeKind: one("timeKind"),
+    // A class from the diary, so saving marks it held. Dropped with the rest
+    // when the named student is not one this reader can log for.
+    classId: lost ? undefined : one("classId"),
   };
+
+  // `?call=15:02–15:49`, from the call extension by way of
+  // `/sessions/from-call`: everything above was filled in from a Meet call, and
+  // the mentor is told so before they trust it.
+  const call = one("call");
+  const fromCall = call && /^\d\d:\d\d–\d\d:\d\d$/.test(call) ? call : undefined;
 
   // An admin who does not mentor has no /mentor to go back to — the ledger is
   // where they came from and the only one of the three that will let them in.
@@ -241,7 +250,11 @@ export default async function LogSessionPage({
         backHref={back}
         backLabel={backLabel}
         title={forGroup ? "Log an hour for a group" : "Log a session"}
-        subtitle={program ? `In ${program.name}` : undefined}
+        subtitle={
+          [program ? `In ${program.name}` : null, fromCall ? `From your call, ${fromCall}. Check it, then save.` : null]
+            .filter(Boolean)
+            .join(" · ") || undefined
+        }
       />
 
       {students.length === 0 && mentors.length === 0 ? (

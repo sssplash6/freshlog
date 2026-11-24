@@ -5,6 +5,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { signIn } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/dal";
 import { homeFor, profileOf } from "@/lib/profile";
+import { safeNext } from "@/lib/safe-next";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -21,16 +22,20 @@ const ERROR_MESSAGES: Record<string, string> = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
   // Send genuinely signed-in people to their own home. This is a VERIFIED
   // check, not the cookie-presence one the proxy used to do: a user whose
   // cookie no longer decrypts must be able to reach this form and sign in
   // again, which overwrites the bad cookie.
   const user = await getCurrentUser();
-  if (user) redirect(homeFor(user, await profileOf(user)));
+  const { error, next: rawNext } = await searchParams;
+  // Where a signed-out visitor was going (the proxy sends it). Only a path on
+  // this site gets through `safeNext`, so a crafted link cannot bounce
+  // somebody off to another site after they sign in.
+  const next = safeNext(rawNext);
+  if (user) redirect(next ?? homeFor(user, await profileOf(user)));
 
-  const { error } = await searchParams;
   const errorMessage = error
     ? (ERROR_MESSAGES[error] ?? ERROR_MESSAGES.Default)
     : null;
@@ -76,7 +81,7 @@ export default async function LoginPage({
         <form
           action={async () => {
             "use server";
-            await signIn("google", { redirectTo: "/" });
+            await signIn("google", { redirectTo: next ?? "/" });
           }}
         >
           <SubmitButton

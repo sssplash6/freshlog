@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { loginFor } from "@/lib/safe-next";
+
 // Optimistic auth check only (cookie presence — no DB, no JWT verification).
 // Real enforcement lives in the DAL (src/lib/dal.ts): every page and server
 // action verifies the session and role server-side.
@@ -93,7 +95,11 @@ export default function proxy(req: NextRequest) {
   );
 
   if (!hasSessionCookie && !isPublic) {
-    return NextResponse.redirect(new URL("/login", req.nextUrl));
+    // Back to where they were going once they have signed in: a mentor whose
+    // call extension opened a filled-in Log a session form while signed out
+    // lost the form to the home page. `loginFor` lets only a path on this
+    // site through, and `/` adds nothing.
+    return NextResponse.redirect(new URL(loginFor(`${pathname}${req.nextUrl.search}`), req.nextUrl));
   }
 
   // Deliberately NOT the mirror image of the rule above: a PRESENT cookie is
