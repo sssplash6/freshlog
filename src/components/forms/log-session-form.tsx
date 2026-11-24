@@ -96,6 +96,11 @@ export type LogSessionDraft = {
   note?: string;
   attendance?: string;
   timeKind?: string;
+  /**
+   * The diary class this session delivers, when it was opened from one (the
+   * Classes page, or a Meet call matched to one). Saving marks it held.
+   */
+  classId?: string;
 };
 
 /**
@@ -893,6 +898,7 @@ export function LogSessionForm({
         {programs.length === 1 && (
           <input type="hidden" name="programId" value={programs[0].value} />
         )}
+        {opening.classId && <input type="hidden" name="classId" value={opening.classId} />}
         {programField}
         {agendaField}
         <AttendancePicker key={`attendance-${attempt}`} defaultValue={opening.attendance} />

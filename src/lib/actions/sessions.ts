@@ -38,6 +38,7 @@ import {
 } from "@/lib/format";
 import { describeSessionChange } from "@/lib/session-change";
 import { programToday } from "@/lib/when";
+import { CLASS_STATUS } from "@/lib/class-schedule";
 import { chargeableAgainst } from "@/lib/deadlines";
 import { syncGoalProgress } from "@/lib/goal-progress";
 import { parseNewAgendaField } from "@/lib/tasks";
@@ -242,6 +243,7 @@ const LOG_FIELDS = [
   "note",
   "attendance",
   "timeKind",
+  "classId",
 ] as const;
 
 function submitted(formData: FormData): Record<string, string> {
@@ -561,6 +563,27 @@ export async function logSession(
         ...timeKindFields(kind),
       },
     });
+
+    // Logged from a class in the diary (the Classes page, or a Meet call the
+    // extension matched to one): that class was held, by this session. Only
+    // this mentor's still-open class for this student and program, so a
+    // tampered id marks nothing. Only a session that charges, as
+    // markClassHeld requires: a rescheduled meeting or extra time leaves the
+    // class reserving, or its hour would be promised and never spent.
+    const classId = String(formData.get("classId") ?? "").trim();
+    if (classId && !rescheduled && withinPlan) {
+      await tx.scheduledClass.updateMany({
+        where: {
+          id: classId,
+          mentorId: mentor.id,
+          studentId: profile.id,
+          programId,
+          status: CLASS_STATUS.SCHEDULED,
+          sessionId: null,
+        },
+        data: { status: CLASS_STATUS.HELD, sessionId: session.id },
+      });
+    }
 
     // The carve, when logging from the pool: what the session charges becomes
     // this mentor's own allocation, and the pool shrinks by the same amount. A

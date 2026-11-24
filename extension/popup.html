@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Freshlog call logger</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --ink: #1c1917;
+        --muted: #78716c;
+        --line: #e7e5e4;
+        --brand: #b45309;
+        --brand-soft: #fef3c7;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1c1917;
+          --ink: #f5f5f4;
+          --muted: #a8a29e;
+          --line: #44403c;
+          --brand: #fbbf24;
+          --brand-soft: #451a03;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        width: 320px;
+        background: var(--bg);
+        color: var(--ink);
+        font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      header, section { padding: 12px 14px; }
+      section + section { border-top: 1px solid var(--line); }
+      h1 { margin: 0; font-size: 14px; font-weight: 600; }
+      h2 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+      .live { margin-top: 4px; color: var(--muted); }
+      .live.on { color: var(--brand); font-weight: 500; }
+      ul { list-style: none; margin: 0; padding: 0; }
+      li { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+      li + li { border-top: 1px solid var(--line); }
+      .what { flex: 1; min-width: 0; }
+      .what small { display: block; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .done { color: var(--muted); }
+      button {
+        font: inherit;
+        border: 0;
+        border-radius: 999px;
+        padding: 4px 10px;
+        cursor: pointer;
+        background: var(--brand-soft);
+        color: var(--brand);
+        font-weight: 500;
+      }
+      button.quiet { background: transparent; color: var(--muted); padding: 4px 6px; }
+      .empty { color: var(--muted); margin: 0; }
+      .warn { margin: 8px 0 0; padding: 6px 8px; border-radius: 6px; background: var(--brand-soft); color: var(--ink); }
+      label { display: block; margin-top: 8px; }
+      label:first-of-type { margin-top: 0; }
+      input[type="url"] {
+        width: 100%;
+        margin-top: 2px;
+        padding: 5px 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+      }
+      .check { display: flex; gap: 6px; align-items: flex-start; }
+      .saved { color: var(--muted); font-size: 12px; min-height: 1em; margin: 6px 0 0; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Freshlog call logger</h1>
+      <p id="live" class="live">Not in a Meet call.</p>
+      <p id="degraded" class="warn" hidden>
+        Google Meet has changed. Calls are still timed, but names may not be
+        read. Ask whoever looks after Freshlog to update the extension.
+      </p>
+    </header>
+    <section>
+      <h2>Recent calls</h2>
+      <ul id="calls"></ul>
+      <p id="empty" class="empty" hidden>No calls yet. Join a Meet call in Chrome and it will be timed.</p>
+    </section>
+    <section>
+      <h2>Settings</h2>
+      <label>
+        Freshlog address
+        <input id="appUrl" type="url" placeholder="https://www.freshlog.net" />
+      </label>
+      <label class="check">
+        <input id="autoOpen" type="checkbox" />
+        <span>Open the log form as soon as a call ends, instead of asking first</span>
+      </label>
+      <p id="saved" class="saved"></p>
+    </section>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

@@ -7,6 +7,14 @@ function signedOut(path: string) {
   return proxy(new NextRequest(new URL(path, "https://www.freshlog.net"), { method: "POST" }));
 }
 
+/** The page a redirect lands on, without the `?next=` it carries back. */
+function landsOn(res: Response) {
+  const location = res.headers.get("location");
+  if (!location) return null;
+  const url = new URL(location);
+  return `${url.origin}${url.pathname}`;
+}
+
 describe("proxy", () => {
   it("lets Telegram's webhook through without a session", () => {
     const res = signedOut("/api/telegram/webhook");
@@ -21,7 +29,7 @@ describe("proxy", () => {
   // The prefix is "/f" exactly or "/f/…" — not every path that starts with an f.
   it("does not open /feedback along with /f", () => {
     const res = signedOut("/feedback");
-    expect(res.headers.get("location")).toBe("https://www.freshlog.net/login");
+    expect(landsOn(res)).toBe("https://www.freshlog.net/login");
   });
 
   // The pass cookie's path is the stored, lowercase slug; any other spelling
@@ -38,7 +46,14 @@ describe("proxy", () => {
 
   it("still sends a signed-out visitor to /login", () => {
     const res = signedOut("/bugs/triage");
-    expect(res.headers.get("location")).toBe("https://www.freshlog.net/login");
+    expect(landsOn(res)).toBe("https://www.freshlog.net/login");
+  });
+
+  // So a filled-in form (the call logger's, say) survives signing in.
+  it("tells the login page where the visitor was going", () => {
+    const res = signedOut("/sessions/from-call?start=1&end=2");
+    const next = new URL(res.headers.get("location")!).searchParams.get("next");
+    expect(next).toBe("/sessions/from-call?start=1&end=2");
   });
 
   it("lets the app's API through without a cookie", () => {
@@ -51,6 +66,6 @@ describe("proxy", () => {
   });
 
   it("still sends a look-alike path to the login page", () => {
-    expect(signedOut("/api/v1x").headers.get("location")).toBe("https://www.freshlog.net/login");
+    expect(landsOn(signedOut("/api/v1x"))).toBe("https://www.freshlog.net/login");
   });
 });

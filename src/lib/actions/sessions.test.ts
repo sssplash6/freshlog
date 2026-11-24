@@ -609,3 +609,84 @@ describe("a session's date", () => {
     expect(notice?.message).toMatch(/moved to .*\d{4} \(was .*\d{4}\)/);
   });
 });
+
+describe("logSession for a class in the diary", () => {
+  async function setup() {
+    const p = await program("Imkon");
+    const s = await student({ programId: p.id });
+    const m = await mentor("Dilnoza");
+    await pairing({ mentorId: m.id, programId: p.id });
+    const cls = await prisma.scheduledClass.create({
+      data: {
+        studentId: s.id,
+        programId: p.id,
+        mentorId: m.id,
+        startsAt: new Date("2026-09-03T15:00:00Z"),
+        minutes: 60,
+      },
+    });
+    actor.value = m;
+    return { p, s, m, cls };
+  }
+
+  it("marks the class held against the session it logged", async () => {
+    const { s, cls } = await setup();
+
+    const state = await log(s.id, { classId: cls.id, attendance: "ATTENDED" });
+
+    expect(state).toMatchObject({ ok: true });
+    const session = await prisma.session.findFirstOrThrow({ where: { studentId: s.id } });
+    await expect(prisma.scheduledClass.findUnique({ where: { id: cls.id } })).resolves.toMatchObject({
+      status: "HELD",
+      sessionId: session.id,
+    });
+  });
+
+  it("leaves the class open when the meeting was rescheduled", async () => {
+    const { s, cls } = await setup();
+
+    await log(s.id, { classId: cls.id, attendance: "RESCHEDULED" });
+
+    await expect(prisma.scheduledClass.findUnique({ where: { id: cls.id } })).resolves.toMatchObject({
+      status: "SCHEDULED",
+      sessionId: null,
+    });
+  });
+
+  it("leaves the class open when the time was extra", async () => {
+    const { s, cls } = await setup();
+
+    await log(s.id, { classId: cls.id, attendance: "ATTENDED", timeKind: "EXTRA" });
+
+    await expect(prisma.scheduledClass.findUnique({ where: { id: cls.id } })).resolves.toMatchObject({
+      status: "SCHEDULED",
+      sessionId: null,
+    });
+  });
+
+  it("does not touch a class with another student, and still logs the session", async () => {
+    const { p, cls } = await setup();
+    const other = await student({ programId: p.id });
+
+    const state = await log(other.id, { classId: cls.id, attendance: "ATTENDED" });
+
+    expect(state).toMatchObject({ ok: true });
+    await expect(prisma.scheduledClass.findUnique({ where: { id: cls.id } })).resolves.toMatchObject({
+      status: "SCHEDULED",
+      sessionId: null,
+    });
+  });
+
+  it("does not touch another mentor's class", async () => {
+    const { p, s, cls } = await setup();
+    const colleague = await mentor("Akmal");
+    await pairing({ mentorId: colleague.id, programId: p.id });
+    actor.value = colleague;
+
+    await log(s.id, { classId: cls.id, attendance: "ATTENDED" });
+
+    await expect(prisma.scheduledClass.findUnique({ where: { id: cls.id } })).resolves.toMatchObject({
+      status: "SCHEDULED",
+    });
+  });
+});
