@@ -163,7 +163,9 @@ export async function createMentor(
   revalidatePath("/", "layout");
   return {
     ok: true,
-    message: `Mentor ${name} (${email}) registered in ${done.labels}. They can sign in with Google right away and set their booking links.`,
+    message: done.alsoStudent
+      ? `${done.name} (${email}) is a student here, and now mentors too, in ${done.labels}. They switch to the mentor side from their account menu and set their booking links there.`
+      : `Mentor ${name} (${email}) registered in ${done.labels}. They can sign in with Google right away and set their booking links.`,
   };
 }
 
@@ -174,13 +176,21 @@ type Target = NonNullable<Awaited<ReturnType<typeof resolveAssignmentTargets>>>[
  * the name and that the actor may place them in every target. Shared by the
  * one-at-a-time form and the list, so a mentor registered from a pasted list
  * is the same account, greeted the same way.
+ *
+ * `name` is what the admin typed. A student who is made a mentor keeps the
+ * name on their record, and the one returned is the one the account has.
  */
 async function registerMentor(
   actor: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>,
   email: string,
   name: string,
   targets: readonly Target[]
-): Promise<{ ok: true; labels: string } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; labels: string; name: string; alsoStudent: boolean }
+  | { ok: false; error: string }
+> {
+  const labels = targets.map((t) => t.label).join(", ");
+
   // Somebody who tried to sign in before being registered is a PENDING student
   // on this address, on no roster an admin could remove them from — and the
   // mentor picker never lists a student, so they could not be found to assign
@@ -195,17 +205,42 @@ async function registerMentor(
         error: `${email} is already a mentor. Open them under Mentors to add programs.`,
       };
     }
+    // A real student stays the student they are — their hours, sessions and
+    // record are untouched — and becomes a mentor beside it, the way a
+    // dual-role admin is: `isMentor` on the same account, plus the pairings.
+    // They get the Student/Mentor switch, and the Mentors list finds them.
+    // One who has left the school is not brought back this way.
     if (holder?.role === ROLES.STUDENT) {
-      return {
-        ok: false,
-        error: `${email} is already a student here, so they can't be registered as a mentor.`,
-      };
+      if (holder.status !== USER_STATUS.ACTIVE) {
+        return {
+          ok: false,
+          error: `${email} is a student here whose account isn't active, so they can't be made a mentor. Restore or approve them first.`,
+        };
+      }
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({ where: { id: holder.id }, data: { isMentor: true } });
+        await tx.mentorAssignment.createMany({
+          data: targets.map((t) => ({
+            mentorId: holder.id,
+            programId: t.programId,
+            levelId: t.levelId,
+            cohortId: t.cohortId,
+          })),
+        });
+        await notify(tx, {
+          to: [holder.id],
+          type: NOTIFICATION_TYPES.MENTOR_ASSIGNED,
+          actorId: actor.id,
+          href: notificationHref.mentorHome(),
+          message: `You can now mentor in ${labels}. Switch to the mentor side from your account menu, and set your booking link there so students can book you.`,
+        });
+      });
+      return { ok: true, labels, name: holder.name ?? name, alsoStudent: true };
     }
     return { ok: false, error: claim.error };
   }
   const { stub } = claim;
 
-  const labels = targets.map((t) => t.label).join(", ");
   await prisma.$transaction(async (tx) => {
     if (stub) await removeStub(tx, stub);
     const mentor = await tx.user.create({
@@ -234,14 +269,14 @@ async function registerMentor(
     });
   });
 
-  return { ok: true, labels };
+  return { ok: true, labels, name, alsoStudent: false };
 }
 
 /**
  * Admin registers a LIST of mentors into the same programs at once — a new
  * intake of mentors pasted from a spreadsheet or imported from a file. Each
  * row is registered exactly as `createMentor` registers one; a row that cannot
- * be (a bad address, one name, somebody already here) is skipped and named,
+ * be (a bad address, one name, a mentor already here) is skipped and named,
  * and the rest still go in. The programs are checked once, before any row.
  */
 export async function createMentors(
@@ -292,7 +327,7 @@ export async function createMentors(
     }
     const done = await registerMentor(actor, r.email, parsed.value, targets);
     if (done.ok) {
-      added.push(parsed.value);
+      added.push(done.name);
       labels = done.labels;
     } else {
       skipped.push(`${r.email} (${done.error.replace(`${r.email} `, "").replace(/\.$/, "")})`);

@@ -144,22 +144,71 @@ describe("registering a mentor on an address that has already signed in", () => 
     expect(await prisma.studentProfile.findUnique({ where: { id: held.profile.id } })).toBeNull();
   });
 
-  it("still refuses an address held by a real student, and says so", async () => {
+  it("makes a real student a mentor too, on the same account", async () => {
     const { createMentor } = await import("@/lib/actions/mentors");
     const prog = await program("Refusing");
+    const sat = await program("SAT Individuals");
     actor.value = await platformAdmin("Registrar Two");
     const real = await student({ programId: prog.id, name: "Real Student" });
+    await allocation({ studentId: real.id, programId: prog.id, minutes: 60 });
     const owner = await prisma.user.findUniqueOrThrow({ where: { id: real.userId } });
 
     const data = new FormData();
     data.append("email", owner.email);
-    data.append("firstName", "Real");
+    data.append("firstName", "Typed");
+    data.append("lastName", "Differently");
+    data.append("targets", `p:${sat.id}`);
+    const result = await createMentor(null, data);
+
+    expect(result).toMatchObject({ ok: true });
+    expect((result as { message: string }).message).toMatch(
+      /^Real Student \(.+\) is a student here, and now mentors too, in SAT Individuals/
+    );
+    const after = await prisma.user.findUniqueOrThrow({
+      where: { id: owner.id },
+      include: { mentorAssignments: true, studentProfile: true, notifications: true },
+    });
+    expect(after.role).toBe(ROLES.STUDENT);
+    expect(after.isMentor).toBe(true);
+    expect(after.name).toBe("Real Student");
+    expect(after.studentProfile?.id).toBe(real.id);
+    expect(after.mentorAssignments.map((a) => a.programId)).toEqual([sat.id]);
+    expect(after.notifications).toHaveLength(1);
+    await expect(
+      prisma.hourAllocation.count({ where: { studentId: real.id } })
+    ).resolves.toBe(1);
+    await expect(prisma.user.count({ where: { email: owner.email } })).resolves.toBe(1);
+
+    // Asked again, they are a mentor already.
+    const again = await createMentor(null, data);
+    expect((again as { error: string }).error).toMatch(/already a mentor/);
+  });
+
+  it("refuses a student who has left the school", async () => {
+    const { createMentor } = await import("@/lib/actions/mentors");
+    const prog = await program("Left");
+    actor.value = await platformAdmin("Registrar Four");
+    const real = await student({ programId: prog.id, name: "Gone Student" });
+    await allocation({ studentId: real.id, programId: prog.id, minutes: 60 });
+    const owner = await prisma.user.update({
+      where: { id: real.userId },
+      data: { status: USER_STATUS.ARCHIVED },
+    });
+
+    const data = new FormData();
+    data.append("email", owner.email);
+    data.append("firstName", "Gone");
     data.append("lastName", "Student");
     data.append("targets", `p:${prog.id}`);
     const result = await createMentor(null, data);
 
     expect(result?.ok).toBe(false);
-    expect((result as { error: string }).error).toMatch(/already a student/);
+    expect((result as { error: string }).error).toMatch(/isn't active/);
+    const after = await prisma.user.findUniqueOrThrow({ where: { id: owner.id } });
+    expect(after.isMentor).toBe(false);
+    await expect(
+      prisma.mentorAssignment.count({ where: { mentorId: owner.id } })
+    ).resolves.toBe(0);
   });
 });
 

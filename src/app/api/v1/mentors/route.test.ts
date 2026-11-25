@@ -89,13 +89,16 @@ describe("POST /api/v1/mentors", () => {
     expect((await register(req("POST", { mentors: [{ firstName: "A", lastName: "B", email: "ab@test.invalid" }], targets: [{ program: p.id }] }))).status).toBe(403);
   });
 
-  it("refuses an email that is already a student's, in the action's words", async () => {
-    const { aziz, nodira } = await setUp();
+  it("makes a student on that email a mentor too, keeping their student account", async () => {
+    const { p, aziz, nodira } = await setUp();
     const email = (await prisma.user.findUniqueOrThrow({ where: { id: aziz.userId } })).email;
     actor.value = { id: nodira.id };
-    const res = await register(req("POST", { ...newMentor([]), email, targets: [{ program: (await prisma.program.findFirstOrThrow()).id }] }));
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toMatch(/already a student/);
+    const res = await register(req("POST", { ...newMentor([]), email, targets: [{ program: p.id }] }));
+    expect(res.status).toBe(200);
+    expect((await res.json()).message).toMatch(/Aziz Tursunov .* is a student here, and now mentors too/);
+    const after = await prisma.user.findUniqueOrThrow({ where: { id: aziz.userId }, include: { mentorAssignments: true } });
+    expect(after).toMatchObject({ role: "STUDENT", isMentor: true, name: "Aziz Tursunov" });
+    expect(after.mentorAssignments.map((a) => a.programId)).toEqual([p.id]);
   });
 
   it("a target outside the reader's programs is a 404, a Leader's a 403, bad fields named", async () => {

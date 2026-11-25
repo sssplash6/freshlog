@@ -4,6 +4,11 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-11-25
+
+### New
+- **Make a student a mentor too.** Register a mentor with the email of a student who is already here. Instead of an error, they keep their student account and can now also mentor in the programs you picked. They switch between the two from their account menu.
+
 ## 2026-11-24
 
 ### New
