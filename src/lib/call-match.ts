@@ -8,11 +8,16 @@
  * opens `/sessions/from-call` in the mentor's signed-in browser, and this file
  * is how that page decides what to put in the form.
  *
- * It only ever PREFILLS. The mentor still reads the form and presses Save, and
- * the session then goes through `logSession` like any other: the same gates,
- * the same ledger, the same notice to the student, who can still dispute it. A
- * guess here costs a mentor one correction; a guess that logged itself would
- * spend a student's hours on a call that was a staff meeting.
+ * A guess only PREFILLS: the mentor reads the form and presses Save. A guess
+ * that logged itself would spend a student's hours on a call that was a staff
+ * meeting with a namesake.
+ *
+ * The one thing that is not a guess is an email. Students are asked to put the
+ * email they sign in to Freshlog with in their Meet name ("Aziz Karimov
+ * aziz@gmail.com"), and a match on it is `via: "email"`, which the route logs
+ * by itself (`/sessions/from-call`). It still goes through `logSession` like
+ * any other: the same gates, the same ledger, the same notice to the student,
+ * who can dispute it.
  *
  * Pure: no database, no clock. The page fetches the candidates and hands them in.
  */
@@ -23,7 +28,8 @@ const MINUTE = 60 * 1000;
 
 /** At most this many names travel in the URL. A lesson is two or three people. */
 export const MAX_CALL_PEOPLE = 15;
-const MAX_NAME_LENGTH = 60;
+// Room for a full name and an email: "Malika Xoliqova malika.xoliqova@gmail.com".
+const MAX_NAME_LENGTH = 100;
 
 /**
  * How late counts as late. A student who joined within this of the class's
@@ -119,6 +125,11 @@ export function nameTokens(name: string): string[] {
   return latin.split(/[^a-z0-9]+/).filter((t) => t.length >= 2);
 }
 
+/** The emails written in a display name, lowercased. */
+export function emailsIn(name: string): string[] {
+  return (name.match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g) ?? []).map((e) => e.toLowerCase());
+}
+
 /** How many of the student's name words the display name carries. */
 function overlap(display: string[], student: string[]): number {
   const want = new Set(student);
@@ -130,6 +141,8 @@ export type CallStudent = {
   name: string;
   /** The programs the form can log this student into. */
   programIds: string[];
+  /** The email they sign in with, which they put in their Meet name. */
+  email?: string;
 };
 
 export type CallClass = {
@@ -146,7 +159,7 @@ export type CallMatch = {
   programId?: string;
   classId?: string;
   /** What the guess rests on, for the line above the form. */
-  via?: "class" | "name";
+  via?: "email" | "class" | "name";
   attendance?: (typeof ATTENDANCE)["ATTENDED" | "LATE"];
 };
 
@@ -156,6 +169,8 @@ export type CallMatch = {
  * and the date filled in, which is still most of the typing saved.
  *
  * Evidence, strongest first:
+ *   0. A participant whose display name carries exactly one student's email.
+ *      Two students' emails in one call is a group, and no answer from this.
  *   1. A participant whose display name carries two or more of exactly one
  *      student's name words. That is who was actually there, and it beats the
  *      diary: a class moved to another day is still that student's lesson.
@@ -211,6 +226,21 @@ export function matchCall({
   };
   const strong = only(2);
 
+  // Emails beat names: they are the student's own, typed by them.
+  const byEmail = new Map<string, string>();
+  for (const s of students) if (s.email) byEmail.set(s.email.toLowerCase(), s.profileId);
+  const emailed = new Map<string, number>();
+  for (const p of people) {
+    for (const email of emailsIn(p.name)) {
+      const id = byEmail.get(email);
+      if (!id) continue;
+      const was = emailed.get(id);
+      if (was === undefined || p.firstSeen < was) emailed.set(id, p.firstSeen);
+    }
+  }
+  // Whoever matched by email was there, whatever their name words say.
+  for (const [id, firstSeen] of emailed) seen.set(id, { score: Infinity, firstSeen });
+
   // Classes the call overlaps, the longest overlap first.
   const callStart = report.start + wallOffsetMs;
   const callEnd = report.end + wallOffsetMs;
@@ -249,6 +279,11 @@ export function matchCall({
     };
   };
 
+  if (emailed.size === 1) {
+    const [id] = emailed.keys();
+    const theirs = overlapping.find((x) => x.c.studentId === id);
+    return { ...(theirs ? fromClass(theirs.c) : fromName(id)), via: "email" };
+  }
   if (strong) {
     const theirs = overlapping.find((x) => x.c.studentId === strong);
     return theirs ? fromClass(theirs.c) : fromName(strong);

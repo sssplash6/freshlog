@@ -13,14 +13,19 @@ checks it and presses Save. Nothing is logged without them.
    ends when the mentor leaves, closes the tab, moves to another meeting, or the
    tab goes quiet for 2½ minutes (crash, laptop lid). The rules are in
    `tracker.js` and tested in `src/lib/call-tracker.test.ts`.
-3. When a call of 3 minutes or more ends, a notification asks **Log it** or
-   **Not a lesson**. Unanswered calls show as a number on the toolbar icon and
-   wait in the popup for a week.
-4. **Log it** opens `<Freshlog>/sessions/from-call?start=…&end=…&p=…` in the
-   mentor's own signed-in browser. The app works out the student from the
-   mentor's class diary and the names in the call (`src/lib/call-match.ts`),
-   then shows Log a session with the length, date, student, program and
-   attended or late filled in.
+3. When a call of 3 minutes or more ends, it opens
+   `<Freshlog>/sessions/from-call?start=…&end=…&p=…` in the mentor's own
+   signed-in browser. (A mentor can switch that off in the popup, and be asked
+   **Log it** or **Not a lesson** in a notification instead; Safari has no
+   notifications, so there it always opens.) Calls show in the popup for a week.
+4. The app works out the student (`src/lib/call-match.ts`):
+   - **By email.** Students put the email they sign in to Freshlog with in
+     their Meet name: "Aziz Karimov aziz@gmail.com". A match on it, in one
+     program, with nothing logged with them that day yet, is logged straight
+     away and opened on Sessions for the mentor to correct if need be.
+   - **Otherwise** from the mentor's class diary and the names in the call. It
+     shows Log a session with the length, date, student, program and attended
+     or late filled in, for the mentor to save.
 
 The extension holds no login and talks to no server. It only opens a page in
 the browser, so the app's usual session cookie and gates decide what happens.
@@ -31,6 +36,19 @@ the browser, so the app's usual session cookie and gates decide what happens.
 2. **Load unpacked** and pick this `extension/` folder.
 3. Pin it. Open the popup to point it at a local app (`http://localhost:3000`)
    if you are not testing against `https://www.freshlog.net`.
+
+## Safari
+
+`safari/` at the repo root packages the same code as a Mac app with a Safari
+extension inside. Safari differs in three ways (no module service worker, no
+`world: "MAIN"`, no notifications), so `node safari/build.mjs` writes a Safari
+copy to `safari/extension/` first. Then build `safari/Freshlog Call Logger/` in
+Xcode. To hand it out without the App Store, sign it with a Developer ID and
+notarize it (Safari 18.4 and later load those).
+
+For a quick local test without signing: Safari → Settings → Developer → tick
+**Allow unsigned extensions**, then **Add Temporary Extension…** and pick
+`safari/extension/`. Safari forgets both when it quits.
 
 ## Install it for every mentor (always on)
 
@@ -73,4 +91,4 @@ the call's length or date. To fix it, update the selectors at the top of
   filled-in form and marks the class held on save.
 - A student is guessed only from the mentor's own caseload. Two students who
   share a first name and no surname on the tile are not guessed between.
-- Signed out: Freshlog asks for Google sign-in, then opens the filled-in form.
+- Signed out: Freshlog asks for Google sign-in, then carries on where the call left off.

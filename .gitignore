@@ -59,3 +59,6 @@ prisma/*.db.pre-migrate-*
 
 # Daily backups the db-backup cron writes beside the database (dev runs only)
 /prisma/backups/
+
+# safari: built by safari/build.mjs from extension/
+/safari/extension/

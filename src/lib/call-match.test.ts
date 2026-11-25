@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   callMinutes,
+  emailsIn,
   matchCall,
   nameTokens,
   parseCallReport,
@@ -158,5 +159,68 @@ describe("matchCall", () => {
   it("ignores a class in a program the form cannot log into", () => {
     const m = matchCall({ ...base, report: report([]), students: [aziz], classes: [cls("aziz", "ms", T15)] });
     expect(m).toEqual({});
+  });
+
+  describe("by the email in a Meet name", () => {
+    const azizE = { ...aziz, email: "aziz.k@gmail.com" };
+    const azizBE = { ...azizB, email: "Aziz.R@Gmail.com" };
+    const malikaE = { ...malika, email: "malika@freshman.academy" };
+
+    it("finds the student whose email it is, and says so", () => {
+      const m = matchCall({ ...base, report: report([["Aziz aziz.r@gmail.com", T15]]), students: [azizE, azizBE], classes: [] });
+      expect(m).toEqual({ studentProfileId: "aziz-b", programId: "ga", via: "email", attendance: "ATTENDED" });
+    });
+
+    it("needs no name words at all", () => {
+      const m = matchCall({ ...base, report: report([["AZIZ.K@GMAIL.COM", T15]]), students: [azizE, azizBE], classes: [] });
+      expect(m).toMatchObject({ studentProfileId: "aziz", via: "email", attendance: "ATTENDED" });
+    });
+
+    it("beats a full name somebody else in the call has", () => {
+      const m = matchCall({
+        ...base,
+        report: report([["Aziz Karimov", T15], ["Malika malika@freshman.academy", T15]]),
+        students: [azizE, malikaE],
+        classes: [],
+      });
+      expect(m).toMatchObject({ studentProfileId: "malika", via: "email" });
+    });
+
+    it("takes the program and the lateness from the class it overlaps", () => {
+      const m = matchCall({
+        ...base,
+        report: report([["Malika Xoliqova malika@freshman.academy", T15 + 9 * MIN]]),
+        students: [malikaE],
+        classes: [cls("malika", "ms", T15)],
+      });
+      expect(m).toEqual({ studentProfileId: "malika", programId: "ms", classId: "c-malika", via: "email", attendance: "LATE" });
+    });
+
+    it("leaves the program open for a student in two, with no class to say which", () => {
+      const m = matchCall({ ...base, report: report([["malika@freshman.academy", T15]]), students: [malikaE], classes: [] });
+      expect(m).toMatchObject({ studentProfileId: "malika", programId: undefined, via: "email" });
+    });
+
+    it("is no answer when two students' emails are in the call", () => {
+      const m = matchCall({
+        ...base,
+        report: report([["aziz.k@gmail.com", T15], ["aziz.r@gmail.com", T15]]),
+        students: [azizE, azizBE],
+        classes: [],
+      });
+      expect(m.via).not.toBe("email");
+    });
+
+    it("ignores an email that is nobody's on the caseload", () => {
+      const m = matchCall({ ...base, report: report([["Aziz Karimov stranger@gmail.com", T15]]), students: [azizE], classes: [] });
+      expect(m).toMatchObject({ studentProfileId: "aziz", via: "name" });
+    });
+  });
+});
+
+describe("emailsIn", () => {
+  it("finds every email in a display name, lowercased", () => {
+    expect(emailsIn("Aziz Karimov (Aziz.K+meet@Gmail.com)")).toEqual(["aziz.k+meet@gmail.com"]);
+    expect(emailsIn("Aziz Karimov")).toEqual([]);
   });
 });

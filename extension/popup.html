@@ -83,7 +83,7 @@
     <section>
       <h2>Recent calls</h2>
       <ul id="calls"></ul>
-      <p id="empty" class="empty" hidden>No calls yet. Join a Meet call in Chrome and it will be timed.</p>
+      <p id="empty" class="empty" hidden>No calls yet. Join a Meet call and it will be timed.</p>
     </section>
     <section>
       <h2>Settings</h2>
@@ -93,8 +93,9 @@
       </label>
       <label class="check">
         <input id="autoOpen" type="checkbox" />
-        <span>Open the log form as soon as a call ends, instead of asking first</span>
+        <span>Open Freshlog as soon as a call ends, instead of asking first</span>
       </label>
+      <p id="autoOpenHint" class="empty" hidden>Safari cannot ask first, so the form always opens.</p>
       <p id="saved" class="saved"></p>
     </section>
     <script type="module" src="popup.js"></script>

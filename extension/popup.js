@@ -1,4 +1,4 @@
-import { DEFAULT_APP_URL } from "./settings.js";
+import { DEFAULT_APP_URL, DEFAULT_AUTO_OPEN } from "./settings.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -81,9 +81,15 @@ async function resolve(id, status) {
 }
 
 async function showSettings() {
-  const s = await chrome.storage.sync.get({ appUrl: DEFAULT_APP_URL, autoOpen: false });
+  const s = await chrome.storage.sync.get({ appUrl: DEFAULT_APP_URL, autoOpen: DEFAULT_AUTO_OPEN });
   $("appUrl").value = s.appUrl;
   $("autoOpen").checked = Boolean(s.autoOpen);
+  // Safari has no notifications for extensions: the form always opens itself.
+  if (typeof chrome.notifications?.create !== "function") {
+    $("autoOpen").checked = true;
+    $("autoOpen").disabled = true;
+    $("autoOpenHint").hidden = false;
+  }
 
   const saved = (text) => {
     $("saved").textContent = text;

@@ -22,7 +22,7 @@ export default function PrivacyPage() {
         <h1 className="mt-4 text-figure-lg font-bold leading-tight tracking-[-0.01em] text-ink">
           Privacy policy
         </h1>
-        <p className="mt-1 text-body text-muted-fg">Last updated 24 November 2026</p>
+        <p className="mt-1 text-body text-muted-fg">Last updated 25 November 2026</p>
 
         <div className="mt-6 space-y-3 text-body leading-relaxed text-ink [&_h2]:pt-4 [&_h2]:text-base [&_h2]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_ul]:space-y-1.5">
           <p>
@@ -81,24 +81,28 @@ export default function PrivacyPage() {
             </li>
           </ul>
 
-          <h2>The call logger for Chrome</h2>
+          <h2>The call logger for Chrome and Safari</h2>
           <p>
-            Mentors may install the Freshlog call logger, a Chrome extension that times their
-            Google Meet lessons and opens the log form filled in when a call ends.
+            Mentors may install the Freshlog call logger, a Chrome or Safari extension that
+            times their Google Meet lessons and logs them in freshlog when a call ends.
           </p>
           <ul>
             <li>
               It runs only on meet.google.com, and only during a call. It reads the meeting
               code, when you joined and left, and the names on the video tiles and in the
-              People panel. Never the audio, video, chat or captions, or any other website.
+              People panel, including an email a student has put in their name. Never the
+              audio, video, chat or captions, or any other website.
             </li>
             <li>
               It sends nothing to any server. Calls are kept in your browser for a week, then
               deleted. Removing the extension deletes them at once.
             </li>
             <li>
-              When you choose Log it, it opens freshlog with the call&apos;s times, code and
-              names in the address, to fill in the form. Only the session you save is kept.
+              When a call ends, it opens freshlog in your browser with the call&apos;s times,
+              code and names in the address. If a student&apos;s name in the call carries the
+              email they use in freshlog, freshlog logs the session itself and shows it to you
+              to check; otherwise it fills in the log form for you to save. Nothing else from
+              the call is kept, and the student is told, as with any session.
             </li>
           </ul>
 

@@ -7,6 +7,7 @@ Write each item as `**Headline.** One line of detail.` — the headline is what 
 ## 2026-11-25
 
 ### New
+- **Meet calls log themselves.** Ask your students to put the email they use in Freshlog in their Google Meet name. When the call ends, the session is logged for you and opened on Sessions to check. Without the email, the call logger fills in the form for you to save, as before.
 - **Make a student a mentor too.** Register a mentor with the email of a student who is already here. Instead of an error, they keep their student account and can now also mentor in the programs you picked. They switch between the two from their account menu.
 
 ## 2026-11-24

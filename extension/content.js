@@ -54,15 +54,23 @@
     return { inCall: degraded, degraded, since: degraded ? rtcSince : undefined };
   }
 
-  /** A line of tile text that could be a person's name. */
+  /** An email in a Meet name: students put the one they use in Freshlog there. */
+  const EMAIL = /[\w.+-]+@[\w-]+(\.[\w-]+)+/g;
+
+  /** A line of tile text that could be a person's name, with any email in it. */
   function plausible(line) {
     const text = line.trim();
-    if (text.length < 2 || text.length > 60) return null;
-    if (!/\p{L}/u.test(text)) return null;
-    if (/[0-9:@/]/.test(text)) return null;
-    if (NOT_NAMES.test(text)) return null;
-    // "Aziz Karimov (You)", "Aziz (Presenting)": the name is before the bracket.
-    return text.replace(/\s*\(.*\)\s*$/, "") || null;
+    if (text.length < 2 || text.length > 100) return null;
+    // The rest of the line has to read as a name on its own: digits and colons
+    // are a clock or a meeting code, not a person. The email is allowed them.
+    const rest = text.replace(EMAIL, " ").trim();
+    const hasEmail = rest !== text;
+    if (!hasEmail && !/\p{L}/u.test(rest)) return null;
+    if (/[0-9:@/]/.test(rest)) return null;
+    if (!hasEmail && NOT_NAMES.test(rest)) return null;
+    // "Aziz Karimov (You)", "Aziz (Presenting)": the name is before the bracket,
+    // unless the bracket is the email: "Aziz Karimov (aziz@gmail.com)".
+    return text.replace(/\s*\(([^()]*)\)\s*$/, (all, inside) => (inside.includes("@") ? all : "")) || null;
   }
 
   function people() {

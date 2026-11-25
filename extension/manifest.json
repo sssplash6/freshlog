@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Freshlog call logger",
   "short_name": "Freshlog",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Times your Google Meet lessons and opens Freshlog's Log a session form already filled in when the call ends.",
   "icons": {
     "16": "icons/icon-16.png",

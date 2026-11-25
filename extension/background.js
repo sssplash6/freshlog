@@ -12,6 +12,11 @@ import { emptyState, logUrl, onTabGone, onTick, remember, sweep } from "./tracke
 
 const SWEEP_ALARM = "sweep";
 
+// Safari gives extensions no notifications, so there is nobody to ask "Log
+// it?" and the form opens by itself when a call ends. Chrome asks first unless
+// the mentor turned that off in the popup.
+const CAN_NOTIFY = typeof chrome.notifications?.create === "function";
+
 let queue = Promise.resolve();
 
 /**
@@ -34,7 +39,8 @@ function update(change) {
 
 /** @param {import("./tracker.js").EndedCall[]} ended */
 async function finished(ended, now) {
-  const { appUrl, autoOpen } = await settings();
+  const { appUrl, autoOpen: chosen } = await settings();
+  const autoOpen = chosen || !CAN_NOTIFY;
   const { calls = [] } = await chrome.storage.local.get("calls");
   const marked = ended.map((c) => ({ ...c, status: autoOpen ? "opened" : "new" }));
   await chrome.storage.local.set({ calls: remember(calls, marked, now) });
@@ -83,7 +89,7 @@ async function resolve(id, status) {
     const { appUrl } = await settings();
     await chrome.tabs.create({ url: logUrl(appUrl, call) });
   }
-  chrome.notifications.clear(id);
+  if (CAN_NOTIFY) chrome.notifications.clear(id);
   await badge();
 }
 
@@ -119,12 +125,14 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   update((state) => onTabGone(state, String(tabId)));
 });
 
-chrome.notifications.onButtonClicked.addListener((id, index) => {
-  resolve(id, index === 0 ? "opened" : "dismissed");
-});
-chrome.notifications.onClicked.addListener((id) => {
-  resolve(id, "opened");
-});
+if (CAN_NOTIFY) {
+  chrome.notifications.onButtonClicked.addListener((id, index) => {
+    resolve(id, index === 0 ? "opened" : "dismissed");
+  });
+  chrome.notifications.onClicked.addListener((id) => {
+    resolve(id, "opened");
+  });
+}
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === SWEEP_ALARM) update((state, now) => sweep(state, now));
