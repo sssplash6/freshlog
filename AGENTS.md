@@ -8,6 +8,28 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Start every piece of work from `origin/main`
+
+Several people and their agents push to `main` every day. A branch cut from a
+stale local `main`, or from whatever branch the checkout happens to be on,
+starts days behind: you rebuild what already shipped, report as missing what
+is already live, and undo work you never saw.
+
+So, before the first edit of a new task:
+
+1. `git fetch origin`, then branch from the fresh tip:
+   `git switch -c <branch> origin/main`. Never from local `main`, never from
+   the branch you found the checkout on.
+2. If the checkout has uncommitted changes, they belong to someone else's
+   task. Do not carry them into yours, and do not stash, reset or commit them
+   yourself. Ask the user, or work in a separate worktree cut from
+   `origin/main`.
+3. When you answer "is this done / is this live?", answer from `origin/main`
+   after a fetch, not from the local branch.
+
+Continuing a branch that is already yours is fine. If `origin/main` has moved
+since then, bring it in before you push.
+
 ## Gate every page, not just its layout
 
 Next renders a layout and its page **in parallel**. A redirect thrown by a
