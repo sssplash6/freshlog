@@ -97,6 +97,11 @@ services:
       #   openssl rand -base64 32 — encrypts the stored Google tokens
       - key: GOOGLE_TOKEN_KEY
         sync: false
+      # Guards /api/payroll/v1, which FreshWeek's payroll calls for mentors'
+      # payable hours. Must equal FRESHLOG_API_SECRET on FreshWeek. Unset, every
+      # payroll call answers 503. openssl rand -hex 32
+      - key: PAYROLL_API_SECRET
+        sync: false
 
   # Daily deadline reminders. The SQLite disk belongs to the web service, so
   # the cron job can't touch the database directly — it calls the app's

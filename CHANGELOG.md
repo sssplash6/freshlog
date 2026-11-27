@@ -4,6 +4,12 @@ What we have added and fixed, newest first. Each commit that changes what you se
 
 Write each item as `**Headline.** One line of detail.` — the headline is what people skim.
 
+## 2026-11-26
+
+### New
+- **Mentors paid by the hour.** Platform admins can now set what each mentor is paid per logged hour, from a chosen day, under Platform → Mentor pay. Rates are only ever added, so past months keep the rate they were worked out at. Every active session counts, including no-shows and extra time.
+- **See your pay.** Mentors with an hourly rate can open My pay from their account menu: their rate, and the sessions, hours and amount for each month. File your pay request in FreshWeek, where these hours now fill in by themselves.
+
 ## 2026-11-25
 
 ### New

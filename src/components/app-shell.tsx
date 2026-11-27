@@ -17,6 +17,7 @@ import {
   LogOutIcon,
   SparklesIcon,
   UserIcon,
+  WalletIcon,
 } from "@/components/icons";
 import { NavCount, NavLinks } from "@/components/nav-links";
 import {
@@ -295,6 +296,14 @@ function AccountMenu({
         <Link href={`/mentors/${user.id}`} transitionTypes={["nav-forward"]} className={MENU_ROW}>
           <UserIcon className={MENU_ICON} />
           Your mentor page
+        </Link>
+      )}
+
+      {/* Their own rate and what their hours come to; nobody else's. */}
+      {mentorProfile && (
+        <Link href="/mentor/pay" transitionTypes={["nav-forward"]} className={MENU_ROW}>
+          <WalletIcon className={MENU_ICON} />
+          My pay
         </Link>
       )}
 

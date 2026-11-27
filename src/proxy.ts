@@ -39,6 +39,11 @@ import { loginFor } from "@/lib/safe-next";
 //
 // /privacy and /support are the pages the App Store listing links to, read by
 // Apple's review and by anyone before they have an account. Static text.
+//
+// /api/payroll is FreshWeek's server asking for mentors' payable hours. It
+// carries a PAYROLL_API_SECRET bearer, never a cookie, and every handler checks
+// that on its first line (src/lib/payroll-api/server.ts). A bounce to /login
+// would hand the payroll an HTML sign-in page where it expects JSON.
 const PUBLIC_PATHS = [
   "/login",
   "/unsubscribe",
@@ -49,6 +54,7 @@ const PUBLIC_PATHS = [
   "/api/v1",
   "/privacy",
   "/support",
+  "/api/payroll",
 ];
 
 /**

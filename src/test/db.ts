@@ -41,6 +41,7 @@ export async function resetDb() {
   await prisma.partnerStudent.deleteMany();
   await prisma.partnerStaff.deleteMany();
   await prisma.feedbackPartner.deleteMany();
+  await prisma.mentorPayRate.deleteMany();
   await prisma.user.deleteMany();
   await prisma.cohort.deleteMany();
   await prisma.programLevel.deleteMany();

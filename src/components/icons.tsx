@@ -383,3 +383,14 @@ export function FlagIcon({ className }: { className?: string }) {
     </Svg>
   );
 }
+
+/** Pay: a wallet. */
+export function WalletIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3" />
+      <path d="M4 7.5v10A1.5 1.5 0 0 0 5.5 19H20V8H6.5A2.5 2.5 0 0 1 4 7.5Z" />
+      <circle cx="16" cy="13.5" r="1" />
+    </Svg>
+  );
+}

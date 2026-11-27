@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "generatedAt": "2026-12-28T10:00:00.000Z",
+  "mentor": {
+    "email": "mentor@freshman.academy",
+    "name": "Test Mentor",
+    "rates": [
+      { "effectiveFrom": "2026-12-01", "centsPerHour": 2000 },
+      { "effectiveFrom": "2026-12-15", "centsPerHour": 2500 }
+    ],
+    "sessions": [
+      { "id": "s-dec02", "date": "2026-12-02", "loggedAt": "2026-12-02T12:00:00.000Z", "minutes": 60, "centsPerHour": 2000, "student": "Student One", "program": "SAT", "noShow": false, "extra": false, "disputed": false },
+      { "id": "s-dec10", "date": "2026-12-10", "loggedAt": "2026-12-11T09:00:00.000Z", "minutes": 45, "centsPerHour": 2000, "student": "Student One", "program": "SAT", "noShow": true, "extra": false, "disputed": false },
+      { "id": "s-dec16", "date": "2026-12-16", "loggedAt": "2026-12-16T15:00:00.000Z", "minutes": 90, "centsPerHour": 2500, "student": "Student Two", "program": "Global Admissions", "noShow": false, "extra": true, "disputed": false },
+      { "id": "s-dec20", "date": "2026-12-20", "loggedAt": "2026-12-27T08:00:00.000Z", "minutes": 25, "centsPerHour": 2500, "student": "Student Two", "program": "Global Admissions", "noShow": false, "extra": false, "disputed": true }
+    ]
+  }
+}

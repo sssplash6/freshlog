@@ -5,6 +5,7 @@ import { PersonCell } from "@/components/person-chip";
 import { ProgramChip } from "@/components/program-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FactList } from "@/components/ui/fact-list";
+import { ArrowLink } from "@/components/ui/link";
 import { PageTitle, Section } from "@/components/ui/section";
 import { Table, Td, Tr, type Column } from "@/components/ui/table";
 import { ALLOWED_MENTOR_DOMAIN } from "../../../../config/app-config";
@@ -180,6 +181,21 @@ export default async function PlatformPage() {
             ))}
           </Table>
         )}
+      </Section>
+
+      {/* Its own page: rates are confidential and have their own history,
+          and this page is about who administers what. */}
+      <Section
+        title="Mentor pay"
+        action={
+          <ArrowLink href="/settings/platform/pay" className="text-xs">
+            Rates and payable hours
+          </ArrowLink>
+        }
+      >
+        <p className="px-4 py-2 text-sm text-muted-fg sm:px-5">
+          What each mentor is paid per logged hour. FreshWeek&apos;s payroll reads it from here.
+        </p>
       </Section>
 
       <Section eyebrow="Read-only" title="Organisation">

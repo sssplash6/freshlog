@@ -56,6 +56,13 @@ describe("proxy", () => {
     expect(next).toBe("/sessions/from-call?start=1&end=2");
   });
 
+  it("lets FreshWeek's payroll calls through without a cookie", () => {
+    expect(signedOut("/api/payroll/v1/hours?email=a@b.c").headers.get("location")).toBeNull();
+    expect(signedOut("/api/payroll/v1/mentors").headers.get("location")).toBeNull();
+    // The prefix, not every path that starts with it.
+    expect(landsOn(signedOut("/api/payrollx"))).toBe("https://www.freshlog.net/login");
+  });
+
   it("lets the app's API through without a cookie", () => {
     expect(signedOut("/api/v1/me").headers.get("location")).toBeNull();
   });
